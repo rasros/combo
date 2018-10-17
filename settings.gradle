@@ -1,0 +1,6 @@
+rootProject.name = 'combo'
+
+include ':common'
+include ':jvm'
+include ':js'
+include ':jvm-demo'
