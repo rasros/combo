@@ -33,7 +33,7 @@ fun main(args: Array<String>) {
 
 The flag function creates a feature with boolean on/off values. In this model the sub-features `moviesDrama` and `moviesSciFi` can only be true if their parent `movies`. In logic, this is the relation: moviesDrama => movies AND moviesSciFi => movies. There will be no assignments where this is not uphold. Combo supports some additional constraints (formally pseudo-boolean constraints). For example:
 
-```
+```kotlin
     val model = Model.builder("Top categories")
             //...
             // This ensures that only one of moviesDrama and moviesSciFi will be true simultaneously
@@ -43,8 +43,28 @@ The flag function creates a feature with boolean on/off values. In this model th
             .build()
 ```
 
-
 ## Optimizer
+
+Creating an optimizer is simple, creating the _right_ optimizer can be a challenge.
+
+
+### Combinatorial bandit
+```kotlin
+// Using the feature model "model" from before
+val optimizer = Optimizer.combinatorialBandit(model)
+```
+
+Using the combinatorial bandit will create This will enumerate each possible solution and keep track of the performance of each possible solution individually. For a small model like the basic model above (with only 8 possible solutions) this might be good enough or even the best solution. However, this scales exponentially in the number of variables so for large models this approach is not feasible.
+
+Note that the combinatorial bandit is implemented using Thompson sampling, thus you have to specify which posterior distribution the rewards are modeled with. By default this is the normal distribution. For binary rewards (success/failure) you can use:
+
+```kotlin
+val optimizer = Optimizer.combinatorialBandit(model, posterior = binomial())
+```
+
+### Genetic algorithm
+### Decision tree bandit
+### Generalized linear model bandit
 
 ## Why not A/B Testing?
 
@@ -55,3 +75,6 @@ The limitations of A/B testing as an optimization method is as follows.
 3. Personalization. A/B testing does not directly deal with personalization, meaning that all users will get the same version of software. If the site is split into multiple segments then the experiment data cannot be shared between the different segments.
 
 Obviously this does not mean that A/B testing is useless or should not be done. An implementaiton of an optimization system with Combo should definitely be A/B tested to verify that it works as intended.
+
+# Support
+Feel free to contact me, the author, at rasmus at cs.lth.se in case of trouble or need of help. I might require you to give an experience report though :)
