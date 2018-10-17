@@ -1,0 +1,99 @@
+package combo.model
+
+import combo.sat.BitFieldLabeling
+import combo.sat.SparseLabeling
+import combo.test.assertContentEquals
+import kotlin.test.*
+
+class AssignmentTest {
+    @Test
+    fun getBooleanFlag() {
+        val f = flag()
+        val m = Model.builder().optional(f).build()
+        assertEquals(true, m.toAssignment(BitFieldLabeling(1, LongArray(1) { 0b1 }))[f])
+        assertEquals(false, m.toAssignment(BitFieldLabeling(1, LongArray(1) { 0b0 }))[f])
+    }
+
+    @Test
+    fun getFlag() {
+        val f = flag(10)
+        val m = Model.builder().optional(f).build()
+        assertEquals(10, m.toAssignment(BitFieldLabeling(1, LongArray(1) { 0b1 }))[f])
+        assertEquals(null, m.toAssignment(BitFieldLabeling(1, LongArray(1) { 0b0 }))[f])
+    }
+
+    @Test
+    fun getOr() {
+        val f = or(10, 20)
+        val m = Model.builder().mandatory(f).build()
+        assertEquals(setOf(10), m.toAssignment(BitFieldLabeling(2, LongArray(1) { 0b01 }))[f])
+        assertEquals(setOf(10, 20), m.toAssignment(BitFieldLabeling(2, LongArray(1) { 0b11 }))[f])
+    }
+
+    @Test
+    fun getAlternative() {
+        val f = alternative("a", "b")
+        val m = Model.builder().optional(f).build()
+        assertNull(m.toAssignment(BitFieldLabeling(3, LongArray(1) { 0b000 }))[f])
+        assertEquals("a", m.toAssignment(BitFieldLabeling(3, LongArray(3) { 0b011 }))[f])
+        assertEquals("b", m.toAssignment(BitFieldLabeling(3, LongArray(3) { 0b101 }))[f])
+    }
+
+    @Test
+    fun getOrThrow() {
+        val f = flag(value = "a", name = "f")
+        val m = Model.builder().optional(f).build()
+        assertFailsWith(ValidationException::class) {
+            assertNull(m.toAssignment(BitFieldLabeling(3, LongArray(1) { 0b000 })).getOrThrow(f))
+        }
+        assertEquals("a", m.toAssignment(BitFieldLabeling(3, LongArray(3) { 0b011 })).getOrThrow(f))
+    }
+
+    @Test
+    fun getOrDefault() {
+        val f = flag(value = "a", name = "f")
+        val m = Model.builder().optional(f).build()
+        assertEquals("b", m.toAssignment(BitFieldLabeling(3, LongArray(1) { 0b000 })).getOrDefault(f, "b"))
+        assertEquals("a", m.toAssignment(BitFieldLabeling(3, LongArray(3) { 0b011 })).getOrDefault(f, "b"))
+    }
+
+    @Test
+    fun iterator() {
+        val root = flag()
+        val m = Model.builder(root)
+                .optional(flag())
+                .optional(alternative(1..5))
+                .optional(or(1..5)).build()
+        val a = m.toAssignment(BitFieldLabeling(13))
+        for (amt in a) {
+            if (amt.feature != root)
+                assertNull(amt.value)
+        }
+    }
+
+    @Test
+    fun map() {
+        val f1 = flag()
+        val a1 = alternative(1..5)
+        val or1 = or(1..5)
+        val m = Model.builder().optional(f1).optional(a1).optional(or1).build()
+        val a = m.toAssignment(SparseLabeling(m.problem.nbrVariables, intArrayOf(0, 2, 12)))
+        val map = a.map
+        assertEquals(true, map[f1])
+        assertEquals(5, map[a1])
+        assertEquals(4, map.size)
+        assertEquals(setOf(m.features[0], f1, a1, or1), map.keys)
+        assertContentEquals(listOf(true, true, 5, null), map.values.toList())
+    }
+
+    @Test
+    fun contains() {
+        val f1 = flag()
+        val f2 = flag()
+        val m = Model.builder().optional(f1).build()
+        val a = m.toAssignment(BitFieldLabeling(1))
+        assertTrue(a.containsKey(f1))
+        assertFalse(a.containsKey(f2))
+        assertTrue(a.containsValue(true))
+    }
+}
