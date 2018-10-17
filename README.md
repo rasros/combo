@@ -1,6 +1,6 @@
 # COMBO
 
-Combo is a library for Constrained Online Multi-variate Bandit Optimization (COMBO). It is used to optimize software with user data in a production environment. It supports multiple optimization methods, such as generalized linear bandits, decision tree bandits, and genetic algorithms. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
+Combo is a library for Constrained Online Multi-variate Bandit Optimization (COMBO). It is used to optimize software with user data in a production environment. It supports multiple optimization methods, such as generalized linear bandits, decision tree bandits, and genetic algorithms. Using Combo, each user can recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
 
 Using it requires three steps: 
 
@@ -14,7 +14,6 @@ A feature model is a tree that describes the variables in the optimization probl
 
 ```kotlin
 import combo.model.Model
-import combo.model.atMost
 import combo.model.flag
 
 fun main(args: Array<String>) {
@@ -28,10 +27,11 @@ fun main(args: Array<String>) {
                     .optional(moviesDrama)
                     .optional(moviesSciFi))
             .optional(games)
-            .constrained(atMost(moviesDrama, moviesSciFi, degree = 1))
             .build()
 }
 ```
+
+The flag function creates a feature with boolean on/off values. In this model the sub-features `moviesDrama` and `moviesSciFi` can only be true if their parent `movies`. In logic, this is the relation: moviesDrama => movies AND moviesSciFi => movies. There will be no assignments where this is not uphold. Combo supports some additional constraints (formally pseudo-boolean constraints). For example:
 
 ## Optimizer
 
