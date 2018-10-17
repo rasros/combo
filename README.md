@@ -33,6 +33,17 @@ fun main(args: Array<String>) {
 
 The flag function creates a feature with boolean on/off values. In this model the sub-features `moviesDrama` and `moviesSciFi` can only be true if their parent `movies`. In logic, this is the relation: moviesDrama => movies AND moviesSciFi => movies. There will be no assignments where this is not uphold. Combo supports some additional constraints (formally pseudo-boolean constraints). For example:
 
+```
+    val model = Model.builder("Top categories")
+            //...
+            // This ensures that only one of moviesDrama and moviesSciFi will be true simultaneously
+            // A top-k category list in this way is a simple matter of adding an atMost constraint with each leaf-node
+            // in the feature model, with degree = k
+            .constrained(atMost(moviesDrama, moviesSciFi, degree = 1))
+            .build()
+```
+
+
 ## Optimizer
 
 ## Why not A/B Testing?
