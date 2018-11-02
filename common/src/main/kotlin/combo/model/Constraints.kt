@@ -150,6 +150,9 @@ fun and(vararg sents: BaseSentenceBuilder): BaseSentenceBuilder {
 fun and(vararg refs: Reference): ConjunctionBuilder = ConjunctionBuilder(refs)
 fun or(vararg refs: Reference): DisjunctionBuilder = DisjunctionBuilder(refs)
 
+fun or(refs: Iterable<Reference>) : DisjunctionBuilder = DisjunctionBuilder(refs.asSequence().toList().toTypedArray())
+fun and(refs: Iterable<Reference>) : ConjunctionBuilder = ConjunctionBuilder(refs.asSequence().toList().toTypedArray())
+
 @JvmOverloads
 fun atMost(refs: Iterable<Reference>, degree: Int = 1) =
         CardinalityBuilder(refs.toList().toTypedArray(), degree, Cardinality.Operator.AT_MOST)
@@ -193,7 +196,7 @@ infix fun Reference.reified(clause: ClauseBuilder) = object : SentenceBuilder {
             arrayOf(Reified(this@reified.toLiteral(ri.indexOf(this@reified)), clause.toClause(ri))
                     .apply { validate() })
 
-    override fun toString() = "Reified($this, $clause)"
+    override fun toString() = "Reified(${this@reified}, $clause)"
 }
 
 private class Not(private val wrap: Reference) : Reference() {
