@@ -50,7 +50,7 @@ class Model private constructor(val featureMetas: Map<Feature<*>, FeatureMeta<*>
             val unitLiterals = IndexSet()
             val rootFeature = root.value
             unitLiterals.add(rootFeature.toLiteral(index.indexOf(rootFeature)))
-            val problem = Problem(fullSentences, index.nbrVariables, Problem.Tree(-1)).unitPropagation(unitLiterals)
+            val problem = Problem(fullSentences, index.nbrVariables).unitPropagation(unitLiterals)
 
             val remappedIds = IntArray(problem.nbrVariables)
 
@@ -81,40 +81,13 @@ class Model private constructor(val featureMetas: Map<Feature<*>, FeatureMeta<*>
                     this[f.feature] = f
             }
 
-            fun FeatureTree.buildTree(treeTarget: Problem.Tree, children: MutableList<Problem.Tree>) {
-                val ixe = featureMetaMap[this.value]!!.indexEntry
-                val ids = ixe.indices
-                val newChildren: MutableList<Problem.Tree>
-                val newParent: Problem.Tree
-                if (ixe.isRootUnit()) {
-                    newChildren = ArrayList()
-                    newParent = Problem.Tree(ids[0], newChildren)
-                    children.add(newParent)
-                } else {
-                    newChildren = children
-                    newParent = treeTarget
-                }
-                for (i in 1 until ids.size) {
-                    if (ids[i] >= 0)
-                        newChildren.add(Problem.Tree(ids[i]))
-                }
-                this.children.forEach {
-                    it.buildTree(newParent, newChildren)
-                }
-            }
-
-            val problemTree = let {
-                val list = ArrayList<Problem.Tree>()
-                Problem.Tree(-1, list).also { pt -> root.buildTree(pt, list) }
-            }
-
             return Model(featureMetaMap,
-                    Problem(remappedSentences, nbrVariables, problemTree), root)
+                    Problem(remappedSentences, nbrVariables), root)
         }
 
         fun constrained(by: SentenceBuilder): Builder {
             for (ref in by.references) if (!declarations!!.contains(ref.rootFeature))
-                throw ValidationException("Use of undeclared reference in operator: " + by.toString())
+                throw ValidationException("Use of undeclared reference $ref in operator: $by")
             sentences!!.add(by)
             return this
         }
