@@ -1,13 +1,13 @@
 package combo.sat
 
+import combo.ga.LabelingInitializer
+import combo.ga.LookaheadInitializer
 import combo.math.IntPermutation
 import combo.math.Rng
 import combo.model.IterationsReachedException
 import combo.model.TimeoutException
 import combo.util.IndexSet
 import combo.util.millis
-import combo.ga.LabelingInitializer
-import combo.ga.LookaheadInitializer
 import kotlin.math.max
 import kotlin.math.min
 

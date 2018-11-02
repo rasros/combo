@@ -19,7 +19,7 @@ class RandomInitializer : LabelingInitializer {
             }
 }
 
-class LookaheadInitializer(problem: Problem, reversed: Boolean = false) : LabelingInitializer {
+class LookaheadInitializer(problem: Problem, reversed: Boolean = true) : LabelingInitializer {
 
     private val bfsRows: Array<IntArray>
 
@@ -39,8 +39,8 @@ class LookaheadInitializer(problem: Problem, reversed: Boolean = false) : Labeli
                 }
             }
         }
-        val depth = root.depth()
-        bfsRows = Array(depth + 1) { IntArray(0) }
+        val depth = root.depth() - 1
+        bfsRows = Array(depth) { IntArray(0) }
         fun buildBfsRows(ds: Array<IntArray>, t: VariableTree, depth: Int) {
             if (t.value >= 0)
                 ds[depth] = ds[depth] + t.value

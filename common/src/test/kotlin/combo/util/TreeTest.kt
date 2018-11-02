@@ -58,6 +58,7 @@ class TreeTest {
     @Test
     fun depth() {
         assertEquals(1, a.depth())
+        assertEquals(1, c.depth())
         assertEquals(2, e.depth())
         assertEquals(3, f.depth())
         assertEquals(4, h.depth())

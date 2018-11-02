@@ -5,7 +5,6 @@ import combo.model.ModelTest
 import combo.sat.BitFieldLabelingBuilder
 import combo.sat.Disjunction
 import combo.sat.Problem
-import combo.sat.smallSat
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,7 +14,7 @@ class RandomInitializerTest {
     fun generateSimple() {
         val init = RandomInitializer()
         val l = init.generate(ModelTest.m1.problem, BitFieldLabelingBuilder(), Rng(0))
-        assertEquals(smallSat.nbrVariables, l.size)
+        assertEquals(ModelTest.m1.problem.nbrVariables, l.size)
     }
 }
 

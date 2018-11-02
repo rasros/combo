@@ -1,21 +1,19 @@
 package combo.sat
 
-import combo.ga.RandomInitializer
 import combo.model.*
-import kotlin.test.Ignore
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class WalkSatTest : SolverTest() {
 
     @Test
-    @Ignore
     fun categoryTest() {
         val root = Model.builder("Category")
-        for (i in 1..3) {
+        for (i in 1..5) {
             val sub = Model.builder("Cat$i")
-            for (j in 1..3) {
+            for (j in 1..20) {
                 val subsub = Model.builder("Cat$i$j")
-                for (k in 1..3) {
+                for (k in 1..10) {
                     subsub.optional(flag("Cat$i$j$k"))
                 }
                 subsub.constrained(subsub.value reified or(subsub.children.map { it.value }))
@@ -24,14 +22,13 @@ class WalkSatTest : SolverTest() {
             sub.constrained(sub.value reified or(sub.children.map { it.value }))
             root.optional(sub)
         }
-        root.constrained(atMost(root.children.map { it.value }, 2))
-        root.constrained(exactly(root.leaves().map { it.value }.toList(), 5))
+        root.constrained(atMost(root.leaves().map { it.value }.toList(), 5))
         val model = root.build()
-        val walkSat = WalkSat(model.problem, init = RandomInitializer())
+        val walkSat = solver(model.problem)
         repeat(10) {
-            val l = walkSat.witness(intArrayOf(1))
-            println(l)
+            walkSat.witness(intArrayOf())
         }
+        assertEquals(0, walkSat.totalFlips)
     }
 
     override fun solver(problem: Problem) = WalkSat(problem)
