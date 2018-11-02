@@ -7,7 +7,7 @@ import combo.model.TimeoutException
 import combo.util.IndexSet
 import combo.util.millis
 import combo.ga.LabelingInitializer
-import combo.ga.TreeInitializerBFS
+import combo.ga.LookaheadInitializer
 import kotlin.math.max
 import kotlin.math.min
 
@@ -19,7 +19,7 @@ import kotlin.math.min
  */
 class WalkSat(val problem: Problem,
               override val config: SolverConfig = SolverConfig(),
-              val init: LabelingInitializer = TreeInitializerBFS(problem),
+              val init: LabelingInitializer = LookaheadInitializer(problem),
               val timeout: Long = -1L,
               val probRandomWalk: Double = 0.05,
               val maxRestarts: Int = Int.MAX_VALUE,
@@ -48,7 +48,7 @@ class WalkSat(val problem: Problem,
     }
 
     private fun satIteration(problem: Problem, labeling: MutableLabeling, rng: Rng, end: Long): MutableLabeling? {
-        val unsatisfied = IndexSet(max(64, problem.sentences.size / 8))
+        val unsatisfied = IndexSet(max(16, problem.sentences.size / 8))
         for ((i, s) in problem.sentences.withIndex()) {
             if (!s.satisfies(labeling)) {
                 unsatisfied.add(i)
