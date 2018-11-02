@@ -10,6 +10,15 @@ class TreeTest {
 
     // TODO more tests
 
+    // h
+    //   g
+    //   f
+    //     c
+    //     d
+    //     e
+    //       a
+    //       b
+
     private val a = TestTree("a", emptyList())
     private val b = TestTree("b", emptyList())
     private val c = TestTree("c", emptyList())
@@ -44,5 +53,13 @@ class TreeTest {
         assertTrue(f.contains(a))
         assertTrue(f.contains(b))
         assertTrue(f.containsAll(listOf(a, b)))
+    }
+
+    @Test
+    fun depth() {
+        assertEquals(1, a.depth())
+        assertEquals(2, e.depth())
+        assertEquals(3, f.depth())
+        assertEquals(4, h.depth())
     }
 }
