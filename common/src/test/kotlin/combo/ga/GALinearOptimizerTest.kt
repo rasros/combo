@@ -4,7 +4,9 @@ import combo.sat.LinearOptimizer
 import combo.sat.LinearOptimizerTest
 import combo.sat.Problem
 import combo.sat.SolverConfig
+import kotlin.test.Ignore
 
+@Ignore
 class GALinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem, config: SolverConfig) = GALinearOptimizer(problem, config)
 
