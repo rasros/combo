@@ -1,7 +1,9 @@
 package combo.sat
 
 class HillClimberTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, config: SolverConfig) = HillClimber(problem, config)
+    override fun optimizer(problem: Problem, config: SolverConfig) = HillClimber(
+            problem, config, WalkSatTest().solver(problem))
+
     override fun unsatOptimizer(problem: Problem, config: SolverConfig) = HillClimber(
             problem, config, WalkSatTest().unsatSolver(problem), restarts = 1)
 
