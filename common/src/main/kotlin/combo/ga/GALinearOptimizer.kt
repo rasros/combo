@@ -15,7 +15,7 @@ import kotlin.math.min
  */
 class GALinearOptimizer(val problem: Problem,
                         override val config: SolverConfig = SolverConfig(),
-                        val init: LabelingInitializer = ImplicationInitializer(),
+                        val init: LabelingInitializer = LookaheadInitializer(problem),
                         val popSize: Int = 50,
                         val maxIter: Int = Int.MAX_VALUE,
                         val timeout: Long = -1L,

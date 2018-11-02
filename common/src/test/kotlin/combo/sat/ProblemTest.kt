@@ -73,7 +73,7 @@ class ProblemTest {
                     .map { it.asLiteral(r.boolean()) }
                     .toList().toIntArray().apply { sort() }
             val sents: Array<Sentence> = p.sentences.toList().toTypedArray()
-            val p2 = Problem(sents + Conjunction(lits), p.nbrVariables, p.root)
+            val p2 = Problem(sents + Conjunction(lits), p.nbrVariables)
             val reduced = try {
                 p.unitPropagation(IndexSet().apply { addAll(lits) }, true)
             } catch (e: UnsatisfiableException) {

@@ -126,23 +126,6 @@ class ModelTest {
     }
 
     @Test
-    fun createdProblemTreeUniqueness() {
-        for (p in testModels.map { it.problem }) {
-            val values = p.root.asSequence().map { it.value }.toList()
-            assertEquals(values.toSet().size, values.size)
-        }
-    }
-
-    @Test
-    fun createdProblemTreeDenseness() {
-        for (p in testModels.map { it.problem }) {
-            val values = p.root.asSequence().map { it.value }.sorted().toList()
-            for ((i, j) in values.withIndex())
-                assertEquals(i, j + 1)
-        }
-    }
-
-    @Test
     fun cantUseUnregisteredFeature() {
         assertFailsWith(ValidationException::class) {
             Model.builder().constrained(flag()).build()
