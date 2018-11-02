@@ -4,8 +4,12 @@ import combo.model.UnsatisfiableException
 import combo.model.ValidationException
 import combo.util.IndexSet
 
-class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int, val root: Tree = Tree(-1)) {
+class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
+    /**
+     * This is actually an inverted implication graph.
+     * [value] is id of variable
+     */
     data class Tree(override val value: Int, override val children: List<Tree> = emptyList())
         : combo.util.Tree<Int, Tree>
 
@@ -95,7 +99,7 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int, val roo
                 .toList()
                 .toTypedArray()
         if (addConjunction && units.isNotEmpty()) reduced += Conjunction(units.toArray().apply { sort() })
-        return Problem(reduced, nbrVariables, root)
+        return Problem(reduced, nbrVariables)
     }
 }
 
