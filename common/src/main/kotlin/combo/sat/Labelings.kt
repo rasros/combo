@@ -95,6 +95,7 @@ class BitFieldLabelingBuilder : LabelingBuilder<BitFieldLabeling> {
 }
 
 class BitFieldLabeling constructor(override val size: Int, val field: LongArray) : MutableLabeling {
+    // TODO use size of long instead of 64 constant
 
     constructor(size: Int) : this(size, LongArray(size / 64 + if (size.rem(64) > 0) 1 else 0))
 
