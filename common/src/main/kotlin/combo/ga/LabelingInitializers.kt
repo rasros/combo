@@ -39,7 +39,7 @@ class LookaheadInitializer(problem: Problem, reversed: Boolean = false) : Labeli
                 }
             }
         }
-        val depth = problem.root.depth()
+        val depth = root.depth()
         bfsRows = Array(depth + 1) { IntArray(0) }
         fun buildBfsRows(ds: Array<IntArray>, t: VariableTree, depth: Int) {
             if (t.value >= 0)
