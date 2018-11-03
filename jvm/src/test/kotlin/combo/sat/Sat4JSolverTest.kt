@@ -6,8 +6,8 @@ class Sat4JSolverTest : SolverTest() {
     override fun solver(problem: Problem) = Sat4JSolver(problem)
 }
 
-class Sat4JOptimizerTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JOptimizer(problem, config)
-    override fun unsatOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JOptimizer(problem, config)
-    override fun timeoutOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JOptimizer(problem, config, timeout = 1L)
+class Sat4JLinearOptimizerTest : LinearOptimizerTest() {
+    override fun optimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config)
+    override fun unsatOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config)
+    override fun timeoutOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config, timeout = 1L)
 }

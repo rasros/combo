@@ -145,11 +145,11 @@ private fun IntArray.toLabeling(builder: LabelingBuilder<*>): Labeling {
     return builder.build(size, lits)
 }
 
-class Sat4JOptimizer(val problem: Problem,
-                     override val config: SolverConfig = SolverConfig(),
-                     val timeout: Long = -1L,
-                     val maxConflicts: Int = Int.MAX_VALUE,
-                     private var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver })
+class Sat4JLinearOptimizer(val problem: Problem,
+                           override val config: SolverConfig = SolverConfig(),
+                           val timeout: Long = -1L,
+                           val maxConflicts: Int = Int.MAX_VALUE,
+                           private var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver })
     : LinearOptimizer {
 
     override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
