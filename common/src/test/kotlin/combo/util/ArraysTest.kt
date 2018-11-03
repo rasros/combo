@@ -1,5 +1,6 @@
 package combo.util
 
+import combo.test.assertContentEquals
 import kotlin.test.Test
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -29,5 +30,26 @@ class ArraysTest {
     fun shouldNotCopyArray() {
         val array = IntArray(10)
         assertSame(array, array.applyTransform { it + 1 })
+    }
+
+    @Test
+    fun removeOne() {
+        assertTrue(intArrayOf(1).remove(0).isEmpty())
+    }
+
+    @Test
+    fun removeLast() {
+        assertContentEquals(intArrayOf(1, 2, 3), intArrayOf(1, 2, 3, 4).remove(3))
+    }
+
+    @Test
+    fun removeMiddle() {
+        assertContentEquals(intArrayOf(1, 3, 4), intArrayOf(1, 2, 3, 4).remove(1))
+        assertContentEquals(intArrayOf(1, 2, 4), intArrayOf(1, 2, 3, 4).remove(2))
+    }
+
+    @Test
+    fun removeFirst() {
+        assertContentEquals(intArrayOf(2, 3, 4), intArrayOf(1, 2, 3, 4).remove(0))
     }
 }

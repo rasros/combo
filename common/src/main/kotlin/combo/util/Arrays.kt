@@ -12,4 +12,4 @@ inline fun IntArray.applyTransform(transform: (Int) -> Int): IntArray {
     return this
 }
 
-fun IntArray.remove(ix: Int) = copyOfRange(0, ix - 1) + copyOfRange(ix, size)
+fun IntArray.remove(ix: Int) = copyOfRange(0, ix) + copyOfRange(ix + 1, size)
