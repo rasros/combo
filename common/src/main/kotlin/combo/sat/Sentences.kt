@@ -29,6 +29,7 @@ interface Sentence : Iterable<Literal> {
     fun remap(remappedIds: IntArray): Sentence {
         for ((i, l) in literals.withIndex()) {
             literals[i] = remappedIds[literals[i].asIx()].asLiteral(l.asBoolean())
+            require(literals[i] >= 0)
         }
         return this
     }
@@ -222,12 +223,14 @@ class Cardinality(override val literals: Literals, val degree: Int = 1, val oper
     override fun validate() {
         super.validate()
         for (l in literals)
-            if (!l.asBoolean()) throw ValidationException("Can only have non-negated literals in cardinality.")
+            if (!l.asBoolean())
+                throw ValidationException("Can only have non-negated literals in $this. " +
+                        "Offending literal: $l")
+        if ((operator == Operator.AT_LEAST || operator == Operator.EXACTLY) && degree > literals.size)
+            throw UnsatisfiableException("$this is not satisfiable (${literals.size} cannot be ${operator.operator}).")
     }
 
     override fun propagateUnit(unit: Literal): Sentence {
-        if (degree != 1 || operator != Operator.AT_MOST) return this
-        // TODO should be doable by changing degree and removing literal from constraint
         for ((i, lit) in literals.withIndex()) {
             if (lit.asIx() == unit.asIx()) {
                 val copy = literals.sliceArray(literals.indices - i)
