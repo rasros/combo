@@ -1,5 +1,6 @@
 package combo.sat
 
+import combo.math.IntPermutation
 import combo.math.Rng
 import combo.model.UnsatisfiableException
 import combo.model.ValidationException
@@ -212,6 +213,25 @@ class CardinalityTest {
     }
 
     @Test
+    fun degreeUnsatisfiableExactlyFail() {
+        assertFailsWith(ValidationException::class) {
+            Cardinality(intArrayOf(0, 2), 3, Cardinality.Operator.EXACTLY).validate()
+        }
+    }
+
+    @Test
+    fun degreeUnsatisfiableAtLeastFail() {
+        assertFailsWith(ValidationException::class) {
+            Cardinality(intArrayOf(0, 2), 3, Cardinality.Operator.AT_LEAST).validate()
+        }
+    }
+
+    @Test
+    fun degreeUnsatisfiableAtMost() {
+        Cardinality(intArrayOf(0, 2), 3, Cardinality.Operator.AT_MOST).validate()
+    }
+
+    @Test
     fun satisfies() {
         val e = Cardinality(intArrayOf(0, 2, 4), 1, Cardinality.Operator.AT_MOST)
         assertTrue(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
@@ -279,17 +299,75 @@ class CardinalityTest {
     }
 
     @Test
-    fun excludesUnitPropagationNone() {
-        val a = Cardinality(intArrayOf(2, 7), 1, Cardinality.Operator.AT_MOST)
-        val b = a.propagateUnit(9)
-        assertContentEquals(a.literals, b.literals)
+    fun unitPropagationNone() {
+        val a = Cardinality(intArrayOf(2, 8, 10), 1, Cardinality.Operator.AT_MOST)
+        assertContentEquals(a.literals, a.propagateUnit(4).literals)
+        assertContentEquals(a.literals, a.propagateUnit(6).literals)
+        assertContentEquals(a.literals, a.propagateUnit(12).literals)
     }
 
     @Test
-    fun excludesUnitPropagationFail() {
+    fun unitPropagationNoneDegree() {
+        val a = Cardinality(intArrayOf(2, 6, 8), 4, Cardinality.Operator.AT_LEAST)
+        assertContentEquals(a.literals, a.propagateUnit(0).literals)
+        assertContentEquals(a.literals, a.propagateUnit(4).literals)
+    }
+
+    @Test
+    fun unitPropagationAtMost() {
         val a = Cardinality(intArrayOf(2, 4), 1, Cardinality.Operator.AT_MOST)
+        val b = a.propagateUnit(2)
+        assertContentEquals(intArrayOf(5), (b as Conjunction).literals)
+    }
+
+    @Test
+    fun unitPropagationFailAtLeast() {
+        val a = Cardinality(intArrayOf(2, 4), 1, Cardinality.Operator.AT_LEAST)
         assertFailsWith(ValidationException::class) {
-            a.propagateUnit(2).propagateUnit(4)
+            a.propagateUnit(3).propagateUnit(5)
+        }
+    }
+
+    @Test
+    fun unitPropagationFailDegree() {
+        val a = Cardinality(intArrayOf(0, 2, 4, 6), 3, Cardinality.Operator.AT_LEAST)
+        assertFailsWith(ValidationException::class) {
+            a.propagateUnit(1).propagateUnit(3)
+        }
+    }
+
+    @Test
+    fun unitPropagationDegreeDecrease() {
+        val a = Cardinality(intArrayOf(0, 2, 4, 6), 3, Cardinality.Operator.AT_LEAST)
+        val b = a.propagateUnit(0)
+        assertEquals(2, (b as Cardinality).degree)
+    }
+
+    @Test
+    fun randomExhaustivePropagations() {
+        // This test thoroughly test that unit propagation does not change the truth value of a labeling.
+        val cs = arrayOf(
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 1, Cardinality.Operator.AT_MOST),
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.AT_MOST),
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 1, Cardinality.Operator.AT_LEAST),
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.AT_LEAST),
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 1, Cardinality.Operator.EXACTLY),
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.EXACTLY))
+        val rng = Rng(0)
+        for (l in LabelingPermutation.sequence(5, rng)) {
+            for (c in cs) {
+                try {
+                    IntPermutation(l.size, rng).iterator().asSequence().fold(c) { s: Sentence, i ->
+                        val v = l[i]
+                        val c2 = s.propagateUnit(i.asLiteral(v))
+                        assertEquals(c.flipsToSatisfy(l), c2.flipsToSatisfy(l))
+                        c2
+                    }
+                } catch (e: UnsatisfiableException) {
+                    if (c.satisfies(l))
+                        throw e
+                }
+            }
         }
     }
 

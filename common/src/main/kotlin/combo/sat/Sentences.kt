@@ -3,6 +3,7 @@ package combo.sat
 import combo.model.UnsatisfiableException
 import combo.model.ValidationException
 import combo.util.applyTransform
+import combo.util.remove
 import kotlin.math.max
 import kotlin.math.min
 
@@ -66,7 +67,7 @@ class Disjunction(literals: Literals) : Clause(literals) {
                 return when {
                     unit == l -> Tautology
                     literals.size == 1 -> throw UnsatisfiableException(literal = l)
-                    else -> literals.sliceArray((0 until literals.size) - i).let {
+                    else -> literals.remove(i).let {
                         if (it.size == 1) Conjunction(it)
                         else Disjunction(it)
                     }.also { validate() }
@@ -233,12 +234,16 @@ class Cardinality(override val literals: Literals, val degree: Int = 1, val oper
     override fun propagateUnit(unit: Literal): Sentence {
         for ((i, lit) in literals.withIndex()) {
             if (lit.asIx() == unit.asIx()) {
-                val copy = literals.sliceArray(literals.indices - i)
-                return when {
-                    unit == literals[i] -> Conjunction(copy.applyTransform { !it })
-                    copy.size == 1 -> Tautology
-                    else -> Cardinality(copy, degree, operator)
-                }.also { validate() }
+                val copy = literals.remove(i)
+                val d = if (unit == literals[i]) degree - 1 else degree
+                return if (d <= 0) {
+                    if (copy.isEmpty() || operator == Operator.AT_LEAST) Tautology
+                    else Conjunction(copy.applyTransform { !it })
+                } else if (d >= copy.size && operator == Operator.AT_MOST) Tautology
+                else if (d > copy.size && operator != Operator.AT_MOST)
+                    throw UnsatisfiableException(
+                            "$this is not satisfiable (${literals.size} cannot be ${operator.operator}).")
+                else Cardinality(copy, d, operator)
             }
         }
         return this
