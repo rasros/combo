@@ -55,9 +55,7 @@ class LookaheadInitializer(problem: Problem, reversed: Boolean = true) : Labelin
         val s = builder.build(problem.nbrVariables)
         initFixed(problem, l, s)
         for (row in bfsRows) {
-            val perm = IntPermutation(row.size, rng)
-            for (i in 0 until row.size) {
-                val ix = row[perm.encode(i)]
+            for (ix in IntPermutation(row.size, rng).iterator()) {
                 val lit = ix.asLiteral(rng.boolean())
                 s[ix] = true
                 l.set(lit)
