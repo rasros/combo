@@ -44,6 +44,13 @@ class IntPermutationTest {
         }
         assertEquals(1001, set.size)
     }
+
+    @Test
+    fun iterator() {
+        val l = IntPermutation(4).iterator().asSequence().toList()
+        assertEquals(4, l.size)
+        assertEquals(4, l.toSet().size)
+    }
 }
 
 class LongPermutationTest {
@@ -84,5 +91,12 @@ class LongPermutationTest {
             set.add(p.encode(i))
         }
         assertEquals(1001, set.size)
+    }
+
+    @Test
+    fun iterator() {
+        val l = LongPermutation(4).iterator().asSequence().toList()
+        assertEquals(4, l.size)
+        assertEquals(4, l.toSet().size)
     }
 }

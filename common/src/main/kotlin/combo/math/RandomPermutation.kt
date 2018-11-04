@@ -38,6 +38,14 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Rng = Rng()) {
         } while (x >= this.size)
         return x
     }
+
+    fun iterator(): IntIterator {
+        val itr = IntRange(0, size).iterator()
+        return object : IntIterator() {
+            override fun hasNext() = itr.hasNext()
+            override fun nextInt() = encode(itr.nextInt())
+        }
+    }
 }
 
 class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Rng = Rng()) {
@@ -74,5 +82,13 @@ class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Rng = Rng()) {
             } while (r != 0)
         } while (x >= this.size)
         return x
+    }
+
+    fun iterator(): LongIterator {
+        val itr = LongRange(0, size).iterator()
+        return object : LongIterator() {
+            override fun hasNext() = itr.hasNext()
+            override fun nextLong() = encode(itr.nextLong())
+        }
     }
 }
