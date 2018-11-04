@@ -44,6 +44,7 @@ abstract class SolverTest {
             val solver = solver(model.problem)
             if (solver != null) {
                 assertTrue(model.problem.satisfies(solver.witnessOrThrow()), "Model $i")
+                assertTrue(model.problem.satisfies(solver.witness()!!), "Model $i")
             }
         }
     }
@@ -64,6 +65,7 @@ abstract class SolverTest {
             val solver = largeSolver(model.problem)
             if (solver != null) {
                 assertTrue(model.problem.satisfies(solver.witnessOrThrow()), "Model $i")
+                assertTrue(model.problem.satisfies(solver.witness()!!), "Model $i")
             }
         }
     }
