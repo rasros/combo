@@ -28,6 +28,8 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Rng = Rng()) {
     }
 
     fun encode(value: Int): Int {
+        require(value >= 0)
+        require(value < size)
         var x = value
         do {
             var r = INT_ROUNDS
@@ -40,7 +42,7 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Rng = Rng()) {
     }
 
     fun iterator(): IntIterator {
-        val itr = IntRange(0, size).iterator()
+        val itr = IntRange(0, size - 1).iterator()
         return object : IntIterator() {
             override fun hasNext() = itr.hasNext()
             override fun nextInt() = encode(itr.nextInt())
@@ -85,7 +87,7 @@ class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Rng = Rng()) {
     }
 
     fun iterator(): LongIterator {
-        val itr = LongRange(0, size).iterator()
+        val itr = LongRange(0, size - 1).iterator()
         return object : LongIterator() {
             override fun hasNext() = itr.hasNext()
             override fun nextLong() = encode(itr.nextLong())
