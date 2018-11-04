@@ -80,11 +80,9 @@ class UniformSampling : SelectionFunction {
  */
 class TournamentSelection(val tournamentSize: Int) : SelectionFunction {
     override fun select(nbrParents: Int, scores: DoubleArray, rng: Rng, state: PopulationState): Int {
-        val perm = IntPermutation(nbrParents, rng)
         var score = Double.NEGATIVE_INFINITY
         var best = 0
-        for (i in 0 until tournamentSize) {
-            val ix = perm.encode(i)
+        for (ix in IntPermutation(nbrParents, rng).iterator()) {
             if (scores[ix] > score) {
                 best = ix
                 score = scores[ix]
@@ -94,11 +92,9 @@ class TournamentSelection(val tournamentSize: Int) : SelectionFunction {
     }
 
     override fun eliminate(nbrParents: Int, scores: DoubleArray, rng: Rng, state: PopulationState): Int {
-        val perm = IntPermutation(nbrParents, rng)
         var score = Double.POSITIVE_INFINITY
         var worst = 0
-        for (i in 0 until tournamentSize) {
-            val ix = perm.encode(i)
+        for (ix in IntPermutation(nbrParents, rng).iterator()) {
             if (scores[ix] < score) {
                 worst = ix
                 score = scores[ix]
