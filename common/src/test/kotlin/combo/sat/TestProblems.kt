@@ -86,9 +86,6 @@ val largeSat = Problem(arrayOf(
         Disjunction(intArrayOf(1, 3, 4, 16, 21, 23, 26, 28, 33, 39)),
         Cardinality(intArrayOf(20, 22, 24, 26, 30, 34, 36))), 20)
 
-fun mutex(size: Int) = Problem(arrayOf(Cardinality(IntArray(size) { it }.applyTransform { it.asLiteral(true) })), size)
-fun open(size: Int) = Problem(arrayOf(), size)
-
 fun generate(nbrVariables: Int, nbrClauses: Int, seed: Long): Problem {
     val r = Rng(seed)
     val clauses = Array(nbrClauses) { _ ->

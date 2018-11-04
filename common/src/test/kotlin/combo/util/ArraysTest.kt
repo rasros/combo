@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class ArraysTest {
     @Test
     fun applyTransformToEmptyIntArray() {
-        assertTrue { intArrayOf().applyTransform { it + 1 }.isEmpty() }
+        assertTrue { EMPTY_INT_ARRAY.applyTransform { it + 1 }.isEmpty() }
     }
 
     @Test

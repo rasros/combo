@@ -2,6 +2,7 @@ package combo.sat
 
 import combo.model.UnsatisfiableException
 import combo.model.ValidationException
+import combo.util.EMPTY_INT_ARRAY
 import combo.util.applyTransform
 import combo.util.remove
 import kotlin.math.max
@@ -41,7 +42,7 @@ sealed class Clause(override val literals: Literals) : Sentence {
     abstract override fun propagateUnit(unit: Literal): Clause
 }
 
-object Tautology : Clause(IntArray(0)) {
+object Tautology : Clause(EMPTY_INT_ARRAY) {
     override fun flipsToSatisfy(l: Labeling, s: Labeling?) = 0
     override fun propagateUnit(unit: Literal) = this
     override fun toCnf(): Sequence<Disjunction> = emptySequence()

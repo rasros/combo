@@ -5,6 +5,7 @@ import combo.sat.ByteArrayLabeling
 import combo.sat.SparseLabeling
 import combo.sat.asLiteral
 import combo.test.assertContentEquals
+import combo.util.EMPTY_INT_ARRAY
 import kotlin.test.*
 
 class FlagTest {
@@ -15,7 +16,7 @@ class FlagTest {
         val ie = f.createIndexEntry(intArrayOf(UNIT_FALSE))
         assertNull(ie.valueOf(BitFieldLabeling(0)))
         assertNull(ie.valueOf(BitFieldLabeling(1).apply { this[0] = true }))
-        assertContentEquals(IntArray(0), ie.toLiterals(null))
+        assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(null))
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(true)
         }
@@ -27,7 +28,7 @@ class FlagTest {
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE))
         assertEquals(true, ie.valueOf(BitFieldLabeling(0)))
         assertEquals(true, ie.valueOf(BitFieldLabeling(1)))
-        assertContentEquals(IntArray(0), ie.toLiterals(true))
+        assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(true))
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(null)
         }
@@ -102,7 +103,7 @@ class AlternativeTest {
         assertFailsWith(ValidationException::class) {
             ie.toLiterals(4)
         }
-        assertContentEquals(IntArray(0), ie.toLiterals(null))
+        assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(null))
     }
 
     @Test
@@ -141,7 +142,7 @@ class AlternativeTest {
             assertContentEquals(intArrayOf((i).asLiteral(true)), ie.toLiterals(i))
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
         assertFailsWith(ValidationException::class) {
-            assertContentEquals(IntArray(0), ie.toLiterals(4))
+            assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(4))
         }
     }
 
@@ -185,9 +186,9 @@ class AlternativeTest {
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, UNIT_TRUE, UNIT_FALSE, UNIT_FALSE))
         for (id in ie.indices) assertTrue(id < 0)
         assertEquals("a", ie.valueOf(BitFieldLabeling(0)))
-        assertContentEquals(IntArray(0), ie.toLiterals("a"))
+        assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals("a"))
         assertFailsWith(ValidationException::class) {
-            assertContentEquals(IntArray(0), ie.toLiterals("b"))
+            assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals("b"))
         }
     }
 }
@@ -312,7 +313,7 @@ class OrTest {
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(null)
         }
-        assertContentEquals(IntArray(0), ie.toLiterals(setOf("a")))
+        assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(setOf("a")))
         assertContentEquals(intArrayOf(4), ie.toLiterals(setOf("c", "a")))
         assertEquals(setOf("a", "b", "c"), ie.valueOf(BitFieldLabeling(3, LongArray(1) { 0b111 })))
         assertEquals(setOf("a"), ie.valueOf(BitFieldLabeling(3, LongArray(1) { 0b001 })))

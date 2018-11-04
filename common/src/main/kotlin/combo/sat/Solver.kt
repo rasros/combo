@@ -1,10 +1,11 @@
 package combo.sat
 
 import combo.model.ValidationException
+import combo.util.EMPTY_INT_ARRAY
 
 interface Solver : Iterable<Labeling> {
 
-    fun witness(contextLiterals: Literals = intArrayOf()): Labeling? {
+    fun witness(contextLiterals: Literals = EMPTY_INT_ARRAY): Labeling? {
         return try {
             witnessOrThrow(contextLiterals)
         } catch (e: ValidationException) {
@@ -15,11 +16,11 @@ interface Solver : Iterable<Labeling> {
     /**
      * @throws ValidationException
      */
-    fun witnessOrThrow(contextLiterals: Literals = intArrayOf()): Labeling
+    fun witnessOrThrow(contextLiterals: Literals = EMPTY_INT_ARRAY): Labeling
 
     override fun iterator() = sequence().iterator()
 
-    fun sequence(contextLiterals: Literals = intArrayOf()): Sequence<Labeling> {
+    fun sequence(contextLiterals: Literals = EMPTY_INT_ARRAY): Sequence<Labeling> {
         return generateSequence { witness(contextLiterals) }
     }
 

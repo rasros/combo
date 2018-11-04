@@ -2,6 +2,7 @@ package combo.sat
 
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
+import combo.util.EMPTY_INT_ARRAY
 import combo.util.IndexSet
 import combo.util.millis
 import kotlin.jvm.JvmOverloads
@@ -58,7 +59,7 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
                 themap[i] = ix++
             }
             themap
-        } else IntArray(0)
+        } else EMPTY_INT_ARRAY
     }
 
     private fun remapLabeling(contextLiterals: Literals, labeling: Labeling, remap: IntArray): Labeling {

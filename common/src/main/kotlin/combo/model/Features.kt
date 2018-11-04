@@ -4,13 +4,13 @@ package combo.model
 
 import combo.sat.*
 import combo.util.ConcurrentInteger
+import combo.util.EMPTY_INT_ARRAY
 import combo.util.Tree
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
 
 private fun defaultName() = "x_${COUNTER.getAndIncrement()}"
 private val COUNTER: ConcurrentInteger = ConcurrentInteger()
-private val EMPTY_INT_ARRAY = IntArray(0)
 
 const val UNIT_FALSE = -1
 const val UNIT_TRUE = -2

@@ -5,6 +5,7 @@ package combo.ga
 import combo.math.IntPermutation
 import combo.math.Rng
 import combo.sat.*
+import combo.util.EMPTY_INT_ARRAY
 import combo.util.Tree
 import kotlin.jvm.JvmName
 
@@ -40,7 +41,7 @@ class LookaheadInitializer(problem: Problem, reversed: Boolean = true) : Labelin
             }
         }
         val depth = root.depth() - 1
-        bfsRows = Array(depth) { IntArray(0) }
+        bfsRows = Array(depth) { EMPTY_INT_ARRAY }
         fun buildBfsRows(ds: Array<IntArray>, t: VariableTree, depth: Int) {
             if (t.value >= 0)
                 ds[depth] = ds[depth] + t.value

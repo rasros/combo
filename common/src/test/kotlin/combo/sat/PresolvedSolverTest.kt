@@ -1,7 +1,5 @@
 package combo.sat
 
-import kotlin.test.Ignore
-
 class PresolvedSolverTest : SolverTest() {
 
     companion object {
@@ -12,13 +10,14 @@ class PresolvedSolverTest : SolverTest() {
             soloutionsMap[smallUnsat] = ExhaustiveSolver(smallUnsat).sequence().toList().toTypedArray()
             soloutionsMap[mediumSat] = ExhaustiveSolver(mediumSat).sequence().toList().toTypedArray()
             soloutionsMap[mediumUnsat] = ExhaustiveSolver(mediumUnsat).sequence().toList().toTypedArray()
-            soloutionsMap[largeSat] = ExhaustiveSolver(largeSat).sequence().toList().toTypedArray()
         }
     }
 
     override fun solver(problem: Problem) =
             PresolvedSolver(soloutionsMap[problem]
                     ?: ExhaustiveSolverTest().solver(problem).sequence().toList().toTypedArray())
+
+    override fun largeSolver(problem: Problem) = null
 
     override fun unsatSolver(problem: Problem) =
             PresolvedSolver(soloutionsMap[problem]

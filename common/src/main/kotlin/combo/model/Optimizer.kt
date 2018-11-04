@@ -8,6 +8,7 @@ import combo.bandit.glm.gaussian
 import combo.math.*
 import combo.sat.*
 import combo.sat.WalkSat
+import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
@@ -112,6 +113,6 @@ class Optimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iter
                 lits = lits.sliceArray(0 until firstNeg)
             lits.sort()
             lits
-        } else IntArray(0)
+        } else EMPTY_INT_ARRAY
     }
 }

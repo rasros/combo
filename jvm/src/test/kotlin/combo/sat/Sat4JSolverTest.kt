@@ -1,9 +1,10 @@
 package combo.sat
 
 class Sat4JSolverTest : SolverTest() {
-    override fun timeoutSolver(problem: Problem) = Sat4JSolver(problem, timeout = 1L)
-    override fun unsatSolver(problem: Problem) = Sat4JSolver(problem)
     override fun solver(problem: Problem) = Sat4JSolver(problem)
+    override fun largeSolver(problem: Problem) = Sat4JSolver(problem)
+    override fun unsatSolver(problem: Problem) = Sat4JSolver(problem)
+    override fun timeoutSolver(problem: Problem) = Sat4JSolver(problem, timeout = 1L)
 }
 
 class Sat4JLinearOptimizerTest : LinearOptimizerTest() {

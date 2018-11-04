@@ -6,6 +6,7 @@ import combo.math.Posterior
 import combo.math.VarianceStatistic
 import combo.sat.*
 import combo.sat.WalkSat
+import combo.util.EMPTY_INT_ARRAY
 import combo.util.IndexSet
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
@@ -28,7 +29,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     // http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
 
     private val leaves: MutableList<LeafNode> = ArrayList()
-    private var root: Node = AuditNode(IntArray(0), prior)
+    private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior)
 
     override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
         val rng = config.nextRng()

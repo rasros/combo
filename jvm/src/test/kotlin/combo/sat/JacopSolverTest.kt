@@ -2,6 +2,7 @@ package combo.sat
 
 class JacopSolverTest : SolverTest() {
     override fun solver(problem: Problem) = JacopSolver(problem)
+    override fun largeSolver(problem: Problem) = JacopSolver(problem)
     override fun unsatSolver(problem: Problem) = JacopSolver(problem)
     override fun timeoutSolver(problem: Problem) = JacopSolver(problem, timeout = 1L)
 }

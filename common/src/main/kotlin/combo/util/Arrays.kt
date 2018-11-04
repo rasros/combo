@@ -13,3 +13,4 @@ inline fun IntArray.applyTransform(transform: (Int) -> Int): IntArray {
 }
 
 fun IntArray.remove(ix: Int) = copyOfRange(0, ix) + copyOfRange(ix + 1, size)
+val EMPTY_INT_ARRAY = IntArray(0)

@@ -13,8 +13,8 @@ class RandomInitializerTest {
     @Test
     fun generateSimple() {
         val init = RandomInitializer()
-        val l = init.generate(ModelTest.m1.problem, BitFieldLabelingBuilder(), Rng(0))
-        assertEquals(ModelTest.m1.problem.nbrVariables, l.size)
+        val l = init.generate(ModelTest.small1.problem, BitFieldLabelingBuilder(), Rng(0))
+        assertEquals(ModelTest.small1.problem.nbrVariables, l.size)
     }
 }
 

@@ -1,5 +1,8 @@
 package combo.sat
 
+import kotlin.test.Ignore
+
+@Ignore
 class HillClimberTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem, config: SolverConfig) = HillClimber(
             problem, config, WalkSatTest().solver(problem))
