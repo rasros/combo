@@ -18,6 +18,29 @@ class SentenceTest {
     }
 }
 
+private fun randomExhaustivePropagations(cs: Array<Sentence>) {
+    // This test thoroughly test that unit propagation does not change the truth value of a labeling.
+    val rng = Rng()
+    for (c in cs) for (i in c.literals) require(i.asIx() <= 4)
+    for (l in LabelingPermutation.sequence(5, rng)) {
+        for (c in cs) {
+            try {
+                val c2 = IntPermutation(l.size, rng).iterator().asSequence().fold(c) { s: Sentence, i ->
+                    val v = l[i]
+                    val cp = s.propagateUnit(i.asLiteral(v))
+                    cp.validate()
+                    assertEquals(c.satisfies(l), cp.satisfies(l))
+                    cp
+                }
+                assertTrue(c2.isUnit() || c2 == Tautology, "$c + ${l.asLiterals().joinToString()} -> $c2")
+            } catch (e: UnsatisfiableException) {
+                if (c.satisfies(l))
+                    throw e
+            }
+        }
+    }
+}
+
 class ConjunctionTest {
 
     @Test
@@ -100,6 +123,16 @@ class ConjunctionTest {
     fun generateDimacs() {
         assertEquals("1 0\n4 0\n-5 0", Conjunction(intArrayOf(0, 6, 9)).toDimacs())
         assertEquals("1 0\n2 0\n3 0\n4 0\n-5 0", Conjunction(intArrayOf(0, 2, 4, 6, 9)).toDimacs())
+    }
+
+    @Test
+    fun randomExhaustivePropagations() {
+        randomExhaustivePropagations(arrayOf(
+                Conjunction(intArrayOf(3)),
+                Conjunction(intArrayOf(0, 3, 8)),
+                Conjunction(intArrayOf(0, 2, 4, 6)),
+                Conjunction(intArrayOf(2, 4, 6, 8)),
+                Conjunction(intArrayOf(2, 4, 7, 9))))
     }
 }
 
@@ -193,8 +226,17 @@ class DisjunctionTest {
     fun toDimacs() {
         assertEquals("1 4 -5 0", Disjunction(intArrayOf(0, 6, 9)).toDimacs())
     }
-}
 
+    @Test
+    fun randomExhaustivePropagations() {
+        randomExhaustivePropagations(arrayOf(
+                Disjunction(intArrayOf(3)),
+                Disjunction(intArrayOf(0, 3, 8)),
+                Disjunction(intArrayOf(0, 2, 4, 6)),
+                Disjunction(intArrayOf(2, 4, 6, 8)),
+                Disjunction(intArrayOf(1, 4, 7, 9))))
+    }
+}
 
 class CardinalityTest {
 
@@ -345,30 +387,13 @@ class CardinalityTest {
 
     @Test
     fun randomExhaustivePropagations() {
-        // This test thoroughly test that unit propagation does not change the truth value of a labeling.
-        val cs = arrayOf(
+        randomExhaustivePropagations(arrayOf(
                 Cardinality(intArrayOf(0, 2, 4, 6, 8), 1, Cardinality.Operator.AT_MOST),
                 Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.AT_MOST),
                 Cardinality(intArrayOf(0, 2, 4, 6, 8), 1, Cardinality.Operator.AT_LEAST),
                 Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.AT_LEAST),
                 Cardinality(intArrayOf(0, 2, 4, 6, 8), 1, Cardinality.Operator.EXACTLY),
-                Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.EXACTLY))
-        val rng = Rng(0)
-        for (l in LabelingPermutation.sequence(5, rng)) {
-            for (c in cs) {
-                try {
-                    IntPermutation(l.size, rng).iterator().asSequence().fold(c) { s: Sentence, i ->
-                        val v = l[i]
-                        val c2 = s.propagateUnit(i.asLiteral(v))
-                        assertEquals(c.flipsToSatisfy(l), c2.flipsToSatisfy(l))
-                        c2
-                    }
-                } catch (e: UnsatisfiableException) {
-                    if (c.satisfies(l))
-                        throw e
-                }
-            }
-        }
+                Cardinality(intArrayOf(0, 2, 4, 6, 8), 3, Cardinality.Operator.EXACTLY)))
     }
 
     @Test
@@ -584,6 +609,57 @@ class ReifiedTest {
         val clause = r.propagateUnit(5)
         assertTrue(clause is Disjunction)
         assertContentEquals(intArrayOf(0, 2, 6), clause.literals)
+    }
+
+    @Test
+    fun propagatePosUnitConjunction() {
+        val r = Reified(2, Conjunction(intArrayOf(0, 4, 6, 8)))
+        val s = r.propagateUnit(8)
+        assertContentEquals(intArrayOf(0, 4, 6), (s as Reified).clause.literals)
+    }
+
+    @Test
+    fun propagatePosUnitDisjunction() {
+        val r = Reified(2, Disjunction(intArrayOf(0, 4, 6, 8)))
+        val s = r.propagateUnit(8)
+        assertContentEquals(intArrayOf(2), (s as Conjunction).literals)
+    }
+
+    @Test
+    fun propagateLastNegConjunction() {
+        val r = Reified(0, Conjunction(intArrayOf(2, 4)))
+        val c = r.propagateUnit(5).propagateUnit(3)
+        assertContentEquals(intArrayOf(1), (c as Conjunction).literals)
+    }
+
+    @Test
+    fun propagateLastPosConjunction() {
+        val r = Reified(0, Conjunction(intArrayOf(2, 4)))
+        val c = r.propagateUnit(2).propagateUnit(4)
+        assertContentEquals(intArrayOf(0), (c as Conjunction).literals)
+    }
+
+    @Test
+    fun propagateLastNegDisjunction() {
+        val r = Reified(0, Disjunction(intArrayOf(2, 4)))
+        val c = r.propagateUnit(5).propagateUnit(3)
+        assertContentEquals(intArrayOf(1), (c as Conjunction).literals)
+    }
+
+    @Test
+    fun propagateLastPosDisjunction() {
+        val r = Reified(0, Disjunction(intArrayOf(2, 4)))
+        val c = r.propagateUnit(2).propagateUnit(4)
+        assertContentEquals(intArrayOf(0), (c as Conjunction).literals)
+    }
+
+    @Test
+    fun randomExhaustivePropagations() {
+        randomExhaustivePropagations(arrayOf(
+                Reified(0, Conjunction(intArrayOf(2, 4, 6, 8))),
+                Reified(2, Conjunction(intArrayOf(0, 4, 6, 8))),
+                Reified(0, Disjunction(intArrayOf(2, 4, 6, 8))),
+                Reified(2, Disjunction(intArrayOf(0, 4, 6, 8)))))
     }
 }
 

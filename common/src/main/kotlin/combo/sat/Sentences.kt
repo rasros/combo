@@ -150,7 +150,7 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
 
     override fun propagateUnit(unit: Literal): Sentence {
         return when {
-            unit == literal -> return clause
+            unit == literal -> clause
             unit.asIx() == literal.asIx() -> {
                 val negated = clause.literals.copyOf().applyTransform { !it }
                 when (clause) {
@@ -160,7 +160,7 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
                             "there is a contradiction in the specification.", literal = unit)
                 }
             }
-            else -> {
+            clause is Disjunction -> {
                 val propagatedClause = clause.propagateUnit(unit)
                 when (propagatedClause) {
                     clause -> this
@@ -168,6 +168,16 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
                     else -> Reified(literal, propagatedClause)
                 }
             }
+            clause is Conjunction -> {
+                if (clause.literals.any { !it == unit }) Conjunction(intArrayOf(!literal))
+                else clause.literals.indexOfFirst { it == unit }.let {
+                    if (it >= 0) {
+                        if (clause.literals.size == 1) Conjunction(intArrayOf(literal))
+                        else Reified(literal, Conjunction(clause.literals.remove(it)))
+                    } else this
+                }
+            }
+            else -> throw IllegalArgumentException()
         }
     }
 
