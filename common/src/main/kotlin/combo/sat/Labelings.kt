@@ -15,6 +15,8 @@ interface Labeling {
     fun copy(): Labeling
     fun asLiteral(ix: Ix): Literal = ix.asLiteral(this[ix])
     operator fun get(ix: Ix): Boolean
+
+    fun asLiterals() = IntArray(size) { asLiteral(it) }
 }
 
 infix fun Labeling.dot(v: Vector) =
