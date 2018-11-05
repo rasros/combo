@@ -82,6 +82,7 @@ abstract class SolverTest {
                     if (rng.boolean())
                         context += l.asLiteral(j)
                 }
+                assertTrue(model.problem.satisfies(l))
                 val restricted = solver.witnessOrThrow(context.toIntArray())
                 assertTrue(model.problem.satisfies(restricted),
                         "Model $i, context ${context.joinToString(",")}")
