@@ -3,10 +3,10 @@ package combo.test
 import kotlin.math.abs
 import kotlin.test.assertTrue
 
-fun assertEquals(expected: Double, actual: Double, epsilon: Double) {
+fun assertEquals(expected: Double, actual: Double, epsilon: Double, message: String? = null) {
     val abs = abs(expected - actual)
-    assertTrue(abs < epsilon, "Expected delta to be less than eps=$epsilon " +
-            "but was err=$abs for actual=$actual and expected=$expected.")
+    assertTrue(abs <= epsilon, "Expected delta to be less than eps=$epsilon " +
+            "but was err=$abs for actual=$actual and expected=$expected." + (message ?: ""))
 }
 
 fun assertEquals(expected: DoubleArray, actual: DoubleArray, epsilon: Double) {
