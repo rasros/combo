@@ -37,28 +37,7 @@ dependencies {
         exclude group: "com.googlecode.netlib-java", module: "netlib-java"
     }
 
-    compileOnly("com.joptimizer:joptimizer:4.0.0") {
-        exclude group: "org.apache.commons", module: "commons-csv"
-        exclude group: "net.sourceforge.csparsej", module: "csparsej"
-        exclude group: "log4j", module: "log4j"
-        exclude group: "net.sourceforge.jtransforms", module: "jtransforms"
-        exclude group: "net.sourceforge.jplasma", module: "jplasma"
-        exclude group: "com.github.rwl", module: "JKLU"
-        exclude group: "net.sourceforge.parallelcolt", module: "optimization"
-        exclude group: "com.googlecode.netlib-java", module: "netlib-java"
-    }
-    testCompile("com.joptimizer:joptimizer:4.0.0") {
-        exclude group: "org.apache.commons", module: "commons-csv"
-        exclude group: "net.sourceforge.csparsej", module: "csparsej"
-        exclude group: "log4j", module: "log4j"
-        exclude group: "net.sourceforge.jtransforms", module: "jtransforms"
-        exclude group: "net.sourceforge.jplasma", module: "jplasma"
-        exclude group: "com.github.rwl", module: "JKLU"
-        exclude group: "net.sourceforge.parallelcolt", module: "optimization"
-        exclude group: "com.googlecode.netlib-java", module: "netlib-java"
-    }
-
-    compileOnly("org.jacop:jacop:4.5.1") {
+    compileOnly("org.jacop:jacop:4.6.0") {
         exclude group: "org.scala-lang", module: "scala-library"
         exclude group: "org.scala-lang", module: "scala-compiler"
         exclude group: "org.slf4j", module: "slf4j-api"
@@ -67,7 +46,7 @@ dependencies {
         exclude group: "org.perf4j", module: "perf4j"
         exclude group: "commons-jexl", module: "commons-jexl"
     }
-    testCompile("org.jacop:jacop:4.5.1") {
+    testCompile("org.jacop:jacop:4.6.0") {
         exclude group: "org.scala-lang", module: "scala-library"
         exclude group: "org.scala-lang", module: "scala-compiler"
         exclude group: "org.slf4j", module: "slf4j-api"
