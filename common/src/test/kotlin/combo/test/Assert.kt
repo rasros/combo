@@ -5,8 +5,10 @@ import kotlin.test.assertTrue
 
 fun assertEquals(expected: Double, actual: Double, epsilon: Double, message: String? = null) {
     val abs = abs(expected - actual)
-    assertTrue(abs <= epsilon, "Expected delta to be less than eps=$epsilon " +
-            "but was err=$abs for actual=$actual and expected=$expected." + (message ?: ""))
+    assertTrue(abs <= epsilon, (message ?: "") + "\n" +
+            "Expected :$expected\n" +
+            "Actual   :$actual\n" +
+            "Err      :$abs > $epsilon")
 }
 
 fun assertEquals(expected: DoubleArray, actual: DoubleArray, epsilon: Double) {

@@ -21,9 +21,6 @@ import kotlin.math.ceil
 
 // TODO stats
 // TODO debug
-/**
- * Note that the timeout only has second resolution.
- */
 class JacopSolver(problem: Problem,
                   override var config: SolverConfig = SolverConfig(),
                   var timeout: Long = -1L) : Solver, LinearOptimizer {
@@ -47,7 +44,7 @@ class JacopSolver(problem: Problem,
                     vars[c.literals[i].asIx()]
                 }
                 val degree = IntVar(store, c.degree, c.degree)
-                store.impose(SumBool(store, cardVars, c.operator.operator, degree))
+                store.impose(SumBool(cardVars, c.operator.operator, degree))
             } else if (c is Reified && c.clause is Disjunction) {
                 val literal = if (!c.literal.asBoolean()) {
                     val negated = BooleanVar(store, "-x${c.literal.asIx()}")
@@ -113,7 +110,6 @@ class JacopSolver(problem: Problem,
                 for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
 
-            //val select = RandomSelectControlled(vars, rng())
             val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRng()))
             val search = DepthFirstSearch<BooleanVar>().apply {
                 setPrintInfo(false)
@@ -141,11 +137,11 @@ class JacopSolver(problem: Problem,
                 for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
             val max = weights.array.asSequence().map { abs(it) }.sum()
-            val cost = FloatVar(store, "cost", -max, max)
-            store.impose(LinearFloat(store, optimizeVars, weights.array, "=", cost))
+            val cost = FloatVar(store, -max, max)
+            store.impose(LinearFloat(optimizeVars, weights.array, "=", cost))
             val objective =
                     if (config.maximize) {
-                        val negCost = FloatVar(store, "-cost", -max, max)
+                        val negCost = FloatVar(store, -max, max)
                         store.impose(PmulCeqR(cost, -1.0, negCost))
                         negCost
                     } else cost

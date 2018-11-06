@@ -125,6 +125,7 @@ class WalkSat(val problem: Problem,
     }
 
     private fun getMaxIx(counts: IntArray, size: Int, rng: Rng): Int {
+        // TODO simplify this using IntPermutation
         var max = Int.MIN_VALUE
         var nbrMax = 0
         for (i in 0 until size) {

@@ -7,6 +7,7 @@ import combo.model.UnsatisfiableException
 import combo.model.ValidationException
 import combo.util.IndexSet
 import combo.math.IntPermutation
+import combo.model.ModelTest
 import kotlin.test.*
 
 class ProblemTest {
@@ -66,7 +67,7 @@ class ProblemTest {
     fun randomPropagation() {
         val r = Rng()
         try {
-            val p = generate(1 + r.int(100), r.int(10), r.long())
+            val p = ModelTest.large2.problem
             val perm = IntPermutation(p.nbrVariables, r)
             val lits = (0 until r.binomial(0.7, p.nbrVariables)).asSequence()
                     .map { perm.encode(it) }

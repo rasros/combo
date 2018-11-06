@@ -9,6 +9,7 @@ class JacopSolverTest : SolverTest() {
 
 class JacopOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem, config: SolverConfig): LinearOptimizer = JacopSolver(problem, config)
+    override fun largeOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = JacopSolver(problem, config)
     override fun unsatOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = JacopSolver(problem, config)
     override fun timeoutOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = JacopSolver(problem, config, timeout = 1L)
 }

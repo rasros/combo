@@ -1,5 +1,6 @@
 package combo.sat
 
+import combo.math.IntPermutation
 import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.ValidationException
@@ -9,8 +10,11 @@ class HillClimber(val problem: Problem,
                   override val config: SolverConfig,
                   val baseSolver: Solver = WalkSat(problem, config),
                   val timeout: Long = -1L,
-                  val restarts: Int = 10,
-                  var maxFlips: Int = 100) : LinearOptimizer {
+                  val restarts: Int = 20,
+                  val maxSteps: Int = 100,
+                  val maxSidewaySteps: Int = 50,
+                  val pSideway: Double = 1.0,
+                  val pRandom: Double = 0.1) : LinearOptimizer {
 
     override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
@@ -18,10 +22,10 @@ class HillClimber(val problem: Problem,
         var best = Double.NEGATIVE_INFINITY
         val con = if (contextLiterals.isNotEmpty()) Conjunction(contextLiterals) else null
 
-        fun update(s: Double, l: Labeling) {
-            if (s > best) {
-                best = s
-                solution = l
+        fun update(score: Double, l: Labeling) {
+            if (score > best || solution == null) {
+                best = score
+                solution = l.copy()
             }
         }
 
@@ -36,31 +40,43 @@ class HillClimber(val problem: Problem,
             }
         }
 
-        iteration@ for (i in 1..restarts) {
-            flip@ for (j in 1..maxFlips) {
-                var labeling = baseSolver.witness(contextLiterals) as? MutableLabeling
-                if (labeling != null) {
-                    val current = let {
-                        val d = labeling!! dot weights
-                        if (config.maximize) d else -d
-                    }
-                    update(current, labeling)
-                    var updated = false
-                    for (k in 0 until labeling!!.size) {
-                        val copy = labeling.copy()
-                        val s = score(!copy.asLiteral(k), copy)
-                        if (s > current) {
-                            labeling = copy
-                            update(s, labeling)
-                            updated = true
-                            break
+        for (i in 1..restarts) {
+            val labeling = baseSolver.witness(contextLiterals) as? MutableLabeling
+            var sidewaySteps = 0
+            if (labeling != null) {
+                var score = let {
+                    val d = labeling dot weights
+                    if (config.maximize) d else -d
+                }
+                update(score, labeling)
+                val rng = config.nextRng()
+                for (j in 1..maxSteps) {
+
+                    var nextVariableId: Int = -1
+                    var itrScore = score
+                    if (rng.double() < pRandom) {
+                        nextVariableId = rng.int(labeling.size)
+                    } else {
+                        for (k in IntPermutation(labeling.size, rng).iterator()) {
+                            val copy = labeling.copy()
+                            val s = score(!copy.asLiteral(k), copy)
+                            if (s > score || ((itrScore == score && s == score && sidewaySteps < maxSidewaySteps && rng.double() < pSideway))) {
+                                nextVariableId = k
+                                itrScore = s
+                            }
+                            if (millis() > end) return solution ?: throw TimeoutException(timeout)
                         }
-                        if (millis() > end) return solution ?: throw TimeoutException(timeout)
                     }
-                    if (!updated) break@flip
+
+                    if (nextVariableId >= 0) {
+                        if (itrScore == score) sidewaySteps++
+                        score = score(!labeling.asLiteral(nextVariableId), labeling)
+                        update(score, labeling)
+                    }
                 }
             }
         }
-        return solution ?: throw ValidationException("Failed to generate any solution.")
+        if (solution == null || best.isInfinite()) throw ValidationException("Failed to generate any solution.")
+        else return solution!!
     }
 }

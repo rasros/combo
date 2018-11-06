@@ -9,6 +9,7 @@ class Sat4JSolverTest : SolverTest() {
 
 class Sat4JLinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config)
+    override fun largeOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config)
     override fun unsatOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config)
     override fun timeoutOptimizer(problem: Problem, config: SolverConfig): LinearOptimizer = Sat4JLinearOptimizer(problem, config, timeout = 1L)
 }
