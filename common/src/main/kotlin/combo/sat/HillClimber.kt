@@ -1,7 +1,6 @@
 package combo.sat
 
 import combo.math.IntPermutation
-import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.ValidationException
 import combo.util.millis
@@ -14,9 +13,9 @@ class HillClimber(val problem: Problem,
                   val maxSteps: Int = 100,
                   val maxSidewaySteps: Int = 50,
                   val pSideway: Double = 1.0,
-                  val pRandom: Double = 0.1) : LinearOptimizer {
+                  val pRandom: Double = 0.1) : Optimizer {
 
-    override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: ObjectiveFunction, contextLiterals: Literals): Labeling {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         var solution: Labeling? = null
         var best = Double.NEGATIVE_INFINITY
@@ -35,7 +34,7 @@ class HillClimber(val problem: Problem,
             return if ((con != null && !con.satisfies(labeling)) ||
                     !problem.satisfies(labeling)) Double.NEGATIVE_INFINITY
             else {
-                val d = labeling dot weights
+                val d = function.value(labeling)
                 if (config.maximize) d else -d
             }
         }
@@ -45,7 +44,7 @@ class HillClimber(val problem: Problem,
             var sidewaySteps = 0
             if (labeling != null) {
                 var score = let {
-                    val d = labeling dot weights
+                    val d = function.value(labeling)
                     if (config.maximize) d else -d
                 }
                 update(score, labeling)

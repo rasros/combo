@@ -46,7 +46,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
                       family: VarianceFunction = gaussian(),
                       link: Transform = family.canonicalLink(),
                       regularization: Loss = squaredLoss(),
-                      linearOptimizer: LinearOptimizer = HillClimber(model.problem, config, WalkSat(model.problem, config)),
+                      linearOptimizer: LinearOptimizer = HillClimber(model.problem, config, WalkSat(model.problem, config)).asLinear(),
                       solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
             TODO()
         }

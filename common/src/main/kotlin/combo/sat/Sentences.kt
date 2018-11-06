@@ -1,3 +1,5 @@
+@file:JvmName("Sentences")
+
 package combo.sat
 
 import combo.model.UnsatisfiableException
@@ -5,6 +7,7 @@ import combo.model.ValidationException
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.applyTransform
 import combo.util.remove
+import kotlin.jvm.JvmName
 import kotlin.math.max
 import kotlin.math.min
 

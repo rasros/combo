@@ -1,4 +1,4 @@
-package combo.sat;
+package combo.sat
 
 import combo.math.RngSequence
 import combo.model.UnsatisfiableException

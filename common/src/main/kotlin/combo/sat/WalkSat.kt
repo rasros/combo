@@ -1,7 +1,5 @@
 package combo.sat
 
-import combo.ga.LabelingInitializer
-import combo.ga.LookaheadInitializer
 import combo.math.IntPermutation
 import combo.math.Rng
 import combo.model.IterationsReachedException

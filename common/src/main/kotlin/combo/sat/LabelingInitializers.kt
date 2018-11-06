@@ -1,10 +1,9 @@
 @file:JvmName("LabelingInitializers")
 
-package combo.ga
+package combo.sat
 
 import combo.math.IntPermutation
 import combo.math.Rng
-import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.Tree
 import kotlin.jvm.JvmName

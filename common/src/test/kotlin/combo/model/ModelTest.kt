@@ -1,6 +1,6 @@
 package combo.model
 
-import combo.ga.RandomInitializer
+import combo.sat.RandomInitializer
 import combo.sat.BitFieldLabeling
 import combo.sat.ExhaustiveSolver
 import combo.sat.WalkSat

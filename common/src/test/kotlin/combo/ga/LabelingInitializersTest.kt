@@ -2,9 +2,7 @@ package combo.ga
 
 import combo.math.Rng
 import combo.model.ModelTest
-import combo.sat.BitFieldLabelingBuilder
-import combo.sat.Disjunction
-import combo.sat.Problem
+import combo.sat.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
