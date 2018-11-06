@@ -4,8 +4,7 @@
   "description": "A package for constrained online multi-variate bandit optimization (combo)",
   "main": "index.js",
   "dependencies": {
-    "kotlin": "^1.3.0",
-    "seedrandom": "^2.4.0"
+    "kotlin": "^1.3.0"
   },
   "devDependencies": {
     "qunit": "^2.7.1"
