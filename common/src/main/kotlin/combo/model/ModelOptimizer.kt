@@ -12,7 +12,7 @@ import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
-class Optimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iterable<Assignment> {
+class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iterable<Assignment> {
     companion object {
         @JvmStatic
         @JvmOverloads
@@ -20,12 +20,12 @@ class Optimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iter
                                 config: SolverConfig = SolverConfig(maximize = true),
                                 posterior: Posterior = normal(),
                                 enumerationSolver: Solver = ExhaustiveSolver(model.problem, config),
-                                solver: Solver = WalkSat(model.problem, config)): Optimizer {
+                                solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
             if (model.problem.nbrVariables >= 20)
                 throw ValidationException("Multi-armed bandit algorithm will not work with excessive number of variables (>=20).")
             val bandits = enumerationSolver.sequence().toList().toTypedArray()
             val bandit = MultiArmedBandit(bandits, config, posterior)
-            return Optimizer(model, solver, bandit)
+            return ModelOptimizer(model, solver, bandit)
         }
 
         @JvmStatic
@@ -34,9 +34,9 @@ class Optimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iter
                      config: SolverConfig = SolverConfig(maximize = true),
                      posterior: Posterior = normal(),
                      leafSolver: Solver = WalkSat(model.problem, config),
-                     solver: Solver = WalkSat(model.problem, config)): Optimizer {
+                     solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
             val bandit = DecisionTreeBandit(model.problem, config, leafSolver, posterior)
-            return Optimizer(model, solver, bandit)
+            return ModelOptimizer(model, solver, bandit)
         }
 
         @JvmStatic
@@ -47,7 +47,7 @@ class Optimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iter
                       link: Transform = family.canonicalLink(),
                       regularization: Loss = squaredLoss(),
                       linearOptimizer: LinearOptimizer = HillClimber(model.problem, config, WalkSat(model.problem, config)),
-                      solver: Solver = WalkSat(model.problem, config)): Optimizer {
+                      solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
             TODO()
         }
 
@@ -56,7 +56,7 @@ class Optimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iter
         fun gaBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
                      crossoverSolver: Solver = WalkSat(model.problem, config),
-                     solver: Solver = WalkSat(model.problem, config)): Optimizer {
+                     solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
             TODO()
         }
     }

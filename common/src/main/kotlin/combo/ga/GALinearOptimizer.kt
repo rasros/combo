@@ -9,7 +9,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.min
 
 /**
- * Steady state GA Optimizer.
+ * Steady state GA ModelOptimizer.
  * See Classifier Systems
  * https://sfi-edu.s3.amazonaws.com/sfi-edu/production/uploads/sfi-com/dev/uploads/filer/2b/07/2b071152-def2-4475-8d18-3161db1bd7e3/92-07-032.pdf
  */
