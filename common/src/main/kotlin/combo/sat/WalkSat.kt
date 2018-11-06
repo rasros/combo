@@ -1,13 +1,13 @@
 package combo.sat
 
 import combo.math.IntPermutation
-import combo.math.Rng
 import combo.model.IterationsReachedException
 import combo.model.TimeoutException
 import combo.util.IndexSet
 import combo.util.millis
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 
 /*
  * WalkSat first picks a clause which is unsatisfied by the current labeling, then flips a variable within that
@@ -28,7 +28,7 @@ class WalkSat(val problem: Problem,
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         for (i in 1..maxRestarts) {
             recordIteration()
-            val rng = config.nextRng()
+            val rng = config.nextRandom()
             val p = if (contextLiterals.isNotEmpty())
                 problem.unitPropagation(IndexSet().apply { addAll(contextLiterals) }, true)
             else problem
@@ -45,7 +45,7 @@ class WalkSat(val problem: Problem,
         throw IterationsReachedException(maxRestarts)
     }
 
-    private fun satIteration(problem: Problem, labeling: MutableLabeling, rng: Rng, end: Long): MutableLabeling? {
+    private fun satIteration(problem: Problem, labeling: MutableLabeling, rng: Random, end: Long): MutableLabeling? {
         val unsatisfied = IndexSet(max(16, problem.sentences.size / 8))
         for ((i, s) in problem.sentences.withIndex()) {
             if (!s.satisfies(labeling)) {
@@ -64,9 +64,9 @@ class WalkSat(val problem: Problem,
             val pickedSentence = problem.sentences[pickedSentenceIx]
             val literals = pickedSentence.literals
 
-            val id = if (probRandomWalk > rng.double()) {
+            val id = if (probRandomWalk > rng.nextDouble()) {
                 // With configured probability, pick randomly within the clause
-                literals[rng.int(literals.size)].asIx()
+                literals[rng.nextInt(literals.size)].asIx()
             } else {
                 // Otherwise pick the literal in the clause with the highest improvement
                 val litIx = chooseBest(problem, literals, unsatisfied, labeling, improvement, rng)
@@ -98,7 +98,7 @@ class WalkSat(val problem: Problem,
                            unsatisfied: IndexSet,
                            labeling: MutableLabeling,
                            improvement: IntArray,
-                           rng: Rng): Int {
+                           rng: Random): Int {
         val perm = if (literals.size >= improvement.size) IntPermutation(literals.size, rng) else null
         for (i in 0 until min(improvement.size, literals.size)) {
             improvement[i] = 0
@@ -122,7 +122,7 @@ class WalkSat(val problem: Problem,
         else litIx
     }
 
-    private fun getMaxIx(counts: IntArray, size: Int, rng: Rng): Int {
+    private fun getMaxIx(counts: IntArray, size: Int, rng: Random): Int {
         // TODO simplify this using IntPermutation
         var max = Int.MIN_VALUE
         var nbrMax = 0
@@ -133,7 +133,7 @@ class WalkSat(val problem: Problem,
                 nbrMax = 1
             } else if (max == c) nbrMax++
         }
-        val maxIx = rng.int(nbrMax)
+        val maxIx = rng.nextInt(nbrMax)
         nbrMax = 0
         for (i in 0 until size) {
             val c = counts[i]
@@ -175,7 +175,6 @@ class WalkSat(val problem: Problem,
         }
         totalFlips++
     }
-
 }
 
 

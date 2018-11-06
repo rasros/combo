@@ -4,6 +4,7 @@ package combo.math
 
 import kotlin.jvm.JvmName
 import kotlin.math.round
+import kotlin.random.Random
 
 fun <S : DataSample> Sequence<Number>.sample(s: S): S {
     forEach { s.accept(it.toDouble()) }
@@ -99,7 +100,7 @@ class BucketsSample(val samplesPerBucket: Int) : DataSample {
     val size get() = history.size
 }
 
-class ReservoirSample(size: Int, private val rng: Rng = Rng()) : DataSample {
+class ReservoirSample(size: Int, private val rng: Random = Random.Default) : DataSample {
     private val data = DoubleArray(size)
     override var nbrSamples = 0L
         private set
@@ -108,7 +109,7 @@ class ReservoirSample(size: Int, private val rng: Rng = Rng()) : DataSample {
         if (nbrSamples < data.size) {
             data[nbrSamples++.toInt()] = value
         } else {
-            val pf = rng.double() * nbrSamples++
+            val pf = rng.nextDouble() * nbrSamples++
             val p = round(pf).toInt()
             if (p < data.size) {
                 data[p] = value

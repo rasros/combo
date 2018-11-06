@@ -1,6 +1,6 @@
 package combo.sat
 
-import combo.math.Rng
+import kotlin.random.Random
 import kotlin.test.*
 
 class ByteArrayLabelingTest : LabelingTest<ByteArrayLabeling>() {
@@ -13,12 +13,12 @@ class SparseLabelingTest : LabelingTest<SparseLabeling>() {
     @Test
     fun sortedArray() {
         for (i in 0 until 10) {
-            val r = Rng()
-            val l = builder.build(1 + r.int(100))
+            val r = Random.Default
+            val l = builder.build(1 + r.nextInt(100))
             for (j in 0 until l.size)
-                l[r.int(l.size)] = r.boolean()
+                l[r.nextInt(l.size)] = r.nextBoolean()
             for (j in 1 until l.nbrUsed) {
-                assertTrue(l.literals[j - 1] < l.literals[j], l.literals.joinToString() + " " + r.seed)
+                assertTrue(l.literals[j - 1] < l.literals[j], l.literals.joinToString())
             }
         }
     }
@@ -104,9 +104,9 @@ abstract class LabelingTest<T : MutableLabeling> {
 
     @Test
     fun copyRandom() {
-        val r = Rng(1023)
+        val r = Random(1023)
         for (i in 1..50) {
-            val l = builder.generate(1 + r.int(1000), r)
+            val l = builder.generate(1 + r.nextInt(1000), r)
             assertEquals(l, l.copy())
         }
     }
@@ -119,15 +119,15 @@ abstract class LabelingTest<T : MutableLabeling> {
 
     @Test
     fun emptyRandom() {
-        val l = builder.generate(0, Rng())
+        val l = builder.generate(0, Random.Default)
         assertEquals(0, l.size)
     }
 
     @Test
     fun randomDifferent() {
-        val rand1 = builder.generate(50, Rng(0))
-        val rand2 = builder.generate(50, Rng(0))
-        val rand3 = builder.generate(50, Rng(1))
+        val rand1 = builder.generate(50, Random(0))
+        val rand2 = builder.generate(50, Random(0))
+        val rand3 = builder.generate(50, Random(1))
         for (i in 0 until 50)
             assertEquals(rand1[i], rand2[i])
         for (i in 0 until 50)
@@ -175,7 +175,7 @@ abstract class LabelingTest<T : MutableLabeling> {
     @Test
     fun randomHashEquals() {
         // Tests equals/hashCode implementations
-        val r = Rng()
+        val r = Random.Default
         val s = generateSequence {
             builder.generate(4, r)
         }.take(100).toHashSet()
@@ -210,13 +210,13 @@ abstract class LabelingTest<T : MutableLabeling> {
     @Test
     fun flipRandom() {
         for (i in 1..10) {
-            val r = Rng()
-            val l = builder.build(1 + r.int(1001))
+            val r = Random.Default
+            val l = builder.build(1 + r.nextInt(1001))
             for (j in 1..100) {
-                val id = r.int(l.size)
+                val id = r.nextInt(l.size)
                 val b1 = l[id]
                 l.flip(id)
-                assertNotEquals(b1, l[id], "seed ${r.seed}")
+                assertNotEquals(b1, l[id])
             }
         }
     }

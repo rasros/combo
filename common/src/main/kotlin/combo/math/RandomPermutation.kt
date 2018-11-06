@@ -1,9 +1,11 @@
 package combo.math
 
+import kotlin.random.Random
+
 private const val INT_ROUNDS = 4
 private const val LONG_ROUNDS = 7
 
-class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Rng = Rng()) {
+class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random.Default) {
 
     private val mask: Int // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
@@ -23,7 +25,7 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Rng = Rng()) {
 
         var r = INT_ROUNDS
         do {
-            rk[--r] = rng.int()
+            rk[--r] = rng.nextInt()
         } while (r != 0)
     }
 
@@ -50,7 +52,7 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Rng = Rng()) {
     }
 }
 
-class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Rng = Rng()) {
+class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random = Random.Default) {
     private val mask: Long // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
     private val rish: Int                 // right shift count
@@ -69,7 +71,7 @@ class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Rng = Rng()) {
 
         var r = LONG_ROUNDS
         do {
-            rk[--r] = rng.long()
+            rk[--r] = rng.nextLong()
         } while (r != 0)
     }
 

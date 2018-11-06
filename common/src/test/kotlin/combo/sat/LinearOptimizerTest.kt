@@ -1,12 +1,12 @@
 package combo.sat
 
-import combo.math.Rng
 import combo.math.Vector
 import combo.math.toVector
 import combo.model.ModelTest
 import combo.model.ValidationException
 import combo.test.assertEquals
 import kotlin.math.max
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -78,10 +78,10 @@ abstract class LinearOptimizerTest {
             val solver = optimizer(model.problem)
             if (solver != null) {
                 val l = solver.optimizeOrThrow(Vector(model.problem.nbrVariables))
-                val rng = Rng(i.toLong())
+                val rng = Random(i.toLong())
                 val context = ArrayList<Int>()
                 for (j in 0 until l.size) {
-                    if (rng.boolean())
+                    if (rng.nextBoolean())
                         context += l.asLiteral(j)
                 }
                 val restricted = solver.optimizeOrThrow(Vector(model.problem.nbrVariables), context.toIntArray())

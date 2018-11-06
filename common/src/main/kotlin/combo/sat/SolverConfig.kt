@@ -1,6 +1,6 @@
 package combo.sat
 
-import combo.math.RngSequence
+import combo.math.RandomSequence
 import combo.util.nanos
 
 data class SolverConfig(
@@ -9,7 +9,7 @@ data class SolverConfig(
         val maximize: Boolean = true,
         val debugMode: Boolean = false) {
 
-    private val rngSequence = RngSequence(randomSeed)
+    private val randomSequence = RandomSequence(randomSeed)
 
-    fun nextRng() = rngSequence.next()
+    fun nextRandom() = randomSequence.next()
 }

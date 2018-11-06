@@ -1,9 +1,6 @@
 package combo.bandit
 
-import combo.math.DataSample
-import combo.math.GrowingDataSample
-import combo.math.Posterior
-import combo.math.VarianceStatistic
+import combo.math.*
 import combo.sat.*
 import combo.sat.WalkSat
 import combo.util.EMPTY_INT_ARRAY
@@ -32,7 +29,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior)
 
     override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
-        val rng = config.nextRng()
+        val rng = ExtendedRandom(config.nextRandom())
         val node = if (config.maximize) {
             leaves.maxBy {
                 if (matches(it.setLiterals, contextLiterals)) posterior.sample(rng, it.total)
@@ -56,7 +53,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
      * Fully build the decision tree down to [maxDepth] depth.
      */
     fun explode() {
-        val rng = config.nextRng()
+        val rng = config.nextRandom()
         TODO()
     }
 

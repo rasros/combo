@@ -1,11 +1,10 @@
 package combo.sat
 
-import combo.math.Rng
 import combo.math.Vector
-import combo.math.long
 import kotlin.experimental.and
 import kotlin.experimental.xor
 import kotlin.math.min
+import kotlin.random.Random
 
 interface Labeling {
     val size: Int
@@ -41,9 +40,9 @@ interface LabelingBuilder<out T : MutableLabeling> {
         for (l in posLiterals) this.set(l)
     }
 
-    fun generate(size: Int, rng: Rng) = build(size).apply {
+    fun generate(size: Int, rng: Random) = build(size).apply {
         for (i in this.indices)
-            if (rng.boolean())
+            if (rng.nextBoolean())
                 this.flip(i)
     }
 }
@@ -85,9 +84,9 @@ class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
 
 class BitFieldLabelingBuilder : LabelingBuilder<BitFieldLabeling> {
     override fun build(size: Int) = BitFieldLabeling(size)
-    override fun generate(size: Int, rng: Rng) = build(size).apply {
+    override fun generate(size: Int, rng: Random) = build(size).apply {
         for (i in 0 until field.size) {
-            field[i] = rng.long()
+            field[i] = rng.nextLong()
         }
         if (field.isNotEmpty()) {
             val mask = (1L shl (size.rem(64))) - 1

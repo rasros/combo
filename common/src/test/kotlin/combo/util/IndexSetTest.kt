@@ -1,6 +1,6 @@
 package combo.util
 
-import combo.math.Rng
+import kotlin.random.Random
 import kotlin.test.*
 
 class IndexSetTest {
@@ -150,22 +150,22 @@ class IndexSetTest {
 
     @Test
     fun largeRandomTest() {
-        val r = Rng(0)
+        val r = Random(0)
         val all = ArrayList<Int>()
         val set = IndexSet()
         val test = HashSet<Int>()
         for (i in 1..1_000) {
-            val n = r.int()
+            val n = r.nextInt(Int.MAX_VALUE)
             all.add(n)
-            assertEquals(test.add(n), set.add(n), r.seed.toString())
-            assertEquals(test.add(n), set.add(n), r.seed.toString())
-            if (r.boolean()) {
-                val remove = all[r.int(all.size)]
-                assertEquals(test.remove(remove), set.remove(remove), r.seed.toString())
-                assertEquals(test.remove(remove), set.remove(remove), r.seed.toString())
+            assertEquals(test.add(n), set.add(n))
+            assertEquals(test.add(n), set.add(n))
+            if (r.nextBoolean()) {
+                val remove = all[r.nextInt(all.size)]
+                assertEquals(test.remove(remove), set.remove(remove))
+                assertEquals(test.remove(remove), set.remove(remove))
             }
         }
         for (i in all)
-            assertEquals(test.remove(i), set.remove(i), r.seed.toString())
+            assertEquals(test.remove(i), set.remove(i))
     }
 }

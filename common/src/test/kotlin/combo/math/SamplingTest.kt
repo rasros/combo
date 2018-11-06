@@ -1,76 +1,51 @@
 package combo.math
 
 import combo.test.assertEquals
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
-import kotlin.test.*
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class SamplingTest {
     @Test
     fun fixedSeed() {
-        val r1 = Rng(0)
-        val r2 = Rng(0)
+        val r1 = ExtendedRandom(Random(0))
+        val r2 = ExtendedRandom(Random(0))
         for (i in 0..100) {
-            assertEquals(r1.boolean(), r2.boolean())
-            assertEquals(r1.int(), r2.int())
-            assertEquals(r1.long(), r2.long())
-            assertEquals(r1.double(), r2.double())
-            assertEquals(r1.gaussian(), r2.gaussian())
+            assertEquals(r1.nextGaussian(), r2.nextGaussian())
         }
     }
 
     @Test
-    fun rngSequence() {
-
-    }
-
-    @Test
-    fun intBound() {
-        val r = Rng(1)
-        var max = 0
-        var min = 1
-        generateSequence { r.int(10) }.take(100).forEach { max = max(max, it); min = min(min, it) }
-        assertTrue(max < 10)
-        assertTrue(min >= 0)
-    }
-
-    @Test
-    fun longBound() {
-        val r = Rng(2)
-        var max = 0L
-        var min = 1L
-        generateSequence { r.long(10) }.take(100).forEach { max = max(max, it); min = min(min, it) }
-        assertTrue(max < 10L)
-        assertTrue(min >= 0L)
-    }
-
-    @Test
-    fun boolean() {
-        val r = Rng(1203)
-        var c = 0
-        while (r.boolean() || c++ > 100)
-            while (!r.boolean() || c++ > 100)
-                return
-        fail()
+    fun randomSequenceUncorrelated() {
+        val rs = RandomSequence(0L)
+        val s1 = rs.next().let { r -> generateSequence { r.nextDouble(0.0, 100.0) }.take(200).toList().toDoubleArray() }
+        val s2 = rs.next().let { r -> generateSequence { r.nextDouble(0.0, 100.0) }.take(200).toList().toDoubleArray() }
+        val v1 = RunningVariance().apply { acceptAll(s1) }
+        val v2 = RunningVariance().apply { acceptAll(s2) }
+        val r1 = (0 until 100).map { (s1[it] - v1.mean) * (s2[it] - v2.mean) }.sum()
+        val r2 = sqrt(v1.squaredDeviations * v2.squaredDeviations)
+        val r = r1 / r2
+        assertEquals(0.0, r, 0.05)
     }
 
     @Test
     fun gaussianStats() {
-        val r = Rng(120)
-        val s = generateSequence { r.gaussian(mean = 1.0, std = sqrt(2.0)) }.take(1000).sample(RunningVariance())
+        val r = ExtendedRandom(Random(120))
+        val s = generateSequence { r.nextGaussian(mean = 1.0, std = sqrt(2.0)) }.take(1000).sample(RunningVariance())
         assertEquals(2.0, s.variance, 0.2)
         assertEquals(1.0, s.mean, 0.2)
     }
 
     @Test
     fun gammaShapeLessThan1() {
-        val r = Rng(100)
+        val r = ExtendedRandom(Random(100))
         val shape = 0.1
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(shape * scale.pow(2), s.variance, 0.2)
@@ -79,11 +54,11 @@ class SamplingTest {
 
     @Test
     fun gammaShapeEquals1() {
-        val r = Rng(12934)
+        val r = ExtendedRandom(Random(12934))
         val shape = 1.0
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(shape * scale.pow(2), s.variance, 0.2)
@@ -92,11 +67,11 @@ class SamplingTest {
 
     @Test
     fun gammaShapeGreaterThan1() {
-        val r = Rng(12934)
+        val r = ExtendedRandom(Random(12934))
         val shape = 10.0
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(shape * scale.pow(2), s.variance, 2.0)
@@ -105,11 +80,11 @@ class SamplingTest {
 
     @Test
     fun gammaShapeHuge() {
-        val r = Rng(12934)
+        val r = ExtendedRandom(Random(12934))
         val shape = 100.0 // will trigger gaussian approximation
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(shape * scale.pow(2), s.variance, 20.0)
@@ -118,9 +93,9 @@ class SamplingTest {
 
     @Test
     fun betaUniform() {
-        val r = Rng(1023)
+        val r = ExtendedRandom(Random(1023))
         val s = generateSequence { r.beta(1.0, 1.0) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(1 / 12.0, s.variance, 0.1)
@@ -129,11 +104,11 @@ class SamplingTest {
 
     @Test
     fun betaSkewedDown() {
-        val r = Rng(12410)
+        val r = ExtendedRandom(Random(12410))
         val a = 1.0
         val b = 10.0
         val s = generateSequence { r.beta(a, b) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
                 .sample(RunningVariance())
         assertEquals((a * b) / ((a + b).pow(2) * (a + b + 1)), s.variance, 0.1)
@@ -142,11 +117,11 @@ class SamplingTest {
 
     @Test
     fun betaSkewedUp() {
-        val r = Rng(-10)
+        val r = ExtendedRandom(Random(-10))
         val a = 10.0
         val b = 1.0
         val s = generateSequence { r.beta(a, b) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
                 .sample(RunningVariance())
         assertEquals((a * b) / ((a + b).pow(2) * (a + b + 1)), s.variance, 0.1)
@@ -155,10 +130,10 @@ class SamplingTest {
 
     @Test
     fun poissonSmall() {
-        val r = Rng(5468)
+        val r = ExtendedRandom(Random(5468))
         val lambda = 0.1
         val s = generateSequence { r.poisson(lambda) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(lambda, s.variance, 0.1)
@@ -167,10 +142,10 @@ class SamplingTest {
 
     @Test
     fun poissonMedium() {
-        val r = Rng(1546)
+        val r = ExtendedRandom(Random(1546))
         val lambda = 2.0
         val s = generateSequence { r.poisson(lambda) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(lambda, s.variance, 1.0)
@@ -179,10 +154,10 @@ class SamplingTest {
 
     @Test
     fun poissonHuge() {
-        val r = Rng(68)
+        val r = ExtendedRandom(Random(68))
         val lambda = 100.0 // will trigger gaussian approximation
         val s = generateSequence { r.poisson(lambda) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(lambda, s.variance, 20.0)
@@ -191,10 +166,10 @@ class SamplingTest {
 
     @Test
     fun bernoulli() {
-        val r = Rng(568)
+        val r = ExtendedRandom(Random(568))
         val p = 0.1
         val s = generateSequence { r.binomial(p) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); assertFalse(it > 1, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(p * (1 - p), s.variance, 0.2)
@@ -203,11 +178,11 @@ class SamplingTest {
 
     @Test
     fun binomialHuge() {
-        val r = Rng(789)
+        val r = ExtendedRandom(Random(789))
         val p = 0.2
         val n = 100
         val s = generateSequence { r.binomial(p, n) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(n * p * (1 - p), s.variance, 10.0)
@@ -216,10 +191,10 @@ class SamplingTest {
 
     @Test
     fun geometric() {
-        val r = Rng(978546)
+        val r = ExtendedRandom(Random(978546))
         val p = 10.0
         val s = generateSequence { r.geometric(p) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals((1.0 - p) / p.pow(2), s.variance, 10.0)
@@ -228,10 +203,10 @@ class SamplingTest {
 
     @Test
     fun exponential() {
-        val r = Rng(100)
+        val r = ExtendedRandom(Random(100))
         val rate = 10.0
         val s = generateSequence { r.exponential(rate) }
-                .take(100)
+                .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(1.0 / rate.pow(2), s.variance, 0.5)

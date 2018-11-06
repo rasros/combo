@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.math.Rng
 import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
@@ -18,6 +17,7 @@ import org.jacop.satwrapper.SatTranslation
 import org.jacop.search.*
 import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.random.Random
 
 // TODO stats
 // TODO debug
@@ -81,7 +81,7 @@ class JacopSolver(problem: Problem,
                 setPrintInfo(config.debugMode)
                 setTimeout(this)
             }
-            val result = search.labeling(store, SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRng())))
+            val result = search.labeling(store, SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRandom())))
             if (!result) {
                 if (search.timeOutOccured) throw TimeoutException(timeout)
                 else throw UnsatisfiableException()
@@ -110,7 +110,7 @@ class JacopSolver(problem: Problem,
                 for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
 
-            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRng()))
+            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRandom()))
             val search = DepthFirstSearch<BooleanVar>().apply {
                 setPrintInfo(false)
                 setTimeout(this)
@@ -187,7 +187,7 @@ class JacopSolver(problem: Problem,
     }
 }
 
-class BinaryIndomainRandom(private val rng: Rng) : Indomain<BooleanVar> {
-    override fun indomain(v: BooleanVar) = rng.int(2)
+class BinaryIndomainRandom(private val rng: Random) : Indomain<BooleanVar> {
+    override fun indomain(v: BooleanVar) = rng.nextInt(2)
 }
 

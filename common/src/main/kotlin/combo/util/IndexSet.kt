@@ -1,10 +1,10 @@
 package combo.util
 
-import combo.math.Rng
 import combo.sat.Ix
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.random.Random
 
 /**
  * Specialized hash table for storing index variables. Storing only positive (>=0) integers.
@@ -12,7 +12,7 @@ import kotlin.math.max
  *
  * TODO better remove through Knuth's Algorithm R6.4
  */
-class IndexSet(initialSize: Int = 16) :Iterable<Ix> {
+class IndexSet(initialSize: Int = 16) : Iterable<Ix> {
 
     override fun iterator() = asSequence().iterator()
 
@@ -64,9 +64,9 @@ class IndexSet(initialSize: Int = 16) :Iterable<Ix> {
 
     fun asSequence() = table.asSequence().filter { it >= 0 }
 
-    fun random(rng: Rng = Rng()): Int {
+    fun random(rng: Random = Random.Default): Int {
         require(size > 0)
-        var k = rng.int(table.size)
+        var k = rng.nextInt(table.size)
         while (table[k] < 0) {
             k = (k + 1) % table.size
         }

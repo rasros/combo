@@ -21,7 +21,7 @@ class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
     }
 
     override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
-        val rng = config.nextRng()
+        val rng = ExtendedRandom(config.nextRandom())
         val con = Conjunction(contextLiterals)
         val labeling = if (config.maximize) {
             banditMap.maxBy { if (con.satisfies(it.key)) posterior.sample(rng, it.value) else Double.NEGATIVE_INFINITY }

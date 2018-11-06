@@ -21,7 +21,7 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
         val remap = createRemap(contextLiterals)
         val nbrVariables = problem.nbrVariables - contextLiterals.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return LabelingPermutation.sequence(nbrVariables, config.labelingBuilder, config.nextRng())
+        return LabelingPermutation.sequence(nbrVariables, config.labelingBuilder, config.nextRandom())
                 .map { if (millis() <= end) it else throw TimeoutException(timeout) }
                 .map { remapLabeling(contextLiterals, it, remap) }
                 .firstOrNull {
@@ -36,7 +36,7 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
         val remap = createRemap(contextLiterals)
         val nbrVariables = problem.nbrVariables - contextLiterals.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return LabelingPermutation.sequence(nbrVariables, config.labelingBuilder, config.nextRng())
+        return LabelingPermutation.sequence(nbrVariables, config.labelingBuilder, config.nextRandom())
                 .takeWhile { millis() <= end }
                 .map { remapLabeling(contextLiterals, it, remap) }
                 .filter {

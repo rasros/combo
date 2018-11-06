@@ -30,17 +30,17 @@ class GALinearOptimizer(val problem: Problem,
                         val eps: Double = 1E-5,
                         genCacheSize: Int = 25) : LinearOptimizer {
 
-    val poolCache = Array(genCacheSize) { init.generate(problem, config.labelingBuilder, config.nextRng()) }
+    val poolCache = Array(genCacheSize) { init.generate(problem, config.labelingBuilder, config.nextRandom()) }
     var pointer = 0
         private set
 
 
     override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
-        val rng = config.nextRng()
+        val rng = config.nextRandom()
 
         val population = Array(popSize) {
-            if (it < initFromPooled) poolCache[rng.int(poolCache.size)]
-            else init.generate(problem, config.labelingBuilder, config.nextRng())
+            if (it < initFromPooled) poolCache[rng.nextInt(poolCache.size)]
+            else init.generate(problem, config.labelingBuilder, config.nextRandom())
         }
 
         val con = if (contextLiterals.isEmpty()) null else Conjunction(contextLiterals)
@@ -94,7 +94,7 @@ class GALinearOptimizer(val problem: Problem,
 
         for (t in 1..maxIter) {
             val lix1 = selectionFunction.select(popSize, scores, rng, state)
-            if (rng.double() < pCrossover) {
+            if (rng.nextDouble() < pCrossover) {
                 var lix2: Int
                 do {
                     lix2 = selectionFunction.select(popSize, scores, rng, state)
@@ -112,9 +112,9 @@ class GALinearOptimizer(val problem: Problem,
                 crossoverSelection.crossover(l1, l2, rng)
                 updateLabelingState(eix1, t)
                 updateLabelingState(eix2, t)
-                if (rng.double() < pMutation)
+                if (rng.nextDouble() < pMutation)
                     mutationFunction.mutate(population[eix1], scores[eix1], rng, state)
-                if (rng.double() < pMutation)
+                if (rng.nextDouble() < pMutation)
                     mutationFunction.mutate(population[eix2], scores[eix2], rng, state)
             } else {
                 mutationFunction.mutate(population[lix1], scores[lix1], rng, state)

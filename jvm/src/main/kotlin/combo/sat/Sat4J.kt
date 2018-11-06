@@ -2,7 +2,6 @@
 
 package combo.sat
 
-import combo.math.Rng
 import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
@@ -25,6 +24,7 @@ import org.sat4j.pb.core.PBSolver
 import org.sat4j.specs.ContradictionException
 import org.sat4j.tools.ModelIterator
 import java.math.BigInteger.valueOf
+import kotlin.random.Random
 import org.sat4j.minisat.core.Solver as Sat4J
 import org.sat4j.pb.SolverFactory as PBSolverFactory
 import org.sat4j.specs.TimeoutException as Sat4JTimeoutException
@@ -39,16 +39,16 @@ class Sat4JSolver(val problem: Problem,
                   private val solver: Sat4J<*> = SolverFactory.newMiniLearningHeap()) : Solver {
 
     private val timeoutOrder = TimeoutOrder(solver.order)
-    private val literalSelection = RandomLiteralSelectionStrategySeeded(config.nextRng())
+    private val literalSelection = RandomLiteralSelectionStrategySeeded(config.nextRandom())
 
     init {
         this.solver.order = timeoutOrder
-        this.solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(config.nextRng())
+        this.solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(config.nextRandom())
         this.solver.setup(problem)
     }
 
     override fun witnessOrThrow(contextLiterals: Literals): Labeling {
-        literalSelection.rng = config.nextRng()
+        literalSelection.rng = config.nextRandom()
         if (timeout > 0L) timeoutOrder.setTimeout(timeout)
         solver.setTimeoutOnConflicts(maxConflicsts)
         val assumption = contextLiterals.toDimacs()
@@ -64,7 +64,7 @@ class Sat4JSolver(val problem: Problem,
     override fun sequence(contextLiterals: Literals): Sequence<Labeling> {
         val base = SolverFactory.newMiniLearning(
                 MixedDataStructureDanielWL(),
-                VarOrderHeap(RandomLiteralSelectionStrategySeeded(config.nextRng())))
+                VarOrderHeap(RandomLiteralSelectionStrategySeeded(config.nextRandom())))
         base.setup(problem)
         val solver = ModelIterator(base)
         val iterator = ModelIterator(solver)
@@ -80,13 +80,13 @@ class Sat4JSolver(val problem: Problem,
 
 
     // Modified to allow selection of random seed
-    private class RandomLiteralSelectionStrategySeeded(var rng: Rng) : IPhaseSelectionStrategy {
+    private class RandomLiteralSelectionStrategySeeded(var rng: Random) : IPhaseSelectionStrategy {
         override fun assignLiteral(p: Int) {}
         override fun init(nlength: Int) {}
         override fun init(v: Int, p: Int) {}
         override fun updateVar(p: Int) {}
         override fun updateVarAtDecisionLevel(q: Int) {}
-        override fun select(v: Int) = if (rng.boolean()) posLit(v) else negLit(v)
+        override fun select(v: Int) = if (rng.nextBoolean()) posLit(v) else negLit(v)
     }
 }
 

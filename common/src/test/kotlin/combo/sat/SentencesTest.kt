@@ -1,10 +1,10 @@
 package combo.sat
 
 import combo.math.IntPermutation
-import combo.math.Rng
 import combo.model.UnsatisfiableException
 import combo.model.ValidationException
 import combo.test.assertContentEquals
+import kotlin.random.Random
 import kotlin.test.*
 
 // TODO tests on flipsToSatisfy
@@ -20,7 +20,7 @@ class SentenceTest {
 
 private fun randomExhaustivePropagations(cs: Array<Sentence>) {
     // This test thoroughly test that unit propagation does not change the truth value of a labeling.
-    val rng = Rng()
+    val rng = Random.Default
     for (c in cs) for (i in c.literals) require(i.asIx() <= 4)
     for (l in LabelingPermutation.sequence(5, rng)) {
         for (c in cs) {
@@ -569,7 +569,7 @@ class ReifiedTest {
     fun toCnfSatisfiesDisjunction() {
         val original = Reified(5, Disjunction(intArrayOf(1, 3))).apply { validate() }
         val toCnf = original.toCnf()
-        for (l in LabelingPermutation.sequence(3, Rng())) {
+        for (l in LabelingPermutation.sequence(3, Random.Default)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)
@@ -580,7 +580,7 @@ class ReifiedTest {
     fun toCnfSatisfiesConjunction() {
         val original = Reified(4, Conjunction(intArrayOf(0, 3))).apply { validate() }
         val toCnf = original.toCnf()
-        for (l in LabelingPermutation.sequence(3, Rng())) {
+        for (l in LabelingPermutation.sequence(3, Random.Default)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)

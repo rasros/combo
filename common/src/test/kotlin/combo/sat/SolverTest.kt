@@ -1,9 +1,9 @@
 package combo.sat
 
-import combo.math.Rng
 import combo.model.ModelTest
 import combo.model.ValidationException
 import kotlin.math.pow
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -76,10 +76,10 @@ abstract class SolverTest {
             val solver = solver(model.problem)
             if (solver != null) {
                 val l = solver.witnessOrThrow()
-                val rng = Rng(i.toLong())
+                val rng = Random(i.toLong())
                 val context = ArrayList<Int>()
                 for (j in 0 until l.size) {
-                    if (rng.boolean())
+                    if (rng.nextBoolean())
                         context += l.asLiteral(j)
                 }
                 assertTrue(model.problem.satisfies(l))
@@ -98,10 +98,10 @@ abstract class SolverTest {
             val solver = solver(model.problem)
             if (solver != null) {
                 val l = solver.witnessOrThrow()
-                val rng = Rng(i.toLong())
+                val rng = Random(i.toLong())
                 val context = ArrayList<Int>()
                 for (j in 0 until l.size) {
-                    if (rng.boolean())
+                    if (rng.nextBoolean())
                         context += l.asLiteral(j)
                 }
                 val restricted = solver.witnessOrThrow(context.toIntArray())

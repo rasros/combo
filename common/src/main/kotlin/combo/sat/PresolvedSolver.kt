@@ -1,6 +1,6 @@
 package combo.sat
 
-import combo.math.RngSequence
+import combo.math.RandomSequence
 import combo.model.UnsatisfiableException
 import combo.math.LongPermutation
 import kotlin.jvm.JvmOverloads
@@ -8,11 +8,11 @@ import kotlin.jvm.JvmOverloads
 class PresolvedSolver @JvmOverloads constructor(private val solutions: Array<Labeling>,
                                                 override val config: SolverConfig = SolverConfig()) : Solver {
 
-    private val incrementingRng = RngSequence(config.randomSeed)
+    private val incrementingRandom = RandomSequence(config.randomSeed)
 
     override fun witnessOrThrow(contextLiterals: Literals): Labeling {
         if (solutions.isEmpty()) throw UnsatisfiableException(message = "Empty pre-solved solutions.")
-        val rng = incrementingRng.next()
+        val rng = incrementingRandom.next()
         if (contextLiterals.isNotEmpty()) {
             val c = Conjunction(contextLiterals);
             val permutation = LongPermutation(solutions.size.toLong(), rng)
@@ -21,7 +21,7 @@ class PresolvedSolver @JvmOverloads constructor(private val solutions: Array<Lab
                 if (c.satisfies(l)) return l
             }
             throw UnsatisfiableException("No pre-solved solutions matches the required fixed literals.")
-        } else return solutions[rng.int(solutions.size)]
+        } else return solutions[rng.nextInt(solutions.size)]
     }
 
     override fun sequence(contextLiterals: Literals): Sequence<Labeling> {

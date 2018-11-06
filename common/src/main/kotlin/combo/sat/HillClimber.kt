@@ -48,18 +48,18 @@ class HillClimber(val problem: Problem,
                     if (config.maximize) d else -d
                 }
                 update(score, labeling)
-                val rng = config.nextRng()
+                val rng = config.nextRandom()
                 for (j in 1..maxSteps) {
 
                     var nextVariableId: Int = -1
                     var itrScore = score
-                    if (rng.double() < pRandom) {
-                        nextVariableId = rng.int(labeling.size)
+                    if (rng.nextDouble() < pRandom) {
+                        nextVariableId = rng.nextInt(labeling.size)
                     } else {
                         for (k in IntPermutation(labeling.size, rng).iterator()) {
                             val copy = labeling.copy()
                             val s = score(!copy.asLiteral(k), copy)
-                            if (s > score || ((itrScore == score && s == score && sidewaySteps < maxSidewaySteps && rng.double() < pSideway))) {
+                            if (s > score || ((itrScore == score && s == score && sidewaySteps < maxSidewaySteps && rng.nextDouble() < pSideway))) {
                                 nextVariableId = k
                                 itrScore = s
                             }

@@ -3,17 +3,17 @@
 package combo.sat
 
 import combo.math.IntPermutation
-import combo.math.Rng
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.Tree
 import kotlin.jvm.JvmName
+import kotlin.random.Random
 
 interface LabelingInitializer {
-    fun generate(problem: Problem, builder: LabelingBuilder<*>, rng: Rng): MutableLabeling
+    fun generate(problem: Problem, builder: LabelingBuilder<*>, rng: Random): MutableLabeling
 }
 
 class RandomInitializer : LabelingInitializer {
-    override fun generate(problem: Problem, builder: LabelingBuilder<*>, rng: Rng) =
+    override fun generate(problem: Problem, builder: LabelingBuilder<*>, rng: Random) =
             builder.generate(problem.nbrVariables, rng).also {
                 initFixed(problem, it, null)
             }
@@ -50,13 +50,13 @@ class LookaheadInitializer(problem: Problem, reversed: Boolean = true) : Labelin
         if (reversed) bfsRows.reverse()
     }
 
-    override fun generate(problem: Problem, builder: LabelingBuilder<*>, rng: Rng): MutableLabeling {
+    override fun generate(problem: Problem, builder: LabelingBuilder<*>, rng: Random): MutableLabeling {
         val l = builder.build(problem.nbrVariables)
         val s = builder.build(problem.nbrVariables)
         initFixed(problem, l, s)
         for (row in bfsRows) {
             for (ix in IntPermutation(row.size, rng).iterator()) {
-                val lit = ix.asLiteral(rng.boolean())
+                val lit = ix.asLiteral(rng.nextBoolean())
                 s[ix] = true
                 l.set(lit)
                 if (!problem.index.sentencesWith(ix).all { problem.sentences[it].satisfies(l, s) }) {

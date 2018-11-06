@@ -1,7 +1,6 @@
 package combo.ga
 
 import combo.math.DescriptiveStatistic
-import combo.math.Rng
 import combo.math.RunningVariance
 import combo.sat.BitFieldLabeling
 import kotlin.test.Test
@@ -19,7 +18,7 @@ class SelectTest {
         val ts = UniformSampling()
         val s = RunningVariance()
         for (i in 0 until 10000) {
-            s.accept(ts.select(10, scores, Rng(), state).toDouble())
+            s.accept(ts.select(10, scores, Random(), state).toDouble())
         }
         println(s)
         */

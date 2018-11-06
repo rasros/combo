@@ -1,6 +1,7 @@
 package combo.math
 
 import combo.test.assertEquals
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -10,7 +11,7 @@ class PosteriorsTest {
     fun binomialUpdate() {
         val p = binomial()
         val stat = p.defaultPrior()
-        val r = Rng(1024)
+        val r = ExtendedRandom(Random((1024)))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         assertEquals(0.5, s1.mean, 0.1)
         doubleArrayOf(1.0, 1.0, 0.0).forEach { p.update(stat, it) }
@@ -23,7 +24,7 @@ class PosteriorsTest {
     fun poissonPriorFinite() {
         val p = poisson()
         val stat = p.defaultPrior()
-        val r = Rng(6768)
+        val r = ExtendedRandom(Random(6768))
         generateSequence { p.sample(r, stat) }.take(50).forEach {
             assertFalse(it.isNaN())
             assertFalse(it.isInfinite())
@@ -34,7 +35,7 @@ class PosteriorsTest {
     fun poissonUpdate() {
         val p = poisson()
         val stat = p.defaultPrior()
-        val r = Rng(19)
+        val r = ExtendedRandom(Random(19))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         assertEquals(1.0, s1.mean, 5.0) // posterior has variance=100, so prior estimate is bad
         doubleArrayOf(3.0, 4.0, 0.0, 5.0, 0.0, 1.0, 0.0).forEach { p.update(stat, it) }
@@ -47,7 +48,7 @@ class PosteriorsTest {
     fun geometricUpdate() {
         val p = geometric()
         val stat = p.defaultPrior()
-        val r = Rng(46978)
+        val r = ExtendedRandom(Random(46978))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         assertEquals(0.5, s1.mean, 0.1)
         doubleArrayOf(3.0, 4.0, 1.0, 3.0, 6.0, 2.0, 3.0).forEach { p.update(stat, it) }
@@ -60,18 +61,18 @@ class PosteriorsTest {
     fun normalPriorSignUnbiased() {
         val p = normal()
         val stat = p.defaultPrior()
-        val r = Rng(894)
-        val dataSample = generateSequence { p.sample(r, stat) }.take(50).sample(FullSample())
+        val r = ExtendedRandom(Random(893))
+        val dataSample = generateSequence { p.sample(r, stat) }.take(100).sample(FullSample())
         val neg = dataSample.collect().count { it < 0 }
         val pos = dataSample.collect().count { it > 0 }
-        assertEquals(neg.toDouble(), pos.toDouble(), 10.0)
+        assertEquals(neg.toDouble(), pos.toDouble(), 30.0)
     }
 
     @Test
     fun normalPriorFinite() {
         val p = normal()
         val stat = p.defaultPrior()
-        val r = Rng(46978)
+        val r = ExtendedRandom(Random(46978))
         generateSequence { p.sample(r, stat) }.take(50).forEach {
             assertFalse(it.isNaN())
             assertFalse(it.isInfinite())
@@ -82,7 +83,7 @@ class PosteriorsTest {
     fun normalUpdate() {
         val p = normal()
         val stat = p.defaultPrior()
-        val r = Rng(46978)
+        val r = ExtendedRandom(Random(46978))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         doubleArrayOf(3.0, 4.0, 1.0, 3.0, 6.0, 2.0, 2.0).forEach { p.update(stat, it) }
         val s2 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
@@ -94,7 +95,7 @@ class PosteriorsTest {
     fun logNormalPriorFinite() {
         val p = logNormal()
         val stat = p.defaultPrior()
-        val r = Rng(89776)
+        val r = ExtendedRandom(Random(89776))
         generateSequence { p.sample(r, stat) }.take(50).forEach {
             assertFalse(it.isNaN())
             assertFalse(it.isInfinite())
@@ -105,7 +106,7 @@ class PosteriorsTest {
     fun logNormalUpdate() {
         val p = logNormal()
         val stat = p.defaultPrior()
-        val r = Rng(979)
+        val r = ExtendedRandom(Random(979))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         doubleArrayOf(3.0, 4.0, 1.0, 3.0, 6.0, 2.0, 2.0).forEach { p.update(stat, it) }
         val s2 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
@@ -117,7 +118,7 @@ class PosteriorsTest {
     fun exponentialUpdate() {
         val p = exponential()
         val stat = p.defaultPrior()
-        val r = Rng(75)
+        val r = ExtendedRandom(Random(75))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         doubleArrayOf(3.0, 4.0, 1.0, 3.0, 6.0, 2.0, 2.0).forEach { p.update(stat, it) }
         val s2 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
@@ -129,7 +130,7 @@ class PosteriorsTest {
     fun gammaScaleUpdate() {
         val p = gammaScale(fixedShape = 2.0)
         val stat = p.defaultPrior()
-        val r = Rng(1023)
+        val r = ExtendedRandom(Random(1023))
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
         doubleArrayOf(3.0, 4.0, 1.0, 3.0, 6.0, 2.0, 2.0).forEach { p.update(stat, it) }
         val s2 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())
