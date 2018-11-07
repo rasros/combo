@@ -2,7 +2,9 @@ package combo.sat
 
 import combo.model.UnsatisfiableException
 import combo.model.ValidationException
-import combo.util.IndexSet
+import combo.util.HashIntSet
+import combo.util.IntSet
+import combo.util.SortedArrayIntSet
 
 class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
@@ -16,9 +18,9 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
     val index: SentenceIndex = SentenceIndex(sentences, nbrVariables)
 
     val implicationGraph = let { _ ->
-        val preImplications = Array(nbrVariables * 2) { IndexSet(16) }
+        val preImplications = Array(nbrVariables * 2) { SortedArrayIntSet(16) }
 
-        val remaining = IndexSet()
+        val remaining = HashIntSet()
         for ((sentId, sent) in sentences.withIndex()) {
             if (sent is Disjunction && sent.size == 2) {
                 preImplications[!sent.literals[0]].add(sent.literals[1])
@@ -44,19 +46,19 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
                 remaining.add(sentId)
             }
         }
-        Array(nbrVariables * 2) { i -> preImplications[i].toArray().apply { sort() } }
+        Array(nbrVariables * 2) { i -> preImplications[i].toArray() }
     }
 
     val nbrSentences get() = sentences.size
 
-    private fun addUnit(units: IndexSet, unit: Literal): Boolean {
+    private fun addUnit(units: IntSet, unit: Literal): Boolean {
         if (units.contains(!unit)) throw UnsatisfiableException("Unsatisfiable by unit propagation.", literal = unit)
         else return units.add(unit)
     }
 
     fun satisfies(l: Labeling, s: Labeling? = null) = sentences.all { it.satisfies(l, s) }
 
-    fun unitPropagation(units: IndexSet = IndexSet(), addConjunction: Boolean = false): Problem {
+    fun unitPropagation(units: IntSet = HashIntSet(), addConjunction: Boolean = false): Problem {
         for (l in units.toArray()) {
             if (units.contains(!l)) throw UnsatisfiableException(
                     "Unsatisfiable before unit propagation.", literal = l)

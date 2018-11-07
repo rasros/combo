@@ -3,7 +3,8 @@ package combo.sat
 import combo.math.IntPermutation
 import combo.model.IterationsReachedException
 import combo.model.TimeoutException
-import combo.util.IndexSet
+import combo.util.HashIntSet
+import combo.util.IntSet
 import combo.util.millis
 import kotlin.math.max
 import kotlin.math.min
@@ -30,7 +31,7 @@ class WalkSat(val problem: Problem,
             recordIteration()
             val rng = config.nextRandom()
             val p = if (contextLiterals.isNotEmpty())
-                problem.unitPropagation(IndexSet().apply { addAll(contextLiterals) }, true)
+                problem.unitPropagation(HashIntSet().apply { addAll(contextLiterals) }, true)
             else problem
             val labeling = init.generate(p, config.labelingBuilder, rng)
             val result = satIteration(p, labeling, rng, end)
@@ -46,7 +47,7 @@ class WalkSat(val problem: Problem,
     }
 
     private fun satIteration(problem: Problem, labeling: MutableLabeling, rng: Random, end: Long): MutableLabeling? {
-        val unsatisfied = IndexSet(max(16, problem.sentences.size / 8))
+        val unsatisfied = HashIntSet(max(16, problem.sentences.size / 8))
         for ((i, s) in problem.sentences.withIndex()) {
             if (!s.satisfies(labeling)) {
                 unsatisfied.add(i)
@@ -84,7 +85,7 @@ class WalkSat(val problem: Problem,
         return null
     }
 
-    private fun Problem.set(l: MutableLabeling, lit: Literal, unsatisfied: IndexSet) {
+    private fun Problem.set(l: MutableLabeling, lit: Literal, unsatisfied: IntSet) {
         l.set(lit)
         for (sentenceIx in index.sentencesWith(lit.asIx())) {
             val sentence = sentences[sentenceIx]
@@ -95,7 +96,7 @@ class WalkSat(val problem: Problem,
 
     private fun chooseBest(problem: Problem,
                            literals: Literals,
-                           unsatisfied: IndexSet,
+                           unsatisfied: IntSet,
                            labeling: MutableLabeling,
                            improvement: IntArray,
                            rng: Random): Int {

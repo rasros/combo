@@ -4,7 +4,7 @@ import combo.sat.Labeling
 import combo.sat.Problem
 import combo.sat.Tautology
 import combo.sat.asLiteral
-import combo.util.IndexSet
+import combo.util.HashIntSet
 import combo.util.Tree
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
@@ -47,7 +47,7 @@ class Model private constructor(val featureMetas: Map<Feature<*>, FeatureMeta<*>
                     .filterNot { it is Tautology }
                     .toList().toTypedArray()
 
-            val unitLiterals = IndexSet()
+            val unitLiterals = HashIntSet()
             val rootFeature = root.value
             unitLiterals.add(rootFeature.toLiteral(index.indexOf(rootFeature)))
             val problem = Problem(fullSentences, index.nbrVariables).unitPropagation(unitLiterals)

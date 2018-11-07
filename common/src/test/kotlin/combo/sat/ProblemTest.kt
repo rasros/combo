@@ -5,7 +5,7 @@ import combo.math.IntPermutation
 import combo.math.binomial
 import combo.model.ModelTest
 import combo.model.UnsatisfiableException
-import combo.util.IndexSet
+import combo.util.HashIntSet
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -22,7 +22,7 @@ class ProblemTest {
     @Test
     fun unitPropagationPreUnsat() {
         assertFailsWith(UnsatisfiableException::class) {
-            val ixs = IndexSet().apply { addAll(intArrayOf(0, 1)) }
+            val ixs = HashIntSet().apply { addAll(intArrayOf(0, 1)) }
             Problem(arrayOf(), 1).unitPropagation(ixs)
         }
     }
@@ -30,14 +30,14 @@ class ProblemTest {
     @Test
     fun unitPropagationReduction() {
         problem.sentences.forEach { it.validate() }
-        val reduced = problem.unitPropagation(IndexSet())
+        val reduced = problem.unitPropagation(HashIntSet())
         assertTrue(reduced.nbrSentences < problem.nbrSentences)
     }
 
     @Test
     fun unitPropagationSameSolution() {
         val solutions1 = ExhaustiveSolver(problem).sequence().toSet()
-        val units = IndexSet()
+        val units = HashIntSet()
         val reduced = problem.unitPropagation(units, true)
         val solutions2 = ExhaustiveSolver(reduced).sequence(units.toArray().apply { sort() }).toSet()
         val unitsSentence = Conjunction(units.toArray().apply { sort() })
@@ -74,7 +74,7 @@ class ProblemTest {
         val sents: Array<Sentence> = p.sentences.toList().toTypedArray()
         val p2 = Problem(sents + Conjunction(lits), p.nbrVariables)
         val reduced = try {
-            p.unitPropagation(IndexSet().apply { addAll(lits) }, true)
+            p.unitPropagation(HashIntSet().apply { addAll(lits) }, true)
         } catch (e: UnsatisfiableException) {
             return
         }

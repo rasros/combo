@@ -11,7 +11,7 @@ import com.joptimizer.optimizers.BIPOptimizationRequest
 import combo.math.Vector
 import combo.model.IterationsReachedException
 import combo.model.UnsatisfiableException
-import combo.util.IndexSet
+import combo.util.HashIntSet
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt
 
@@ -29,7 +29,7 @@ class JOptimizer(val problem: Problem,
      */
     override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
         val p = if (contextLiterals.isNotEmpty())
-            problem.unitPropagation(IndexSet().apply { addAll(contextLiterals) }, true)
+            problem.unitPropagation(HashIntSet().apply { addAll(contextLiterals) }, true)
         else problem
         val (G, h) = setupProblem(p)
 

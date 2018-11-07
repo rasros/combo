@@ -2,9 +2,8 @@ package combo.bandit
 
 import combo.math.*
 import combo.sat.*
-import combo.sat.WalkSat
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.IndexSet
+import combo.util.SortedArrayIntSet
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -68,7 +67,6 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         return true
     }
 
-
     private interface Node {
         fun findLeaf(labeling: Labeling): LeafNode
         fun update(labeling: Labeling, result: Double, weight: Double): Node
@@ -107,8 +105,11 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
         var nViewed: Int = 0
 
-        val ids = IndexSet().apply { addAll((0 until problem.nbrVariables) - setLiterals.map { it.asIx() }) }
-                .toArray().apply { sort() }
+        val ids = SortedArrayIntSet().let { s ->
+            s.addAll(0 until problem.nbrVariables)
+            setLiterals.map { it.asIx() }.forEach { s.remove(it) }
+            s.toArray()
+        }
         val dataPos: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }
         val dataNeg: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }
 

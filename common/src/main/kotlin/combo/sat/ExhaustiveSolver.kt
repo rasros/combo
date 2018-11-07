@@ -3,7 +3,7 @@ package combo.sat
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.IndexSet
+import combo.util.HashIntSet
 import combo.util.millis
 import kotlin.jvm.JvmOverloads
 
@@ -52,7 +52,7 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
         return if (contextLiterals.isNotEmpty()) {
             val themap = IntArray(nbrVariables)
             var ix = 0
-            val taken = IndexSet(contextLiterals.size * 2)
+            val taken = HashIntSet(contextLiterals.size * 2)
             contextLiterals.forEach { taken.add(it.asIx()) }
             for (i in 0 until nbrVariables) {
                 while (taken.contains(ix)) ix++

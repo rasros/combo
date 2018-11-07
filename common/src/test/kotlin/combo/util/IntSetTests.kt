@@ -1,20 +1,24 @@
 package combo.util
 
+import combo.math.IntPermutation
+import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.*
 
-class IndexSetTest {
+abstract class IntSetTest {
+
+    abstract fun set(size: Int = 16): IntSet
 
     @Test
     fun createEmpty() {
-        val set = IndexSet()
+        val set = set()
         assertEquals(0, set.size)
         assertTrue { set.isEmpty() }
     }
 
     @Test
     fun add() {
-        val set = IndexSet()
+        val set = set()
         for (i in 0 until 1000) {
             assertEquals(i, set.size)
             set.add(i)
@@ -24,27 +28,27 @@ class IndexSetTest {
     @Test
     fun addNegative() {
         assertFailsWith(IllegalArgumentException::class) {
-            val set = IndexSet()
+            val set = set()
             set.add(-2)
         }
     }
 
     @Test
     fun containsNotEmpty() {
-        val set = IndexSet()
+        val set = set()
         assertFalse(set.contains(0))
     }
 
     @Test
     fun containsAfterAdd() {
-        val set = IndexSet()
+        val set = set()
         set.add(2)
         assertTrue(set.contains(2))
     }
 
     @Test
     fun addAllIntArray() {
-        val set = IndexSet()
+        val set = set()
         set.addAll(intArrayOf(2, 4))
         assertTrue(set.contains(2))
         assertTrue(set.contains(4))
@@ -52,7 +56,7 @@ class IndexSetTest {
 
     @Test
     fun addAllIntSequence() {
-        val set = IndexSet()
+        val set = set()
         set.addAll((2..4).asSequence().asIterable())
         assertTrue(set.contains(2))
         assertTrue(set.contains(3))
@@ -61,14 +65,14 @@ class IndexSetTest {
 
     @Test
     fun removeMissingFromSet() {
-        val set = IndexSet()
+        val set = set()
         assertFalse(set.remove(1))
         assertFalse(set.remove(-1))
     }
 
     @Test
     fun removeFromSetAndAddAgain() {
-        val set = IndexSet()
+        val set = set()
         set.add(2)
         set.add(8)
         assertFalse(set.remove(3))
@@ -81,13 +85,13 @@ class IndexSetTest {
 
     @Test
     fun toArrayOnEmpty() {
-        val set = IndexSet()
+        val set = set()
         assertTrue { set.toArray().isEmpty() }
     }
 
     @Test
     fun toArrayOnRemoved() {
-        val set = IndexSet()
+        val set = set()
         set.add(0)
         assertEquals(1, set.toArray().size)
         set.remove(0)
@@ -96,7 +100,7 @@ class IndexSetTest {
 
     @Test
     fun clear() {
-        val set = IndexSet()
+        val set = set()
         for (i in 4..10)
             set.add(i)
         set.remove(5)
@@ -108,13 +112,13 @@ class IndexSetTest {
 
     @Test
     fun emptySequence() {
-        val set = IndexSet()
+        val set = set()
         assertEquals(0, set.asSequence().count())
     }
 
     @Test
     fun smallSequence() {
-        val set = IndexSet()
+        val set = set()
         set.add(8)
         set.add(1)
         assertEquals(2, set.asSequence().count())
@@ -123,21 +127,21 @@ class IndexSetTest {
     @Test
     fun randomOnEmpty() {
         assertFailsWith(IllegalArgumentException::class) {
-            val set = IndexSet()
+            val set = set()
             set.random()
         }
     }
 
     @Test
     fun randomOnSingleton() {
-        val set = IndexSet()
+        val set = set()
         set.add(12300)
         assertEquals(12300, set.random())
     }
 
     @Test
     fun multipleRehash() {
-        val set = IndexSet(2)
+        val set = set(2)
         set.addAll((1..100).asSequence().asIterable())
         set.clear()
         set.addAll((1100..1120).asSequence().asIterable())
@@ -152,7 +156,7 @@ class IndexSetTest {
     fun largeRandomTest() {
         val r = Random(0)
         val all = ArrayList<Int>()
-        val set = IndexSet()
+        val set = set()
         val test = HashSet<Int>()
         for (i in 1..1_000) {
             val n = r.nextInt(Int.MAX_VALUE)
@@ -167,5 +171,21 @@ class IndexSetTest {
         }
         for (i in all)
             assertEquals(test.remove(i), set.remove(i))
+    }
+}
+
+class ArrayIntSetTest : IntSetTest() {
+    override fun set(size: Int) = ArrayIntSet(size)
+}
+
+class SortedArrayIntSetTest : IntSetTest() {
+    override fun set(size: Int) = SortedArrayIntSet(size)
+
+    @Test
+    fun ordering() {
+        val p = IntPermutation(20)
+        val s = set()
+        s.addAll(p)
+        assertContentEquals(s.toArray(), (0..19).toList().toIntArray())
     }
 }

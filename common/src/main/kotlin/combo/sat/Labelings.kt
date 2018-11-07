@@ -25,6 +25,7 @@ interface MutableLabeling : Labeling {
     fun flip(ix: Ix) = set(ix, !get(ix))
     fun set(literal: Literal) = set(literal.asIx(), literal.asBoolean())
     fun setAll(literals: Literals) {
+        // TODO all implementations can use a more efficient version
         for (lit in literals) set(lit)
     }
 
@@ -168,7 +169,15 @@ class SparseLabeling constructor(override val size: Int,
         }
     }
 
-    // TODO efficient setAll with double pointer
+    /*
+    TODO implement efficient version
+    override fun setAll(literals: Literals) {
+        var i = 0
+        var j = 0
+        while (i < size && j < literals.size) {
+        }
+    }
+    */
 
     override fun equals(other: Any?) =
             if (other is SparseLabeling) other.size == size && other.literals.contentEquals(literals) else false
