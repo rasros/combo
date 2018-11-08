@@ -81,13 +81,10 @@ class HashIntSet(initialSize: Int = 16) : IntSet {
         }
     }
 
-    private var rehashBig = 0
-    private var rehashSmall = 0
-
     override var size: Int = 0
         private set
 
-    private var table: IntArray = IntArray(tableSizeFor(initialSize)) { -1 }
+    private var table: IntArray = IntArray(tableSizeFor((initialSize.toDouble() / LOAD_FACTOR).toInt())) { -1 }
     private var occupied = 0
 
     override fun clear() {
@@ -115,7 +112,7 @@ class HashIntSet(initialSize: Int = 16) : IntSet {
         return object : IntIterator() {
             private var seen = 0
             private var ptr = 0
-            override fun hasNext() = seen < 0
+            override fun hasNext() = seen < size
 
             override fun nextInt(): Int {
                 while (table[ptr] < 0)
@@ -141,16 +138,14 @@ class HashIntSet(initialSize: Int = 16) : IntSet {
         table[probAddSlot(ix)] = ix
         size++
         occupied++
-        if (tableSizeFor(occupied) > table.size) {
+        if (tableSizeFor((occupied.toDouble() / LOAD_FACTOR).toInt()) > table.size)
             rehash()
-            rehashBig++
-        }
         return true
     }
 
     private fun rehash() {
         val old = table
-        table = IntArray(tableSizeFor(size))
+        table = IntArray(tableSizeFor((size.toDouble() / LOAD_FACTOR).toInt()))
         table.forEachIndexed { i, _ -> table[i] = -1 }
         size = 0
         occupied = 0
@@ -163,10 +158,8 @@ class HashIntSet(initialSize: Int = 16) : IntSet {
         if (table[pos] < 0) return false
         table[pos] = -2
         size--
-        if (size > MIN_RESIZE && (occupied - size) / occupied.toDouble() > REHASH_THRESHOLD) {
+        if (size > MIN_RESIZE && (occupied - size) / occupied.toDouble() > REHASH_THRESHOLD)
             rehash()
-            rehashSmall++
-        }
         return true
     }
 
