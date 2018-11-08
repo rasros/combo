@@ -174,6 +174,10 @@ abstract class IntSetTest {
     }
 }
 
+class HashIntSetTest : IntSetTest() {
+    override fun set(size: Int) = HashIntSet(size)
+}
+
 class ArrayIntSetTest : IntSetTest() {
     override fun set(size: Int) = ArrayIntSet(size)
 }
