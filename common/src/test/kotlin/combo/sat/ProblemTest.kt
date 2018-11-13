@@ -5,6 +5,7 @@ import combo.math.IntPermutation
 import combo.math.binomial
 import combo.model.ModelTest
 import combo.model.UnsatisfiableException
+import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
 import combo.util.HashIntSet
 import kotlin.random.Random
@@ -97,6 +98,3 @@ class ProblemTest {
     }
 }
 
-class ExtendedProblemTest {
-
-}

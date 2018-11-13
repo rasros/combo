@@ -1,6 +1,8 @@
-package combo.sat
+package combo.sat.solvers
 
 import combo.model.ValidationException
+import combo.sat.Labeling
+import combo.sat.Literals
 import combo.util.EMPTY_INT_ARRAY
 
 interface Solver : Iterable<Labeling> {

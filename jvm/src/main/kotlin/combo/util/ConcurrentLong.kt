@@ -1,3 +1,5 @@
+@file:JvmName("ConcurrentLong")
+
 package combo.util
 
 import java.util.concurrent.atomic.AtomicInteger

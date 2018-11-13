@@ -1,4 +1,7 @@
-package combo.sat
+package combo.sat.solvers
+
+import combo.sat.Problem
+import combo.sat.SolverTest
 
 class ExhaustiveSolverTest : SolverTest() {
     override fun solver(problem: Problem) = ExhaustiveSolver(problem)

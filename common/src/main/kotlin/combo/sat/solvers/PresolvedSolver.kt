@@ -1,8 +1,9 @@
-package combo.sat
+package combo.sat.solvers
 
 import combo.math.RandomSequence
 import combo.model.UnsatisfiableException
 import combo.math.LongPermutation
+import combo.sat.*
 import kotlin.jvm.JvmOverloads
 
 class PresolvedSolver @JvmOverloads constructor(private val solutions: Array<Labeling>,

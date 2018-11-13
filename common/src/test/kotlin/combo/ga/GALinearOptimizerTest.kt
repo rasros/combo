@@ -1,9 +1,9 @@
 package combo.ga
 
-import combo.sat.LinearOptimizer
+import combo.sat.solvers.LinearOptimizer
 import combo.sat.LinearOptimizerTest
 import combo.sat.Problem
-import combo.sat.SolverConfig
+import combo.sat.solvers.SolverConfig
 import kotlin.test.Ignore
 
 @Ignore

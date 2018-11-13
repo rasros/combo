@@ -3,7 +3,7 @@ package combo.bandit
 import combo.math.DataSample
 import combo.sat.Labeling
 import combo.model.ValidationException
-import combo.sat.SolverConfig
+import combo.sat.solvers.SolverConfig
 import kotlin.math.abs
 
 interface Bandit {

@@ -1,4 +1,6 @@
-package combo.sat
+package combo.sat.solvers
+
+import combo.sat.Problem
 
 class Sat4JSolverTest : SolverTest() {
     override fun solver(problem: Problem) = Sat4JSolver(problem)

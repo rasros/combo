@@ -1,10 +1,6 @@
-package combo.sat
+package combo.sat.solvers
 
-import combo.math.IntPermutation
-import combo.model.UnsatisfiableException
-import combo.util.HashIntSet
-import combo.util.IntSet
-import kotlin.random.Random
+import combo.sat.Sentence
 
 abstract class LocalSearch {
 

@@ -1,8 +1,9 @@
-package combo.sat
+package combo.sat.solvers
 
 import combo.math.IntPermutation
 import combo.model.TimeoutException
 import combo.model.ValidationException
+import combo.sat.*
 import combo.util.millis
 
 

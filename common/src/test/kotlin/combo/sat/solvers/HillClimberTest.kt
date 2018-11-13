@@ -1,4 +1,7 @@
-package combo.sat
+package combo.sat.solvers
+
+import combo.sat.LinearOptimizerTest
+import combo.sat.Problem
 
 class HillClimberTest : LinearOptimizerTest() {
 

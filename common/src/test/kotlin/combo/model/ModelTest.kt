@@ -1,8 +1,8 @@
 package combo.model
 
 import combo.sat.BitFieldLabeling
-import combo.sat.ExhaustiveSolver
-import combo.sat.WalkSat
+import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.solvers.WalkSat
 import kotlin.test.*
 
 class ModelTest {

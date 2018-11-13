@@ -2,6 +2,9 @@ package combo.bandit
 
 import combo.math.*
 import combo.sat.*
+import combo.sat.solvers.Solver
+import combo.sat.solvers.SolverConfig
+import combo.sat.solvers.WalkSat
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.SortedArrayIntSet
 import kotlin.jvm.JvmOverloads

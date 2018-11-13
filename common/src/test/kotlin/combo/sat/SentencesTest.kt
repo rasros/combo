@@ -3,6 +3,7 @@ package combo.sat
 import combo.math.IntPermutation
 import combo.model.UnsatisfiableException
 import combo.model.ValidationException
+import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.*

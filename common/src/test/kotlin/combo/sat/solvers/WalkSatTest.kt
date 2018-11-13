@@ -1,4 +1,6 @@
-package combo.sat
+package combo.sat.solvers
+
+import combo.sat.Problem
 
 class WalkSatTest : SolverTest() {
     override fun solver(problem: Problem) = WalkSat(problem)

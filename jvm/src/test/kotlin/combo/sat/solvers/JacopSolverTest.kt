@@ -1,4 +1,6 @@
-package combo.sat
+package combo.sat.solvers
+
+import combo.sat.Problem
 
 class JacopSolverTest : SolverTest() {
     override fun solver(problem: Problem) = JacopSolver(problem)

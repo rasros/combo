@@ -1,5 +1,6 @@
-package combo.sat
+package combo.sat.solvers
 
+import combo.sat.Problem
 import kotlin.test.Ignore
 
 @Ignore

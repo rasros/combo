@@ -1,4 +1,4 @@
-package combo.sat
+package combo.sat.solvers
 
 import cern.colt.matrix.tint.IntMatrix1D
 import cern.colt.matrix.tint.IntMatrix2D
@@ -11,6 +11,7 @@ import com.joptimizer.optimizers.BIPOptimizationRequest
 import combo.math.Vector
 import combo.model.IterationsReachedException
 import combo.model.UnsatisfiableException
+import combo.sat.*
 import combo.util.HashIntSet
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt

@@ -6,8 +6,8 @@ import combo.bandit.MultiArmedBandit
 import combo.bandit.glm.VarianceFunction
 import combo.bandit.glm.gaussian
 import combo.math.*
-import combo.sat.*
-import combo.sat.WalkSat
+import combo.sat.solvers.WalkSat
+import combo.sat.solvers.*
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic

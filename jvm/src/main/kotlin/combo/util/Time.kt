@@ -1,3 +1,5 @@
+@file:JvmName("Time")
+
 package combo.util
 
 actual fun nanos() = System.nanoTime()

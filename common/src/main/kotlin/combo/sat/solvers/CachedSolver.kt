@@ -1,5 +1,6 @@
-package combo.sat
+package combo.sat.solvers
 
+import combo.sat.*
 import kotlin.jvm.JvmOverloads
 import kotlin.random.Random
 

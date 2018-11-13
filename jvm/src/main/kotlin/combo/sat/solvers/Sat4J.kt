@@ -1,10 +1,11 @@
 @file:JvmName("Sat4J")
 
-package combo.sat
+package combo.sat.solvers
 
 import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
+import combo.sat.*
 import combo.util.applyTransform
 import combo.util.millis
 import org.sat4j.core.LiteralsUtils.negLit

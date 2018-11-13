@@ -1,7 +1,9 @@
-package combo.sat
+package combo.sat.solvers
 
 import combo.model.ModelTest
 import combo.model.ValidationException
+import combo.sat.Conjunction
+import combo.sat.Problem
 import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.Test

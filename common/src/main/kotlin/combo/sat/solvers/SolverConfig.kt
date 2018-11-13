@@ -1,6 +1,8 @@
-package combo.sat
+package combo.sat.solvers
 
 import combo.math.RandomSequence
+import combo.sat.BitFieldLabelingBuilder
+import combo.sat.LabelingBuilder
 import combo.util.nanos
 
 data class SolverConfig(

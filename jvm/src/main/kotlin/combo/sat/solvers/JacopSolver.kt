@@ -1,8 +1,9 @@
-package combo.sat
+package combo.sat.solvers
 
 import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
+import combo.sat.*
 import combo.util.millis
 import org.jacop.constraints.SumBool
 import org.jacop.constraints.XeqC
@@ -185,9 +186,10 @@ class JacopSolver(problem: Problem,
             }
         }
     }
+
+    class BinaryIndomainRandom(private val rng: Random) : Indomain<BooleanVar> {
+        override fun indomain(v: BooleanVar) = rng.nextInt(2)
+    }
 }
 
-class BinaryIndomainRandom(private val rng: Random) : Indomain<BooleanVar> {
-    override fun indomain(v: BooleanVar) = rng.nextInt(2)
-}
 
