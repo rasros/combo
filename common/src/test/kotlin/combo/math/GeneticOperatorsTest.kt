@@ -1,8 +1,5 @@
-package combo.ga
+package combo.math
 
-import combo.math.DescriptiveStatistic
-import combo.math.RunningVariance
-import combo.sat.BitFieldLabeling
 import kotlin.test.Test
 
 

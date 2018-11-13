@@ -4,6 +4,7 @@ import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
 import combo.sat.*
+import combo.sat.optimizers.LinearOptimizer
 import combo.util.millis
 import org.jacop.constraints.SumBool
 import org.jacop.constraints.XeqC

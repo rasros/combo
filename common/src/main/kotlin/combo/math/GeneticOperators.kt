@@ -1,13 +1,20 @@
 @file:JvmName("GeneticOperators")
 
-package combo.ga
+package combo.math
 
-import combo.math.IntPermutation
 import combo.sat.ExtendedProblem
 import combo.sat.MutableLabeling
 import kotlin.jvm.JvmName
 import kotlin.math.roundToInt
 import kotlin.random.Random
+
+class PopulationState(
+        val population: Array<MutableLabeling>,
+        val scores: DoubleArray,
+        val age: IntArray,
+        var oldest: Int,
+        var youngest: Int,
+        var scoreStatistic: DescriptiveStatistic)
 
 interface CrossoverFunction {
     fun crossover(l1: MutableLabeling, l2: MutableLabeling, rng: Random)

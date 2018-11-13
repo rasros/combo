@@ -6,6 +6,7 @@ import combo.math.Vector
 import combo.model.TimeoutException
 import combo.model.UnsatisfiableException
 import combo.sat.*
+import combo.sat.optimizers.LinearOptimizer
 import combo.util.applyTransform
 import combo.util.millis
 import org.sat4j.core.LiteralsUtils.negLit

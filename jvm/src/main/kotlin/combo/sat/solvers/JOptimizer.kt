@@ -12,6 +12,7 @@ import combo.math.Vector
 import combo.model.IterationsReachedException
 import combo.model.UnsatisfiableException
 import combo.sat.*
+import combo.sat.optimizers.LinearOptimizer
 import combo.util.HashIntSet
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt

@@ -1,13 +1,12 @@
-package combo.ga
+package combo.sat.optimizers
 
-import combo.sat.solvers.LinearOptimizer
-import combo.sat.LinearOptimizerTest
 import combo.sat.Problem
+import combo.sat.solvers.LinearOptimizerTest
 import combo.sat.solvers.SolverConfig
 import kotlin.test.Ignore
 
 @Ignore
-class GALinearOptimizerTest : LinearOptimizerTest() {
+class GAOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem, config: SolverConfig): LinearOptimizer? {
         TODO("not implemented")
     }

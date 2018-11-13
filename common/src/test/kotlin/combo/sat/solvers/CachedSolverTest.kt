@@ -1,8 +1,6 @@
 package combo.sat.solvers
 
 import combo.sat.Problem
-import combo.sat.SolverTest
-import combo.sat.WalkSatTest
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem) = CachedSolver(WalkSatTest().solver(problem), pEviction = 0.95)

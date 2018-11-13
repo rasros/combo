@@ -6,6 +6,8 @@ import combo.bandit.MultiArmedBandit
 import combo.bandit.glm.VarianceFunction
 import combo.bandit.glm.gaussian
 import combo.math.*
+import combo.sat.optimizers.HillClimber
+import combo.sat.optimizers.LinearOptimizer
 import combo.sat.solvers.WalkSat
 import combo.sat.solvers.*
 import combo.util.EMPTY_INT_ARRAY

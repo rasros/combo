@@ -1,4 +1,4 @@
-package combo.ga
+package combo.sat.optimizers
 
 import combo.math.DescriptiveStatistic
 import combo.math.ExponentialDecayVariance

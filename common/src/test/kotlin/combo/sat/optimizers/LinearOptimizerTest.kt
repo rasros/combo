@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import combo.math.Vector
 import combo.math.toVector
@@ -7,6 +7,7 @@ import combo.model.ValidationException
 import combo.sat.Conjunction
 import combo.sat.Problem
 import combo.sat.dot
+import combo.sat.solvers.SolverConfig
 import combo.test.assertEquals
 import kotlin.math.max
 import kotlin.random.Random
