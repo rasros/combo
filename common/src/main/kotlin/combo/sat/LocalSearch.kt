@@ -1,38 +1,46 @@
 package combo.sat
 
-// Complete method: Can move most constraints out of walksat
-//                  More useful for hillclimber
-// Approximate method: Faster flipping
+import combo.math.IntPermutation
+import combo.model.UnsatisfiableException
+import combo.util.HashIntSet
+import combo.util.IntSet
+import kotlin.random.Random
 
-// Sorted list: Fast clear
-// IndexSet:
+abstract class LocalSearch {
 
-fun MutableLabeling.flipChain(ix: Ix, implicationGraph: Array<Literals>,
-                              flipped: IntArray, startIx: Ix = 0): Int {
-    var i = 0
-    var j = startIx
-    val literal = !asLiteral(ix)
-    while (i < implicationGraph[literal].size && j < flipped.size) {
-        val l = implicationGraph[literal][i]
-        if (asLiteral(l.asIx()) != l)
-            flipped[j++] = asLiteral(l.asIx())
-        i++
+    abstract val config: SolverConfig
+
+    var totalSuccesses: Long = 0
+        private set
+    var totalEvaluated: Long = 0
+        private set
+    var totalIterations: Long = 0
+        private set
+    var totalFlips: Long = 0
+        private set
+
+    var latestSequenceLiterals: MutableList<Int>? = null
+    var latestSequenceSentence: MutableList<Sentence>? = null
+
+    protected fun recordCompleted(satisfied: Boolean) {
+        if (satisfied) totalSuccesses++
+        totalEvaluated++
     }
-    flip(ix)
-    setAll(implicationGraph[literal])
-    if (j < flipped.size) flipped[j] = -1
-    else {
-        do {
-            j = flipChain(!flipped[j], implicationGraph, flipped, j)
-        } while (j < flipped.size)
+
+    protected fun recordIteration() {
+        if (config.debugMode) {
+            latestSequenceSentence = ArrayList()
+            latestSequenceLiterals = ArrayList()
+        }
+        totalIterations++
     }
-    return j
+
+    protected fun recordFlip(sentence: Sentence, literal: Int) {
+        if (config.debugMode) {
+            latestSequenceSentence!!.add(sentence)
+            latestSequenceLiterals!!.add(literal)
+        }
+        totalFlips++
+    }
 }
 
-fun MutableLabeling.flipChain(ix: Ix, flipped: IntArray) {
-    flip(ix)
-    for (i in 0 until flipped.size) {
-        if (i < 0) break
-        flip(flipped[i])
-    }
-}

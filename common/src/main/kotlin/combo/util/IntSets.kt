@@ -10,6 +10,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.random.Random
 
+// TODO replace sorted with array tree set
 interface IntSet : Iterable<Ix> {
 
     fun clear()
@@ -27,16 +28,8 @@ interface IntSet : Iterable<Ix> {
     operator fun contains(ix: Ix): Boolean
 
     fun add(ix: Ix): Boolean
-
-    fun addAll(ixs: IntArray) {
-        for (i in ixs.indices)
-            add(ixs[i])
-    }
-
-    fun addAll(ixs: Iterable<Int>) {
-        ixs.forEach { this.add(it) }
-    }
-
+    fun addAll(ixs: IntArray) = ixs.fold(true) { all, it -> this.add(it) && all }
+    fun addAll(ixs: Iterable<Int>) = ixs.fold(true) { all, it -> this.add(it) && all }
     fun remove(ix: Ix): Boolean
 
     companion object {
@@ -63,8 +56,9 @@ interface IntSet : Iterable<Ix> {
  * Also supports getting a random value from the index. It uses linear probing.
  *
  * TODO better remove through Knuth's Algorithm R6.4
+ * TODO option for quadratic probing and double hashing
  */
-class HashIntSet(initialSize: Int = 16) : IntSet {
+class HashIntSet(initialSize: Int = 8) : IntSet {
 
     private companion object {
         private const val REHASH_THRESHOLD = 0.5

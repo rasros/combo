@@ -1,5 +1,8 @@
 package combo.sat
 
+import kotlin.test.Ignore
+
+@Ignore
 class PresolvedSolverTest : SolverTest() {
 
     override fun solver(problem: Problem) =

@@ -1,6 +1,5 @@
 package combo.model
 
-import combo.sat.RandomInitializer
 import combo.sat.BitFieldLabeling
 import combo.sat.ExhaustiveSolver
 import combo.sat.WalkSat
@@ -156,7 +155,7 @@ class ModelTest {
     fun emptyModel() {
         val m = Model.builder().build()
         assertEquals(m.problem.nbrVariables, 0)
-        val l = WalkSat(m.problem, init = RandomInitializer()).witnessOrThrow()
+        val l = WalkSat(m.problem).witnessOrThrow()
         assertEquals(l.size, 0)
         val a = m.toAssignment(l)
         assertEquals(1, a.size)

@@ -3,8 +3,8 @@
 package combo.ga
 
 import combo.math.IntPermutation
+import combo.sat.ExtendedProblem
 import combo.sat.MutableLabeling
-import combo.sat.Problem
 import kotlin.jvm.JvmName
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -113,25 +113,32 @@ interface MutationFunction {
     fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState)
 }
 
-class FlipMutation(val problem: Problem, val flips: Int = 1, val setImplications: Boolean = true) : MutationFunction {
+class FlipMutation(val flips: Int = 1) : MutationFunction {
     override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
         for (i in 1..flips) {
             val ix = rng.nextInt(labeling.size)
             labeling.flip(ix)
-            if (setImplications)
-                labeling.setAll(problem.implicationGraph[labeling.asLiteral(ix)])
         }
     }
 }
 
-class AdaptiveFlipMutation(val problem: Problem, val setImplications: Boolean = true) : MutationFunction {
+class PropagatedFlipMutation(val problem: ExtendedProblem, val flips: Int = 1) : MutationFunction {
+    override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
+        for (i in 1..flips) {
+            val ix = rng.nextInt(labeling.size)
+            labeling.flip(ix)
+            labeling.setAll(problem.literalPropagations[labeling.asLiteral(ix)])
+        }
+    }
+}
+
+class PropagatedAdaptiveFlipMutation(val problem: ExtendedProblem) : MutationFunction {
     override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
         val flips = (state.scoreStatistic.max - score) / (state.scoreStatistic.max - state.scoreStatistic.mean) * 0.5
         for (i in 1..flips.roundToInt()) {
             val ix = rng.nextInt(labeling.size)
             labeling.flip(ix)
-            if (setImplications)
-                labeling.setAll(problem.implicationGraph[labeling.asLiteral(ix)])
+            labeling.setAll(problem.literalPropagations[labeling.asLiteral(ix)])
         }
     }
 }

@@ -5,6 +5,7 @@ import combo.math.IntPermutation
 import combo.math.binomial
 import combo.model.ModelTest
 import combo.model.UnsatisfiableException
+import combo.test.assertContentEquals
 import combo.util.HashIntSet
 import kotlin.random.Random
 import kotlin.test.*
@@ -20,17 +21,9 @@ class ProblemTest {
             ), 6)
 
     @Test
-    fun unitPropagationPreUnsat() {
-        assertFailsWith(UnsatisfiableException::class) {
-            val ixs = HashIntSet().apply { addAll(intArrayOf(0, 1)) }
-            Problem(arrayOf(), 1).unitPropagation(ixs)
-        }
-    }
-
-    @Test
     fun unitPropagationReduction() {
         problem.sentences.forEach { it.validate() }
-        val reduced = problem.unitPropagation(HashIntSet())
+        val reduced = problem.simplify(HashIntSet())
         assertTrue(reduced.nbrSentences < problem.nbrSentences)
     }
 
@@ -38,7 +31,7 @@ class ProblemTest {
     fun unitPropagationSameSolution() {
         val solutions1 = ExhaustiveSolver(problem).sequence().toSet()
         val units = HashIntSet()
-        val reduced = problem.unitPropagation(units, true)
+        val reduced = problem.simplify(units, true)
         val solutions2 = ExhaustiveSolver(reduced).sequence(units.toArray().apply { sort() }).toSet()
         val unitsSentence = Conjunction(units.toArray().apply { sort() })
         val sentences: MutableList<Sentence> = reduced.sentences.toMutableList()
@@ -74,7 +67,7 @@ class ProblemTest {
         val sents: Array<Sentence> = p.sentences.toList().toTypedArray()
         val p2 = Problem(sents + Conjunction(lits), p.nbrVariables)
         val reduced = try {
-            p.unitPropagation(HashIntSet().apply { addAll(lits) }, true)
+            p.simplify(HashIntSet().apply { addAll(lits) }, true)
         } catch (e: UnsatisfiableException) {
             return
         }
@@ -91,4 +84,19 @@ class ProblemTest {
         assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
         assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
     }
+
+
+    @Test
+    fun clauseMatch() {
+        val problem = Problem(arrayOf(
+                Disjunction(intArrayOf(0, 2, 4)),
+                Conjunction(intArrayOf(1))), 3)
+        assertContentEquals(intArrayOf(0, 1), problem.sentencesWith(0))
+        assertContentEquals(intArrayOf(0), problem.sentencesWith(1))
+        assertContentEquals(intArrayOf(0), problem.sentencesWith(2))
+    }
+}
+
+class ExtendedProblemTest {
+
 }

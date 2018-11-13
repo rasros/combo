@@ -5,6 +5,7 @@ import combo.model.TimeoutException
 import combo.model.ValidationException
 import combo.util.millis
 
+
 class HillClimber(val problem: Problem,
                   override val config: SolverConfig,
                   val baseSolver: Solver = WalkSat(problem, config),
@@ -30,7 +31,7 @@ class HillClimber(val problem: Problem,
 
         fun score(literal: Literal, labeling: MutableLabeling): Double {
             labeling.set(literal)
-            labeling.setAll(problem.implicationGraph[literal])
+            //labeling.setAll(problem.propagationGraph[literal]) // TODO
             return if ((con != null && !con.satisfies(labeling)) ||
                     !problem.satisfies(labeling)) Double.NEGATIVE_INFINITY
             else {

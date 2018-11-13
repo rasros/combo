@@ -29,7 +29,7 @@ class JOptimizer(val problem: Problem,
      */
     override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
         val p = if (contextLiterals.isNotEmpty())
-            problem.unitPropagation(HashIntSet().apply { addAll(contextLiterals) }, true)
+            problem.simplify(HashIntSet().apply { addAll(contextLiterals) }, true)
         else problem
         val (G, h) = setupProblem(p)
 

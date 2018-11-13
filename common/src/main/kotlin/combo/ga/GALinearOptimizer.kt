@@ -13,6 +13,7 @@ import kotlin.math.min
  * See Classifier Systems
  * https://sfi-edu.s3.amazonaws.com/sfi-edu/production/uploads/sfi-com/dev/uploads/filer/2b/07/2b071152-def2-4475-8d18-3161db1bd7e3/92-07-032.pdf
  */
+/*
 class GALinearOptimizer(val problem: Problem,
                         override val config: SolverConfig = SolverConfig(),
                         val init: LabelingInitializer = LookaheadInitializer(problem),
@@ -126,3 +127,4 @@ class GALinearOptimizer(val problem: Problem,
         return if (bestScore >= worstScore) bestLabeling else throw IterationsReachedException(maxIter)
     }
 }
+*/

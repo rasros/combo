@@ -1,9 +1,6 @@
 package combo.model
 
-import combo.sat.Labeling
-import combo.sat.Problem
-import combo.sat.Tautology
-import combo.sat.asLiteral
+import combo.sat.*
 import combo.util.HashIntSet
 import combo.util.Tree
 import kotlin.jvm.JvmOverloads
@@ -50,7 +47,10 @@ class Model private constructor(val featureMetas: Map<Feature<*>, FeatureMeta<*>
             val unitLiterals = HashIntSet()
             val rootFeature = root.value
             unitLiterals.add(rootFeature.toLiteral(index.indexOf(rootFeature)))
-            val problem = Problem(fullSentences, index.nbrVariables).unitPropagation(unitLiterals)
+            val problem = Problem(fullSentences, index.nbrVariables).let {
+                val reducedSentences = it.unitPropagation(unitLiterals)
+                Problem(reducedSentences, it.nbrVariables)
+            }
 
             val remappedIds = IntArray(problem.nbrVariables)
 

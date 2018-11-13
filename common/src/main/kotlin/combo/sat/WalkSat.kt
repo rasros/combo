@@ -18,164 +18,109 @@ import kotlin.random.Random
  */
 class WalkSat(val problem: Problem,
               override val config: SolverConfig = SolverConfig(),
-              val init: LabelingInitializer = LookaheadInitializer(problem),
               val timeout: Long = -1L,
               val probRandomWalk: Double = 0.05,
               val maxRestarts: Int = Int.MAX_VALUE,
               val maxFlips: Int = 400,
-              val maxConsideration: Int = 32) : Solver {
+              val maxConsideration: Int = 32) : Solver, LocalSearch() {
 
     override fun witnessOrThrow(contextLiterals: Literals): Labeling {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         for (i in 1..maxRestarts) {
             recordIteration()
             val rng = config.nextRandom()
-            val p = if (contextLiterals.isNotEmpty())
-                problem.unitPropagation(HashIntSet().apply { addAll(contextLiterals) }, true)
-            else problem
-            val labeling = init.generate(p, config.labelingBuilder, rng)
-            val result = satIteration(p, labeling, rng, end)
+            val labeling = config.labelingBuilder.generate(problem.nbrVariables, rng)
+            val result = satIteration(contextLiterals, labeling, rng, end)
             if (result != null) {
-                recordWitness(true)
+                recordCompleted(true)
                 return result.apply { pack() }
             }
             if (millis() > end) throw TimeoutException(timeout)
 
         }
-        recordWitness(false)
+        recordCompleted(false)
         throw IterationsReachedException(maxRestarts)
     }
 
-    private fun satIteration(problem: Problem, labeling: MutableLabeling, rng: Random, end: Long): MutableLabeling? {
-        val unsatisfied = HashIntSet(max(16, problem.sentences.size / 8))
-        for ((i, s) in problem.sentences.withIndex()) {
-            if (!s.satisfies(labeling)) {
-                unsatisfied.add(i)
+    private fun satIteration(context: Literals, labeling: MutableLabeling, rng: Random, end: Long): MutableLabeling? {
+
+        labeling.setAll(context)
+        val contextIxs = HashIntSet().apply { context.forEach { this.add(it.asIx()) } }
+
+        val unsatisfied: HashIntSet = let {
+            var set: HashIntSet? = null
+            for ((i, s) in problem.sentences.withIndex()) {
+                if (!s.satisfies(labeling)) {
+                    if (set == null)
+                        set = HashIntSet(max(16, problem.sentences.size / 8))
+                    set.add(i)
+                }
             }
-        } // TODO initialize lazily in case everything is satisfied
+            set ?: return labeling
+        }
+
         val improvement = IntArray(maxConsideration)
 
         for (flips in 1..maxFlips) {
-            if (unsatisfied.isEmpty()) {
+            if (unsatisfied.isEmpty())
                 return labeling
-            }
 
-            // Pick random clause
+            // Pick random unsatisfied clause
             val pickedSentenceIx = unsatisfied.random(rng)
             val pickedSentence = problem.sentences[pickedSentenceIx]
             val literals = pickedSentence.literals
 
-            val id = if (probRandomWalk > rng.nextDouble()) {
-                // With configured probability, pick randomly within the clause
-                literals[rng.nextInt(literals.size)].asIx()
-            } else {
-                // Otherwise pick the literal in the clause with the highest improvement
-                val litIx = chooseBest(problem, literals, unsatisfied, labeling, improvement, rng)
-                if (litIx >= 0) literals[litIx].asIx()
-                else continue
+            val ix = if (probRandomWalk > rng.nextDouble()) literals[rng.nextInt(literals.size)].asIx()
+            else chooseBest(contextIxs, literals, labeling, improvement, rng)
+
+            if (ix < 0 || ix in contextIxs) continue
+            labeling.flip(ix)
+            for (sentenceIx in problem.sentencesWith(ix)) {
+                if (problem.sentences[sentenceIx].satisfies(labeling)) unsatisfied.remove(sentenceIx)
+                else unsatisfied.add(sentenceIx)
             }
-            val lit = !labeling.asLiteral(id)
-            problem.set(labeling, lit, unsatisfied)
-            problem.implicationGraph[lit].forEach {
-                problem.set(labeling, it, unsatisfied)
-            }
-            recordFlip(pickedSentence, labeling.asLiteral(id))
+            recordFlip(pickedSentence, labeling.asLiteral(ix))
             if (millis() > end) return null
         }
         return null
     }
 
-    private fun Problem.set(l: MutableLabeling, lit: Literal, unsatisfied: IntSet) {
-        l.set(lit)
-        for (sentenceIx in index.sentencesWith(lit.asIx())) {
-            val sentence = sentences[sentenceIx]
-            if (sentence.satisfies(l)) unsatisfied.remove(sentenceIx)
-            else unsatisfied.add(sentenceIx)
-        }
-    }
-
-    private fun chooseBest(problem: Problem,
+    private fun chooseBest(contextIds: IntSet,
                            literals: Literals,
-                           unsatisfied: IntSet,
                            labeling: MutableLabeling,
                            improvement: IntArray,
                            rng: Random): Int {
         val perm = if (literals.size >= improvement.size) IntPermutation(literals.size, rng) else null
         for (i in 0 until min(improvement.size, literals.size)) {
             improvement[i] = 0
-            val ix = perm?.encode(i) ?: i
-            val id = literals[ix].asIx()
-            val affected = problem.index.sentencesWith(id)
+            val ix = literals[perm?.encode(i) ?: i].asIx()
+            if (ix in contextIds) {
+                improvement[i] = -1
+                continue
+            }
+            val affected = problem.sentencesWith(ix)
             for (sentenceIx in affected) {
-                if (sentenceIx in unsatisfied) {
-                    val sent = problem.sentences[sentenceIx]
-                    val preFlip = sent.flipsToSatisfy(labeling)
-                    labeling.flip(id)
-                    val postFlip = sent.flipsToSatisfy(labeling)
-                    improvement[i] += preFlip - postFlip
-                    labeling.flip(id)
-                }
+                //if (sentenceIx in unsatisfied) {
+                val sent = problem.sentences[sentenceIx]
+                val preFlip = sent.flipsToSatisfy(labeling)
+                labeling.flip(ix)
+                val postFlip = sent.flipsToSatisfy(labeling)
+                improvement[i] += preFlip - postFlip
+                labeling.flip(ix)
+                //}
             }
         }
-        val imprIx = getMaxIx(improvement, min(literals.size, improvement.size), rng)
-        val litIx = perm?.encode(imprIx) ?: imprIx
+        val imprIx = IntPermutation(min(literals.size, improvement.size), rng).let {
+            it.maxBy { i ->
+                improvement[i]
+            }!!
+        }
+        val ix = literals[perm?.encode(imprIx) ?: imprIx].asIx()
         return if (improvement[imprIx] < 0) -1
-        else litIx
-    }
-
-    private fun getMaxIx(counts: IntArray, size: Int, rng: Random): Int {
-        // TODO simplify this using IntPermutation
-        var max = Int.MIN_VALUE
-        var nbrMax = 0
-        for (i in 0 until size) {
-            val c = counts[i]
-            if (c > max) {
-                max = c
-                nbrMax = 1
-            } else if (max == c) nbrMax++
-        }
-        val maxIx = rng.nextInt(nbrMax)
-        nbrMax = 0
-        for (i in 0 until size) {
-            val c = counts[i]
-            if (c == max && nbrMax++ == maxIx)
-                return i
-        }
-        return 0
-    }
-
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
-    var totalIterations: Long = 0
-        private set
-    var totalFlips: Long = 0
-        private set
-
-    var latestSequenceLiterals: MutableList<Int>? = null
-    var latestSequenceSentence: MutableList<Sentence>? = null
-
-    private fun recordWitness(satisfied: Boolean) {
-        if (satisfied) totalSuccesses++
-        totalEvaluated++
-    }
-
-    private fun recordIteration() {
-        if (config.debugMode) {
-            latestSequenceSentence = ArrayList()
-            latestSequenceLiterals = ArrayList()
-        }
-        totalIterations++
-    }
-
-    private fun recordFlip(sentence: Sentence, literal: Int) {
-        if (config.debugMode) {
-            latestSequenceSentence!!.add(sentence)
-            latestSequenceLiterals!!.add(literal)
-        }
-        totalFlips++
+        else ix
     }
 }
 
 
+//class PropWalkSat() : Solver, LocalSearch() {
+//}

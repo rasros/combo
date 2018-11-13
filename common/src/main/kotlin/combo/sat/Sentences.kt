@@ -34,6 +34,8 @@ interface Sentence : Iterable<Literal> {
     fun remap(remappedIds: IntArray): Sentence {
         for ((i, l) in literals.withIndex()) {
             literals[i] = remappedIds[literals[i].asIx()].asLiteral(l.asBoolean())
+            if (literals[i]<0)
+                throw IllegalArgumentException()
             require(literals[i] >= 0)
         }
         return this

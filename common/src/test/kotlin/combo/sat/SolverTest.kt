@@ -119,7 +119,8 @@ abstract class SolverTest {
             val solver = unsatSolver(problem)
             if (solver != null) {
                 assertFailsWith(ValidationException::class) {
-                    solver.witnessOrThrow(context)
+                    val l = solver.witnessOrThrow(context)
+                    println(l)
                 }
             }
         }
