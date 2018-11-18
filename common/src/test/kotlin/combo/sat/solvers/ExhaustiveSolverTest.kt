@@ -1,10 +1,10 @@
 package combo.sat.solvers
 
-import combo.sat.Problem
+import combo.sat.ExtendedProblem
 
 class ExhaustiveSolverTest : SolverTest() {
-    override fun solver(problem: Problem) = ExhaustiveSolver(problem)
-    override fun largeSolver(problem: Problem) = null
-    override fun unsatSolver(problem: Problem) = ExhaustiveSolver(problem, timeout = 1L)
-    override fun timeoutSolver(problem: Problem) = ExhaustiveSolver(problem, timeout = 1L)
+    override fun solver(problem: ExtendedProblem) = ExhaustiveSolver(problem.problem)
+    override fun largeSolver(problem: ExtendedProblem) = null
+    override fun unsatSolver(problem: ExtendedProblem) = ExhaustiveSolver(problem.problem, timeout = 1L)
+    override fun timeoutSolver(problem: ExtendedProblem) = ExhaustiveSolver(problem.problem, timeout = 1L)
 }

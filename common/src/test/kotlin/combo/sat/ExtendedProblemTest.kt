@@ -12,6 +12,7 @@ class ExtendedProblemTest {
         val smallProblems = ModelTest.smallModels.map { ExtendedProblem(it.problem) }
         val smallUnsatProblems = ModelTest.smallUnsatModels.map { ExtendedProblem(it.problem) }
         val largeProblems = ModelTest.largeModels.map { ExtendedProblem(it.problem) }
+        val hugeProblem = ExtendedProblem(ModelTest.hugeModel.problem)
     }
 
     @Test

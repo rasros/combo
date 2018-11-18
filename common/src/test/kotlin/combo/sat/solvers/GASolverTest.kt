@@ -1,23 +1,23 @@
 package combo.sat.solvers
 
-import combo.sat.Problem
+import combo.sat.ExtendedProblem
 import kotlin.test.Ignore
 
 @Ignore
 class GASolverTest : SolverTest() {
-    override fun solver(problem: Problem): Solver? {
+    override fun solver(problem: ExtendedProblem): Solver? {
         TODO("not implemented")
     }
 
-    override fun largeSolver(problem: Problem): Solver? {
+    override fun largeSolver(problem: ExtendedProblem): Solver? {
         TODO("not implemented")
     }
 
-    override fun unsatSolver(problem: Problem): Solver? {
+    override fun unsatSolver(problem: ExtendedProblem): Solver? {
         TODO("not implemented")
     }
 
-    override fun timeoutSolver(problem: Problem): Solver? {
+    override fun timeoutSolver(problem: ExtendedProblem): Solver? {
         TODO("not implemented")
     }
 }

@@ -1,14 +1,15 @@
 package combo.sat.solvers
 
+import combo.sat.ExtendedProblem
 import combo.sat.Problem
 import combo.sat.optimizers.LinearOptimizer
 import combo.sat.optimizers.LinearOptimizerTest
 
 class Sat4JSolverTest : SolverTest() {
-    override fun solver(problem: Problem) = Sat4JSolver(problem)
-    override fun largeSolver(problem: Problem) = Sat4JSolver(problem)
-    override fun unsatSolver(problem: Problem) = Sat4JSolver(problem)
-    override fun timeoutSolver(problem: Problem) = Sat4JSolver(problem, timeout = 1L)
+    override fun solver(problem: ExtendedProblem) = Sat4JSolver(problem.problem)
+    override fun largeSolver(problem: ExtendedProblem) = Sat4JSolver(problem.problem)
+    override fun unsatSolver(problem: ExtendedProblem) = Sat4JSolver(problem.problem)
+    override fun timeoutSolver(problem: ExtendedProblem) = Sat4JSolver(problem.problem, timeout = 1L)
 }
 
 class Sat4JLinearOptimizerTest : LinearOptimizerTest() {
