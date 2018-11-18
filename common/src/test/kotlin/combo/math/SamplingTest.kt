@@ -8,16 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-class SamplingTest {
-    @Test
-    fun fixedSeed() {
-        val r1 = ExtendedRandom(Random(0))
-        val r2 = ExtendedRandom(Random(0))
-        for (i in 0..100) {
-            assertEquals(r1.nextGaussian(), r2.nextGaussian())
-        }
-    }
-
+class RandomSequenceTest {
     @Test
     fun randomSequenceUncorrelated() {
         val rs = RandomSequence(0L)
@@ -30,6 +21,18 @@ class SamplingTest {
         val r = r1 / r2
         assertEquals(0.0, r, 0.05)
     }
+}
+
+class ExtendedRandomTest {
+    @Test
+    fun fixedSeed() {
+        val r1 = ExtendedRandom(Random(0))
+        val r2 = ExtendedRandom(Random(0))
+        for (i in 0..100) {
+            assertEquals(r1.nextGaussian(), r2.nextGaussian())
+        }
+    }
+
 
     @Test
     fun gaussianStats() {

@@ -1,33 +1,28 @@
 package combo.sat
 
 import combo.model.UnsatisfiableException
-import combo.util.HashIntSet
+import combo.util.IntList
 import combo.util.IntSet
 
 class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
     val nbrSentences get() = sentences.size
 
-    val varToSent: Array<IntArray> = Array(nbrVariables) { IntArray(2) }.apply {
-        val sizes = IntArray(nbrVariables)
+    val variableSentences: Array<IntArray> = Array(nbrVariables) { IntList(2) }.let { lists ->
         for ((i, clause) in sentences.withIndex()) {
             for (lit in clause) {
-                val id = lit.asIx()
-                if (this[id].size == sizes[id]) {
-                    this[id] = this[id].copyOf(sizes[id] * 2)
-                }
-                this[id][sizes[id]++] = i
+                val ix = lit.asIx()
+                lists[ix].add(i)
             }
         }
-        for (i in sizes.indices)
-            this[i] = this[i].copyOf(sizes[i])
+        Array(nbrVariables) { lists[it].toArray() }
     }
 
-    fun sentencesWith(varIx: Ix) = varToSent[varIx]
+    fun sentencesWith(varIx: Ix) = variableSentences[varIx]
 
     fun satisfies(l: Labeling, s: Labeling? = null) = sentences.all { it.satisfies(l, s) }
 
-    fun unitPropagation(units: IntSet = HashIntSet()): Array<Sentence> {
+    fun unitPropagation(units: IntSet = IntSet()): Array<Sentence> {
 
         fun addUnit(units: IntSet, unit: Literal): Boolean {
             if (units.contains(!unit)) throw UnsatisfiableException("Unsatisfiable by unit propagation.", literal = unit)
@@ -68,7 +63,7 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
                 .toTypedArray()
     }
 
-    fun simplify(units: IntSet = HashIntSet(), addConjunction: Boolean = false): Problem {
+    fun simplify(units: IntSet = IntSet(), addConjunction: Boolean = false): Problem {
         var reduced = unitPropagation(units)
         if (addConjunction && units.isNotEmpty()) reduced += Conjunction(units.toArray().apply { sort() })
         return Problem(reduced, nbrVariables)

@@ -1,7 +1,6 @@
 package combo.sat.optimizers
 
 import combo.sat.Problem
-import combo.sat.solvers.LinearOptimizerTest
 import combo.sat.solvers.SolverConfig
 import kotlin.test.Ignore
 

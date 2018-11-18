@@ -3,7 +3,7 @@ package combo.model
 import combo.sat.Labeling
 
 // TODO tree structure, implementing Tree
-class Assignment(val labeling: Labeling, val featureMeta: Map<Feature<*>, FeatureMeta<*>>) : Iterable<Assignment.FeatureAssignment<*>> {
+class Assignment internal constructor(val labeling: Labeling, val featureMeta: Map<Feature<*>, FeatureMeta<*>>) : Iterable<Assignment.FeatureAssignment<*>> {
 
     override fun iterator(): Iterator<FeatureAssignment<*>> = object : Iterator<FeatureAssignment<*>> {
         val itr: Iterator<Map.Entry<Feature<*>, FeatureMeta<*>>> = featureMeta.iterator()

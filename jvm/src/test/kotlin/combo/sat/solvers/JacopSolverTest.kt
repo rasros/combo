@@ -2,6 +2,7 @@ package combo.sat.solvers
 
 import combo.sat.Problem
 import combo.sat.optimizers.LinearOptimizer
+import combo.sat.optimizers.LinearOptimizerTest
 
 class JacopSolverTest : SolverTest() {
     override fun solver(problem: Problem) = JacopSolver(problem)

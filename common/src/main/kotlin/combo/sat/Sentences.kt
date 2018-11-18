@@ -23,7 +23,12 @@ interface Sentence : Iterable<Literal> {
     fun toDimacs(): String = toCnf().map { it.toDimacs() }.joinToString(separator = "\n")
 
     fun flipsToSatisfy(l: Labeling, s: Labeling? = null): Int
-    fun satisfies(l: Labeling, s: Labeling? = null) = flipsToSatisfy(l, s) == 0
+    var satCalls: Int
+
+    fun satisfies(l: Labeling, s: Labeling? = null): Boolean {
+        satCalls++
+        return flipsToSatisfy(l, s) == 0
+    }
 
     fun propagateUnit(unit: Literal): Sentence
     fun toCnf(): Sequence<Disjunction>
@@ -34,7 +39,7 @@ interface Sentence : Iterable<Literal> {
     fun remap(remappedIds: IntArray): Sentence {
         for ((i, l) in literals.withIndex()) {
             literals[i] = remappedIds[literals[i].asIx()].asLiteral(l.asBoolean())
-            if (literals[i]<0)
+            if (literals[i] < 0)
                 throw IllegalArgumentException()
             require(literals[i] >= 0)
         }
@@ -44,6 +49,8 @@ interface Sentence : Iterable<Literal> {
 }
 
 sealed class Clause(override val literals: Literals) : Sentence {
+    override var satCalls = 0
+
     abstract override fun propagateUnit(unit: Literal): Clause
 }
 
@@ -119,6 +126,7 @@ class Conjunction(literals: Literals) : Clause(literals) {
  * literal <=> clause
  */
 class Reified(val literal: Literal, val clause: Clause) : Sentence {
+    override var satCalls = 0
 
     override fun validate() {
         super.validate()
@@ -211,6 +219,7 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
 }
 
 class Cardinality(override val literals: Literals, val degree: Int = 1, val operator: Operator = Operator.AT_MOST) : Sentence {
+    override var satCalls = 0
 
     enum class Operator(val operator: String) {
         AT_LEAST(">=") {

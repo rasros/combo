@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import cern.colt.matrix.tint.IntMatrix1D
 import cern.colt.matrix.tint.IntMatrix2D
@@ -12,8 +12,8 @@ import combo.math.Vector
 import combo.model.IterationsReachedException
 import combo.model.UnsatisfiableException
 import combo.sat.*
-import combo.sat.optimizers.LinearOptimizer
-import combo.util.HashIntSet
+import combo.sat.solvers.SolverConfig
+import combo.util.IntSet
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt
 
@@ -31,7 +31,7 @@ class JOptimizer(val problem: Problem,
      */
     override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
         val p = if (contextLiterals.isNotEmpty())
-            problem.simplify(HashIntSet().apply { addAll(contextLiterals) }, true)
+            problem.simplify(IntSet().apply { addAll(contextLiterals) }, true)
         else problem
         val (G, h) = setupProblem(p)
 

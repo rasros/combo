@@ -7,7 +7,7 @@ import combo.model.ModelTest
 import combo.model.UnsatisfiableException
 import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
-import combo.util.HashIntSet
+import combo.util.IntSet
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -24,14 +24,14 @@ class ProblemTest {
     @Test
     fun unitPropagationReduction() {
         problem.sentences.forEach { it.validate() }
-        val reduced = problem.simplify(HashIntSet())
+        val reduced = problem.simplify(IntSet())
         assertTrue(reduced.nbrSentences < problem.nbrSentences)
     }
 
     @Test
     fun unitPropagationSameSolution() {
         val solutions1 = ExhaustiveSolver(problem).sequence().toSet()
-        val units = HashIntSet()
+        val units = IntSet()
         val reduced = problem.simplify(units, true)
         val solutions2 = ExhaustiveSolver(reduced).sequence(units.toArray().apply { sort() }).toSet()
         val unitsSentence = Conjunction(units.toArray().apply { sort() })
@@ -68,7 +68,7 @@ class ProblemTest {
         val sents: Array<Sentence> = p.sentences.toList().toTypedArray()
         val p2 = Problem(sents + Conjunction(lits), p.nbrVariables)
         val reduced = try {
-            p.simplify(HashIntSet().apply { addAll(lits) }, true)
+            p.simplify(IntSet().apply { addAll(lits) }, true)
         } catch (e: UnsatisfiableException) {
             return
         }

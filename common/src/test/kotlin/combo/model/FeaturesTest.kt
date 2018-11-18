@@ -2,7 +2,7 @@ package combo.model
 
 import combo.sat.BitFieldLabeling
 import combo.sat.ByteArrayLabeling
-import combo.sat.SparseLabeling
+import combo.sat.IntSetLabeling
 import combo.sat.asLiteral
 import combo.test.assertContentEquals
 import combo.util.EMPTY_INT_ARRAY
@@ -75,7 +75,7 @@ class OptionTest {
 
     @Test
     fun missingOptionTest() {
-        val o = or(1.0, 2.0, 3.0)
+        val o = multiple(1.0, 2.0, 3.0)
         assertFailsWith(ValidationException::class) {
             o.option(1.2)
         }
@@ -193,11 +193,11 @@ class AlternativeTest {
     }
 }
 
-class OrTest {
+class MultipleTest {
 
     @Test
     fun nullRootIndexEntry() {
-        val f = or(1, 2, 3)
+        val f = multiple(1, 2, 3)
         val ie = f.createIndexEntry(IntArray(4) { UNIT_FALSE })
         assertNull(ie.valueOf(ByteArrayLabeling(0)))
         assertNull(ie.valueOf(ByteArrayLabeling(1).apply { this[0] = true }))
@@ -209,7 +209,7 @@ class OrTest {
 
     @Test
     fun unitRootIndexEntry() {
-        val f = or(1, 2, 3)
+        val f = multiple(1, 2, 3)
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, 0, 1, 2))
         assertEquals(setOf(1), ie.valueOf(BitFieldLabeling(3).apply { this[0] = true }))
         assertEquals(setOf(2), ie.valueOf(BitFieldLabeling(3).apply { this[1] = true }))
@@ -230,7 +230,7 @@ class OrTest {
 
     @Test
     fun singleOption() {
-        val f = or(1)
+        val f = multiple(1)
         val ie = f.createIndexEntry(intArrayOf(2, 3))
         assertEquals(setOf(1), ie.valueOf(BitFieldLabeling(4).apply { this[2] = true;this[3] = true }))
         assertNull(ie.valueOf(BitFieldLabeling(2)))
@@ -240,12 +240,12 @@ class OrTest {
 
     @Test
     fun normalIndexEntry() {
-        val f = or(1, 2, 3)
+        val f = multiple(1, 2, 3)
         val ie = f.createIndexEntry(intArrayOf(2, 3, 4, 5))
         assertNull(ie.valueOf(BitFieldLabeling(6)))
-        assertEquals(setOf(1, 2, 3), ie.valueOf(SparseLabeling(6).apply { setAll(intArrayOf(4, 6, 8, 10)) }))
-        assertEquals(setOf(3), ie.valueOf(SparseLabeling(6).apply { this[2] = true; this[5] = true }))
-        assertEquals(setOf(3), ie.valueOf(SparseLabeling(6).apply { this[2] = true; this[5] = true }))
+        assertEquals(setOf(1, 2, 3), ie.valueOf(IntSetLabeling(6).apply { setAll(intArrayOf(4, 6, 8, 10)) }))
+        assertEquals(setOf(3), ie.valueOf(IntSetLabeling(6).apply { this[2] = true; this[5] = true }))
+        assertEquals(setOf(3), ie.valueOf(IntSetLabeling(6).apply { this[2] = true; this[5] = true }))
         assertContentEquals(intArrayOf(5), ie.toLiterals(null))
         assertContentEquals(intArrayOf(6, 8, 10), ie.toLiterals(setOf(1, 2, 3)))
         assertFailsWith(ValidationException::class) {
@@ -258,7 +258,7 @@ class OrTest {
 
     @Test
     fun notACollection() {
-        val f = or(listOf(10, 5, 3))
+        val f = multiple(listOf(10, 5, 3))
         val ie = f.createIndexEntry(intArrayOf(0, 1, 2, 3))
         assertFailsWith(ValidationException::class) {
             ie.toLiterals(4)
@@ -270,7 +270,7 @@ class OrTest {
 
     @Test
     fun missingValue() {
-        val f = or(listOf(1, 2, 3), "a")
+        val f = multiple(listOf(1, 2, 3), "a")
         val ie = f.createIndexEntry(intArrayOf(0, 1, 2, 3))
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
         assertFailsWith(ValidationException::class) {
@@ -280,7 +280,7 @@ class OrTest {
 
     @Test
     fun allOptionsNullIndexEntry() {
-        val f = or("a", "d", "b")
+        val f = multiple("a", "d", "b")
         val ie = f.createIndexEntry(IntArray(4) { UNIT_FALSE })
         assertNull(ie.valueOf(BitFieldLabeling(4)))
         assertFailsWith(ValidationException::class) {
@@ -290,7 +290,7 @@ class OrTest {
 
     @Test
     fun oneOptionNullIndexEntry() {
-        val f = or("a", "b", "c", name = "n")
+        val f = multiple("a", "b", "c", name = "n")
         val ie = f.createIndexEntry(intArrayOf(0, UNIT_FALSE, 1, 2))
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(setOf("a"))
@@ -308,7 +308,7 @@ class OrTest {
 
     @Test
     fun unitOptionIndexEntry() {
-        val f = or("a", "b", "c")
+        val f = multiple("a", "b", "c")
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, UNIT_TRUE, 1, 2))
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(null)

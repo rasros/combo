@@ -1,6 +1,7 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import combo.sat.Problem
+import combo.sat.solvers.SolverConfig
 
 class JOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem, config: SolverConfig) = JOptimizer(problem, config)

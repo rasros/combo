@@ -236,7 +236,7 @@ class ConstraintsTest {
 
     @Test
     fun orSimpleTest() {
-        val a = or(1, 2, 3.0, name = "a")
+        val a = multiple(1, 2, 3.0, name = "a")
         val b = flag("b")
         val c = a and b
         val index = ReferenceIndex(arrayOf(a, b))

@@ -21,7 +21,7 @@ const val UNIT_TRUE = -2
 abstract class Feature<T>(val name: String) : Reference() {
 
     abstract val values: Array<*>
-    abstract val nbrLiterals: Int
+    internal abstract val nbrLiterals: Int
 
     override val rootFeature get() = this
 
@@ -29,13 +29,13 @@ abstract class Feature<T>(val name: String) : Reference() {
      * The mapped literal index of each literal declared. Some literals will be set to [UNIT_TRUE] or [UNIT_FALSE] if
      * they have been removed from the problem.
      */
-    abstract fun createIndexEntry(indices: IntArray): IndexEntry<T>
+    internal abstract fun createIndexEntry(indices: IntArray): IndexEntry<T>
 }
 
 class FeatureTree(override val value: Feature<*>,
                   override val children: List<FeatureTree> = emptyList()) : Tree<Feature<*>, FeatureTree>
 
-interface IndexEntry<T> {
+internal interface IndexEntry<T> {
 
     /**
      * Length of array must be same as [Feature.nbrLiterals]. A negative value means the value is unit.
@@ -49,7 +49,7 @@ interface IndexEntry<T> {
     fun isRootUnit(): Boolean = indices[0] >= 0
 }
 
-data class FeatureMeta<T>(val feature: Feature<T>, val indexEntry: IndexEntry<T>) {
+internal data class FeatureMeta<T>(val feature: Feature<T>, val indexEntry: IndexEntry<T>) {
     override fun toString() = "FeatureMeta($feature)"
 }
 
@@ -113,7 +113,7 @@ fun <V> alternative(values: Iterable<V>, name: String = defaultName()): Alternat
  * TODO explain
  */
 @JvmOverloads
-fun <V> or(vararg values: V, name: String = defaultName()) = Or(*values, name = name)
+fun <V> multiple(vararg values: V, name: String = defaultName()) = Multiple(*values, name = name)
 
 /**
  * TODO explain
@@ -121,8 +121,8 @@ fun <V> or(vararg values: V, name: String = defaultName()) = Or(*values, name = 
 @Suppress("UNCHECKED_CAST")
 @JvmOverloads
 //TODO @JsName("or")
-fun <V> or(values: Iterable<V>, name: String = defaultName()): Or<V> =
-        Or(*(values.toList() as List<Any>).toTypedArray(), name = name) as Or<V>
+fun <V> multiple(values: Iterable<V>, name: String = defaultName()): Multiple<V> =
+        Multiple(*(values.toList() as List<Any>).toTypedArray(), name = name) as Multiple<V>
 
 /**
  * TODO explain nbrLiterals != size of values
@@ -181,7 +181,7 @@ class Option<V> constructor(private val select: Select<V, *>, private val valueI
     override val references: Array<out Reference> get() = arrayOf(this)
 }
 
-class Or<V>(vararg values: V, name: String = defaultName()) : Select<V, Set<V>>(values, name) {
+class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Set<V>>(values, name) {
 
     override fun toSentences(ri: ReferenceIndex): Array<Sentence> {
         val alternatives = values.map { option(it) }.toTypedArray()
@@ -192,33 +192,33 @@ class Or<V>(vararg values: V, name: String = defaultName()) : Select<V, Set<V>>(
 
     override fun createIndexEntry(indices: IntArray): IndexEntry<Set<V>> {
         if (indices[0] == UNIT_FALSE) return NullIndexEntry()
-        return OrIndexEntry(indices)
+        return MultipleIndexEntry(indices)
     }
 
-    override fun toString() = "Or($name)"
+    override fun toString() = "Multiple($name)"
 
-    private inner class OrIndexEntry(indices: IntArray) : SelectIndexEntry<Set<V>>(indices) {
+    private inner class MultipleIndexEntry(indices: IntArray) : SelectIndexEntry<Set<V>>(indices) {
 
         private val rootFalse = if (indices[0] >= 0) intArrayOf(indices[0].asLiteral(false)) else EMPTY_INT_ARRAY
 
         override fun valueOf(labeling: Labeling) =
                 if (indices[0] >= 0 && !labeling[indices[0]]) null
                 else LinkedHashSet<V>().apply {
-                    for (i in 1 until this@OrIndexEntry.indices.size)
-                        if (this@OrIndexEntry.indices[i] >= 0 && labeling[this@OrIndexEntry.indices[i]] || this@OrIndexEntry.indices[i] == UNIT_TRUE) add(values[i - 1])
-                    if (this@OrIndexEntry.indices[0] == UNIT_TRUE && isEmpty()) throw ValidationException(
-                            "Inconsistent labeling, should have something set for ${this@Or}.")
+                    for (i in 1 until this@MultipleIndexEntry.indices.size)
+                        if (this@MultipleIndexEntry.indices[i] >= 0 && labeling[this@MultipleIndexEntry.indices[i]] || this@MultipleIndexEntry.indices[i] == UNIT_TRUE) add(values[i - 1])
+                    if (this@MultipleIndexEntry.indices[0] == UNIT_TRUE && isEmpty()) throw ValidationException(
+                            "Inconsistent labeling, should have something set for ${this@Multiple}.")
                 }
 
         override fun toLiterals(t: Any?): IntArray {
             if (t == null) {
-                if (indices[0] == UNIT_TRUE) throw UnsatisfiableException("Value of ${this@Or} can not be null.")
+                if (indices[0] == UNIT_TRUE) throw UnsatisfiableException("Value of ${this@Multiple} can not be null.")
                 else return rootFalse
             }
             val col = t as? Collection<*>
-                    ?: throw ValidationException("Value of ${this@Or} must be a collection but got $t.")
+                    ?: throw ValidationException("Value of ${this@Multiple} must be a collection but got $t.")
             if (col.isEmpty())
-                throw UnsatisfiableException("Collection for ${this@Or} can not be empty.")
+                throw UnsatisfiableException("Collection for ${this@Multiple} can not be empty.")
             val arr = IntArray(col.size)
             var k = 0
             for (v in col) {
@@ -276,6 +276,7 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
 
         override fun valueOf(labeling: Labeling): V? {
             if (indices[0] >= 0 && !labeling[indices[0]]) return null
+            // TODO should use labeling to loop instead
             for (i in 1 until indices.size)
                 if (indices[i] >= 0 && labeling[indices[i]]) return values[i - 1]
             throw ValidationException("Inconsistent labeling, should have something set for ${this@Alternative}.")

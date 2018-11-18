@@ -1,12 +1,12 @@
 package combo.model
 
 import combo.sat.*
-import combo.util.HashIntSet
+import combo.util.IntSet
 import combo.util.Tree
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
-class Model private constructor(val featureMetas: Map<Feature<*>, FeatureMeta<*>>,
+class Model private constructor(internal val featureMetas: Map<Feature<*>, FeatureMeta<*>>,
                                 val problem: Problem, val root: FeatureTree) {
 
     val features = featureMetas.keys.toList().toTypedArray()
@@ -44,7 +44,7 @@ class Model private constructor(val featureMetas: Map<Feature<*>, FeatureMeta<*>
                     .filterNot { it is Tautology }
                     .toList().toTypedArray()
 
-            val unitLiterals = HashIntSet()
+            val unitLiterals = IntSet()
             val rootFeature = root.value
             unitLiterals.add(rootFeature.toLiteral(index.indexOf(rootFeature)))
             val problem = Problem(fullSentences, index.nbrVariables).let {

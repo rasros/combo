@@ -1,24 +1,24 @@
 package combo.util
 
-import combo.math.IntPermutation
-import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.*
 
-abstract class IntSetTest {
+class IntListTest {
+    // TODO
+}
 
-    abstract fun set(size: Int = 16): IntSet
+class IntSetTest {
 
     @Test
     fun createEmpty() {
-        val set = set()
+        val set = IntSet()
         assertEquals(0, set.size)
         assertTrue { set.isEmpty() }
     }
 
     @Test
     fun add() {
-        val set = set()
+        val set = IntSet()
         for (i in 0 until 1000) {
             assertEquals(i, set.size)
             set.add(i)
@@ -28,36 +28,36 @@ abstract class IntSetTest {
     @Test
     fun addNegative() {
         assertFailsWith(IllegalArgumentException::class) {
-            val set = set()
+            val set = IntSet()
             set.add(-2)
         }
     }
 
     @Test
     fun containsNotEmpty() {
-        val set = set()
+        val set = IntSet()
         assertFalse(set.contains(0))
     }
 
     @Test
     fun containsAfterAdd() {
-        val set = set()
+        val set = IntSet()
         set.add(2)
         assertTrue(set.contains(2))
     }
 
     @Test
     fun addAllIntArray() {
-        val set = set()
+        val set = IntSet()
         set.addAll(intArrayOf(2, 4))
         assertTrue(set.contains(2))
         assertTrue(set.contains(4))
     }
 
     @Test
-    fun addAllIntSequence() {
-        val set = set()
-        set.addAll((2..4).asSequence().asIterable())
+    fun addAllIterable() {
+        val set = IntSet()
+        set.addAll((2..4).asIterable())
         assertTrue(set.contains(2))
         assertTrue(set.contains(3))
         assertTrue(set.contains(4))
@@ -65,14 +65,14 @@ abstract class IntSetTest {
 
     @Test
     fun removeMissingFromSet() {
-        val set = set()
+        val set = IntSet()
         assertFalse(set.remove(1))
         assertFalse(set.remove(-1))
     }
 
     @Test
     fun removeFromSetAndAddAgain() {
-        val set = set()
+        val set = IntSet()
         set.add(2)
         set.add(8)
         assertFalse(set.remove(3))
@@ -85,13 +85,13 @@ abstract class IntSetTest {
 
     @Test
     fun toArrayOnEmpty() {
-        val set = set()
+        val set = IntSet()
         assertTrue { set.toArray().isEmpty() }
     }
 
     @Test
     fun toArrayOnRemoved() {
-        val set = set()
+        val set = IntSet()
         set.add(0)
         assertEquals(1, set.toArray().size)
         set.remove(0)
@@ -100,7 +100,7 @@ abstract class IntSetTest {
 
     @Test
     fun clear() {
-        val set = set()
+        val set = IntSet()
         for (i in 4..10)
             set.add(i)
         set.remove(5)
@@ -112,13 +112,13 @@ abstract class IntSetTest {
 
     @Test
     fun emptySequence() {
-        val set = set()
+        val set = IntSet()
         assertEquals(0, set.asSequence().count())
     }
 
     @Test
     fun smallSequence() {
-        val set = set()
+        val set = IntSet()
         set.add(8)
         set.add(1)
         assertEquals(2, set.asSequence().count())
@@ -127,21 +127,21 @@ abstract class IntSetTest {
     @Test
     fun randomOnEmpty() {
         assertFailsWith(IllegalArgumentException::class) {
-            val set = set()
+            val set = IntSet()
             set.random()
         }
     }
 
     @Test
     fun randomOnSingleton() {
-        val set = set()
+        val set = IntSet()
         set.add(12300)
         assertEquals(12300, set.random())
     }
 
     @Test
     fun multipleRehash() {
-        val set = set(2)
+        val set = IntSet(2)
         set.addAll((1..100).asSequence().asIterable())
         set.clear()
         set.addAll((1100..1120).asSequence().asIterable())
@@ -156,7 +156,7 @@ abstract class IntSetTest {
     fun largeRandomTest() {
         val r = Random(0)
         val all = ArrayList<Int>()
-        val set = set()
+        val set = IntSet()
         val test = HashSet<Int>()
         for (i in 1..1_000) {
             val n = r.nextInt(Int.MAX_VALUE)
@@ -172,24 +172,24 @@ abstract class IntSetTest {
         for (i in all)
             assertEquals(test.remove(i), set.remove(i))
     }
-}
-
-class HashIntSetTest : IntSetTest() {
-    override fun set(size: Int) = HashIntSet(size)
-}
-
-class ArrayIntSetTest : IntSetTest() {
-    override fun set(size: Int) = ArrayIntSet(size)
-}
-
-class SortedArrayIntSetTest : IntSetTest() {
-    override fun set(size: Int) = SortedArrayIntSet(size)
 
     @Test
-    fun ordering() {
-        val p = IntPermutation(20)
-        val s = set()
-        s.addAll(p)
-        assertContentEquals(s.toArray(), (0..19).toList().toIntArray())
+    fun iterator() {
+        val s = IntSet()
+        s.addAll(generateSequence { Random.nextInt(0, Int.MAX_VALUE / 2) }.take(10).asIterable())
+        assertTrue(s.iterator().hasNext())
+        assertEquals(10, s.iterator().asSequence().toSet().size)
+        assertEquals(10, s.iterator().asSequence().toSet().size)
+    }
+
+    @Test
+    fun copySame() {
+        val s1 = IntSet()
+        s1.addAll(generateSequence { Random.nextInt(0, Int.MAX_VALUE / 2) }.take(10).asIterable())
+        val s2 = s1.copy()
+        assertEquals(s1.size, s2.size)
+        for (i in s1) {
+            assertTrue(i in s2)
+        }
     }
 }

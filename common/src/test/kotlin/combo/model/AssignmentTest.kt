@@ -1,7 +1,7 @@
 package combo.model
 
 import combo.sat.BitFieldLabeling
-import combo.sat.SparseLabeling
+import combo.sat.IntSetLabeling
 import combo.test.assertContentEquals
 import kotlin.test.*
 
@@ -24,7 +24,7 @@ class AssignmentTest {
 
     @Test
     fun getOr() {
-        val f = or(10, 20)
+        val f = multiple(10, 20)
         val m = Model.builder().mandatory(f).build()
         assertEquals(setOf(10), m.toAssignment(BitFieldLabeling(2, LongArray(1) { 0b01 }))[f])
         assertEquals(setOf(10, 20), m.toAssignment(BitFieldLabeling(2, LongArray(1) { 0b11 }))[f])
@@ -63,7 +63,7 @@ class AssignmentTest {
         val m = Model.builder(root)
                 .optional(flag())
                 .optional(alternative(1..5))
-                .optional(or(1..5)).build()
+                .optional(multiple(1..5)).build()
         val a = m.toAssignment(BitFieldLabeling(13))
         for (amt in a) {
             if (amt.feature != root)
@@ -75,9 +75,9 @@ class AssignmentTest {
     fun map() {
         val f1 = flag()
         val a1 = alternative(1..5)
-        val or1 = or(1..5)
+        val or1 = multiple(1..5)
         val m = Model.builder().optional(f1).optional(a1).optional(or1).build()
-        val a = m.toAssignment(SparseLabeling(m.problem.nbrVariables, intArrayOf(0, 2, 12)))
+        val a = m.toAssignment(IntSetLabeling(m.problem.nbrVariables).apply { this.setAll(intArrayOf(0, 2, 12)) })
         val map = a.map
         assertEquals(true, map[f1])
         assertEquals(5, map[a1])

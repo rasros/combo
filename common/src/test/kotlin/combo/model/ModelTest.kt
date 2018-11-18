@@ -18,7 +18,7 @@ class ModelTest {
             val f2 = flag(name = "f2")
             val f3 = flag(name = "f3")
             val f4 = flag(name = "f4")
-            val or1 = or(4, 5, 6, name = "or1")
+            val or1 = multiple(4, 5, 6, name = "or1")
             val alt1 = alternative("a", "c", name = "alt1")
             val alt2 = alternative("a", "d", name = "alt2")
             Model.builder()
@@ -41,7 +41,7 @@ class ModelTest {
             val f1 = flag(name = "f1")
             val f2 = flag(name = "f2")
             val f3 = flag(name = "f3")
-            val or1 = or(4, 5, 6, name = "or1")
+            val or1 = multiple(4, 5, 6, name = "or1")
             val alt1 = alternative("a", "c", name = "alt1")
             Model.builder()
                     .optional(Model.builder(f1)
@@ -60,7 +60,7 @@ class ModelTest {
             val f1 = flag(name = "f1")
             val f2 = flag(name = "f2")
             val f3 = flag(name = "f3")
-            val or1 = or(4, 5, 6, name = "or1")
+            val or1 = multiple(4, 5, 6, name = "or1")
             val alt1 = alternative("a", "b", "c", name = "alt1")
             Model.builder()
                     .optional(Model.builder(f1)
@@ -76,7 +76,7 @@ class ModelTest {
             // Small and predictable
             val a = alternative(1, 2)
             val f = flag()
-            val o = or(1, 2)
+            val o = multiple(1, 2)
             Model.builder().optional(a).optional(o).optional(f).build()
         }
 

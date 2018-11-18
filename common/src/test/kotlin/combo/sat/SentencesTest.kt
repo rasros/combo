@@ -289,8 +289,8 @@ class CardinalityTest {
 
     @Test
     fun satisfiesBlank() {
-        val l = SparseLabeling(4)
-        val s = SparseLabeling(4)
+        val l = IntSetLabeling(4)
+        val s = IntSetLabeling(4)
         assertTrue(Cardinality(intArrayOf(0, 2, 4)).satisfies(l, s))
     }
 

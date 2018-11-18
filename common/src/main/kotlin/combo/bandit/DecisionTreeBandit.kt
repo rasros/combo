@@ -6,7 +6,7 @@ import combo.sat.solvers.Solver
 import combo.sat.solvers.SolverConfig
 import combo.sat.solvers.WalkSat
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.SortedArrayIntSet
+import combo.util.IntSet
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
 import kotlin.math.sqrt
@@ -108,10 +108,10 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
         var nViewed: Int = 0
 
-        val ids = SortedArrayIntSet().let { s ->
+        val ids = IntSet().let { s ->
             s.addAll(0 until problem.nbrVariables)
             setLiterals.map { it.asIx() }.forEach { s.remove(it) }
-            s.toArray()
+            s.toArray().apply { sort() }
         }
         val dataPos: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }
         val dataNeg: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }

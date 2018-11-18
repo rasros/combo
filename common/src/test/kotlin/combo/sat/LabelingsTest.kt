@@ -1,5 +1,6 @@
 package combo.sat
 
+import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -7,21 +8,8 @@ class ByteArrayLabelingTest : LabelingTest<ByteArrayLabeling>() {
     override val builder = ByteArrayLabelingBuilder()
 }
 
-class SparseLabelingTest : LabelingTest<SparseLabeling>() {
-    override val builder = SparseLabelingBuilder()
-
-    @Test
-    fun sortedArray() {
-        for (i in 0 until 10) {
-            val r = Random.Default
-            val l = builder.build(1 + r.nextInt(100))
-            for (j in 0 until l.size)
-                l[r.nextInt(l.size)] = r.nextBoolean()
-            for (j in 1 until l.nbrUsed) {
-                assertTrue(l.literals[j - 1] < l.literals[j], l.literals.joinToString())
-            }
-        }
-    }
+class IntSetLabelingTest : LabelingTest<IntSetLabeling>() {
+    override val builder = IntSetLabelingBuilder()
 }
 
 class BitFieldLabelingTest : LabelingTest<BitFieldLabeling>() {
@@ -107,7 +95,7 @@ abstract class LabelingTest<T : MutableLabeling> {
         val r = Random(1023)
         for (i in 1..50) {
             val l = builder.generate(1 + r.nextInt(1000), r)
-            assertEquals(l, l.copy())
+            assertContentEquals(l.toIntArray(), l.copy().toIntArray())
         }
     }
 
@@ -160,7 +148,7 @@ abstract class LabelingTest<T : MutableLabeling> {
         val l2 = builder.build(20)
         assertEquals(l1, l2)
         l1[10] = true
-        assertNotEquals(l1, l2)
+        assertFalse(l1 == l2)
     }
 
     @Test
@@ -195,6 +183,26 @@ abstract class LabelingTest<T : MutableLabeling> {
 
         l.flip(4.asIx())
         assertFalse(l[4.asIx()])
+    }
+
+    @Test
+    fun iterator() {
+        val l = builder.build(10, (0 until 20 step 2).toList().toIntArray())
+        val allValues = l.iterator().asSequence().toSet()
+        assertEquals(10, allValues.size)
+        for (lit in l) {
+            assertTrue(lit.asBoolean())
+        }
+    }
+
+    @Test
+    fun truthIterator() {
+        val l = builder.build(10, (0 until 20 step 4).toList().toIntArray())
+        val allValues = l.truthIterator().asSequence().toList()
+        assertEquals(5, allValues.size)
+        for (lit in l.truthIterator()) {
+            assertTrue(lit.asBoolean())
+        }
     }
 
     @Test

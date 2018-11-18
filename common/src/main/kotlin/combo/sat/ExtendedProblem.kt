@@ -2,7 +2,7 @@ package combo.sat
 
 import combo.math.IntPermutation
 import combo.model.UnsatisfiableException
-import combo.util.HashIntSet
+import combo.util.EMPTY_INT_ARRAY
 import combo.util.IntSet
 import kotlin.random.Random
 
@@ -12,42 +12,42 @@ class ExtendedProblem(val problem: Problem, exactPropagation: Boolean = false) {
     val literalSentences: Array<IntArray>
 
     init {
-        if (exactPropagation) {
-            val preImplications = Array(problem.nbrVariables * 2) { HashIntSet(16) }
+        if (!exactPropagation) {
+            val implicationSets = Array(problem.nbrVariables * 2) { IntSet() }
 
             for (sent in problem.sentences) {
                 if (sent is Disjunction && sent.size == 2) {
-                    preImplications[!sent.literals[0]].add(sent.literals[1])
-                    preImplications[!sent.literals[1]].add(sent.literals[0])
+                    implicationSets[!sent.literals[0]].add(sent.literals[1])
+                    implicationSets[!sent.literals[1]].add(sent.literals[0])
                 } else if (sent is Cardinality && sent.degree == 1 &&
                         (sent.operator == Cardinality.Operator.AT_MOST || sent.operator == Cardinality.Operator.EXACTLY)) {
                     for (i in sent.literals.indices) {
                         for (j in (i + 1) until sent.literals.size) {
-                            preImplications[sent.literals[i]].add(!sent.literals[j])
-                            preImplications[sent.literals[j]].add(!sent.literals[i])
+                            implicationSets[sent.literals[i]].add(!sent.literals[j])
+                            implicationSets[sent.literals[j]].add(!sent.literals[i])
                         }
                     }
                 } else if (sent is Reified) {
                     if (sent.clause is Disjunction) {
                         for (clauseLit in sent.clause.literals)
-                            preImplications[!sent.literal].add(!clauseLit)
+                            implicationSets[!sent.literal].add(!clauseLit)
                     } else if (sent.clause is Conjunction) {
                         for (clauseLit in sent.clause.literals)
-                            preImplications[sent.literal].add(clauseLit)
+                            implicationSets[sent.literal].add(clauseLit)
                     }
                 }
             }
 
-            for (imps in preImplications)
-                for (ilit in imps)
-                    imps.addAll(preImplications[ilit]) // TODO efficient propagate looping
+            for (imps in implicationSets)
+                for (ilit in imps.toArray()) // toArray to avoid concurrent modification
+                    imps.addAll(implicationSets[ilit]) // TODO efficient propagate looping
 
             literalPropagations = Array(problem.nbrVariables * 2) { i ->
-                preImplications[i].toArray().apply { sort() }
+                implicationSets[i].toArray()
             }
         } else {
             literalPropagations = Array(problem.nbrVariables * 2) {
-                val set = HashIntSet()
+                val set = IntSet()
                 set.add(it)
                 try {
                     problem.unitPropagation(set)
@@ -59,19 +59,20 @@ class ExtendedProblem(val problem: Problem, exactPropagation: Boolean = false) {
         }
 
         literalSentences = Array(problem.nbrVariables * 2) { i ->
-            val sentences = HashIntSet()
+            val sentences = IntSet()
             sentences.addAll(problem.sentencesWith(i.asIx()))
             literalPropagations[i].forEach { j ->
-                sentences.addAll(problem.sentencesWith(j))
+                sentences.addAll(problem.sentencesWith(j.asIx()))
             }
             sentences.toArray()
         }
     }
 
-    inner class LabelingTracker(val context: IntArray,
-                                val labeling: MutableLabeling,
-                                val unsatisfied: IntSet = HashIntSet(),
-                                rng: Random) {
+    inner class LabelingTracker(val labeling: MutableLabeling,
+                                val context: IntArray = EMPTY_INT_ARRAY,
+                                val unsatisfied: IntSet = IntSet(),
+                                rng: Random = Random) {
+
 
         init {
             val setLabeling = BitFieldLabeling(labeling.size)
@@ -86,7 +87,7 @@ class ExtendedProblem(val problem: Problem, exactPropagation: Boolean = false) {
                     return false
                 }
 
-                val contextSentences = HashIntSet()
+                val contextSentences = IntSet()
                 context.forEach {
                     contextSentences.addAll(literalSentences[it])
                     if (!setLiteral(it) ||
@@ -94,65 +95,60 @@ class ExtendedProblem(val problem: Problem, exactPropagation: Boolean = false) {
                                 contextSentences.addAll(literalSentences[it])
                                 setLiteral(it)
                             })
-                        throw UnsatisfiableException("Unsatisfiable by unit propagation due to context literals ${context.joinToString()}.")
+                        throw UnsatisfiableException(
+                                "Unsatisfiable by unit propagation due to context literals ${context.joinToString()}.")
                 }
                 if (!contextSentences.all { problem.sentences[it].satisfies(labeling, setLabeling) })
-                    throw UnsatisfiableException("Unsatisfiable by unit propagation due to context literals ${context.joinToString()}.")
+                    throw UnsatisfiableException(
+                            "Unsatisfiable by unit propagation due to context literals ${context.joinToString()}.")
             }
 
-            val flipped = HashIntSet()
+            val affected = IntSet()
 
             for (ix in IntPermutation(labeling.size, rng).iterator()) {
                 if (setLabeling[ix]) continue
-                setLabeling[ix] = true
                 val literal = ix.asLiteral(rng.nextBoolean())
                 if (literalPropagations[literal].any { setLabeling[it.asIx()] && it != labeling.asLiteral(it.asIx()) }) {
                     set(!literal, null, setLabeling)
                 } else {
-                    set(literal, flipped, setLabeling)
-                    if (!literalSentences[labeling.asLiteral(ix)].all { sentId ->
-                                sentId in unsatisfied || problem.sentences[sentId].satisfies(labeling, setLabeling)
-                            }) {
-                        undo(flipped, setLabeling)
+                    if (set(literal, affected, setLabeling)) {
+                        undoSet(affected, setLabeling)
                         set(!literal, null, setLabeling)
-                    }
+                    } else affected.clear()
                 }
-                notify(ix, setLabeling)
             }
         }
 
-        fun notify(ix: Ix, setLabeling: Labeling? = null) {
-            literalSentences[labeling.asLiteral(ix)].forEach { sentId ->
-                if (sentId !in unsatisfied && !problem.sentences[sentId].satisfies(labeling, setLabeling))
-                    unsatisfied.add(sentId)
-            }
-        }
-
-        fun set(literal: Literal, affected: IntSet? = null, setLabeling: MutableLabeling? = null) {
+        fun set(literal: Literal, affected: IntSet? = null, setLabeling: MutableLabeling? = null): Boolean {
             val ix = literal.asIx()
-            if (affected != null && (labeling.asLiteral(ix) != literal || setLabeling != null)) {
-                affected.add(ix)
-                setLabeling?.set(ix, true)
-            }
-            if (setLabeling == null || !setLabeling[ix]) labeling.set(literal)
-            for (i in literalPropagations[literal]) {
-                val l = literalPropagations[literal][i]
-                if (setLabeling != null && setLabeling[l.asIx()]) continue
+            if (labeling.asLiteral(ix) != literal || (setLabeling != null && !setLabeling[ix]))
+                affected?.add(ix)
+            setLabeling?.set(ix, true)
+            labeling.set(literal)
+            for (l in literalPropagations[literal]) {
+                val lix = l.asIx()
+                if (setLabeling != null && setLabeling[lix]) continue
                 else {
-                    setLabeling?.set(l.asIx(), true)
-                    affected?.add(l.asIx())
+                    setLabeling?.set(lix, true)
+                    affected?.add(lix)
                 }
-                if (labeling.asLiteral(l.asIx()) != l) {
-                    labeling.flip(l.asIx())
-                    affected?.add(l.asIx())
+                if (labeling.asLiteral(lix) != l) {
+                    labeling.flip(lix)
+                    affected?.add(lix)
                 }
+            }
+            return literalSentences[literal].fold(true) { all: Boolean, sentId: Int ->
+                val sat = problem.sentences[sentId].satisfies(labeling, setLabeling)
+                if (sat) unsatisfied.remove(sentId)
+                else unsatisfied.add(sentId)
+                sat && all
             }
         }
 
-        fun undo(affected: IntSet, setLabeling: MutableLabeling? = null) {
+        fun undoSet(affected: IntSet, setLabeling: MutableLabeling? = null) {
             affected.forEach {
                 labeling.flip(it)
-                if (setLabeling != null) setLabeling[it] = false
+                setLabeling?.set(it, false)
             }
             affected.clear()
         }

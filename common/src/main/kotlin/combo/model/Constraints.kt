@@ -7,15 +7,15 @@ import combo.util.remove
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
 
-interface SentenceBuilder {
-    fun toSentences(ri: ReferenceIndex): Array<Sentence>
-    val references: Array<out Reference>
+abstract class SentenceBuilder {
+    internal abstract fun toSentences(ri: ReferenceIndex): Array<Sentence>
+    abstract val references: Array<out Reference>
 }
 
-class ReferenceIndex(features: Array<out Feature<*>>) {
+internal class ReferenceIndex(features: Array<out Feature<*>>) {
 
-    val index: Map<Reference, Ix>
-    val nbrVariables: Int
+    private val index: Map<Reference, Ix>
+    internal val nbrVariables: Int
 
     init {
         var ix = 0
@@ -27,21 +27,21 @@ class ReferenceIndex(features: Array<out Feature<*>>) {
         nbrVariables = ix
     }
 
-    fun indexOf(refs: Array<out Reference>): Literals =
+    internal fun indexOf(refs: Array<out Reference>): Literals =
             IntArray(refs.size) { i ->
                 refs[i].toLiteral(indexOf(refs[i]))
             }.apply { sort() }
 
-    fun indexOf(ref: Reference): Ix =
+    internal fun indexOf(ref: Reference): Ix =
             index[ref.rootFeature] ?: throw ValidationException("Could not find feature $ref")
 }
 
-abstract class BaseSentenceBuilder : SentenceBuilder {
+abstract class BaseSentenceBuilder : SentenceBuilder() {
     abstract operator fun not(): BaseSentenceBuilder
 }
 
 sealed class ClauseBuilder : BaseSentenceBuilder() {
-    abstract fun toClause(fi: ReferenceIndex): Clause
+    internal abstract fun toClause(fi: ReferenceIndex): Clause
     override fun toSentences(ri: ReferenceIndex): Array<Sentence> = arrayOf(toClause(ri))
 }
 
@@ -49,7 +49,7 @@ abstract class Reference : ClauseBuilder() {
     override operator fun not(): Reference = Not(this)
     override fun toClause(fi: ReferenceIndex) = Tautology
 
-    abstract fun toLiteral(ix: Ix): Literal
+    internal abstract fun toLiteral(ix: Ix): Literal
     abstract val rootFeature: Feature<*>
 }
 
@@ -72,7 +72,7 @@ class DisjunctionBuilder(override val references: Array<out Reference>) : Clause
     override operator fun not(): ConjunctionBuilder =
             ConjunctionBuilder(references.asSequence().map { !it }.toList().toTypedArray())
 
-    override fun toString() = "Or(${references.joinToString()})"
+    override fun toString() = "Multiple(${references.joinToString()})"
 }
 
 class ConjunctionBuilder(override val references: Array<out Reference>) : ClauseBuilder() {
@@ -176,7 +176,7 @@ fun exactly(vararg refs: Reference, degree: Int = 1) = CardinalityBuilder(refs, 
 
 class CardinalityBuilder(override val references: Array<out Reference>,
                          val degree: Int = 1,
-                         val operator: Cardinality.Operator = Cardinality.Operator.AT_MOST) : SentenceBuilder {
+                         val operator: Cardinality.Operator = Cardinality.Operator.AT_MOST) : SentenceBuilder() {
 
     override fun toSentences(ri: ReferenceIndex): Array<Sentence> =
             arrayOf(with(ri.indexOf(references)) {
@@ -188,7 +188,7 @@ class CardinalityBuilder(override val references: Array<out Reference>,
     override fun toString() = "Cardinality(${references.joinToString()}, $operator, $degree)"
 }
 
-infix fun Reference.reified(clause: ClauseBuilder) = object : SentenceBuilder {
+infix fun Reference.reified(clause: ClauseBuilder) = object : SentenceBuilder() {
     override val references: Array<out Reference>
         get() = Array(clause.references.size + 1) { i -> if (i == 0) this@reified else clause.references[i - 1] }
 

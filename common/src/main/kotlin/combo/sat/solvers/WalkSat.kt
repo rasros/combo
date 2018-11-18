@@ -4,7 +4,6 @@ import combo.math.IntPermutation
 import combo.model.IterationsReachedException
 import combo.model.TimeoutException
 import combo.sat.*
-import combo.util.HashIntSet
 import combo.util.IntSet
 import combo.util.millis
 import kotlin.math.max
@@ -34,7 +33,7 @@ class WalkSat(val problem: Problem,
             val result = satIteration(contextLiterals, labeling, rng, end)
             if (result != null) {
                 recordCompleted(true)
-                return result.apply { pack() }
+                return result
             }
             if (millis() > end) throw TimeoutException(timeout)
 
@@ -46,14 +45,14 @@ class WalkSat(val problem: Problem,
     private fun satIteration(context: Literals, labeling: MutableLabeling, rng: Random, end: Long): MutableLabeling? {
 
         labeling.setAll(context)
-        val contextIxs = HashIntSet().apply { context.forEach { this.add(it.asIx()) } }
+        val contextIxs = IntSet().apply { context.forEach { this.add(it.asIx()) } }
 
-        val unsatisfied: HashIntSet = let {
-            var set: HashIntSet? = null
+        val unsatisfied: IntSet = let {
+            var set: IntSet? = null
             for ((i, s) in problem.sentences.withIndex()) {
                 if (!s.satisfies(labeling)) {
                     if (set == null)
-                        set = HashIntSet(max(16, problem.sentences.size / 8))
+                        set = IntSet(max(16, problem.sentences.size / 8))
                     set.add(i)
                 }
             }
@@ -121,7 +120,3 @@ class WalkSat(val problem: Problem,
         else ix
     }
 }
-
-
-//class PropWalkSat() : Solver, LocalSearch() {
-//}
