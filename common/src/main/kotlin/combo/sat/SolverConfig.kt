@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat
 
 import combo.math.RandomSequence
 import combo.sat.BitFieldLabelingBuilder

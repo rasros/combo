@@ -2,8 +2,6 @@
 
 package combo.sat
 
-import combo.model.UnsatisfiableException
-import combo.model.ValidationException
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.applyTransform
 import combo.util.remove
@@ -11,46 +9,7 @@ import kotlin.jvm.JvmName
 import kotlin.math.max
 import kotlin.math.min
 
-interface Sentence : Iterable<Literal> {
-
-    val literals: Literals
-    val size get() = literals.size
-
-    override fun iterator() = literals.iterator()
-
-    fun validate() = literals.validate()
-    fun isUnit(): Boolean = size == 1
-    fun toDimacs(): String = toCnf().map { it.toDimacs() }.joinToString(separator = "\n")
-
-    fun flipsToSatisfy(l: Labeling, s: Labeling? = null): Int
-    var satCalls: Int
-
-    fun satisfies(l: Labeling, s: Labeling? = null): Boolean {
-        satCalls++
-        return flipsToSatisfy(l, s) == 0
-    }
-
-    fun propagateUnit(unit: Literal): Sentence
-    fun toCnf(): Sequence<Disjunction>
-
-    /**
-     * Reuses the clause if possible.
-     */
-    fun remap(remappedIds: IntArray): Sentence {
-        for ((i, l) in literals.withIndex()) {
-            literals[i] = remappedIds[literals[i].asIx()].asLiteral(l.asBoolean())
-            if (literals[i] < 0)
-                throw IllegalArgumentException()
-            require(literals[i] >= 0)
-        }
-        return this
-    }
-
-}
-
 sealed class Clause(override val literals: Literals) : Sentence {
-    override var satCalls = 0
-
     abstract override fun propagateUnit(unit: Literal): Clause
 }
 
@@ -126,8 +85,6 @@ class Conjunction(literals: Literals) : Clause(literals) {
  * literal <=> clause
  */
 class Reified(val literal: Literal, val clause: Clause) : Sentence {
-    override var satCalls = 0
-
     override fun validate() {
         super.validate()
         clause.validate()
@@ -219,8 +176,6 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
 }
 
 class Cardinality(override val literals: Literals, val degree: Int = 1, val operator: Operator = Operator.AT_MOST) : Sentence {
-    override var satCalls = 0
-
     enum class Operator(val operator: String) {
         AT_LEAST(">=") {
             override fun satisfies(matches: Int, unset: Int, degree: Int) = max(0, degree - matches - unset)
@@ -250,7 +205,7 @@ class Cardinality(override val literals: Literals, val degree: Int = 1, val oper
         super.validate()
         for (l in literals)
             if (!l.asBoolean())
-                throw ValidationException("Can only have non-negated literals in $this. " +
+                throw IllegalArgumentException("Can only have non-negated literals in $this. " +
                         "Offending literal: $l")
         if ((operator == Operator.AT_LEAST || operator == Operator.EXACTLY) && degree > literals.size)
             throw UnsatisfiableException("$this is not satisfiable (${literals.size} cannot be ${operator.operator}).")

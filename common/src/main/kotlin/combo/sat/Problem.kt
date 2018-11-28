@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.model.UnsatisfiableException
 import combo.util.IntList
 import combo.util.IntSet
 
