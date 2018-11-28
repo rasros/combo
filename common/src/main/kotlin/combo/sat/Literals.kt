@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.model.ValidationException
 import kotlin.math.abs
 
 typealias Ix = Int
@@ -18,7 +17,7 @@ typealias Literals = IntArray
 fun Literals.validate() {
     for (i in 1 until this.size) {
         if (this[i - 1].asIx() >= this[i].asIx()) {
-            throw ValidationException("Unordered clause.", literal = this[i]);
+            throw IllegalArgumentException("Unordered clause for literal ${this[i]}");
         }
     }
 }
