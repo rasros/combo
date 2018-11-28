@@ -7,39 +7,6 @@ import kotlin.experimental.xor
 import kotlin.math.max
 import kotlin.random.Random
 
-interface Labeling : Iterable<Int> {
-    val size: Int
-    val indices: IntRange
-        get() = 0 until size
-
-    fun copy(): Labeling
-    fun asLiteral(ix: Ix): Literal = ix.asLiteral(this[ix])
-    operator fun get(ix: Ix): Boolean
-
-    override fun iterator() = object : IntIterator() {
-        var i = 0
-        override fun hasNext() = i < size
-        override fun nextInt() = this@Labeling.asLiteral(i++)
-    }
-
-    fun truthIterator() = object : IntIterator() {
-        var i = 0
-
-        init {
-            while (i < size && !this@Labeling[i]) i++
-        }
-
-        override fun hasNext() = i < size
-        override fun nextInt() = this@Labeling.asLiteral(i).also {
-            i++;
-            while (i < size && !this@Labeling[i]) i++
-        }
-    }
-
-    fun asLiterals() = IntArray(size) { asLiteral(it) }
-}
-
-
 internal fun Labeling.deepEquals(other: Labeling): Boolean {
     if (size != other.size) return false
     for (l in truthIterator())
@@ -62,14 +29,6 @@ infix fun Labeling.dot(v: Vector) =
         v.array.foldIndexed(0.0) { i, dot, d -> dot + d * this[i].toInt() }
 
 fun Labeling.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
-
-interface MutableLabeling : Labeling {
-    fun flip(ix: Ix) = set(ix, !get(ix))
-    fun set(literal: Literal) = set(literal.asIx(), literal.asBoolean())
-    fun setAll(literals: Literals) = literals.forEach { set(it) }
-    override fun copy(): MutableLabeling
-    operator fun set(ix: Ix, value: Boolean)
-}
 
 interface LabelingBuilder<out T : MutableLabeling> {
     fun build(size: Int): T
