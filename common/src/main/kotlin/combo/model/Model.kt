@@ -87,7 +87,7 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
 
         fun constrained(by: SentenceBuilder): Builder {
             for (ref in by.references) if (!declarations!!.contains(ref.rootFeature))
-                throw ValidationException("Use of undeclared reference $ref in operator: $by")
+                throw IllegalArgumentException("Use of undeclared reference $ref in operator: $by")
             sentences!!.add(by)
             return this
         }
@@ -111,6 +111,6 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
         }
 
         private fun makeTree(): FeatureTree = FeatureTree(value, children.asSequence().map { it.makeTree() }.toList())
-        private fun addDeclaration(feature: Feature<*>) = if (!declarations!!.add(feature)) throw ValidationException("Duplicated feature.") else Unit
+        private fun addDeclaration(feature: Feature<*>) = if (!declarations!!.add(feature)) throw IllegalArgumentException("Duplicated feature.") else Unit
     }
 }

@@ -81,7 +81,7 @@ class Flag<T>(val value: T, name: String = defaultName()) : Feature<T>(name) {
         override fun toLiterals(t: Any?): Literals {
             return if (t == null && indices[0] == UNIT_TRUE) throw UnsatisfiableException("Value of ${this@Flag} must not be null.")
             else if (t != null && indices[0] == UNIT_FALSE) throw UnsatisfiableException("Value of ${this@Flag} must be null.")
-            else if (t != null && t != value) throw ValidationException("Value \"$t\" does not match ${this@Flag}.")
+            else if (t != null && t != value) throw IllegalArgumentException("Value \"$t\" does not match ${this@Flag}.")
             else if (indices[0] >= 0) if (t == null) negLit else posLit
             else EMPTY_INT_ARRAY
         }
@@ -136,7 +136,7 @@ abstract class Select<V, T>(override val values: Array<out V>, name: String = de
     fun option(value: V): Option<V> {
         for (i in values.indices)
             if (values[i] == value) return Option(this, i)
-        throw ValidationException("Value missing in feature $name. " +
+        throw IllegalArgumentException("Value missing in feature $name. " +
                 "Expected to find $value in ${values.joinToString()}")
     }
 
@@ -170,7 +170,7 @@ abstract class Select<V, T>(override val values: Array<out V>, name: String = de
                     indices[ix] == UNIT_TRUE -> -1
                     else -> throw UnsatisfiableException("Value of ${this@Select} cannot be \"$t\" due to conflicts.")
                 }
-            else throw ValidationException("Value \"$t\" not found in ${this@Select}.")
+            else throw IllegalArgumentException("Value \"$t\" not found in ${this@Select}.")
         }
     }
 }
@@ -206,7 +206,7 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
                 else LinkedHashSet<V>().apply {
                     for (i in 1 until this@MultipleIndexEntry.indices.size)
                         if (this@MultipleIndexEntry.indices[i] >= 0 && labeling[this@MultipleIndexEntry.indices[i]] || this@MultipleIndexEntry.indices[i] == UNIT_TRUE) add(values[i - 1])
-                    if (this@MultipleIndexEntry.indices[0] == UNIT_TRUE && isEmpty()) throw ValidationException(
+                    if (this@MultipleIndexEntry.indices[0] == UNIT_TRUE && isEmpty()) throw IllegalStateException(
                             "Inconsistent labeling, should have something set for ${this@Multiple}.")
                 }
 
@@ -216,13 +216,13 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
                 else return rootFalse
             }
             val col = t as? Collection<*>
-                    ?: throw ValidationException("Value of ${this@Multiple} must be a collection but got $t.")
+                    ?: throw IllegalArgumentException("Value of ${this@Multiple} must be a collection but got $t.")
             if (col.isEmpty())
                 throw UnsatisfiableException("Collection for ${this@Multiple} can not be empty.")
             val arr = IntArray(col.size)
             var k = 0
             for (v in col) {
-                val id = valueIx(v ?: throw ValidationException("Value"))
+                val id = valueIx(v ?: throw NullPointerException("Value is null in list $k"))
                 if (id > 0) arr[k++] = indices[id].asLiteral(true)
             }
             if (k < arr.size) return arr.sliceArray(0 until k)
@@ -279,12 +279,12 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
             // TODO should use labeling to loop instead
             for (i in 1 until indices.size)
                 if (indices[i] >= 0 && labeling[indices[i]]) return values[i - 1]
-            throw ValidationException("Inconsistent labeling, should have something set for ${this@Alternative}.")
+            throw IllegalStateException("Inconsistent labeling, should have something set for ${this@Alternative}.")
         }
 
         override fun toLiterals(t: Any?): IntArray {
             return if (t == null) {
-                if (indices[0] == UNIT_TRUE) throw ValidationException("Value of ${this@Alternative} must not be null.")
+                if (indices[0] == UNIT_TRUE) throw IllegalArgumentException("Value of ${this@Alternative} must not be null.")
                 else lits[0]
             } else {
                 val id = valueIx(t)

@@ -6,6 +6,8 @@ import combo.bandit.MultiArmedBandit
 import combo.bandit.glm.VarianceFunction
 import combo.bandit.glm.gaussian
 import combo.math.*
+import combo.sat.Solver
+import combo.sat.SolverConfig
 import combo.sat.optimizers.HillClimber
 import combo.sat.optimizers.LinearOptimizer
 import combo.sat.solvers.WalkSat
@@ -24,7 +26,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
                                 enumerationSolver: Solver = ExhaustiveSolver(model.problem, config),
                                 solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
             if (model.problem.nbrVariables >= 20)
-                throw ValidationException("Multi-armed bandit algorithm will not work with excessive number of variables (>=20).")
+                throw IllegalArgumentException("Multi-armed bandit algorithm will not work with excessive number of variables (>=20).")
             val bandits = enumerationSolver.sequence().toList().toTypedArray()
             val bandit = MultiArmedBandit(bandits, config, posterior)
             return ModelOptimizer(model, solver, bandit)

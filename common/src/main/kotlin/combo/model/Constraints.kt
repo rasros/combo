@@ -33,7 +33,7 @@ internal class ReferenceIndex(features: Array<out Feature<*>>) {
             }.apply { sort() }
 
     internal fun indexOf(ref: Reference): Ix =
-            index[ref.rootFeature] ?: throw ValidationException("Could not find feature $ref")
+            index[ref.rootFeature] ?: throw NoSuchElementException("Could not find feature $ref")
 }
 
 abstract class BaseSentenceBuilder : SentenceBuilder() {

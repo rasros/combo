@@ -34,7 +34,7 @@ class Assignment internal constructor(val labeling: Labeling, val featureMeta: M
     }
 
     fun <V> getOrThrow(feature: Feature<V>): V = get(feature)
-            ?: throw ValidationException("Feature $feature not found.")
+            ?: throw NoSuchElementException("Feature $feature not found.")
 
     fun <V> getOrDefault(feature: Feature<V>, default: V): V = get(feature)
             ?: default
