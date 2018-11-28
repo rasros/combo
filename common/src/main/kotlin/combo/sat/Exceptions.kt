@@ -1,11 +1,10 @@
 @file:JvmName("Exceptions")
 
-package combo.model
+package combo.sat
 
-import combo.sat.Literal
 import kotlin.jvm.JvmName
 
-open class ValidationException(message: String, cause: Throwable? = null, val literal: Literal? = null)
+sealed class ValidationException(message: String, cause: Throwable? = null, val literal: Literal? = null)
     : RuntimeException(message, cause) {
     override fun toString(): String {
         return super.toString() + if (literal != null) " For literal: ${literal}." else ""
