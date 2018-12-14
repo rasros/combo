@@ -23,11 +23,11 @@ class RandomSequenceTest {
     }
 }
 
-class ExtendedRandomTest {
+class SamplingTest {
     @Test
     fun fixedSeed() {
-        val r1 = ExtendedRandom(Random(0))
-        val r2 = ExtendedRandom(Random(0))
+        val r1 = Random(0)
+        val r2 = Random(0)
         for (i in 0..100) {
             assertEquals(r1.nextGaussian(), r2.nextGaussian())
         }
@@ -36,7 +36,7 @@ class ExtendedRandomTest {
 
     @Test
     fun gaussianStats() {
-        val r = ExtendedRandom(Random(120))
+        val r = Random(120)
         val s = generateSequence { r.nextGaussian(mean = 1.0, std = sqrt(2.0)) }.take(1000).sample(RunningVariance())
         assertEquals(2.0, s.variance, 0.2)
         assertEquals(1.0, s.mean, 0.2)
@@ -44,7 +44,7 @@ class ExtendedRandomTest {
 
     @Test
     fun gammaShapeLessThan1() {
-        val r = ExtendedRandom(Random(100))
+        val r = Random(100)
         val shape = 0.1
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
@@ -57,7 +57,7 @@ class ExtendedRandomTest {
 
     @Test
     fun gammaShapeEquals1() {
-        val r = ExtendedRandom(Random(12934))
+        val r = Random(12934)
         val shape = 1.0
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
@@ -70,7 +70,7 @@ class ExtendedRandomTest {
 
     @Test
     fun gammaShapeGreaterThan1() {
-        val r = ExtendedRandom(Random(12934))
+        val r = Random(12934)
         val shape = 10.0
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
@@ -83,7 +83,7 @@ class ExtendedRandomTest {
 
     @Test
     fun gammaShapeHuge() {
-        val r = ExtendedRandom(Random(12934))
+        val r = Random(12934)
         val shape = 100.0 // will trigger gaussian approximation
         val scale = 1.0
         val s = generateSequence { r.gamma(shape, scale) }
@@ -96,7 +96,7 @@ class ExtendedRandomTest {
 
     @Test
     fun betaUniform() {
-        val r = ExtendedRandom(Random(1023))
+        val r = Random(1023)
         val s = generateSequence { r.beta(1.0, 1.0) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
@@ -107,7 +107,7 @@ class ExtendedRandomTest {
 
     @Test
     fun betaSkewedDown() {
-        val r = ExtendedRandom(Random(12410))
+        val r = Random(12410)
         val a = 1.0
         val b = 10.0
         val s = generateSequence { r.beta(a, b) }
@@ -120,7 +120,7 @@ class ExtendedRandomTest {
 
     @Test
     fun betaSkewedUp() {
-        val r = ExtendedRandom(Random(-10))
+        val r = Random(-10)
         val a = 10.0
         val b = 1.0
         val s = generateSequence { r.beta(a, b) }
@@ -133,7 +133,7 @@ class ExtendedRandomTest {
 
     @Test
     fun poissonSmall() {
-        val r = ExtendedRandom(Random(5468))
+        val r = Random(5468)
         val lambda = 0.1
         val s = generateSequence { r.poisson(lambda) }
                 .take(200)
@@ -145,7 +145,7 @@ class ExtendedRandomTest {
 
     @Test
     fun poissonMedium() {
-        val r = ExtendedRandom(Random(1546))
+        val r = Random(1546)
         val lambda = 2.0
         val s = generateSequence { r.poisson(lambda) }
                 .take(200)
@@ -157,7 +157,7 @@ class ExtendedRandomTest {
 
     @Test
     fun poissonHuge() {
-        val r = ExtendedRandom(Random(68))
+        val r = Random(68)
         val lambda = 100.0 // will trigger gaussian approximation
         val s = generateSequence { r.poisson(lambda) }
                 .take(200)
@@ -169,7 +169,7 @@ class ExtendedRandomTest {
 
     @Test
     fun bernoulli() {
-        val r = ExtendedRandom(Random(568))
+        val r = Random(568)
         val p = 0.1
         val s = generateSequence { r.binomial(p) }
                 .take(200)
@@ -181,7 +181,7 @@ class ExtendedRandomTest {
 
     @Test
     fun binomialHuge() {
-        val r = ExtendedRandom(Random(789))
+        val r = Random(789)
         val p = 0.2
         val n = 100
         val s = generateSequence { r.binomial(p, n) }
@@ -194,7 +194,7 @@ class ExtendedRandomTest {
 
     @Test
     fun geometric() {
-        val r = ExtendedRandom(Random(978546))
+        val r = Random(978546)
         val p = 10.0
         val s = generateSequence { r.geometric(p) }
                 .take(200)
@@ -206,7 +206,7 @@ class ExtendedRandomTest {
 
     @Test
     fun exponential() {
-        val r = ExtendedRandom(Random(100))
+        val r = Random(100)
         val rate = 10.0
         val s = generateSequence { r.exponential(rate) }
                 .take(200)
