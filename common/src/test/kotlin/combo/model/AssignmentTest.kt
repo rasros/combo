@@ -2,6 +2,7 @@ package combo.model
 
 import combo.sat.BitFieldLabeling
 import combo.sat.IntSetLabeling
+import combo.sat.ValidationException
 import combo.test.assertContentEquals
 import kotlin.test.*
 

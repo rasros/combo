@@ -1,8 +1,9 @@
 package combo.model
 
 import combo.sat.BitFieldLabeling
+import combo.sat.ValidationException
 import combo.sat.solvers.ExhaustiveSolver
-import combo.sat.solvers.WalkSat
+import combo.sat.solvers.LocalSearchSolver
 import kotlin.test.*
 
 class ModelTest {
@@ -155,7 +156,7 @@ class ModelTest {
     fun emptyModel() {
         val m = Model.builder().build()
         assertEquals(m.problem.nbrVariables, 0)
-        val l = WalkSat(m.problem).witnessOrThrow()
+        val l = LocalSearchSolver(m.problem).witnessOrThrow()
         assertEquals(l.size, 0)
         val a = m.toAssignment(l)
         assertEquals(1, a.size)

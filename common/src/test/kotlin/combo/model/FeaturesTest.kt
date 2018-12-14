@@ -1,9 +1,6 @@
 package combo.model
 
-import combo.sat.BitFieldLabeling
-import combo.sat.ByteArrayLabeling
-import combo.sat.IntSetLabeling
-import combo.sat.asLiteral
+import combo.sat.*
 import combo.test.assertContentEquals
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.test.*
