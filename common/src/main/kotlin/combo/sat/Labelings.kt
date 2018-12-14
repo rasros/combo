@@ -26,7 +26,7 @@ internal fun Labeling.deepHashCode(): Int {
 internal fun Labeling.deepToString() = toIntArray().joinToString(",", "[", "]")
 
 infix fun Labeling.dot(v: Vector) =
-        v.array.foldIndexed(0.0) { i, dot, d -> dot + d * this[i].toInt() }
+        v.foldIndexed(0.0) { i, dot, d -> dot + d * this[i].toInt() }
 
 fun Labeling.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
 

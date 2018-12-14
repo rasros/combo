@@ -21,6 +21,8 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
     fun satisfies(l: Labeling, s: Labeling? = null) = sentences.all { it.satisfies(l, s) }
 
+    fun flipsToSatisfy(l: Labeling, s: Labeling? = null) = sentences.sumBy { it.flipsToSatisfy(l, s) }
+
     fun unitPropagation(units: IntSet = IntSet()): Array<Sentence> {
 
         fun addUnit(units: IntSet, unit: Literal): Boolean {

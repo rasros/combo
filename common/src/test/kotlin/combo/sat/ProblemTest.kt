@@ -1,10 +1,8 @@
 package combo.sat
 
-import combo.math.ExtendedRandom
 import combo.math.IntPermutation
 import combo.math.binomial
 import combo.model.ModelTest
-import combo.model.UnsatisfiableException
 import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
 import combo.util.IntSet
@@ -58,12 +56,12 @@ class ProblemTest {
 
     @Test
     fun randomPropagation() {
-        val r = ExtendedRandom(Random.Default)
+        val rng = Random.Default
         val p = ModelTest.large2.problem
-        val perm = IntPermutation(p.nbrVariables, r.rng)
-        val lits = (0 until r.binomial(0.7, p.nbrVariables)).asSequence()
+        val perm = IntPermutation(p.nbrVariables, rng)
+        val lits = (0 until rng.binomial(0.7, p.nbrVariables)).asSequence()
                 .map { perm.encode(it) }
-                .map { it.asLiteral(r.rng.nextBoolean()) }
+                .map { it.asLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }
         val sents: Array<Sentence> = p.sentences.toList().toTypedArray()
         val p2 = Problem(sents + Conjunction(lits), p.nbrVariables)
@@ -72,7 +70,7 @@ class ProblemTest {
         } catch (e: UnsatisfiableException) {
             return
         }
-        LabelingPermutation.sequence(p.nbrVariables, r.rng).take(100).forEach {
+        LabelingPermutation.sequence(p.nbrVariables, rng).take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }

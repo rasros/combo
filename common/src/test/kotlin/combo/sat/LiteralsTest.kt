@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.model.ValidationException
 import kotlin.test.*
 
 class LiteralsTest {

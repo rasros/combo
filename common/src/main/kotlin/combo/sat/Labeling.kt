@@ -24,7 +24,7 @@ interface Labeling : Iterable<Int> {
 
         override fun hasNext() = i < size
         override fun nextInt() = this@Labeling.asLiteral(i).also {
-            i++;
+            i++
             while (i < size && !this@Labeling[i]) i++
         }
     }

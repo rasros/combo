@@ -1,12 +1,4 @@
-package combo.sat.optimizers
-
-import combo.math.DescriptiveStatistic
-import combo.math.ExponentialDecayVariance
-import combo.math.Vector
-import combo.model.IterationsReachedException
-import combo.sat.*
-import kotlin.math.absoluteValue
-import kotlin.math.min
+package combo.sat.solvers
 
 /**
  * Steady state GA ModelOptimizer.

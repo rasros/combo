@@ -1,8 +1,7 @@
 package combo.sat.solvers
 
-import combo.math.RandomSequence
-import combo.model.UnsatisfiableException
 import combo.math.LongPermutation
+import combo.math.RandomSequence
 import combo.sat.*
 import kotlin.jvm.JvmOverloads
 

@@ -3,7 +3,8 @@
 package combo.sat
 
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.applyTransform
+import combo.util.transformArray
+import combo.util.mapArray
 import combo.util.remove
 import kotlin.jvm.JvmName
 import kotlin.math.max
@@ -122,7 +123,7 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
         return when {
             unit == literal -> clause
             unit.asIx() == literal.asIx() -> {
-                val negated = clause.literals.copyOf().applyTransform { !it }
+                val negated = clause.literals.mapArray { !it }
                 when (clause) {
                     is Disjunction -> Conjunction(negated)
                     is Conjunction -> Disjunction(negated)
@@ -160,7 +161,7 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
             }
             is Conjunction -> {
                 val c1 = clause.literals.asSequence().map { Disjunction(intArrayOf(!literal, it).apply { this.sort() }) }
-                val c2 = sequenceOf(Disjunction((clause.literals.copyOf().applyTransform { !it } + literal).apply { this.sort() }))
+                val c2 = sequenceOf(Disjunction((clause.literals.mapArray { !it } + literal).apply { this.sort() }))
                 c1 + c2
             }
             is Tautology -> sequenceOf(Disjunction(intArrayOf(literal)))
@@ -218,7 +219,7 @@ class Cardinality(override val literals: Literals, val degree: Int = 1, val oper
                 val d = if (unit == literals[i]) degree - 1 else degree
                 return if (d <= 0) {
                     if (copy.isEmpty() || operator == Operator.AT_LEAST) Tautology
-                    else Conjunction(copy.applyTransform { !it })
+                    else Conjunction(copy.also { it.transformArray { lit -> !lit } })
                 } else if (d >= copy.size && operator == Operator.AT_MOST) Tautology
                 else if (d > copy.size && operator != Operator.AT_MOST)
                     throw UnsatisfiableException(

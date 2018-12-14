@@ -85,9 +85,19 @@ abstract class LabelingTest<T : MutableLabeling> {
     }
 
     @Test
-    fun copy() {
+    fun copyEquals() {
         val l = builder.build(3).apply { setAll(intArrayOf(0, 2, 5)) }
         assertEquals(l, l.copy())
+    }
+
+    @Test
+    fun copy() {
+        val l = builder.build(3).apply { setAll(intArrayOf(0, 2, 5)) }
+        val l2 = l.copy()
+        l2[0] = false
+        assertNotEquals(l, l2)
+        assertTrue(l[0])
+        assertFalse(l2[0])
     }
 
     @Test

@@ -1,7 +1,5 @@
 package combo.sat.solvers
 
-import combo.model.TimeoutException
-import combo.model.UnsatisfiableException
 import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.IntSet
