@@ -23,7 +23,7 @@ interface Loss {
 /**
  * For use with l2 regularized regression
  */
-fun squaredLoss() = object : Loss {
+object SquaredLoss : Loss {
     override fun loss(diff: Double) = 0.5 * diff * diff
     override fun dloss(diff: Double) = diff
 }
@@ -31,7 +31,7 @@ fun squaredLoss() = object : Loss {
 /**
  * For use with l1 regularized regression
  */
-fun absoluteLoss() = object : Loss {
+object AbsoluteLoss : Loss {
     override fun loss(diff: Double) = abs(diff)
     override fun dloss(diff: Double) = diff / abs(diff)
 }
@@ -40,7 +40,7 @@ fun absoluteLoss() = object : Loss {
  * This will optimize Huber loss for linear regression. The inverse transformation is the derivative of the huber loss
  * function divided by value. In effect, this caps the gradient step to the delta parameter.
  */
-fun huberLoss(delta: Double) = object : Loss {
+class HuberLoss(val delta: Double) : Loss {
     override fun loss(diff: Double) = if (diff <= delta) 0.5 * diff * diff else delta * (abs(diff) - delta / 2.0)
     override fun dloss(diff: Double) = if (diff <= delta) diff else (diff * delta) / abs(diff)
 }
