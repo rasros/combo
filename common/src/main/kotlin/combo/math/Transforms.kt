@@ -17,30 +17,28 @@ interface Transform {
     }
 }
 
-fun identity() = object : Transform {
+object IdentityTransform : Transform {
     override fun inverse(value: Double) = value
     override fun apply(value: Double) = value
     override fun backtransform(stat: VarianceStatistic) = stat
 }
 
 
-fun shift(by: Double) = object : Transform {
+class ShiftTransform(val by: Double) : Transform {
     override fun inverse(value: Double) = value - by
     override fun apply(value: Double) = value + by
     override fun backtransform(stat: VarianceStatistic) =
             FixedVariance(stat.mean - by, stat.variance, stat.nbrWeightedSamples)
 }
 
-fun scale(by: Double) = object : Transform {
+class ScaleTransform(val by: Double) : Transform {
     override fun inverse(value: Double) = value / by
     override fun apply(value: Double) = value * by
     override fun backtransform(stat: VarianceStatistic) =
             FixedVariance(stat.mean / by, stat.variance / (by * by), stat.nbrWeightedSamples)
 }
 
-fun standard(mean: Double, standardDeviation: Double) = shift(-mean).andThen(scale(1 / standardDeviation))
-
-fun arcSine() = object : Transform {
+object ArcSineTransform : Transform {
     override fun inverse(value: Double) = sin(value).pow(2)
     override fun apply(value: Double) = asin(sqrt(value))
 
@@ -54,7 +52,7 @@ fun arcSine() = object : Transform {
     }
 }
 
-fun log() = object : Transform {
+object LogTransform : Transform {
     override fun inverse(value: Double) = exp(value)
     override fun apply(value: Double) = ln(value)
 
@@ -65,7 +63,7 @@ fun log() = object : Transform {
     }
 }
 
-fun squareRoot() = object : Transform {
+object SquareRootTransform : Transform {
     override fun inverse(value: Double) = value * value
     override fun apply(value: Double) = sqrt(value)
 
@@ -76,7 +74,7 @@ fun squareRoot() = object : Transform {
                     2.0, stat.variance)
 }
 
-fun logit() = object : Transform {
+object LogitTransform : Transform {
     override fun apply(value: Double): Double {
         return 1 / (1 + exp(-value))
     }
@@ -88,7 +86,7 @@ fun logit() = object : Transform {
     override fun backtransform(stat: VarianceStatistic): VarianceStatistic = TODO("Backtransform not supported")
 }
 
-fun clogLog() = object : Transform {
+object ClogLogTransform : Transform {
     override fun inverse(value: Double): Double {
         return 1 - exp(-exp(value))
     }
@@ -100,7 +98,7 @@ fun clogLog() = object : Transform {
     override fun backtransform(stat: VarianceStatistic): VarianceStatistic = TODO("Backtransform not supported")
 }
 
-fun inverse() = object : Transform {
+object InverseTransform : Transform {
     override fun inverse(value: Double): Double {
         return 1 / value
     }
@@ -119,7 +117,7 @@ fun inverse() = object : Transform {
     }
 }
 
-fun negativeInverse() = object : Transform {
+object NegativeInverseTransform : Transform {
     override fun inverse(value: Double): Double {
         return -1 / value
     }
@@ -131,7 +129,7 @@ fun negativeInverse() = object : Transform {
     override fun backtransform(stat: VarianceStatistic): VarianceStatistic = TODO("Backtransform not supported")
 }
 
-fun inverseSquared() = object : Transform {
+object InverseSquaredTransform : Transform {
     override fun inverse(value: Double): Double {
         return 1 / sqrt(value)
     }
@@ -149,7 +147,6 @@ fun inverseSquared() = object : Transform {
         return taylorStatistics(stat.nbrWeightedSamples, x, x1, x2, v)
     }
 }
-
 
 private fun taylorStatistics(n: Double, x: Double, x1: Double, x2: Double, v: Double): VarianceStatistic {
     val mean = x + v / 2 * x2

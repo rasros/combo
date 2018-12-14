@@ -1,10 +1,6 @@
 package combo.sat.solvers
 
-import combo.math.Vector
-import combo.model.TimeoutException
-import combo.model.UnsatisfiableException
 import combo.sat.*
-import combo.sat.optimizers.LinearOptimizer
 import combo.util.millis
 import org.jacop.constraints.SumBool
 import org.jacop.constraints.XeqC
@@ -25,7 +21,7 @@ import kotlin.random.Random
 // TODO debug
 class JacopSolver(problem: Problem,
                   override var config: SolverConfig = SolverConfig(),
-                  var timeout: Long = -1L) : Solver, LinearOptimizer {
+                  var timeout: Long = -1L) : Solver, Optimizer<LinearObjective> {
 
     private val store = Store()
     private val vars = Array(problem.nbrVariables) { i ->
@@ -132,16 +128,16 @@ class JacopSolver(problem: Problem,
         }
     }
 
-    override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, contextLiterals: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
             if (contextLiterals.isNotEmpty()) {
                 for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
-            val max = weights.array.asSequence().map { abs(it) }.sum()
+            val max = function.weights.asSequence().map { abs(it) }.sum()
             val cost = FloatVar(store, -max, max)
-            store.impose(LinearFloat(optimizeVars, weights.array, "=", cost))
-            val objective =
+            store.impose(LinearFloat(optimizeVars, function.weights, "=", cost))
+            val costVar =
                     if (config.maximize) {
                         val negCost = FloatVar(store, -max, max)
                         store.impose(PmulCeqR(cost, -1.0, negCost))
@@ -152,7 +148,7 @@ class JacopSolver(problem: Problem,
                 setTimeout(this)
             }
             val result = search.labeling(store, SimpleSelect<BooleanVar>(
-                    vars, MostConstrainedDynamic<BooleanVar>(), IndomainMax<BooleanVar>()), objective)
+                    vars, MostConstrainedDynamic<BooleanVar>(), IndomainMax<BooleanVar>()), costVar)
             if (!result) {
                 if (search.timeOutOccured) {
                     throw TimeoutException(timeout)

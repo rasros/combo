@@ -2,12 +2,9 @@
 
 package combo.sat.solvers
 
-import combo.math.Vector
-import combo.model.TimeoutException
-import combo.model.UnsatisfiableException
+import combo.math.toIntArray
 import combo.sat.*
-import combo.sat.optimizers.LinearOptimizer
-import combo.util.applyTransform
+import combo.util.transformArray
 import combo.util.millis
 import org.sat4j.core.LiteralsUtils.negLit
 import org.sat4j.core.LiteralsUtils.posLit
@@ -152,17 +149,17 @@ class Sat4JLinearOptimizer(val problem: Problem,
                            val timeout: Long = -1L,
                            val maxConflicts: Int = Int.MAX_VALUE,
                            private var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver })
-    : LinearOptimizer {
+    : Optimizer<LinearObjective> {
 
-    override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, contextLiterals: Literals): Labeling {
         val pbSolver = optimizerCreator()
         pbSolver.setTimeoutOnConflicts(maxConflicts)
         if (timeout >= 0L)
             pbSolver.order = TimeoutOrder(pbSolver.order).apply { setTimeout(timeout) }
         val optimizer = OptToPBSATAdapter(PseudoOptDecorator(WeightedMaxSatDecorator(pbSolver)))
         pbSolver.setup(problem)
-        val intWeights = weights.toIntArray()
-        if (config.maximize) intWeights.applyTransform { -it }
+        val intWeights = function.weights.toIntArray()
+        if (config.maximize) intWeights.transformArray { -it }
         optimizer.objectiveFunction = ObjectiveFunction(
                 VecInt((1..intWeights.size).toList().toIntArray()),
                 Vec(intWeights.map { valueOf(it.toLong()) }.toTypedArray()))

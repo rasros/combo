@@ -1,4 +1,4 @@
-package combo.sat.optimizers
+package combo.sat.solvers
 
 import cern.colt.matrix.tint.IntMatrix1D
 import cern.colt.matrix.tint.IntMatrix2D
@@ -8,11 +8,7 @@ import com.joptimizer.exception.InfeasibleProblemException
 import com.joptimizer.exception.IterationsLimitException
 import com.joptimizer.optimizers.BIPLokbaTableMethod
 import com.joptimizer.optimizers.BIPOptimizationRequest
-import combo.math.Vector
-import combo.model.IterationsReachedException
-import combo.model.UnsatisfiableException
 import combo.sat.*
-import combo.sat.solvers.SolverConfig
 import combo.util.IntSet
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt
@@ -20,7 +16,7 @@ import kotlin.math.roundToInt
 class JOptimizer(val problem: Problem,
                  override val config: SolverConfig = SolverConfig(),
                  val maxItr: Int = Int.MAX_VALUE,
-                 val delta: Double = 1e-3) : LinearOptimizer {
+                 val delta: Double = 1e-3) : Optimizer<LinearObjective> {
 
     /**
      * It converts double weight vector into int-vector by dividing by delta.
@@ -29,7 +25,7 @@ class JOptimizer(val problem: Problem,
      * @throws UnsatisfiableException
      * @throws IterationsReachedException by config.maxIterations
      */
-    override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, contextLiterals: Literals): Labeling {
         val p = if (contextLiterals.isNotEmpty())
             problem.simplify(IntSet().apply { addAll(contextLiterals) }, true)
         else problem
@@ -37,8 +33,8 @@ class JOptimizer(val problem: Problem,
 
         val request = BIPOptimizationRequest().apply {
             val mult = if (config.maximize) -1 else 1
-            setC(IntArray(weights.size) { i ->
-                (weights[i] / delta).roundToInt() * mult
+            setC(IntArray(function.weights.size) { i ->
+                (function.weights[i] / delta).roundToInt() * mult
             })
             setG(G)
             setH(h)
@@ -67,7 +63,7 @@ class JOptimizer(val problem: Problem,
         }
     }
 
-    companion object {
+    private companion object {
         init {
             try {
                 val cls = Class.forName("com.joptimizer.optimizers.BIPPresolver")

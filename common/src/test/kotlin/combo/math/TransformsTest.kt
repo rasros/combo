@@ -9,78 +9,70 @@ import kotlin.test.Test
 class TransformsTest {
     @Test
     fun identityBacktransform() {
-        val rng = ExtendedRandom(Random(1230))
-        backtransformTest(identity(), generateSequence { rng.nextGaussian() })
+        val rng = Random(1230)
+        backtransformTest(IdentityTransform, generateSequence { rng.nextGaussian() })
     }
 
     @Test
     fun shiftBacktransform() {
-        val rng = ExtendedRandom(Random(1230))
-        backtransformTest(shift(1.0), generateSequence { rng.nextGaussian() })
+        val rng = Random(1230)
+        backtransformTest(ShiftTransform(1.0), generateSequence { rng.nextGaussian() })
     }
 
     @Test
     fun scaleBacktransform() {
-        val rng = ExtendedRandom(Random(5))
-        backtransformTest(scale(1.0), generateSequence { rng.nextGaussian() })
-    }
-
-    @Test
-    fun standardBacktransform() {
-        val r1 = ExtendedRandom(Random(12))
-        val r2 = ExtendedRandom(Random(-12))
-        backtransformTest(standard(0.0, 1.0), generateSequence { r1.nextGaussian() })
-        backtransformTest(standard(2.0, 3.0), generateSequence { r2.nextGaussian() })
+        val rng = Random(5)
+        backtransformTest(ScaleTransform(1.0), generateSequence { rng.nextGaussian() })
     }
 
     @Test
     fun arcSineBacktransform() {
         val rng = Random(124)
-        backtransformTest(arcSine(), generateSequence { rng.nextDouble() })
+        backtransformTest(ArcSineTransform, generateSequence { rng.nextDouble() })
     }
 
     @Test
     fun logBacktransform() {
         val r = Random(10)
-        backtransformTest(log(), generateSequence { 1.0 + r.nextDouble() })
+        backtransformTest(LogTransform, generateSequence { 1.0 + r.nextDouble() })
     }
 
     @Test
     fun squareRootBacktransform() {
         val r = Random(113)
-        backtransformTest(squareRoot(), generateSequence { r.nextDouble() })
+        backtransformTest(SquareRootTransform, generateSequence { r.nextDouble() })
     }
 
     @Test
     fun logitInverse() {
         val rng = Random(102310)
-        inverseTest(logit(), generateSequence { rng.nextDouble() })
+        inverseTest(LogitTransform, generateSequence { rng.nextDouble() })
     }
 
     @Test
     fun clogLogInverse() {
         val rng = Random(1023)
-        inverseTest(clogLog(), generateSequence { rng.nextDouble() })
+        inverseTest(ClogLogTransform, generateSequence { rng.nextDouble() })
     }
 
     @Test
     fun inverseBacktransform() {
         val rng = Random(78524)
-        backtransformTest(inverse(), generateSequence { 1 + rng.nextDouble() })
+        backtransformTest(InverseTransform, generateSequence { 1 + rng.nextDouble() })
     }
 
     @Test
     fun negativeInverseBacktransform() {
-        val rng = ExtendedRandom(Random(54))
+        val rng = Random(54)
         // TODO backtransform
-        inverseTest(negativeInverse(), generateSequence { rng.nextGaussian() })
+        inverseTest(NegativeInverseTransform, generateSequence { rng.nextGaussian() })
     }
 
     @Test
     fun inverseSquaredBacktransform() {
-        val rng = ExtendedRandom(Random(54))
+        val rng = Random(54)
         // Using folded normal to test here
-        backtransformTest(inverseSquared(), generateSequence { abs(rng.nextGaussian()) })
+        backtransformTest(InverseSquaredTransform, generateSequence { abs(rng.nextGaussian()) })
     }
 
     private fun inverseTest(transform: Transform, seq: Sequence<Double>) {
