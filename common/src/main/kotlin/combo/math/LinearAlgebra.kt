@@ -2,189 +2,111 @@
 
 package combo.math
 
+import combo.util.mapArray
+import combo.util.transformArray
+import combo.util.transformArrayIndexed
 import kotlin.jvm.JvmName
 import kotlin.math.*
 
-fun DoubleArray.toVector() = Vector(this)
-fun Array<DoubleArray>.toMatrix() = Matrix(this)
+typealias Vector = DoubleArray
+typealias Matrix = Array<DoubleArray>
+
+fun matrix(size: Int) = Array(size) { DoubleArray(size) }
+
+val Matrix.rows: Int
+    get() = this.size
+val Matrix.cols: Int
+    get() = this[0].size
+
+operator fun Matrix.get(i: Int, j: Int) = this[i][j]
+operator fun Matrix.set(i: Int, j: Int, s: Double) {
+    this[i][j] = s
+}
+
+/**
+ * must be square matrix
+ */
+fun Matrix.transpose() {
+    require(rows == cols)
+    for (i in 0 until rows - 1)
+        for (j in (i + 1) until rows) {
+            val tmp = this[i][j]
+            this[i][j] = this[j][i]
+            this[j][i] = tmp
+        }
+}
+
+val Matrix.T: Matrix
+    get() = Array(size) { this[it].copyOf() }.also { transpose() }
 
 operator fun Double.plus(v: Vector) = v + this
 operator fun Double.plus(A: Matrix) = A + this
 operator fun Double.times(v: Vector) = v * this
 operator fun Double.times(A: Matrix) = A * this
-operator fun Double.minus(v: Vector) = v.map { -it } + this
-operator fun Double.minus(A: Matrix) = A.map { -it } + this
-operator fun Double.div(v: Vector) = v.map { 1 / it } * this
-operator fun Double.div(A: Matrix) = A.map { 1 / it } * this
+operator fun Double.minus(v: Vector) = v.mapArray { this - it }
+operator fun Double.minus(A: Matrix): Matrix = A.mapMatrix { this - it }
+operator fun Double.div(v: Vector) = v.mapArray { this / it }
+operator fun Double.div(A: Matrix) = A.mapMatrix { this / it }
 
-class Vector(val array: DoubleArray) {
+operator fun Vector.unaryMinus() = mapArray { d -> -d }
+operator fun Vector.plus(s: Double) = mapArray { d -> d + s }
+fun Vector.add(s: Double) = transformArray { d -> d + s }
+operator fun Vector.minus(s: Double) = mapArray { d -> d - s }
+fun Vector.sub(s: Double) = transformArray { d -> d - s }
+operator fun Vector.times(s: Double) = mapArray { d -> d * s }
+fun Vector.multiply(s: Double) = transformArray { d -> d * s }
+operator fun Vector.div(s: Double) = mapArray { d -> d / s }
+fun Vector.divide(s: Double) = transformArray { d -> d / s }
 
-    constructor(n: Int) : this(DoubleArray(n))
-
-    val size get() = array.size
-
-    val indices get() = array.indices
-
-    fun copy(): Vector = Vector(array.copyOf())
-
-    operator fun set(i: Int, d: Double) {
-        array[i] = d
-    }
-
-    operator fun get(i: Int) = array[i]
-
-    inline fun map(transform: (Double) -> Double) = copy().apply {
-        for (i in array.indices)
-            this[i] = transform(array[i])
-    }
-
-    inline fun mapIndexed(transform: (index: Int, Double) -> Double) = copy().apply {
-        for (i in array.indices)
-            this[i] = transform(i, array[i])
-    }
-
-    operator fun unaryMinus() = map { d -> -d }
-    operator fun plus(v: Vector) = mapIndexed { i, d -> d + v[i] }
-    operator fun plus(s: Double) = map { d -> d + s }
-    operator fun minus(v: Vector) = mapIndexed { i, d -> d - v[i] }
-    operator fun minus(s: Double) = map { d -> d - s }
-    operator fun times(v: Vector) = mapIndexed { i, d -> d * v[i] }
-    operator fun times(s: Double) = map { d -> d * s }
-    operator fun div(v: Vector) = mapIndexed { i, d -> d / v[i] }
-    operator fun div(s: Double) = map { d -> d / s }
-
-    /**
-     * @return Row vector v*A
-     */
-    operator fun times(A: Matrix) = Vector(A.size.second).apply {
-        for (i in 0 until size)
-            for (j in 0 until A.size.rows)
-                this[j] += A[i, j] * this@Vector[i]
-    }
-
-    infix fun outer(v: Vector) = Matrix(size).apply {
-        for (i in 0 until this.size.rows)
-            for (j in 0 until this.size.cols)
-                this[i, j] = this@Vector[i] * v[j]
-    }
-
-    fun sum() = array.reduce { sum, d -> d + sum }
-
-    infix fun dot(v: Vector) = dot(v.array)
-    //infix fun dot(v: DoubleArray) = array.foldIndexed(0.0) { i, dot, d -> dot + d * v[i] }
-    infix fun dot(v: DoubleArray) = array.foldIndexed(0.0) { i, dot, d -> dot + d * v[i] }
-
-    override fun equals(other: Any?) = if (other is Vector) other.array.contentEquals(array) else false
-    override fun hashCode() = array.contentHashCode()
-    override fun toString() = "[" + array.joinToString(",") + "]"
-
-    fun toRoundedArray(eps: Double = 1.0 / Int.MAX_VALUE * size): DoubleArray {
-        val arr = DoubleArray(size)
-        val sorted = array.sortedArray().toVector()
-        val max = max(abs(sorted[size - 1]), abs(sorted[0]))
-        if (max < eps) return arr
-        val normalized = sorted / max
-        var minDelta: Double = normalized.array.map { abs(it) }.min()!!
-        for (i in 1 until size)
-            minDelta = min(minDelta, normalized[i] - normalized[i - 1])
-        minDelta = max(eps, minDelta)
-        val scale = 1 / minDelta
-        for (i in 0 until size)
-            arr[i] = round(this[i] * scale)
-        return arr
-
-    }
-
-    fun toIntArray(): IntArray {
-        val ints = IntArray(size)
-        for ((i, d) in toRoundedArray().withIndex())
-            ints[i] = d.toInt()
-        return ints
-    }
+infix fun Vector.dot(v: Vector) = foldIndexed(0.0) { i, dot, d -> dot + d * v[i] }
+infix fun Vector.outer(v: Vector) = Array(size) { DoubleArray(size) }.also {
+    for (i in 0 until size)
+        for (j in 0 until size)
+            it[i, j] = this[i] * v[j]
 }
 
-typealias MatrixSize = Pair<Int, Int>
+private inline fun Matrix.mapMatrix(transform: (Double) -> Double) = Array(size) { i ->
+    DoubleArray(size) { j -> transform(this[i, j]) }
+}
 
-val MatrixSize.rows get() = component1()
-val MatrixSize.cols get() = component2()
+private inline fun Matrix.mapMatrixIndexed(transform: (i: Int, j: Int, Double) -> Double) = Array(size) { i ->
+    DoubleArray(size) { j -> transform(i, j, this[i, j]) }
+}
 
-class Matrix(val matrix: Array<DoubleArray>) {
+private inline fun Matrix.transformMatrix(transform: (Double) -> Double) = forEach { it.transformArray(transform) }
+private inline fun Matrix.transformMatrixIndexed(transform: (i: Int, j: Int, Double) -> Double) =
+        forEachIndexed { i, v -> v.transformArrayIndexed { j, d -> transform(i, j, d) } }
 
-    constructor(n: Int, m: Int = n) : this(Array(n) { DoubleArray(m) })
+operator fun Matrix.unaryMinus() = mapMatrix { d -> -d }
+operator fun Matrix.plus(s: Double) = mapMatrix { it + s }
+fun Matrix.add(s: Double) = transformMatrix { it + s }
+fun Matrix.add(a: Matrix) = transformMatrixIndexed { i, j, d -> d + a[i, j] }
+operator fun Matrix.minus(s: Double) = mapMatrix { d -> d - s }
+fun Matrix.sub(s: Double) = transformMatrix { d -> d - s }
+fun Matrix.sub(a: Matrix) = transformMatrixIndexed { i, j, d -> d - a[i, j] }
+operator fun Matrix.times(s: Double) = mapMatrix { d -> d * s }
+fun Matrix.multiply(s: Double) = transformMatrix { d -> d * s }
+fun Matrix.multiply(a: Matrix) = transformMatrixIndexed { i, j, d -> d * a[i, j] }
+operator fun Matrix.div(s: Double) = mapMatrix { d -> d / s }
+fun Matrix.divide(s: Double) = transformMatrix { d -> d / s }
+fun Matrix.divide(a: Matrix) = transformMatrixIndexed { i, j, d -> d / a[i, j] }
 
-    fun copy() = Matrix(Array(size.rows) { matrix[it].copyOf() })
+/**
+ * @return Column vector A*v
+ */
+operator fun Matrix.times(v: Vector) = Vector(rows).also {
+    for (i in 0 until rows)
+        for (j in 0 until cols)
+            it[i] += this[i][j] * v[j]
+}
 
-    val size get() = Pair(matrix.size, matrix[0].size)
-    val T get() = copy().apply { transposed() }
-
-    operator fun set(i: Int, j: Int, s: Double) {
-        matrix[i][j] = s
-    }
-
-    operator fun get(i: Int, j: Int) = matrix[i][j]
-    operator fun get(i: Int) = matrix[i]
-
-    fun col(j: Int) = DoubleArray(size.rows).also {
-        for (i in 0 until size.rows)
-            it[i] = this[i][j]
-    }
-
-    inline fun map(transform: (Double) -> Double) = copy().apply {
-        for (i in 0 until size.rows)
-            for (j in 0 until size.cols)
-                this[i, j] = transform(matrix[i][j])
-    }
-
-    inline fun mapIndexed(transform: (i: Int, j: Int, Double) -> Double) = copy().apply {
-        for (i in 0 until size.rows)
-            for (j in 0 until size.cols)
-                this[i, j] = transform(i, j, matrix[i][j])
-    }
-
-    operator fun plus(s: Double) = map { d -> d + s }
-    operator fun minus(s: Double) = map { d -> d - s }
-    operator fun times(s: Double) = map { d -> d * s }
-    operator fun div(s: Double) = map { d -> d / s }
-    operator fun plus(A: Matrix) = mapIndexed { i, j, d -> d + A[i, j] }
-    operator fun minus(A: Matrix) = mapIndexed { i, j, d -> d - A[i, j] }
-    operator fun times(A: Matrix) = mapIndexed { i, j, d -> d * A[i, j] }
-    operator fun div(A: Matrix) = mapIndexed { i, j, d -> d / A[i, j] }
-
-    /**
-     * @return Column vector A*v
-     */
-    operator fun times(v: Vector): Vector {
-        val copy = Vector(size.rows)
-        for (i in 0 until size.rows) {
-            for (j in 0 until size.cols) {
-                copy[i] += matrix[i][j] * v[j]
-            }
-        }
-        return copy
-    }
-
-    /**
-     * must be square matrix
-     */
-    fun transposed() {
-        require(size.rows == size.cols)
-        for (i in 0 until size.rows - 1)
-            for (j in (i + 1) until size.rows) {
-                val tmp = matrix[i][j]
-                matrix[i][j] = matrix[j][i]
-                matrix[j][i] = tmp
-            }
-    }
-
-    override fun equals(other: Any?) = if (other is Matrix) other.matrix.contentDeepEquals(matrix) else false
-
-    override fun hashCode() = matrix.contentDeepHashCode()
-    override fun toString(): String {
-        val b = StringBuilder("[")
-        for (a in matrix)
-            b.append("[").append(a.joinToString(",")).append("]")
-        return b.append("]").toString()
-    }
+/**
+ * @return Row vector v*A
+ */
+operator fun Vector.times(A: Matrix) = Vector(A.cols).also {
+    for (i in 0 until size)
+        for (j in 0 until A.rows)
+            it[j] += A[i, j] * this[i]
 }
 
 /**
@@ -196,20 +118,45 @@ class Matrix(val matrix: Array<DoubleArray>) {
  * @return vector whose outer product should be added to inverse
  */
 fun Matrix.shermanUpdater(v: Vector): Vector {
-    val t = this * v
-    return t / sqrt(1.0 + (t dot v))
+    val t: Vector = this * v
+    return t.apply { divide(sqrt(1.0 + (t dot v))) }
 }
 
 fun Matrix.cholDowndate(v: Vector) {
     val L = this
-    for (i in 0 until size.rows) {
-        val r = sqrt(L[i, i] * L[i, i] - v[i] * v[i])
-        val c = r / L[i][i];
-        val s = v[i] / L[i][i];
-        L[i][i] = r;
-        for (j in i + 1 until size.rows)
+    for (i in 0 until rows) {
+        val r: Double = sqrt(L[i, i] * L[i, i] - v[i] * v[i])
+        val c: Double = r / L[i][i]
+        val s: Double = v[i] / L[i][i]
+        L[i][i] = r
+        for (j in i + 1 until rows)
             L[i, j] = (L[i, j] - s * v[j]) / c
-        for (j in i + 1 until size.rows)
+        for (j in i + 1 until rows)
             v[j] = c * v[j] - s * L[i][j]
     }
+}
+
+fun Vector.toRoundedArray(eps: Double = 1.0 / Int.MAX_VALUE * size): DoubleArray {
+    val arr = DoubleArray(size)
+    val sorted = sortedArray()
+    val max = max(abs(sorted[size - 1]), abs(sorted[0]))
+    if (max < eps) return arr
+    val normalized = sorted / max
+    val minDelta: Double = normalized.minBy { abs(it) }!!.let {
+        var tmp = it
+        for (i in 1 until size)
+            tmp = min(tmp, normalized[i] - normalized[i - 1])
+        max(eps, tmp)
+    }
+    val scale = 1 / minDelta
+    for (i in 0 until size)
+        arr[i] = round(this[i] * scale)
+    return arr
+}
+
+fun Vector.toIntArray(): IntArray {
+    val ints = IntArray(size)
+    for ((i, d) in toRoundedArray().withIndex())
+        ints[i] = d.toInt()
+    return ints
 }
