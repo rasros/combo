@@ -1,17 +1,12 @@
 package combo.math
 
 import kotlin.math.pow
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class IntPermutationTest {
     @Test
     fun emptyPermutation() {
-        assertFailsWith(IllegalArgumentException::class) {
-            IntPermutation(0)
-        }
+        assertFalse(IntPermutation(0).iterator().hasNext())
     }
 
     @Test
@@ -57,9 +52,7 @@ class LongPermutationTest {
 
     @Test
     fun emptyPermutation() {
-        assertFailsWith(IllegalArgumentException::class) {
-            LongPermutation(0L)
-        }
+        assertFalse(LongPermutation(0).iterator().hasNext())
     }
 
     @Test

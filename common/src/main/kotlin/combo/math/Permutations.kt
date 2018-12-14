@@ -13,7 +13,6 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random.Default
     private val rk = IntArray(INT_ROUNDS)    // rk for each round
 
     init {
-        require(size > 0)
         var i = 8
         var j = 3
         while (j < 31 && i < size) {
@@ -36,7 +35,7 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random.Default
         do {
             var r = INT_ROUNDS
             do {
-                x = (x * 0xADB + this.rk[--r]) and this.mask;
+                x = (x * 0xADB + this.rk[--r]) and this.mask
                 x = x xor x.ushr(this.rish)
             } while (r != 0)
         } while (x >= this.size)
@@ -59,7 +58,6 @@ class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random = Random.Defa
     private val rk = LongArray(LONG_ROUNDS)    // rk for each round
 
     init {
-        require(size > 0)
         var i = 8L
         var j = 3
         while (j < 63 && i < size) {
@@ -76,6 +74,8 @@ class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random = Random.Defa
     }
 
     fun encode(value: Long): Long {
+        require(value >= 0L)
+        require(value < size)
         var x = value
         do {
             var r = LONG_ROUNDS
