@@ -3,8 +3,8 @@ package combo.bandit
 import combo.math.*
 import combo.sat.Conjunction
 import combo.sat.Labeling
-import combo.model.UnsatisfiableException
-import combo.sat.solvers.SolverConfig
+import combo.sat.UnsatisfiableException
+import combo.sat.SolverConfig
 import kotlin.jvm.JvmOverloads
 
 class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
@@ -21,7 +21,7 @@ class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
     }
 
     override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
-        val rng = ExtendedRandom(config.nextRandom())
+        val rng = config.nextRandom()
         val con = Conjunction(contextLiterals)
         val labeling = if (config.maximize) {
             banditMap.maxBy { if (con.satisfies(it.key)) posterior.sample(rng, it.value) else Double.NEGATIVE_INFINITY }

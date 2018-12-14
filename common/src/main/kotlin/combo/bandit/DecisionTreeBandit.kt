@@ -1,10 +1,12 @@
 package combo.bandit
 
-import combo.math.*
+import combo.math.DataSample
+import combo.math.GrowingDataSample
+import combo.math.Posterior
+import combo.math.VarianceStatistic
 import combo.sat.*
+import combo.sat.solvers.LocalSearchSolver
 import combo.sat.solvers.Solver
-import combo.sat.solvers.SolverConfig
-import combo.sat.solvers.WalkSat
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.IntSet
 import kotlin.jvm.JvmOverloads
@@ -14,14 +16,23 @@ import kotlin.math.sqrt
 // TODO improvement idea compare with something other 2nd best. Perhaps middle or top-k
 class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                                                    override val config: SolverConfig = SolverConfig(),
-                                                   val solver: Solver = WalkSat(problem, config),
+                                                   val solver: Solver = LocalSearchSolver(problem, config, UnitPropagationTable(problem)),
                                                    val posterior: Posterior,
                                                    val prior: VarianceStatistic = posterior.defaultPrior(),
                                                    override val rewards: DataSample = GrowingDataSample(20),
                                                    val maxDepth: Int = 10,
                                                    val nMin: Int = 5,
                                                    val delta: Double = 0.05,
-                                                   val tau: Double = 0.1) : Bandit {
+                                                   val tau: Double = 0.1,
+                                                   override val trainAbsError: DataSample = GrowingDataSample(),
+                                                   override val testAbsError: DataSample = GrowingDataSample()) : PredictionBandit {
+    override fun predict(labeling: Labeling): Double {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun train(labeling: Labeling, result: Double, weight: Double) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 
     // For info on delta and tau parameters of the VFDT algorithm check out these resources:
     // https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
@@ -31,7 +42,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior)
 
     override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
-        val rng = ExtendedRandom(config.nextRandom())
+        val rng = config.nextRandom()
         val node = if (config.maximize) {
             leaves.maxBy {
                 if (matches(it.setLiterals, contextLiterals)) posterior.sample(rng, it.total)
