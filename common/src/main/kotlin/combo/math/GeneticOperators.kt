@@ -2,7 +2,7 @@
 
 package combo.math
 
-import combo.sat.ExtendedProblem
+import combo.sat.UnitPropagationTable
 import combo.sat.MutableLabeling
 import kotlin.jvm.JvmName
 import kotlin.math.roundToInt
@@ -77,7 +77,7 @@ class FitnessProportionalSampling : SelectionFunction {
     }
 }
 
-class UniformSampling : SelectionFunction {
+object UniformSampling : SelectionFunction {
     override fun select(nbrParents: Int, scores: DoubleArray, rng: Random, state: PopulationState) = rng.nextInt(nbrParents)
     override fun eliminate(nbrParents: Int, scores: DoubleArray, rng: Random, state: PopulationState) = rng.nextInt(nbrParents)
 }
@@ -111,7 +111,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionFunction {
     }
 }
 
-class AgeSelection : SelectionFunction {
+object AgeSelection : SelectionFunction {
     override fun select(nbrParents: Int, scores: DoubleArray, rng: Random, state: PopulationState) = state.youngest
     override fun eliminate(nbrParents: Int, scores: DoubleArray, rng: Random, state: PopulationState) = state.oldest
 }
@@ -129,7 +129,7 @@ class FlipMutation(val flips: Int = 1) : MutationFunction {
     }
 }
 
-class PropagatedFlipMutation(val problem: ExtendedProblem, val flips: Int = 1) : MutationFunction {
+class PropagatedFlipMutation(val problem: UnitPropagationTable, val flips: Int = 1) : MutationFunction {
     override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
         for (i in 1..flips) {
             val ix = rng.nextInt(labeling.size)
@@ -139,7 +139,7 @@ class PropagatedFlipMutation(val problem: ExtendedProblem, val flips: Int = 1) :
     }
 }
 
-class PropagatedAdaptiveFlipMutation(val problem: ExtendedProblem) : MutationFunction {
+class PropagatedAdaptiveFlipMutation(val problem: UnitPropagationTable) : MutationFunction {
     override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
         val flips = (state.scoreStatistic.max - score) / (state.scoreStatistic.max - state.scoreStatistic.mean) * 0.5
         for (i in 1..flips.roundToInt()) {
