@@ -7,29 +7,29 @@ import kotlin.test.assertTrue
 
 class ArraysTest {
     @Test
-    fun applyTransformToEmptyIntArray() {
-        assertTrue { EMPTY_INT_ARRAY.applyTransform { it + 1 }.isEmpty() }
+    fun arrayTransformToEmptyIntArray() {
+        assertTrue { EMPTY_INT_ARRAY.apply { transformArray { it + 1 } }.isEmpty() }
     }
 
     @Test
-    fun applyTransformToIntArray() {
-        assertTrue { intArrayOf(1, 2, 3).contentEquals(intArrayOf(0, 1, 2).applyTransform { it + 1 }) }
+    fun arrayTransformToIntArray() {
+        assertTrue { intArrayOf(1, 2, 3).contentEquals(intArrayOf(0, 1, 2).apply { transformArray { it + 1 } }) }
     }
 
     @Test
-    fun applyTransformToEmptyDoubleArray() {
-        assertTrue { doubleArrayOf().applyTransform { it / 0.0 }.isEmpty() }
+    fun arrayTransformToEmptyDoubleArray() {
+        assertTrue { doubleArrayOf().apply { transformArray { it / 0.0 } }.isEmpty() }
     }
 
     @Test
-    fun applyTransformToDoubleArray() {
-        assertTrue { doubleArrayOf(1.0, 2.0, 3.0).contentEquals(doubleArrayOf(2.0, 4.0, 6.0).applyTransform { it / 2.0 }) }
+    fun arrayTransformToDoubleArray() {
+        assertTrue { doubleArrayOf(1.0, 2.0, 3.0).contentEquals(doubleArrayOf(2.0, 4.0, 6.0).apply { transformArray { it / 2.0 } }) }
     }
 
     @Test
     fun shouldNotCopyArray() {
         val array = IntArray(10)
-        assertSame(array, array.applyTransform { it + 1 })
+        assertSame(array, array.apply { transformArray { it + 1 } })
     }
 
     @Test
