@@ -71,6 +71,7 @@ class IntSet private constructor(private var table: IntArray, private var _size:
     override fun copy() = IntSet(table.copyOf(), size)
 
     override fun clear() {
+        table = table.copyOf(tableSizeFor(4))
         table.forEachIndexed { i, _ -> table[i] = -1 }
         _size = 0
     }
