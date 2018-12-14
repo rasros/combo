@@ -11,23 +11,18 @@ fun assertEquals(expected: Double, actual: Double, epsilon: Double, message: Str
             "Err      :$abs > $epsilon")
 }
 
-fun assertEquals(expected: DoubleArray, actual: DoubleArray, epsilon: Double) {
+fun assertContentEquals(expected: DoubleArray, actual: DoubleArray, epsilon: Double = 0.0) {
     for (i in actual.indices)
         assertEquals(expected[i], actual[i], epsilon)
 }
 
-fun assertEquals(expected: Array<DoubleArray>, actual: Array<DoubleArray>, epsilon: Double) {
+fun assertContentEquals(expected: Array<DoubleArray>, actual: Array<DoubleArray>, epsilon: Double = 0.0) {
     for (i in actual.indices)
         for (j in actual[i].indices)
             assertEquals(expected[i][j], actual[i][j], epsilon)
 }
 
 fun assertContentEquals(expected: Array<*>, actual: Array<*>, message: String? = null) {
-    assertTrue(expected.contentEquals(actual), message
-            ?: "Expected ${actual.joinToString(",", "<", ">")} to equal ${expected.joinToString(",", "<", ">")}")
-}
-
-fun assertContentEquals(expected: DoubleArray, actual: DoubleArray, message: String? = null) {
     assertTrue(expected.contentEquals(actual), message
             ?: "Expected ${actual.joinToString(",", "<", ">")} to equal ${expected.joinToString(",", "<", ">")}")
 }
