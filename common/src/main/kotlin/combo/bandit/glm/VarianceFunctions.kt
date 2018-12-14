@@ -19,45 +19,44 @@ interface EstimatedScaleResponse : VarianceFunction {
     override fun dispersion(mle: Double) = mle
 }
 
-
-fun gaussian() = object : EstimatedScaleResponse {
+object GaussianVariance : EstimatedScaleResponse {
     override fun variance(mean: Double) = 1.0
-    override fun canonicalLink() = identity()
+    override fun canonicalLink() = IdentityTransform
 }
 
-fun binomial() = object : UnitScaleResponse {
+object BinomialVariance : UnitScaleResponse {
     override fun variance(mean: Double) = mean * (1 - mean)
-    override fun canonicalLink() = logit()
+    override fun canonicalLink() = LogitTransform
 }
 
-fun bernoulli() = binomial()
+typealias BernoulliVariance = BinomialVariance
 
-fun poisson() = object : UnitScaleResponse {
+object PoissonVariance : UnitScaleResponse {
     override fun variance(mean: Double) = mean
-    override fun canonicalLink() = log()
+    override fun canonicalLink() = LogTransform
 }
 
-fun gamma() = object : EstimatedScaleResponse {
+object GammaVariance : EstimatedScaleResponse {
     override fun variance(mean: Double) = mean * mean
-    override fun canonicalLink() = negativeInverse()
+    override fun canonicalLink() = NegativeInverseTransform
 }
 
-fun inverseGaussian() = object : EstimatedScaleResponse {
+object InverseGaussianVariance : EstimatedScaleResponse {
     override fun variance(mean: Double) = mean * mean * mean
-    override fun canonicalLink() = inverseSquared()
+    override fun canonicalLink() = InverseSquaredTransform
 }
 
-fun exponential() = object : UnitScaleResponse {
+object ExponentialVariance : UnitScaleResponse {
     override fun variance(mean: Double) = 1.0 / (mean * mean)
-    override fun canonicalLink() = negativeInverse()
+    override fun canonicalLink() = NegativeInverseTransform
 }
 
-fun quasiBinomial() = object : EstimatedScaleResponse {
+object QuasiBinomialVariance : EstimatedScaleResponse {
     override fun variance(mean: Double) = mean * (1 - mean)
-    override fun canonicalLink() = logit()
+    override fun canonicalLink() = LogitTransform
 }
 
-fun quasiPoisson() = object : EstimatedScaleResponse {
+object QuasiPoissonVariance : EstimatedScaleResponse {
     override fun variance(mean: Double) = mean
-    override fun canonicalLink() = log()
+    override fun canonicalLink() = LogTransform
 }
