@@ -3,14 +3,12 @@ package combo.model
 import combo.bandit.Bandit
 import combo.bandit.DecisionTreeBandit
 import combo.bandit.MultiArmedBandit
+import combo.bandit.glm.GaussianVariance
 import combo.bandit.glm.VarianceFunction
-import combo.bandit.glm.gaussian
 import combo.math.*
-import combo.sat.Solver
+import combo.sat.Problem
 import combo.sat.SolverConfig
-import combo.sat.optimizers.HillClimber
-import combo.sat.optimizers.LinearOptimizer
-import combo.sat.solvers.WalkSat
+import combo.sat.UnitPropagationTable
 import combo.sat.solvers.*
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
@@ -18,28 +16,33 @@ import kotlin.jvm.JvmStatic
 
 class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iterable<Assignment> {
     companion object {
+
+        private fun defaultSolver(p: Problem, c: SolverConfig, pt: UnitPropagationTable?): Solver =
+                LocalSearchSolver(p, c, pt, maxRestarts = Int.MAX_VALUE)
+
+        private fun defaultLinOpt(p: Problem, c: SolverConfig, pt: UnitPropagationTable?): Optimizer<LinearObjective> =
+                FallbackOptimizer(LocalSearchOptimizer(p, c, pt, maxRestarts = 1))
+
         @JvmStatic
         @JvmOverloads
         fun combinatorialBandit(model: Model,
                                 config: SolverConfig = SolverConfig(maximize = true),
-                                posterior: Posterior = normal(),
-                                enumerationSolver: Solver = ExhaustiveSolver(model.problem, config),
-                                solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
+                                posterior: Posterior = NormalPosterior,
+                                solver: Solver = ExhaustiveSolver(model.problem, config)): ModelOptimizer {
             if (model.problem.nbrVariables >= 20)
                 throw IllegalArgumentException("Multi-armed bandit algorithm will not work with excessive number of variables (>=20).")
-            val bandits = enumerationSolver.sequence().toList().toTypedArray()
+            val bandits = solver.sequence().toList().toTypedArray()
             val bandit = MultiArmedBandit(bandits, config, posterior)
-            return ModelOptimizer(model, solver, bandit)
+            return ModelOptimizer(model, PresolvedSolver(bandits, config), bandit)
         }
 
         @JvmStatic
         @JvmOverloads
         fun dtBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
-                     posterior: Posterior = normal(),
-                     leafSolver: Solver = WalkSat(model.problem, config),
-                     solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
-            val bandit = DecisionTreeBandit(model.problem, config, leafSolver, posterior)
+                     posterior: Posterior = NormalPosterior,
+                     solver: Solver = defaultSolver(model.problem, config, UnitPropagationTable(model.problem))): ModelOptimizer {
+            val bandit = DecisionTreeBandit(model.problem, config, solver, posterior)
             return ModelOptimizer(model, solver, bandit)
         }
 
@@ -47,11 +50,12 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         @JvmOverloads
         fun glmBandit(model: Model,
                       config: SolverConfig = SolverConfig(maximize = true),
-                      family: VarianceFunction = gaussian(),
+                      family: VarianceFunction = GaussianVariance,
                       link: Transform = family.canonicalLink(),
-                      regularization: Loss = squaredLoss(),
-                      linearOptimizer: LinearOptimizer = HillClimber(model.problem, config, WalkSat(model.problem, config)).asLinear(),
-                      solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
+                      regularization: Loss = SquaredLoss,
+                      propagationTable: UnitPropagationTable? = UnitPropagationTable(model.problem),
+                      linearOptimizer: Optimizer<LinearObjective> = defaultLinOpt(model.problem, config, propagationTable),
+                      solver: Solver = defaultSolver(model.problem, config, propagationTable)): ModelOptimizer {
             TODO()
         }
 
@@ -59,8 +63,9 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         @JvmOverloads
         fun gaBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
-                     crossoverSolver: Solver = WalkSat(model.problem, config),
-                     solver: Solver = WalkSat(model.problem, config)): ModelOptimizer {
+                     propagationTable: UnitPropagationTable?,
+                     posterior: Posterior? = null,
+                     solver: Solver = defaultSolver(model.problem, config, propagationTable)): ModelOptimizer {
             TODO()
         }
     }
