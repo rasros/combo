@@ -159,4 +159,3 @@ class GrowingDataSample(maxSize: Int = 10) : DataSample {
     override fun collect() = DoubleArray(size) { data[it].mean }
     fun slots() = IntArray(size) { samplesPerBucket * (it + 1) }
 }
-
