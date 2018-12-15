@@ -43,7 +43,7 @@ class VarianceStatisticsTest {
 
     @Test
     fun decayingVarianceRandom() {
-        val r = Random(100)
+        val r = Random(101)
         val s = generateSequence { r.nextGaussian() }.take(500).sample(ExponentialDecayVariance())
         assertEquals(0.0, s.mean, 0.1)
         assertEquals(1.0, s.variance, 0.2)
