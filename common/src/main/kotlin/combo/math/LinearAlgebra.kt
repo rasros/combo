@@ -37,7 +37,7 @@ fun Matrix.transpose() {
 }
 
 val Matrix.T: Matrix
-    get() = Array(size) { this[it].copyOf() }.also { transpose() }
+    get() = Array(size) { this@T[it].copyOf() }.apply { transpose() }
 
 operator fun Double.plus(v: Vector) = v + this
 operator fun Double.plus(A: Matrix) = A + this
