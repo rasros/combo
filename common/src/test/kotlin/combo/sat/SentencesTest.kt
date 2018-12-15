@@ -6,17 +6,6 @@ import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.*
 
-// TODO tests on flipsToSatisfy
-
-class SentenceTest {
-    @Test
-    fun invalidOrder() {
-        assertFailsWith(ValidationException::class) {
-            Disjunction(intArrayOf(2, 0)).validate()
-        }
-    }
-}
-
 private fun randomExhaustivePropagations(cs: Array<Sentence>) {
     // This test thoroughly test that unit propagation does not change the truth value of a labeling.
     val rng = Random.Default
@@ -41,12 +30,19 @@ private fun randomExhaustivePropagations(cs: Array<Sentence>) {
 }
 
 class ConjunctionTest {
+    @Test
+    fun invalidOrder() {
+        assertFailsWith(IllegalArgumentException::class) {
+            Conjunction(intArrayOf(2, 0)).validate()
+        }
+    }
 
     @Test
     fun satisfiesBlank() {
         val l = BitFieldLabeling(3)
         val s = BitFieldLabeling(3)
         assertTrue(Conjunction(intArrayOf(0, 2, 4)).satisfies(l, s))
+        assertEquals(0, Conjunction(intArrayOf(0, 2, 4)).flipsToSatisfy(l, s))
     }
 
     @Test
@@ -61,6 +57,17 @@ class ConjunctionTest {
     }
 
     @Test
+    fun flipsToSatisfy() {
+        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
+        assertEquals(1, Conjunction(intArrayOf(0)).flipsToSatisfy(l))
+        assertEquals(0, Conjunction(intArrayOf(1)).flipsToSatisfy(l))
+        assertEquals(1, Conjunction(intArrayOf(0, 4)).flipsToSatisfy(l))
+        assertEquals(2, Conjunction(intArrayOf(0, 5)).flipsToSatisfy(l))
+        assertEquals(1, Conjunction(intArrayOf(0, 7)).flipsToSatisfy(l))
+        assertEquals(0, Conjunction(intArrayOf(1, 7)).flipsToSatisfy(l))
+    }
+
+    @Test
     fun satisfiesUnset() {
         val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
         val s = BitFieldLabeling(4, LongArray(1) { 0b1110 })
@@ -70,6 +77,18 @@ class ConjunctionTest {
         assertFalse(Conjunction(intArrayOf(0, 5)).satisfies(l, s))
         assertTrue(Conjunction(intArrayOf(0, 7)).satisfies(l, s))
         assertTrue(Conjunction(intArrayOf(1, 7)).satisfies(l, s))
+    }
+
+    @Test
+    fun flipsToSatisfyUnset() {
+        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
+        val s = BitFieldLabeling(4, LongArray(1) { 0b1110 })
+        assertEquals(0, Conjunction(intArrayOf(0)).flipsToSatisfy(l, s))
+        assertEquals(0, Conjunction(intArrayOf(1)).flipsToSatisfy(l, s))
+        assertEquals(0, Conjunction(intArrayOf(0, 4)).flipsToSatisfy(l, s))
+        assertEquals(1, Conjunction(intArrayOf(0, 5)).flipsToSatisfy(l, s))
+        assertEquals(0, Conjunction(intArrayOf(0, 7)).flipsToSatisfy(l, s))
+        assertEquals(0, Conjunction(intArrayOf(1, 7)).flipsToSatisfy(l, s))
     }
 
     @Test
@@ -138,7 +157,7 @@ class ConjunctionTest {
 class DisjunctionTest {
     @Test
     fun invalidOrder() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Disjunction(intArrayOf(2, 0)).validate()
         }
     }
@@ -148,6 +167,7 @@ class DisjunctionTest {
         val l = BitFieldLabeling(3)
         val s = BitFieldLabeling(3)
         assertTrue(Disjunction(intArrayOf(0, 2, 4)).satisfies(l, s))
+        assertEquals(0, Disjunction(intArrayOf(0, 2, 4)).flipsToSatisfy(l, s))
     }
 
     @Test
@@ -161,6 +181,16 @@ class DisjunctionTest {
     }
 
     @Test
+    fun flipsToSatisfy() {
+        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
+        assertEquals(1, Disjunction(intArrayOf(3, 5)).flipsToSatisfy(l))
+        assertEquals(0, Disjunction(intArrayOf(3, 1)).flipsToSatisfy(l))
+        assertEquals(0, Disjunction(intArrayOf(0, 4)).flipsToSatisfy(l))
+        assertEquals(1, Disjunction(intArrayOf(0, 5)).flipsToSatisfy(l))
+        assertEquals(0, Disjunction(intArrayOf(0, 7)).flipsToSatisfy(l))
+    }
+
+    @Test
     fun satisfiesUnset() {
         val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
         val s = BitFieldLabeling(4, LongArray(1) { 0b1110 })
@@ -169,6 +199,17 @@ class DisjunctionTest {
         assertTrue(Disjunction(intArrayOf(0, 4)).satisfies(l, s))
         assertTrue(Disjunction(intArrayOf(0, 5)).satisfies(l, s))
         assertTrue(Disjunction(intArrayOf(0, 7)).satisfies(l, s))
+    }
+
+    @Test
+    fun flipsToSatisfyUnset() {
+        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
+        val s = BitFieldLabeling(4, LongArray(1) { 0b1110 })
+        assertEquals(1, Disjunction(intArrayOf(3, 5)).flipsToSatisfy(l, s))
+        assertEquals(0, Disjunction(intArrayOf(3, 1)).flipsToSatisfy(l, s))
+        assertEquals(0, Disjunction(intArrayOf(0, 4)).flipsToSatisfy(l, s))
+        assertEquals(0, Disjunction(intArrayOf(0, 5)).flipsToSatisfy(l, s))
+        assertEquals(0, Disjunction(intArrayOf(0, 7)).flipsToSatisfy(l, s))
     }
 
     @Test
@@ -241,14 +282,14 @@ class CardinalityTest {
 
     @Test
     fun invalidOrder() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Cardinality(intArrayOf(2, 0)).validate()
         }
     }
 
     @Test
     fun nonPositiveFail() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Cardinality(intArrayOf(1), 1, Cardinality.Operator.EXACTLY).validate()
         }
     }
@@ -273,6 +314,14 @@ class CardinalityTest {
     }
 
     @Test
+    fun satisfiesBlank() {
+        val l = IntSetLabeling(4)
+        val s = IntSetLabeling(4)
+        assertTrue(Cardinality(intArrayOf(0, 2, 4)).satisfies(l, s))
+        assertEquals(0, Cardinality(intArrayOf(0, 2, 4)).flipsToSatisfy(l, s))
+    }
+
+    @Test
     fun satisfies() {
         val e = Cardinality(intArrayOf(0, 2, 4), 1, Cardinality.Operator.AT_MOST)
         assertTrue(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
@@ -286,14 +335,20 @@ class CardinalityTest {
     }
 
     @Test
-    fun satisfiesBlank() {
-        val l = IntSetLabeling(4)
-        val s = IntSetLabeling(4)
-        assertTrue(Cardinality(intArrayOf(0, 2, 4)).satisfies(l, s))
+    fun satisfiesUnset() {
+        val e = Cardinality(intArrayOf(0, 2, 4), 1, Cardinality.Operator.AT_MOST)
+        assertEquals(0, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+        assertEquals(0, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b001 })))
+        assertEquals(0, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b010 })))
+        assertEquals(1, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b011 })))
+        assertEquals(0, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b100 })))
+        assertEquals(1, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b101 })))
+        assertEquals(1, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b110 })))
+        assertEquals(1, e.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b1110 })))
     }
 
     @Test
-    fun flipsToSatisfySomeUnset() {
+    fun flipsToSatisfyUnset() {
         val l = BitFieldLabeling(4, LongArray(1) { 0b1001 })
         val s = BitFieldLabeling(4, LongArray(1) { 0b1011 })
         val lits = intArrayOf(0, 2, 4, 6)
@@ -422,21 +477,21 @@ class ReifiedTest {
 
     @Test
     fun invalidOrder() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Reified(4, Disjunction(intArrayOf(2, 0))).validate()
         }
     }
 
     @Test
     fun literalInReified() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Reified(2, Disjunction(intArrayOf(2, 4))).validate()
         }
     }
 
     @Test
     fun negLiteralInReified() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Reified(3, Disjunction(intArrayOf(2, 4))).validate()
         }
     }
@@ -446,6 +501,7 @@ class ReifiedTest {
         val l = ByteArrayLabeling(4)
         val s = ByteArrayLabeling(4)
         assertTrue(Reified(0, Conjunction(intArrayOf(2, 4))).satisfies(l, s))
+        assertEquals(0, Reified(0, Conjunction(intArrayOf(2, 4))).flipsToSatisfy(l, s))
     }
 
     @Test
@@ -453,6 +509,8 @@ class ReifiedTest {
         val d = Reified(0, Tautology)
         assertTrue(d.satisfies(BitFieldLabeling(1).apply { this[0] = true }))
         assertFalse(d.satisfies(BitFieldLabeling(1)))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(1).apply { this[0] = true }))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(1)))
     }
 
     @Test
@@ -469,6 +527,19 @@ class ReifiedTest {
     }
 
     @Test
+    fun flipsToSatisfyDisjunction() {
+        val d = Reified(1, Disjunction(intArrayOf(2, 5))).apply { validate() }
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b111 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b011 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b101 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b001 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b110 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b010 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b100 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+    }
+
+    @Test
     fun satisfiesConjunction() {
         val d = Reified(0, Conjunction(intArrayOf(2, 5))).apply { validate() }
         assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b111 })))
@@ -479,6 +550,19 @@ class ReifiedTest {
         assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
         assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b100 })))
         assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+    }
+
+    @Test
+    fun flipsToSatisfyConjunction() {
+        val d = Reified(0, Conjunction(intArrayOf(2, 5))).apply { validate() }
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b111 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b011 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b101 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b001 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b110 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b010 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b100 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b000 })))
     }
 
     @Test
@@ -500,6 +584,24 @@ class ReifiedTest {
     }
 
     @Test
+    fun flipsToSatisfyConjunctionUnsetClauseOnly() {
+        val l = BitFieldLabeling(5, LongArray(1) { 0b10110 })
+        val s = BitFieldLabeling(5, LongArray(1) { 0b11110 })
+        assertEquals(0, Reified(8, Conjunction(intArrayOf(0))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(9, Conjunction(intArrayOf(0))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(8, Conjunction(intArrayOf(1))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(9, Conjunction(intArrayOf(1))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(8, Conjunction(intArrayOf(0, 4))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(9, Conjunction(intArrayOf(0, 4))).flipsToSatisfy(l, s))
+        assertEquals(1, Reified(8, Conjunction(intArrayOf(0, 5))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(9, Conjunction(intArrayOf(0, 5))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(8, Conjunction(intArrayOf(0, 7))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(9, Conjunction(intArrayOf(0, 7))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(8, Conjunction(intArrayOf(1, 7))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(9, Conjunction(intArrayOf(1, 7))).flipsToSatisfy(l, s))
+    }
+
+    @Test
     fun satisfiesConjunctionUnsetClauseLiteral() {
         val l = BitFieldLabeling(5, LongArray(1) { 0b01011 })
         val s = BitFieldLabeling(5, LongArray(1) { 0b01111 })
@@ -507,6 +609,19 @@ class ReifiedTest {
             val intArray = it.values.mapIndexed { i, v -> i.asLiteral(v == 1.toByte()) }.toIntArray()
             assertTrue(Reified(8, Conjunction(intArray)).satisfies(l, s))
             assertTrue(Reified(9, Conjunction(intArray)).satisfies(l, s))
+        }
+    }
+
+    @Test
+    fun flipsToSatisfyConjunctionUnsetClauseLiteral() {
+        val l = BitFieldLabeling(5, LongArray(1) { 0b01011 })
+        val s = BitFieldLabeling(5, LongArray(1) { 0b01111 })
+        LabelingPermutation.sequence(4, ByteArrayLabelingBuilder()).forEach { it ->
+            val intArray = it.values.mapIndexed { i, v -> i.asLiteral(v == 1.toByte()) }.toIntArray()
+            assertTrue(Reified(8, Conjunction(intArray)).satisfies(l, s))
+            assertTrue(Reified(9, Conjunction(intArray)).satisfies(l, s))
+            assertEquals(0, Reified(8, Conjunction(intArray)).flipsToSatisfy(l, s))
+            assertEquals(0, Reified(9, Conjunction(intArray)).flipsToSatisfy(l, s))
         }
     }
 
@@ -525,10 +640,25 @@ class ReifiedTest {
     }
 
     @Test
+    fun flipsToSatisfyDisjunctionUnsetClauseOnly() {
+        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
+        val s = BitFieldLabeling(4, LongArray(1) { 0b1110 })
+        assertEquals(0, Reified(6, Disjunction(intArrayOf(3, 5))).flipsToSatisfy(l, s))
+        assertEquals(1, Reified(7, Disjunction(intArrayOf(3, 5))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(6, Disjunction(intArrayOf(1, 3))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(7, Disjunction(intArrayOf(1, 3))).flipsToSatisfy(l, s))
+        assertEquals(1, Reified(6, Disjunction(intArrayOf(0, 4))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(7, Disjunction(intArrayOf(0, 4))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(6, Disjunction(intArrayOf(0, 5))).flipsToSatisfy(l, s))
+        assertEquals(0, Reified(7, Disjunction(intArrayOf(0, 5))).flipsToSatisfy(l, s))
+    }
+
+    @Test
     fun satisfiesDisjunctionUnsetClauseOnly2() {
         val l = BitFieldLabeling(6, LongArray(1) { 0b000000 })
         val s = BitFieldLabeling(6, LongArray(1) { 0b000010 })
         assertTrue(Reified(2, Disjunction(intArrayOf(4, 6, 8, 10))).satisfies(l, s))
+        assertEquals(0, Reified(2, Disjunction(intArrayOf(4, 6, 8, 10))).flipsToSatisfy(l, s))
     }
 
     @Test
@@ -539,6 +669,19 @@ class ReifiedTest {
             val intArray = it.values.map { it.toInt() }.toIntArray()
             assertTrue(Reified(8, Disjunction(intArray)).satisfies(l, s))
             assertTrue(Reified(9, Disjunction(intArray)).satisfies(l, s))
+        }
+    }
+
+    @Test
+    fun flipsToSatisfyDisjunctionUnsetClauseLiteral() {
+        val l = BitFieldLabeling(5, LongArray(1) { 0b01011 })
+        val s = BitFieldLabeling(5, LongArray(1) { 0b01111 })
+        LabelingPermutation.sequence(4, ByteArrayLabelingBuilder()).forEach { it ->
+            val intArray = it.values.map { it.toInt() }.toIntArray()
+            assertTrue(Reified(8, Disjunction(intArray)).satisfies(l, s))
+            assertTrue(Reified(9, Disjunction(intArray)).satisfies(l, s))
+            assertEquals(0, Reified(8, Disjunction(intArray)).flipsToSatisfy(l, s))
+            assertEquals(0, Reified(9, Disjunction(intArray)).flipsToSatisfy(l, s))
         }
     }
 
