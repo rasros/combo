@@ -152,10 +152,13 @@ class LocalSearchSolver(problem: Problem,
             val pickedSentence = problem.sentences[pickedSentenceIx]
             val literals = pickedSentence.literals
 
-            val ix = if (pRandomWalk > rng.nextDouble()) literals[rng.nextInt(literals.size)].asIx()
-            else chooseBest(tracker, contextIxs, literals, improvement, rng)
+            val ix = if (pRandomWalk > rng.nextDouble()) {
+                 IntPermutation(literals.size).firstOrNull {
+                     literals[it].asIx() !in contextIxs
+                 } ?: -1
+            } else chooseBest(tracker, contextIxs, literals, improvement, rng)
 
-            if (ix < 0 || ix in contextIxs) continue
+            if (ix < 0) continue
             tracker.set(!tracker.labeling.asLiteral(ix))
             tracker.updateUnsatisfied(tracker.labeling.asLiteral(ix))
 
@@ -174,23 +177,23 @@ class LocalSearchSolver(problem: Problem,
         for (i in 0 until min(improvement.size, literals.size)) {
             improvement[i] = 0
             val ix = literals[perm?.encode(i) ?: i].asIx()
-            val sents = if (propTable != null) propTable.literalSentences[ix]
-            else problem.sentencesWith(ix)
             if (ix in contextIds) {
-                improvement[i] = -1
+                improvement[i] = Int.MIN_VALUE
                 continue
             }
+            val sents = if (propTable != null) propTable.variableSentences[ix]
+            else problem.sentencesWith(ix)
             for (sentenceIx in sents) {
                 val sent = problem.sentences[sentenceIx]
                 improvement[i] += if (sentenceIx in tracker.unsatisfied) sent.flipsToSatisfy(tracker.labeling) else 0
             }
-            val lit = tracker.labeling.asLiteral(ix)
-            tracker.set(!lit)
+            val lit = !tracker.labeling.asLiteral(ix)
+            tracker.set(lit)
             for (sentenceIx in sents) {
                 val sent = problem.sentences[sentenceIx]
                 improvement[i] -= sent.flipsToSatisfy(tracker.labeling)
             }
-            tracker.undo(!lit)
+            tracker.undo(lit)
         }
         val imprIx = IntPermutation(min(literals.size, improvement.size), rng).let {
             it.maxBy { i ->
@@ -198,7 +201,7 @@ class LocalSearchSolver(problem: Problem,
             }!!
         }
         val ix = literals[perm?.encode(imprIx) ?: imprIx].asIx()
-        return if (improvement[imprIx] < 0) -1
+        return if (improvement[imprIx] < 0) -1 // TODO check for sideways steps
         else ix
     }
 }
