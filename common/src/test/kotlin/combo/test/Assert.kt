@@ -4,6 +4,7 @@ import kotlin.math.abs
 import kotlin.test.assertTrue
 
 fun assertEquals(expected: Double, actual: Double, epsilon: Double, message: String? = null) {
+    if (actual == expected) return // prevents NaN/Inf. errors
     val abs = abs(expected - actual)
     assertTrue(abs <= epsilon, (message ?: "") + "\n" +
             "Expected :$expected\n" +
