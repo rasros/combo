@@ -46,14 +46,14 @@ class LiteralsTest {
 
     @Test
     fun validateFailDuplicated() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             intArrayOf(0, 1).validate()
         }
     }
 
     @Test
     fun validateUnorderedFail() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             intArrayOf(2, 0).validate()
         }
     }
