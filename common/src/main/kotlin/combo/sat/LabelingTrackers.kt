@@ -121,8 +121,8 @@ class PropLabelingTracker(override val labeling: MutableLabeling,
     override fun updateUnsatisfied(literal: Literal) = update(literal, null)
 
     private fun update(literal: Literal, setLabeling: MutableLabeling?): Boolean {
-        val sentences = propTable.literalSentences[literal]
-        return sentences.fold(true) { all: Boolean, sentId: Int ->
+        affected.clear()
+        return propTable.literalSentences[literal].fold(true) { all: Boolean, sentId: Int ->
             val sat = problem.sentences[sentId].satisfies(labeling, setLabeling)
             if (sat) unsatisfied.remove(sentId)
             else unsatisfied.add(sentId)
