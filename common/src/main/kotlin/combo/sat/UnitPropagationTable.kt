@@ -6,9 +6,9 @@ class UnitPropagationTable(problem: Problem, exactPropagation: Boolean = false) 
 
     val literalPropagations: Array<IntArray>
     val literalSentences: Array<IntArray>
+    val variableSentences: Array<IntArray>
 
     init {
-        // TODO move to companion object
         if (!exactPropagation) {
             val implicationSets = Array(problem.nbrVariables * 2) { IntSet() }
 
@@ -61,6 +61,13 @@ class UnitPropagationTable(problem: Problem, exactPropagation: Boolean = false) 
             literalPropagations[i].forEach { j ->
                 sentences.addAll(problem.sentencesWith(j.asIx()))
             }
+            sentences.toArray()
+        }
+
+        variableSentences = Array(problem.nbrVariables) { i ->
+            val sentences = IntSet()
+            sentences.addAll(literalSentences[i.asLiteral(true)])
+            sentences.addAll(literalSentences[i.asLiteral(false)])
             sentences.toArray()
         }
     }
