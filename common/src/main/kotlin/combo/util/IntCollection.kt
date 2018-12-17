@@ -269,6 +269,13 @@ class IntMap private constructor(private var table: LongArray, private var _size
 
     fun add(entry: IntEntry) = set(entry.key(), entry.value())
 
+    operator fun get(key: Int, default: Int = -1): Int {
+        require(key >= 0)
+        val entry = table[linearProbe(key)]
+        return if (entry >= 0) entry.value()
+        else default
+    }
+
     operator fun set(key: Int, value: Int): Boolean {
         require(key >= 0)
         if (table[linearProbe(key)] >= 0)
