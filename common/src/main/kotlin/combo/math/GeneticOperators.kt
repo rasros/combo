@@ -2,8 +2,8 @@
 
 package combo.math
 
-import combo.sat.UnitPropagationTable
 import combo.sat.MutableLabeling
+import combo.sat.UnitPropagationTable
 import kotlin.jvm.JvmName
 import kotlin.math.roundToInt
 import kotlin.random.Random

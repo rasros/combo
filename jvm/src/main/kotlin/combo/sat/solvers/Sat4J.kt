@@ -4,8 +4,8 @@ package combo.sat.solvers
 
 import combo.math.toIntArray
 import combo.sat.*
-import combo.util.transformArray
 import combo.util.millis
+import combo.util.transformArray
 import org.sat4j.core.LiteralsUtils.negLit
 import org.sat4j.core.LiteralsUtils.posLit
 import org.sat4j.core.Vec

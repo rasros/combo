@@ -2,7 +2,10 @@ package combo.sat.solvers
 
 import combo.math.LongPermutation
 import combo.math.RandomSequence
-import combo.sat.*
+import combo.sat.Conjunction
+import combo.sat.Labeling
+import combo.sat.Literals
+import combo.sat.UnsatisfiableException
 import kotlin.jvm.JvmOverloads
 
 class PresolvedSolver @JvmOverloads constructor(private val solutions: Array<Labeling>,

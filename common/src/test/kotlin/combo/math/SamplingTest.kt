@@ -33,7 +33,6 @@ class SamplingTest {
         }
     }
 
-
     @Test
     fun gaussianStats() {
         val r = Random(120)

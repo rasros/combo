@@ -1,6 +1,9 @@
 package combo.model
 
-import combo.sat.*
+import combo.sat.Labeling
+import combo.sat.Problem
+import combo.sat.Tautology
+import combo.sat.asLiteral
 import combo.util.IntSet
 import combo.util.Tree
 import kotlin.jvm.JvmOverloads

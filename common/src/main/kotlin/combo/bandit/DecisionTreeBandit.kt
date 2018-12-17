@@ -7,6 +7,7 @@ import combo.math.VarianceStatistic
 import combo.sat.*
 import combo.sat.solvers.LocalSearchSolver
 import combo.sat.solvers.Solver
+import combo.sat.solvers.SolverConfig
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.IntSet
 import kotlin.jvm.JvmOverloads

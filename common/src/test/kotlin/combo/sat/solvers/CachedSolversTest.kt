@@ -1,6 +1,9 @@
 package combo.sat.solvers
 
-import combo.sat.*
+import combo.sat.LocalSearchOptimizerPropTest
+import combo.sat.LocalSearchPropTest
+import combo.sat.Problem
+import combo.sat.UnitPropagationTable
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
@@ -44,6 +47,6 @@ class CachedOptimizerTest : LinearOptimizerTest() {
     }
 
     override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            CachedOptimizer(LocalSearchOptimizerPropTest().optimizer(problem, propTable, config)!!)
+            CachedOptimizer(LocalSearchOptimizerPropTest().optimizer(problem, propTable, config))
 
 }

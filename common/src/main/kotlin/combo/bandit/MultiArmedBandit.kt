@@ -4,7 +4,7 @@ import combo.math.*
 import combo.sat.Conjunction
 import combo.sat.Labeling
 import combo.sat.UnsatisfiableException
-import combo.sat.SolverConfig
+import combo.sat.solvers.SolverConfig
 import kotlin.jvm.JvmOverloads
 
 class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,

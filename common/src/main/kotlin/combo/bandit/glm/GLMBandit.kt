@@ -3,9 +3,9 @@ package combo.bandit.glm
 import combo.bandit.PredictionBandit
 import combo.math.DataSample
 import combo.sat.Labeling
-import combo.sat.SolverConfig
 import combo.sat.solvers.LinearObjective
 import combo.sat.solvers.Optimizer
+import combo.sat.solvers.SolverConfig
 
 class GLMBandit(override val config: SolverConfig,
                 override val rewards: DataSample,

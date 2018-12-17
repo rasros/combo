@@ -2,7 +2,6 @@ package combo.sat.solvers
 
 import combo.sat.Labeling
 import combo.sat.Literals
-import combo.sat.SolverConfig
 import combo.sat.ValidationException
 import combo.util.EMPTY_INT_ARRAY
 

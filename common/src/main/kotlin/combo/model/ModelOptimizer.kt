@@ -7,7 +7,6 @@ import combo.bandit.glm.GaussianVariance
 import combo.bandit.glm.VarianceFunction
 import combo.math.*
 import combo.sat.Problem
-import combo.sat.SolverConfig
 import combo.sat.UnitPropagationTable
 import combo.sat.solvers.*
 import combo.util.EMPTY_INT_ARRAY
@@ -21,7 +20,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
                 LocalSearchSolver(p, c, pt, maxRestarts = Int.MAX_VALUE)
 
         private fun defaultLinOpt(p: Problem, c: SolverConfig, pt: UnitPropagationTable?): Optimizer<LinearObjective> =
-                FallbackOptimizer(LocalSearchOptimizer(p, c, pt, maxRestarts = 1))
+                FallbackOptimizer(LocalSearchOptimizer(p, c, pt, restarts = 1))
 
         @JvmStatic
         @JvmOverloads
