@@ -130,7 +130,7 @@ class ModelTest {
 
         val hugeModel = let {
             val root = Model.builder("Category")
-            for (i in 1..10) {
+            for (i in 1..5) {
                 val sub = Model.builder("Cat$i")
                 for (j in 1..10) {
                     val subsub = Model.builder("Cat$i$j")
@@ -146,8 +146,9 @@ class ModelTest {
             root.mandatory(alternative(1..100))
             root.constrained(exactly(root.leaves().map { it.value }.toList(), 10))
             root.constrained(exactly(root.children.map { it.value }.toList(), 2))
-            root.constrained(excludes(root.children[0].value, root.children[4].value))
-            root.constrained(excludes(root.children[1].value, root.children[5].value))
+            root.constrained(exactly(root.children.filter { it.children.isNotEmpty() }.map { it.children[0].value }, 1))
+            root.constrained(excludes(root.children[0].value, root.children[4].value, root.children[1].children[0].value))
+            root.constrained(excludes(root.children[1].value, root.children[5].value, root.children[3].value))
             root.build()
         }
     }
