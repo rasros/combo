@@ -42,21 +42,21 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     private val leaves: MutableList<LeafNode> = ArrayList()
     private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior)
 
-    override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
+    override fun chooseOrThrow(assumptions: IntArray): Labeling {
         val rng = config.nextRandom()
         val node = if (config.maximize) {
             leaves.maxBy {
-                if (matches(it.setLiterals, contextLiterals)) posterior.sample(rng, it.total)
+                if (matches(it.setLiterals, assumptions)) posterior.sample(rng, it.total)
                 else Double.NEGATIVE_INFINITY
             }
         } else {
             leaves.minBy {
-                if (matches(it.setLiterals, contextLiterals)) posterior.sample(rng, it.total)
+                if (matches(it.setLiterals, assumptions)) posterior.sample(rng, it.total)
                 else Double.POSITIVE_INFINITY
             }
         }
-        return if (node == null) solver.witnessOrThrow(contextLiterals)
-        else solver.witnessOrThrow(contextLiterals + node.setLiterals)
+        return if (node == null) solver.witnessOrThrow(assumptions)
+        else solver.witnessOrThrow(assumptions + node.setLiterals)
     }
 
     override fun update(labeling: Labeling, result: Double, weight: Double) {
@@ -71,10 +71,10 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         TODO()
     }
 
-    private fun matches(contextLiterals: Literals, setLiterals: Literals): Boolean {
+    private fun matches(assumptions: Literals, setLiterals: Literals): Boolean {
         var j = 0
-        for (i in contextLiterals.indices) {
-            val l1 = contextLiterals[i]
+        for (i in assumptions.indices) {
+            val l1 = assumptions[i]
             while (setLiterals[j] < l1) j++
             val l2 = setLiterals[j]
             if (l1.asIx() == l2.asIx() && l1 != l2) return false

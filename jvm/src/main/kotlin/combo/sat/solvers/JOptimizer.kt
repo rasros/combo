@@ -25,9 +25,9 @@ class JOptimizer(val problem: Problem,
      * @throws UnsatisfiableException
      * @throws IterationsReachedException by config.maxIterations
      */
-    override fun optimizeOrThrow(function: LinearObjective, contextLiterals: Literals): Labeling {
-        val p = if (contextLiterals.isNotEmpty())
-            problem.simplify(IntSet().apply { addAll(contextLiterals) }, true)
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
+        val p = if (assumptions.isNotEmpty())
+            problem.simplify(IntSet().apply { addAll(assumptions) }, true)
         else problem
         val (G, h) = setupProblem(p)
 

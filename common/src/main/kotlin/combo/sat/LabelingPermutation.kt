@@ -1,7 +1,7 @@
 package combo.sat
 
-import combo.util.ConcurrentLong
 import combo.math.LongPermutation
+import combo.util.ConcurrentLong
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 import kotlin.math.ceil

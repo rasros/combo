@@ -46,11 +46,11 @@ class Sat4JSolver(val problem: Problem,
         this.solver.setup(problem)
     }
 
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
         literalSelection.rng = config.nextRandom()
         if (timeout > 0L) timeoutOrder.setTimeout(timeout)
         solver.setTimeoutOnConflicts(maxConflicsts)
-        val assumption = contextLiterals.toDimacs()
+        val assumption = assumptions.toDimacs()
         if (solver.isSatisfiable(assumption)) {
             val l = solver.model().toLabeling(config.labelingBuilder)
             if (forget) solver.clearLearntClauses()
@@ -60,14 +60,14 @@ class Sat4JSolver(val problem: Problem,
         }
     }
 
-    override fun sequence(contextLiterals: Literals): Sequence<Labeling> {
+    override fun sequence(assumptions: Literals): Sequence<Labeling> {
         val base = SolverFactory.newMiniLearning(
                 MixedDataStructureDanielWL(),
                 VarOrderHeap(RandomLiteralSelectionStrategySeeded(config.nextRandom())))
         base.setup(problem)
         val solver = ModelIterator(base)
         val iterator = ModelIterator(solver)
-        val assumption = contextLiterals.toDimacs()
+        val assumption = assumptions.toDimacs()
         val timeout = timeout
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         return generateSequence {
@@ -151,7 +151,7 @@ class Sat4JLinearOptimizer(val problem: Problem,
                            private var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver })
     : Optimizer<LinearObjective> {
 
-    override fun optimizeOrThrow(function: LinearObjective, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
         val pbSolver = optimizerCreator()
         pbSolver.setTimeoutOnConflicts(maxConflicts)
         if (timeout >= 0L)
@@ -163,7 +163,7 @@ class Sat4JLinearOptimizer(val problem: Problem,
         optimizer.objectiveFunction = ObjectiveFunction(
                 VecInt((1..intWeights.size).toList().toIntArray()),
                 Vec(intWeights.map { valueOf(it.toLong()) }.toTypedArray()))
-        if (!optimizer.isSatisfiable(contextLiterals.toDimacs())) {
+        if (!optimizer.isSatisfiable(assumptions.toDimacs())) {
             throw UnsatisfiableException()
         }
         return optimizer.model().toLabeling(config.labelingBuilder)

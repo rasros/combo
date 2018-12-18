@@ -13,11 +13,11 @@ class PresolvedSolver @JvmOverloads constructor(private val solutions: Array<Lab
 
     private val incrementingRandom = RandomSequence(config.randomSeed)
 
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
         if (solutions.isEmpty()) throw UnsatisfiableException(message = "Empty pre-solved solutions.")
         val rng = incrementingRandom.next()
-        if (contextLiterals.isNotEmpty()) {
-            val c = Conjunction(contextLiterals);
+        if (assumptions.isNotEmpty()) {
+            val c = Conjunction(assumptions);
             val permutation = LongPermutation(solutions.size.toLong(), rng)
             for (i in solutions.indices) {
                 val l = solutions[permutation.encode(i.toLong()).toInt()]
@@ -27,8 +27,8 @@ class PresolvedSolver @JvmOverloads constructor(private val solutions: Array<Lab
         } else return solutions[rng.nextInt(solutions.size)]
     }
 
-    override fun sequence(contextLiterals: Literals): Sequence<Labeling> {
-        val conjunction = Conjunction(contextLiterals)
+    override fun sequence(assumptions: Literals): Sequence<Labeling> {
+        val conjunction = Conjunction(assumptions)
         return solutions.asSequence().filter {
             conjunction.satisfies(it)
         }

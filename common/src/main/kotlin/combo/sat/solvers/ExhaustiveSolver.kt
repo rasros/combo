@@ -16,13 +16,13 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
         private set
     val solutionDensity get() = totalSatisfied / totalEvaluated.toDouble()
 
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
-        val remap = createRemap(contextLiterals)
-        val nbrVariables = problem.nbrVariables - contextLiterals.size
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
+        val remap = createRemap(assumptions)
+        val nbrVariables = problem.nbrVariables - assumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
         return LabelingPermutation.sequence(nbrVariables, config.labelingBuilder, config.nextRandom())
                 .map { if (millis() <= end) it else throw TimeoutException(timeout) }
-                .map { remapLabeling(contextLiterals, it, remap) }
+                .map { remapLabeling(assumptions, it, remap) }
                 .firstOrNull {
                     val satisfied = problem.satisfies(it)
                     if (satisfied) totalSatisfied++
@@ -31,13 +31,13 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
                 } ?: throw UnsatisfiableException()
     }
 
-    override fun sequence(contextLiterals: Literals): Sequence<Labeling> {
-        val remap = createRemap(contextLiterals)
-        val nbrVariables = problem.nbrVariables - contextLiterals.size
+    override fun sequence(assumptions: Literals): Sequence<Labeling> {
+        val remap = createRemap(assumptions)
+        val nbrVariables = problem.nbrVariables - assumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
         return LabelingPermutation.sequence(nbrVariables, config.labelingBuilder, config.nextRandom())
                 .takeWhile { millis() <= end }
-                .map { remapLabeling(contextLiterals, it, remap) }
+                .map { remapLabeling(assumptions, it, remap) }
                 .filter {
                     val satisfied = problem.satisfies(it)
                     if (satisfied) totalSatisfied++
@@ -46,13 +46,13 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
                 }
     }
 
-    private fun createRemap(contextLiterals: Literals): IntArray {
-        val nbrVariables = problem.nbrVariables - contextLiterals.size
-        return if (contextLiterals.isNotEmpty()) {
+    private fun createRemap(assumptions: Literals): IntArray {
+        val nbrVariables = problem.nbrVariables - assumptions.size
+        return if (assumptions.isNotEmpty()) {
             val themap = IntArray(nbrVariables)
             var ix = 0
-            val taken = IntSet(contextLiterals.size * 2)
-            contextLiterals.forEach { taken.add(it.asIx()) }
+            val taken = IntSet(assumptions.size * 2)
+            assumptions.forEach { taken.add(it.asIx()) }
             for (i in 0 until nbrVariables) {
                 while (taken.contains(ix)) ix++
                 themap[i] = ix++
@@ -61,9 +61,9 @@ class ExhaustiveSolver @JvmOverloads constructor(private val problem: Problem,
         } else EMPTY_INT_ARRAY
     }
 
-    private fun remapLabeling(contextLiterals: Literals, labeling: Labeling, remap: IntArray): Labeling {
-        return if (contextLiterals.isNotEmpty()) {
-            val result = config.labelingBuilder.build(problem.nbrVariables, contextLiterals)
+    private fun remapLabeling(assumptions: Literals, labeling: Labeling, remap: IntArray): Labeling {
+        return if (assumptions.isNotEmpty()) {
+            val result = config.labelingBuilder.build(problem.nbrVariables, assumptions)
             for (i in labeling.indices) {
                 result[remap[i]] = labeling[i]
             }

@@ -89,58 +89,58 @@ abstract class SolverTest {
     }
 
     @Test
-    fun smallSatContext() {
+    fun smallSatAssumptions() {
         for ((i, d) in smallProblems.withIndex()) {
             val (p, pt) = d
             val solver = solver(p, pt)
             if (solver != null) {
                 val l = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
-                val context = ArrayList<Int>()
+                val assumptions = ArrayList<Int>()
                 for (j in 0 until l.size) {
                     if (rng.nextBoolean())
-                        context += l.asLiteral(j)
+                        assumptions += l.asLiteral(j)
                 }
                 assertTrue(p.satisfies(l))
-                val restricted = solver.witnessOrThrow(context.toIntArray())
+                val restricted = solver.witnessOrThrow(assumptions.toIntArray())
                 assertTrue(p.satisfies(restricted),
-                        "Model $i, context ${context.joinToString(",")}")
-                assertTrue(Conjunction(context.toIntArray()).satisfies(restricted),
-                        "Model $i, context ${context.joinToString(",")}")
+                        "Model $i, assumptions ${assumptions.joinToString(",")}")
+                assertTrue(Conjunction(assumptions.toIntArray()).satisfies(restricted),
+                        "Model $i, assumptions ${assumptions.joinToString(",")}")
             }
         }
     }
 
     @Test
-    fun smallSatSequenceContext() {
+    fun smallSatSequenceAssumptions() {
         for ((i, d) in smallProblems.withIndex()) {
             val (p, pt) = d
             val solver = solver(p, pt)
             if (solver != null) {
                 val l = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
-                val context = ArrayList<Int>()
+                val assumptions = ArrayList<Int>()
                 for (j in 0 until l.size) {
                     if (rng.nextBoolean())
-                        context += l.asLiteral(j)
+                        assumptions += l.asLiteral(j)
                 }
-                val restricted = solver.witnessOrThrow(context.toIntArray())
+                val restricted = solver.witnessOrThrow(assumptions.toIntArray())
                 assertTrue(p.satisfies(restricted),
-                        "Model $i, context ${context.joinToString(",")}")
-                assertTrue(Conjunction(context.toIntArray()).satisfies(restricted),
-                        "Model $i, context ${context.joinToString(",")}")
+                        "Model $i, assumptions ${assumptions.joinToString(",")}")
+                assertTrue(Conjunction(assumptions.toIntArray()).satisfies(restricted),
+                        "Model $i, assumptions ${assumptions.joinToString(",")}")
             }
         }
     }
 
     @Test
-    fun smallUnsatContext() {
-        fun testUnsat(context: IntArray, d: Pair<Problem, UnitPropagationTable>) {
+    fun smallUnsatAssumptions() {
+        fun testUnsat(assumptions: IntArray, d: Pair<Problem, UnitPropagationTable>) {
             val (p, pt) = d
             val solver = unsatSolver(p, pt)
             if (solver != null) {
                 assertFailsWith(ValidationException::class) {
-                    val l = solver.witnessOrThrow(context)
+                    val l = solver.witnessOrThrow(assumptions)
                     println(l)
                 }
             }
@@ -155,12 +155,12 @@ abstract class SolverTest {
     }
 
     @Test
-    fun smallUnsatSequenceContext() {
-        fun testUnsat(context: IntArray, d: Pair<Problem, UnitPropagationTable>) {
+    fun smallUnsatSequenceAssumptions() {
+        fun testUnsat(assumptions: IntArray, d: Pair<Problem, UnitPropagationTable>) {
             val (p, pt) = d
             val solver = unsatSolver(p, pt)
             if (solver != null) {
-                assertEquals(0, solver.sequence(context).count())
+                assertEquals(0, solver.sequence(assumptions).count())
             }
         }
         testUnsat(intArrayOf(20, 22), smallProblems[0])

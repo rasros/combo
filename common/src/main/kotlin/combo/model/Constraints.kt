@@ -150,8 +150,8 @@ fun and(vararg sents: BaseSentenceBuilder): BaseSentenceBuilder {
 fun and(vararg refs: Reference): ConjunctionBuilder = ConjunctionBuilder(refs)
 fun or(vararg refs: Reference): DisjunctionBuilder = DisjunctionBuilder(refs)
 
-fun or(refs: Iterable<Reference>) : DisjunctionBuilder = DisjunctionBuilder(refs.asSequence().toList().toTypedArray())
-fun and(refs: Iterable<Reference>) : ConjunctionBuilder = ConjunctionBuilder(refs.asSequence().toList().toTypedArray())
+fun or(refs: Iterable<Reference>): DisjunctionBuilder = DisjunctionBuilder(refs.asSequence().toList().toTypedArray())
+fun and(refs: Iterable<Reference>): ConjunctionBuilder = ConjunctionBuilder(refs.asSequence().toList().toTypedArray())
 
 @JvmOverloads
 fun atMost(refs: Iterable<Reference>, degree: Int = 1) =
@@ -168,8 +168,10 @@ fun exactly(refs: Iterable<Reference>, degree: Int = 1) =
 
 @JvmOverloads
 fun atMost(vararg refs: Reference, degree: Int = 1) = CardinalityBuilder(refs, degree, Cardinality.Operator.AT_MOST)
+
 @JvmOverloads
 fun atLeast(vararg refs: Reference, degree: Int = 1) = CardinalityBuilder(refs, degree, Cardinality.Operator.AT_LEAST)
+
 fun excludes(vararg refs: Reference) = atMost(*refs, degree = 1)
 @JvmOverloads
 fun exactly(vararg refs: Reference, degree: Int = 1) = CardinalityBuilder(refs, degree, Cardinality.Operator.EXACTLY)

@@ -81,28 +81,28 @@ abstract class LinearOptimizerTest {
             if (solver != null) {
                 val l = solver.optimizeOrThrow(LinearObjective(DoubleArray(p.nbrVariables)))
                 val rng = Random(i.toLong())
-                val context = ArrayList<Int>()
+                val assumptions = ArrayList<Int>()
                 for (j in 0 until l.size) {
                     if (rng.nextBoolean())
-                        context += l.asLiteral(j)
+                        assumptions += l.asLiteral(j)
                 }
-                val restricted = solver.optimizeOrThrow(LinearObjective(DoubleArray(p.nbrVariables)), context.toIntArray())
+                val restricted = solver.optimizeOrThrow(LinearObjective(DoubleArray(p.nbrVariables)), assumptions.toIntArray())
                 assertTrue(p.satisfies(restricted),
-                        "Model $i, context ${context.joinToString(",")}")
-                assertTrue(Conjunction(context.toIntArray()).satisfies(restricted),
-                        "Model $i, context ${context.joinToString(",")}")
+                        "Model $i, assumptions ${assumptions.joinToString(",")}")
+                assertTrue(Conjunction(assumptions.toIntArray()).satisfies(restricted),
+                        "Model $i, assumptions ${assumptions.joinToString(",")}")
             }
         }
     }
 
     @Test
     fun smallUnsatContext() {
-        fun testUnsat(context: IntArray, d: Pair<Problem, UnitPropagationTable>) {
+        fun testUnsat(assumptions: IntArray, d: Pair<Problem, UnitPropagationTable>) {
             val (p, pt) = d
             val solver = unsatOptimizer(p, pt)
             if (solver != null) {
                 assertFailsWith(ValidationException::class) {
-                    solver.optimizeOrThrow(LinearObjective(DoubleArray(p.nbrVariables)), context)
+                    solver.optimizeOrThrow(LinearObjective(DoubleArray(p.nbrVariables)), assumptions)
                 }
             }
         }
@@ -117,14 +117,16 @@ abstract class LinearOptimizerTest {
 
     @Test
     fun smallOptimizeContext() {
-        fun testOptimize(context: IntArray, weights: Vector, d: Pair<Problem, UnitPropagationTable>, maximize: Boolean, target: Double, delta: Double = max(target * .3, 0.01)) {
+        fun testOptimize(assumptions: IntArray, weights: Vector, d: Pair<Problem, UnitPropagationTable>, maximize: Boolean, target: Double, delta: Double = max(target * .3, 0.01)) {
             val (p, pt) = d
             val solver = optimizer(p, pt, SolverConfig(maximize = maximize, randomSeed = 0L))
             if (solver != null) {
-                val optimizeOrThrow = solver.optimizeOrThrow(LinearObjective(weights), context)
+                val optimizeOrThrow = solver.optimizeOrThrow(LinearObjective(weights), assumptions)
+                assertTrue(Conjunction(assumptions).satisfies(optimizeOrThrow))
                 assertTrue(p.satisfies(optimizeOrThrow))
                 assertEquals(target, optimizeOrThrow dot weights, delta)
-                val optimize = solver.optimize(LinearObjective(weights), context)!!
+                val optimize = solver.optimize(LinearObjective(weights), assumptions)!!
+                assertTrue(Conjunction(assumptions).satisfies(optimize))
                 assertTrue(p.satisfies(optimize))
                 assertEquals(target, optimize dot weights, delta)
             }

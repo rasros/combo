@@ -28,7 +28,7 @@ class GALinearOptimizer(val problem: Problem,
         private set
 
 
-    override fun optimizeOrThrow(weights: Vector, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(weights: Vector, assumptions: Literals): Labeling {
         val rng = config.nextRandom()
 
         val population = Array(popSize) {
@@ -36,7 +36,7 @@ class GALinearOptimizer(val problem: Problem,
             else init.generate(problem, config.labelingBuilder, config.nextRandom())
         }
 
-        val con = if (contextLiterals.isEmpty()) null else Conjunction(contextLiterals)
+        val con = if (assumptions.isEmpty()) null else Conjunction(assumptions)
 
         val worstScore = -weights.array.sumByDouble { it.absoluteValue }
 

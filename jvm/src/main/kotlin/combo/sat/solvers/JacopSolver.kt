@@ -69,14 +69,13 @@ class JacopSolver(problem: Problem,
     }
 
 
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
-            if (contextLiterals.isNotEmpty()) {
-                for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+            if (assumptions.isNotEmpty()) {
+                for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
             val search = DepthFirstSearch<BooleanVar>().apply {
-                setPrintInfo(config.debugMode)
                 setTimeout(this)
             }
             val result = search.labeling(store, SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRandom())))
@@ -95,17 +94,17 @@ class JacopSolver(problem: Problem,
      * This method is not lazy due to limitations in jacop. Use another solver or [iterateSolutions] instead.
      * If timeout is not set it will only terminate once all solutions are exhausted, which is probably never.
      */
-    override fun sequence(contextLiterals: Literals): Sequence<Labeling> {
+    override fun sequence(assumptions: Literals): Sequence<Labeling> {
         val list = ArrayList<Labeling>()
-        iterateSolutions(Integer.MAX_VALUE, contextLiterals) { list.add(it) }
+        iterateSolutions(Integer.MAX_VALUE, assumptions) { list.add(it) }
         return list.asSequence()
     }
 
-    fun iterateSolutions(limit: Int, contextLiterals: Literals, labelingConsumer: (Labeling) -> Unit) {
+    fun iterateSolutions(limit: Int, assumptions: Literals, labelingConsumer: (Labeling) -> Unit) {
         try {
             store.setLevel(store.level + 1)
-            if (contextLiterals.isNotEmpty()) {
-                for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+            if (assumptions.isNotEmpty()) {
+                for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
 
             val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRandom()))
@@ -128,11 +127,11 @@ class JacopSolver(problem: Problem,
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
-            if (contextLiterals.isNotEmpty()) {
-                for (l in contextLiterals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+            if (assumptions.isNotEmpty()) {
+                for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
             val max = function.weights.asSequence().map { abs(it) }.sum()
             val cost = FloatVar(store, -max, max)

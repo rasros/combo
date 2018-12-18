@@ -8,11 +8,11 @@ import kotlin.math.abs
 
 interface Bandit {
 
-    fun chooseOrThrow(contextLiterals: IntArray): Labeling
+    fun chooseOrThrow(assumptions: IntArray): Labeling
 
-    fun choose(contextLiterals: IntArray) =
+    fun choose(assumptions: IntArray) =
             try {
-                chooseOrThrow(contextLiterals)
+                chooseOrThrow(assumptions)
             } catch (e: ValidationException) {
                 null
             }

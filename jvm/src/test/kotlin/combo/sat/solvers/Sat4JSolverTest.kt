@@ -1,7 +1,6 @@
 package combo.sat.solvers
 
 import combo.sat.Problem
-import combo.sat.SolverConfig
 import combo.sat.UnitPropagationTable
 
 class Sat4JSolverTest : SolverTest() {

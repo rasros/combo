@@ -70,43 +70,43 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
     }
 
     @JvmOverloads
-    fun witness(context: Map<Feature<*>, Any?> = emptyMap()): Assignment? {
-        val l = solver.witness(contextLiterals(context))
+    fun witness(assumptions: Map<Feature<*>, Any?> = emptyMap()): Assignment? {
+        val l = solver.witness(assumptionsLiterals(assumptions))
         if (l != null) return model.toAssignment(l)
         return null
     }
 
     @JvmOverloads
-    fun witnessOrThrow(context: Map<Feature<*>, Any?> = emptyMap()) =
-            model.toAssignment(solver.witnessOrThrow(contextLiterals(context)))
+    fun witnessOrThrow(assumptions: Map<Feature<*>, Any?> = emptyMap()) =
+            model.toAssignment(solver.witnessOrThrow(assumptionsLiterals(assumptions)))
 
     @JvmOverloads
-    fun sequence(context: Map<Feature<*>, Any?> = emptyMap()) =
-            solver.sequence(contextLiterals(context)).map { model.toAssignment(it) }
+    fun sequence(assumptions: Map<Feature<*>, Any?> = emptyMap()) =
+            solver.sequence(assumptionsLiterals(assumptions)).map { model.toAssignment(it) }
 
     override fun iterator(): Iterator<Assignment> = sequence().iterator()
 
     @JvmOverloads
-    fun choose(context: Map<Feature<*>, Any?> = emptyMap()): Assignment? {
-        val labeling = bandit.choose(contextLiterals(context))
+    fun choose(assumptions: Map<Feature<*>, Any?> = emptyMap()): Assignment? {
+        val labeling = bandit.choose(assumptionsLiterals(assumptions))
         return if (labeling != null) model.toAssignment(labeling)
         else null
     }
 
     @JvmOverloads
-    fun chooseOrThrow(context: Map<Feature<*>, Any?> = emptyMap()) =
-            model.toAssignment(bandit.chooseOrThrow(contextLiterals(context)))
+    fun chooseOrThrow(assumptions: Map<Feature<*>, Any?> = emptyMap()) =
+            model.toAssignment(bandit.chooseOrThrow(assumptionsLiterals(assumptions)))
 
     @JvmOverloads
     fun update(assignment: Assignment, result: Double, weight: Double = 1.0) {
         bandit.update(assignment.labeling, result, weight)
     }
 
-    private fun contextLiterals(context: Map<Feature<*>, Any?>): IntArray {
-        return if (context.isNotEmpty()) {
+    private fun assumptionsLiterals(assumptions: Map<Feature<*>, Any?>): IntArray {
+        return if (assumptions.isNotEmpty()) {
             var lits = IntArray(8) { -1 }
             var itr = 0
-            for ((meta, value) in context) {
+            for ((meta, value) in assumptions) {
                 val add = model.featureMetas[meta]?.indexEntry?.toLiterals(value)
                 if (add != null && add.isNotEmpty()) {
                     if (lits.size <= itr + add.size)

@@ -3,9 +3,9 @@
 package combo.sat
 
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.transformArray
 import combo.util.mapArray
 import combo.util.remove
+import combo.util.transformArray
 import kotlin.jvm.JvmName
 import kotlin.math.max
 import kotlin.math.min

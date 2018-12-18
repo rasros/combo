@@ -19,16 +19,16 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver,
     override val config: SolverConfig
         get() = baseSolver.config
 
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
         if (size < cache.size)
-            return baseSolver.witnessOrThrow(contextLiterals).also { cache[size++] = it }
+            return baseSolver.witnessOrThrow(assumptions).also { cache[size++] = it }
         val rng = config.nextRandom()
         if (rng.nextDouble() < pNew)
-            return baseSolver.witnessOrThrow(contextLiterals).also { cache[rng.nextInt(size)] = it }
+            return baseSolver.witnessOrThrow(assumptions).also { cache[rng.nextInt(size)] = it }
 
-        val c = Conjunction(contextLiterals)
+        val c = Conjunction(assumptions)
         return IntPermutation(size, rng).firstOrNull { c.satisfies(cache[it]) }?.let { cache[it] }
-                ?: baseSolver.witnessOrThrow(contextLiterals)
+                ?: baseSolver.witnessOrThrow(assumptions)
                         .also { cache[rng.nextInt(cache.size)] = it }
     }
 }
@@ -45,19 +45,19 @@ class CachedOptimizer<O : ObjectiveFunction> @JvmOverloads constructor(val baseO
     override val config: SolverConfig
         get() = baseOptimizer.config
 
-    override fun optimizeOrThrow(function: O, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
         if (size < cache.size)
-            return baseOptimizer.optimizeOrThrow(function, contextLiterals).also { cache[size++] = it }
+            return baseOptimizer.optimizeOrThrow(function, assumptions).also { cache[size++] = it }
         val rng = config.nextRandom()
         if (rng.nextDouble() < pNew)
-            return baseOptimizer.optimizeOrThrow(function, contextLiterals).also { cache[rng.nextInt(size)] = it }
+            return baseOptimizer.optimizeOrThrow(function, assumptions).also { cache[rng.nextInt(size)] = it }
 
-        val c = Conjunction(contextLiterals)
+        val c = Conjunction(assumptions)
         return IntPermutation(size, rng)
                 .filter { c.satisfies(cache[it]) }
-                .maxBy { function.score(cache[it], config.maximize) }
+                .maxBy { function.value(cache[it], config.maximize) }
                 ?.let { cache[it] }
-                ?: baseOptimizer.optimizeOrThrow(function, contextLiterals)
+                ?: baseOptimizer.optimizeOrThrow(function, assumptions)
                         .also { cache[rng.nextInt(cache.size)] = it }
     }
 }
@@ -72,14 +72,14 @@ class FallbackSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: 
     override val config: SolverConfig
         get() = baseSolver.config
 
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
         return try {
-            baseSolver.witnessOrThrow(contextLiterals).also {
+            baseSolver.witnessOrThrow(assumptions).also {
                 if (size < cache.size) cache[size++] = it
                 else cache[config.nextRandom().nextInt(size)] = it
             }
         } catch (e: ValidationException) {
-            val c = Conjunction(contextLiterals)
+            val c = Conjunction(assumptions)
             IntPermutation(size, config.nextRandom()).firstOrNull { c.satisfies(cache[it]) }?.let { cache[it] }
                     ?: throw UnsatisfiableException("Failed to find matching fallback labeling", e)
         }
@@ -96,18 +96,18 @@ class FallbackOptimizer<O : ObjectiveFunction> @JvmOverloads constructor(val bas
     override val config: SolverConfig
         get() = baseOptimizer.config
 
-    override fun optimizeOrThrow(function: O, contextLiterals: Literals): Labeling {
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
         val rng = config.nextRandom()
-        val c = Conjunction(contextLiterals)
+        val c = Conjunction(assumptions)
         val cached = IntPermutation(size, rng)
                 .filter { c.satisfies(cache[it]) }
-                .maxBy { function.score(cache[it], config.maximize) }
+                .maxBy { function.value(cache[it], config.maximize) }
                 ?.let { cache[it] }
         return try {
-            val labeling = baseOptimizer.optimizeOrThrow(function, contextLiterals)
+            val labeling = baseOptimizer.optimizeOrThrow(function, assumptions)
             if (cached == null) return labeling
-            val s1 = function.score(labeling, config.maximize)
-            val s2 = function.score(cached, config.maximize)
+            val s1 = function.value(labeling, config.maximize)
+            val s2 = function.value(cached, config.maximize)
             if (s1 > s2) labeling else cached
         } catch (e: ValidationException) {
             cached ?: throw UnsatisfiableException("Failed to find matching fallback labeling", e)

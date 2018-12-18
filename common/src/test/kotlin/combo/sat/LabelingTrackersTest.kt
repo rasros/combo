@@ -8,14 +8,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 abstract class LabelingTrackerTest {
-    abstract fun tracker(l: MutableLabeling, p: Problem, pt: UnitPropagationTable, context: IntArray, rng: Random): LabelingTracker
+    abstract fun tracker(l: MutableLabeling, p: Problem, pt: UnitPropagationTable, assumptions: Literals, rng: Random): LabelingTracker
 
     @Test
     fun unsatisfiableTracker() {
         for ((i, d) in SolverTest.smallUnsatProblems.withIndex()) {
             val (p, pt) = d
             val l = BitFieldLabeling(p.nbrVariables)
-            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random)
+            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random, RandomSelector(Random))
             assertTrue(t.unsatisfied.isNotEmpty(), "Model $i")
         }
     }
@@ -24,7 +24,7 @@ abstract class LabelingTrackerTest {
     fun satOrUnsat() {
         fun helper(p: Problem, pt: UnitPropagationTable, i: Int) {
             val l = BitFieldLabeling(p.nbrVariables)
-            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random)
+            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random, RandomSelector(Random))
             if (p.satisfies(l)) assertTrue(t.unsatisfied.isEmpty(), "Model $i")
             else {
                 assertTrue(t.unsatisfied.isNotEmpty(), "Model $i")
@@ -39,9 +39,9 @@ abstract class LabelingTrackerTest {
 
     @Test
     fun undo() {
-        fun helper(p: Problem, pt: UnitPropagationTable, i: Int) {
+        fun helper(p: Problem, pt: UnitPropagationTable) {
             val l = BitFieldLabeling(p.nbrVariables)
-            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random)
+            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random, RandomSelector(Random))
             val ix = Random.nextInt(p.nbrVariables)
             val lit = !l.asLiteral(ix)
             val l1 = l.copy()
@@ -49,9 +49,9 @@ abstract class LabelingTrackerTest {
             t.undo(lit)
             assertEquals(l1, l)
         }
-        for ((i, d) in (SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems).withIndex()) {
+        for (d in (SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems)) {
             val (p, pt) = d
-            helper(p, pt, i)
+            helper(p, pt)
         }
     }
 
@@ -59,7 +59,7 @@ abstract class LabelingTrackerTest {
     fun updateUnsatisfied() {
         fun helper(p: Problem, pt: UnitPropagationTable, i: Int) {
             val l = BitFieldLabeling(p.nbrVariables)
-            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random)
+            val t = PropLabelingTracker(l, p, pt, EMPTY_INT_ARRAY, Random, RandomSelector(Random))
             val ix = Random.nextInt(p.nbrVariables)
             val lit = !l.asLiteral(ix)
             t.set(lit)
@@ -78,11 +78,11 @@ abstract class LabelingTrackerTest {
 }
 
 class FlipLabelingTrackerTest : LabelingTrackerTest() {
-    override fun tracker(l: MutableLabeling, p: Problem, pt: UnitPropagationTable, context: IntArray, rng: Random) =
-            FlipLabelingTracker(l, p, context)
+    override fun tracker(l: MutableLabeling, p: Problem, pt: UnitPropagationTable, assumptions: Literals, rng: Random) =
+            FlipLabelingTracker(l, p, assumptions, RandomSelector(Random))
 }
 
 class PropLabelingTrackerTest : LabelingTrackerTest() {
-    override fun tracker(l: MutableLabeling, p: Problem, pt: UnitPropagationTable, context: IntArray, rng: Random) =
-            PropLabelingTracker(l, p, pt, context, rng)
+    override fun tracker(l: MutableLabeling, p: Problem, pt: UnitPropagationTable, assumptions: Literals, rng: Random) =
+            PropLabelingTracker(l, p, pt, assumptions, rng, RandomSelector(Random))
 }

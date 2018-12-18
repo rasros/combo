@@ -21,10 +21,10 @@ class GLMBandit(override val config: SolverConfig,
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
+    override fun chooseOrThrow(assumptions: IntArray): Labeling {
         val weights = DoubleArray(0)
 
-        val l = optimizer.optimize(LinearObjective(weights), contextLiterals)
+        val l = optimizer.optimize(LinearObjective(weights), assumptions)
         TODO("not implemented")
     }
 

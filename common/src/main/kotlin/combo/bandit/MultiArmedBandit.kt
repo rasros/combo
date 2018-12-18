@@ -20,15 +20,15 @@ class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
         posterior.update(banditMap[labeling]!!, result, weight)
     }
 
-    override fun chooseOrThrow(contextLiterals: IntArray): Labeling {
+    override fun chooseOrThrow(assumptions: IntArray): Labeling {
         val rng = config.nextRandom()
-        val con = Conjunction(contextLiterals)
+        val con = Conjunction(assumptions)
         val labeling = if (config.maximize) {
             banditMap.maxBy { if (con.satisfies(it.key)) posterior.sample(rng, it.value) else Double.NEGATIVE_INFINITY }
         } else {
             banditMap.minBy { if (con.satisfies(it.key)) posterior.sample(rng, it.value) else Double.POSITIVE_INFINITY }
         }?.key
-        if (labeling == null || !con.satisfies(labeling)) throw UnsatisfiableException("No labeling matching context literals.")
+        if (labeling == null || !con.satisfies(labeling)) throw UnsatisfiableException("No labeling matching assumption literals.")
         return labeling
     }
 
