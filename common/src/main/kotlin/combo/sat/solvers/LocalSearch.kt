@@ -6,14 +6,9 @@ import combo.util.IntSet
 import combo.util.millis
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 
-sealed class LocalSearch(val problem: Problem,
-                         val propTable: UnitPropagationTable?,
-                         val timeout: Long,
-                         val maxRestarts: Int,
-                         val maxSteps: Int,
-                         val pRandomWalk: Double,
-                         val maxConsideration: Int) {
+sealed class LocalSearch(val problem: Problem, val propTable: UnitPropagationTable?) {
     abstract val config: SolverConfig
 
     var totalSuccesses: Long = 0
@@ -22,11 +17,6 @@ sealed class LocalSearch(val problem: Problem,
         private set
     var totalIterations: Long = 0
         private set
-    var totalFlips: Long = 0
-        private set
-
-    var latestSequenceLiterals: MutableList<Int>? = null
-    var latestSequenceSentence: MutableList<Sentence>? = null
 
     protected fun recordCompleted(satisfied: Boolean) {
         if (satisfied) totalSuccesses++
@@ -34,19 +24,56 @@ sealed class LocalSearch(val problem: Problem,
     }
 
     protected fun recordIteration() {
-        if (config.debugMode) {
-            latestSequenceSentence = ArrayList()
-            latestSequenceLiterals = ArrayList()
-        }
         totalIterations++
     }
 
-    protected fun recordFlip(sentence: Sentence, literal: Int) {
-        if (config.debugMode) {
-            latestSequenceSentence!!.add(sentence)
-            latestSequenceLiterals!!.add(literal)
+    protected fun pickSatLit(tracker: LabelingTracker, literals: Literals,
+                             pRandomWalk: Double, rng: Random, assumptionIxs: IntSet, maxConsideration: Int): Int {
+        val litIx = if (pRandomWalk > rng.nextDouble()) {
+            IntPermutation(literals.size).firstOrNull {
+                literals[it].asIx() !in assumptionIxs
+            } ?: -1
+        } else {
+            val n = min(maxConsideration, literals.size)
+            val perm = if (literals.size > maxConsideration) IntPermutation(literals.size) else null
+            var maxImp = -1
+            var bestLitIx = -1
+            for (k in 0 until n) {
+                val i = perm?.encode(k) ?: k
+                val ix = literals[i].asIx()
+                if (ix in assumptionIxs) continue
+                val sents = if (propTable != null) propTable.variableSentences[ix]
+                else problem.sentencesWith(ix)
+                val pre = sents.sumBy {
+                    if (it in tracker.unsatisfied) problem.sentences[it].flipsToSatisfy(tracker.labeling) else 0
+                }
+                val lit = !tracker.labeling.asLiteral(ix)
+                tracker.set(lit)
+                val post = sents.sumBy { problem.sentences[it].flipsToSatisfy(tracker.labeling) }
+                tracker.undo(lit)
+                val score = pre - post
+                if (score > maxImp) {
+                    bestLitIx = i
+                    maxImp = score
+                }
+            }
+            bestLitIx
         }
-        totalFlips++
+        if (litIx < 0) return -1
+        val ix = literals[litIx].asIx()
+        if (ix in assumptionIxs) return -1
+        return ix
+    }
+
+    protected fun makeContextSet(assumptions: Literals) = IntSet().apply {
+        assumptions.forEach { lit ->
+            add(lit.asIx())
+            //else problem.sentencesWith(lit.asIx())
+            if (propTable != null) {
+                val sentences = propTable.literalPropagations[lit]
+                sentences.forEach { j -> add(j.asIx()) }
+            }
+        }
     }
 
 }
@@ -54,49 +81,132 @@ sealed class LocalSearch(val problem: Problem,
 class LocalSearchOptimizer<O : ObjectiveFunction>(problem: Problem,
                                                   override val config: SolverConfig = SolverConfig(),
                                                   propTable: UnitPropagationTable? = UnitPropagationTable(problem),
-                                                  timeout: Long = -1L,
-                                                  maxRestarts: Int = 10,
-                                                  maxSteps: Int = problem.nbrVariables,
-                                                  pRandomWalk: Double = 0.05,
-                                                  maxConsideration: Int = 32) :
-        LocalSearch(problem, propTable, timeout, maxRestarts, maxSteps, pRandomWalk, maxConsideration), Optimizer<O> {
+                                                  val timeout: Long = -1L,
+                                                  val restarts: Int = 5,
+                                                  val maxSteps: Int = problem.nbrVariables,
+                                                  val maxSidewaySteps: Int = problem.nbrVariables / 2,
+                                                  val pRandomWalk: Double = 0.05,
+                                                  val greedyHeuristic: Boolean = true,
+                                                  val maxConsideration: Int = 32) : LocalSearch(problem, propTable), Optimizer<O> {
 
-    override fun optimizeOrThrow(function: O, contextLiterals: Literals): Labeling {
-        TODO()
+    private fun penalty(labeling: Labeling) = problem.flipsToSatisfy(labeling)
+
+    protected fun pickSatOpt(tracker: LabelingTracker, function: ObjectiveFunction, lowerBound: Double, upperBound: Double,
+
+                             pRandomWalk: Double, rng: Random, assumptionIxs: IntSet, maxConsideration: Int): Int {
+        return if (pRandomWalk > rng.nextDouble()) {
+            return IntPermutation(problem.nbrVariables).firstOrNull {
+                it !in assumptionIxs
+            } ?: -1
+        } else {
+            // TODO implement _maxCon
+            IntPermutation(problem.nbrVariables).maxBy { ix ->
+                if (ix in assumptionIxs) Double.NEGATIVE_INFINITY
+                else {
+                    val lit = !tracker.labeling.asLiteral(ix)
+                    tracker.set(lit)
+                    function.value(tracker.labeling, penalty(tracker.labeling), lowerBound, upperBound, config.maximize).also {
+                        tracker.undo(lit)
+                    }
+                }
+            } ?: -1
+        }
+    }
+
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
+        val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
+        val assumptionIxs = makeContextSet(assumptions)
+
+        var bestScore = Double.NEGATIVE_INFINITY
+        var bestLabeling: Labeling? = null
+        val lowerBound = function.lowerBound(config.maximize)
+        val upperBound = function.upperBound(config.maximize)
+        var sidewaySteps = 0
+        val _maxCon = max(2, min(maxConsideration, problem.nbrVariables))
+
+        for (restart in 1..restarts) {
+            recordIteration()
+            val rng = config.nextRandom()
+            val selector = if (greedyHeuristic && function is LinearObjective) WeightSelector(function.weights, rng) else RandomSelector(rng)
+
+            val tracker = if (propTable != null)
+                PropLabelingTracker(config.labelingBuilder.build(problem.nbrVariables), problem, propTable, assumptions, rng, selector)
+            else
+                FlipLabelingTracker(config.labelingBuilder.build(problem.nbrVariables), problem, assumptions, selector)
+
+            fun update(score: Double) {
+                if (score > bestScore && tracker.unsatisfied.isEmpty()) {
+                    bestScore = score
+                    bestLabeling = tracker.labeling.copy()
+                }
+            }
+
+            var prevScore = function.value(tracker.labeling, penalty(tracker.labeling), lowerBound, upperBound, config.maximize)
+            update(prevScore)
+
+            for (flips in 1..maxSteps) {
+                val ix = if (tracker.unsatisfied.isNotEmpty()) {
+                    val literals = problem.sentences[tracker.unsatisfied.random(rng)].literals
+                    val ix = pickSatLit(tracker, literals, pRandomWalk, rng, assumptionIxs, _maxCon)
+                    if (ix < 0 || ix in assumptionIxs) continue
+                    ix
+                } else {
+                    val ix = pickSatOpt(tracker, function, lowerBound, upperBound, pRandomWalk, rng, assumptionIxs, _maxCon)
+                    if (ix < 0 || ix in assumptionIxs) break
+                    ix
+                }
+
+                if (ix in assumptionIxs) {
+                    throw IllegalArgumentException()
+                }
+                val lit = !tracker.labeling.asLiteral(ix)
+                tracker.set(lit)
+                tracker.updateUnsatisfied(tracker.labeling.asLiteral(ix))
+                val score = function.value(tracker.labeling, penalty(tracker.labeling), lowerBound, upperBound, config.maximize)
+                if (score == upperBound) {
+                    recordCompleted(true)
+                    return tracker.labeling
+                } else if (score < prevScore) {
+                    tracker.set(!lit)
+                    tracker.updateUnsatisfied(!lit)
+                    break
+                } else if (score == prevScore && sidewaySteps++ >= maxSidewaySteps)
+                    break
+                update(score)
+                prevScore = score
+                if (millis() > end) break
+            }
+            if (millis() > end) break
+        }
+        recordCompleted(bestLabeling != null)
+        return bestLabeling
+                ?: (if (millis() > end) throw TimeoutException(timeout) else throw IterationsReachedException(restarts))
     }
 }
 
 class LocalSearchSolver(problem: Problem,
                         override val config: SolverConfig = SolverConfig(),
                         propTable: UnitPropagationTable? = UnitPropagationTable(problem),
-                        timeout: Long = -1L,
-                        maxRestarts: Int = 10,
-                        maxSteps: Int = problem.nbrVariables,
-                        pRandomWalk: Double = 0.05,
-                        maxConsideration: Int = 32) :
-        LocalSearch(problem, propTable, timeout, maxRestarts, maxSteps, pRandomWalk, maxConsideration), Solver {
+                        val timeout: Long = -1L,
+                        val maxRestarts: Int = 10,
+                        val maxSteps: Int = problem.nbrVariables,
+                        val pRandomWalk: Double = 0.05,
+                        val maxConsideration: Int = 20) : LocalSearch(problem, propTable), Solver {
 
-
-    override fun witnessOrThrow(contextLiterals: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Labeling {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
-        val contextIxs = IntSet().apply {
-            contextLiterals.forEach { i ->
-                this.add(i.asIx())
-                val sentences = if (propTable != null) propTable.literalPropagations[i]
-                else problem.sentencesWith(i.asIx())
-                sentences.forEach { j -> this.add(j.asIx()) }
-            }
-        }
+        val assumptionIxs = makeContextSet(assumptions)
         val _maxCon = max(2, min(maxConsideration, problem.nbrVariables))
+        val assumptionCon = Conjunction(assumptions)
 
         for (restart in 1..maxRestarts) {
             recordIteration()
             val rng = config.nextRandom()
 
             val tracker = if (propTable != null)
-                PropLabelingTracker(config.labelingBuilder.build(problem.nbrVariables), problem, propTable, contextLiterals, rng)
+                PropLabelingTracker(config.labelingBuilder.build(problem.nbrVariables), problem, propTable, assumptions, rng, RandomSelector(rng))
             else
-                FlipLabelingTracker(config.labelingBuilder.generate(problem.nbrVariables, rng), problem, contextLiterals)
+                FlipLabelingTracker(config.labelingBuilder.generate(problem.nbrVariables, rng), problem, assumptions, RandomSelector(rng))
 
             for (flips in 1..maxSteps) {
                 if (tracker.unsatisfied.isEmpty()) {
@@ -105,49 +215,19 @@ class LocalSearchSolver(problem: Problem,
                 }
 
                 // Pick random unsatisfied clause
-                val pickedSentenceIx = tracker.unsatisfied.random(rng)
-                val pickedSentence = problem.sentences[pickedSentenceIx]
-                val literals = pickedSentence.literals
-
-                val litIx = if (pRandomWalk > rng.nextDouble()) {
-                    IntPermutation(literals.size).firstOrNull {
-                        literals[it].asIx() !in contextIxs
-                    } ?: -1
-                } else {
-                    val litIxs = if (literals.size >= _maxCon) IntPermutation(literals.size, rng) else (0 until literals.size)
-                    litIxs.maxBy { i ->
-                        val ix = literals[i].asIx()
-                        if (ix in contextIxs)
-                            -1
-                        else {
-                            val sents = if (propTable != null) propTable.variableSentences[ix]
-                            else problem.sentencesWith(ix)
-                            val pre = sents.sumBy { if (it in tracker.unsatisfied) problem.sentences[it].flipsToSatisfy(tracker.labeling) else 0 }
-                            val lit = !tracker.labeling.asLiteral(ix)
-                            tracker.set(lit)
-                            val post = sents.sumBy { problem.sentences[it].flipsToSatisfy(tracker.labeling) }
-                            tracker.undo(lit)
-                            pre - post
-                        }
-                    } ?: -1
-                }
-                if (litIx < 0) continue
-                val ix = literals[litIx].asIx()
-                if (ix in contextIxs) continue
+                val literals = problem.sentences[tracker.unsatisfied.random(rng)].literals
+                val ix = pickSatLit(tracker, literals, pRandomWalk, rng, assumptionIxs, _maxCon)
+                if (ix < 0) continue
                 tracker.set(!tracker.labeling.asLiteral(ix))
                 tracker.updateUnsatisfied(tracker.labeling.asLiteral(ix))
-
-                recordFlip(pickedSentence, tracker.labeling.asLiteral(ix))
                 if (millis() > end) {
                     recordCompleted(false)
                     throw TimeoutException(timeout)
                 }
             }
         }
-
         recordCompleted(false)
         throw IterationsReachedException(maxRestarts)
     }
-
 }
 

@@ -14,13 +14,33 @@ interface LabelingTracker {
     fun updateUnsatisfied(literal: Literal): Boolean
 }
 
+interface ValueSelector {
+    fun value(ix: Int): Boolean
+}
+
+class RandomSelector(val rng: Random) : ValueSelector {
+    override fun value(ix: Int) = rng.nextBoolean()
+}
+
+class WeightSelector(val weights: DoubleArray, val rng: Random) : ValueSelector {
+    override fun value(ix: Int) = rng.nextBoolean()
+            //if (rng.nextBoolean())
+                //weights[ix] >= 0
+            //else rng.nextBoolean()
+
+}
+
 class FlipLabelingTracker(override val labeling: MutableLabeling,
                           val problem: Problem,
-                          context: Literals) : LabelingTracker {
+                          assumptions: Literals,
+                          valueSelector: ValueSelector) : LabelingTracker {
     override val unsatisfied = IntSet()
 
     init {
-        labeling.setAll(context)
+        for (i in 0 until labeling.size)
+            labeling[i] = valueSelector.value(i)
+
+        labeling.setAll(assumptions)
         for ((i, s) in problem.sentences.withIndex()) {
             if (!s.satisfies(labeling)) {
                 unsatisfied.add(i)
@@ -42,8 +62,9 @@ class FlipLabelingTracker(override val labeling: MutableLabeling,
 class PropLabelingTracker(override val labeling: MutableLabeling,
                           val problem: Problem,
                           val propTable: UnitPropagationTable,
-                          context: IntArray,
-                          rng: Random) : LabelingTracker {
+                          assumptions: IntArray,
+                          rng: Random,
+                          valueSelector: ValueSelector) : LabelingTracker {
 
     override val unsatisfied = IntSet()
     val affected = IntSet()
@@ -60,27 +81,27 @@ class PropLabelingTracker(override val labeling: MutableLabeling,
                 } else labeling.asLiteral(literal.asIx()) == literal
             }
 
-            val contextSentences = IntSet()
-            context.forEach {
-                contextSentences.addAll(propTable.literalSentences[it])
+            val assumptionSentences = IntSet()
+            assumptions.forEach {
+                assumptionSentences.addAll(propTable.literalSentences[it])
                 if (!setLiteral(it) ||
                         !propTable.literalPropagations[it].all {
-                            contextSentences.addAll(propTable.literalSentences[it])
+                            assumptionSentences.addAll(propTable.literalSentences[it])
                             setLiteral(it)
                         })
                     throw UnsatisfiableException(
-                            "Unsatisfiable by unit propagation due to context literals ${context.joinToString()}.")
+                            "Unsatisfiable by unit propagation due to assumptions literals ${assumptions.joinToString()}.")
             }
-            if (!contextSentences.all { problem.sentences[it].satisfies(labeling, setLabeling) })
+            if (!assumptionSentences.all { problem.sentences[it].satisfies(labeling, setLabeling) })
                 throw UnsatisfiableException(
-                        "Unsatisfiable by unit propagation due to context literals ${context.joinToString()}.")
+                        "Unsatisfiable by unit propagation due to assumptions literals ${assumptions.joinToString()}.")
         }
 
         val affected = IntSet()
 
         for (ix in IntPermutation(labeling.size, rng).iterator()) {
             if (setLabeling[ix]) continue
-            val literal = ix.asLiteral(rng.nextBoolean())
+            val literal = ix.asLiteral(valueSelector.value(ix))
             if (propTable.literalPropagations[literal].any { setLabeling[it.asIx()] && it != labeling.asLiteral(it.asIx()) }) {
                 set(!literal, null, setLabeling)
                 update(!literal, setLabeling)

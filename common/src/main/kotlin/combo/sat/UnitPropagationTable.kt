@@ -26,18 +26,24 @@ class UnitPropagationTable(problem: Problem, exactPropagation: Boolean = false) 
                     }
                 } else if (sent is Reified) {
                     if (sent.clause is Disjunction) {
-                        for (clauseLit in sent.clause.literals)
+                        for (clauseLit in sent.clause.literals) {
                             implicationSets[!sent.literal].add(!clauseLit)
+                            implicationSets[clauseLit].add(sent.literal)
+                        }
                     } else if (sent.clause is Conjunction) {
-                        for (clauseLit in sent.clause.literals)
+                        for (clauseLit in sent.clause.literals) {
                             implicationSets[sent.literal].add(clauseLit)
+                            implicationSets[clauseLit].add(sent.literal)
+                            implicationSets[!clauseLit].add(!sent.literal)
+                            implicationSets[!sent.literal].add(!clauseLit)
+                        }
                     }
                 }
             }
 
-            for (imps in implicationSets)
-                for (ilit in imps.toArray()) // toArray to avoid concurrent modification
-                    imps.addAll(implicationSets[ilit]) // TODO efficient propagate looping
+            //for (imps in implicationSets)
+                //for (ilit in imps.toArray()) // toArray to avoid concurrent modification
+                    //imps.addAll(implicationSets[ilit]) // TODO efficient propagate looping
 
             literalPropagations = Array(problem.nbrVariables * 2) { i ->
                 implicationSets[i].toArray()
