@@ -2,66 +2,57 @@ package combo.sat
 
 import combo.sat.solvers.*
 
-class LocalSearchTest : SolverTest() {
+class LocalSearchSolverFlipTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
             LocalSearchSolver(problem, SolverConfig(), null, timeout = 5 * 1000L, maxRestarts = Int.MAX_VALUE)
 
     override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), null, maxSteps = 1000, timeout = 5 * 1000L, maxRestarts = Int.MAX_VALUE)
+            LocalSearchSolver(problem, SolverConfig(), null, timeout = 10 * 1000L, maxRestarts = Int.MAX_VALUE)
 
     override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
             LocalSearchSolver(problem, SolverConfig(), null, maxSteps = 10, maxRestarts = 1)
 
     override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), null, timeout = 1L, maxConsideration = 1, maxSteps = 1, maxRestarts = 1)
+            LocalSearchSolver(problem, SolverConfig(), null, timeout = 1L, maxConsideration = 1, maxSteps = Int.MAX_VALUE, maxRestarts = Int.MAX_VALUE)
 }
 
-class LocalSearchPropTest : SolverTest() {
+class LocalSearchSolverPropTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
             LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 5 * 1000L, maxRestarts = Int.MAX_VALUE)
 
     override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), propTable, maxSteps = 1000, timeout = 5 * 1000L, maxRestarts = Int.MAX_VALUE)
+            LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 10 * 1000L, maxRestarts = Int.MAX_VALUE)
 
     override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
             LocalSearchSolver(problem, SolverConfig(), propTable, maxSteps = 10, maxRestarts = 1)
 
     override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 1L, maxConsideration = 1, maxSteps = 1, maxRestarts = 1)
+            LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 1L, maxConsideration = 1, maxSteps = Int.MAX_VALUE, maxRestarts = Int.MAX_VALUE)
 }
 
-class LocalSearchOptimizerTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+class LocalSearchOptimizerFlipTest : LinearOptimizerTest() {
+    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, null, timeout = 5 * 1000L, restarts = 50)
 
-    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) = null
 
-    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, null, timeout = 5 * 1000L, restarts = 1, maxSteps = 10)
 
-    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, null, timeout = 1L, restarts = Int.MAX_VALUE, maxSteps = Int.MAX_VALUE)
 }
 
 class LocalSearchOptimizerPropTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, timeout = 5 * 1000L)
 
-    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, maxSteps = 1000, timeout = 10 * 1000L)
 
-    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, timeout = 5 * 1000L, restarts = 1, maxSteps = 10)
 
-    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, timeout = 1L, restarts = Int.MAX_VALUE, maxSteps = Int.MAX_VALUE)
 }

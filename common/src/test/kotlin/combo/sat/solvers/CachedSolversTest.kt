@@ -1,36 +1,36 @@
 package combo.sat.solvers
 
 import combo.sat.LocalSearchOptimizerPropTest
-import combo.sat.LocalSearchPropTest
+import combo.sat.LocalSearchSolverPropTest
 import combo.sat.Problem
 import combo.sat.UnitPropagationTable
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchPropTest().solver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().solver(problem, propTable), pNew = 0.5)
 
     override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchPropTest().largeSolver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().largeSolver(problem, propTable), pNew = 0.5)
 
     override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchPropTest().unsatSolver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().unsatSolver(problem, propTable), pNew = 0.5)
 
     override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchPropTest().timeoutSolver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().timeoutSolver(problem, propTable), pNew = 0.5)
 }
 
 class FallbackSolverTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
-            FallbackSolver(LocalSearchPropTest().solver(problem, propTable))
+            FallbackSolver(LocalSearchSolverPropTest().solver(problem, propTable))
 
     override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            FallbackSolver(LocalSearchPropTest().largeSolver(problem, propTable))
+            FallbackSolver(LocalSearchSolverPropTest().largeSolver(problem, propTable))
 
     override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
-            FallbackSolver(LocalSearchPropTest().unsatSolver(problem, propTable))
+            FallbackSolver(LocalSearchSolverPropTest().unsatSolver(problem, propTable))
 
     override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            FallbackSolver(LocalSearchPropTest().timeoutSolver(problem, propTable))
+            FallbackSolver(LocalSearchSolverPropTest().timeoutSolver(problem, propTable))
 }
 
 class CachedOptimizerTest : LinearOptimizerTest() {
