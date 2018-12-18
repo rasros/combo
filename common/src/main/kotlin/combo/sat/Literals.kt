@@ -16,9 +16,11 @@ typealias Literals = IntArray
 
 fun Literals.validate() {
     for (i in 1 until this.size) {
-        if (this[i - 1].asIx() >= this[i].asIx()) {
+        if (this[i - 1].asIx() == this[i].asIx())
+            throw IllegalArgumentException("Duplicated literal for literal ${this[i]}");
+         else if (this[i - 1].asIx() >= this[i].asIx())
             throw IllegalArgumentException("Unordered clause for literal ${this[i]}");
-        }
+
     }
 }
 
