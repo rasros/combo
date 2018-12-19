@@ -79,6 +79,18 @@ class ConstraintsTest {
     }
 
     @Test
+    fun notDoubleOrConjunction() {
+        val c1 = vars[0] and vars[1]
+        val c2 = vars[2] and vars[3]
+        val neg = !(c1 or c2)
+        val sents = neg.toSentences(index)
+        assertEquals(2, sents.size)
+        for (sent in sents) assertTrue(sent is Disjunction)
+        assertContentEquals(intArrayOf(1, 5, 7), sents[0].literals)
+        assertContentEquals(intArrayOf(3, 5, 7), sents[1].literals)
+    }
+
+    @Test
     fun disjunctionTautology() {
         val db = vars[0] or !vars[0]
         val d = db.toClause(index)
@@ -307,7 +319,6 @@ class ConstraintsTest {
     }
 
     @Test
-    @Ignore
     fun negatedLargeCnf() {
         val a = flag("a")
         val b = flag("b")
@@ -329,5 +340,59 @@ class ConstraintsTest {
         assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0000111 })))
         assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b1110011 })))
         assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0011011 })))
+    }
+}
+
+class CnfBuilderTest {
+
+    private val vars = Array(6) { flag() }
+    private val index = ReferenceIndex(vars)
+
+    @Test
+    fun pullIn() {
+        // (a or b) and (c or d)
+        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
+        val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(vars[4], vars[5])))
+        val sents1 = cnf1.toSentences(index)
+        val sents2 = cnf2.toSentences(index)
+        assertEquals(2, sents1.size)
+        assertEquals(2, sents2.size)
+        assertContentEquals(intArrayOf(0, 2), sents1[0].literals)
+        assertContentEquals(intArrayOf(4, 6), sents1[1].literals)
+        assertContentEquals(intArrayOf(0, 2, 8, 10), sents2[0].literals)
+        assertContentEquals(intArrayOf(4, 6, 8, 10), sents2[1].literals)
+    }
+
+    @Test
+    fun pullInDuplication() {
+        // (a or b) and (c or d)
+        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
+        val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(vars[0], vars[2])))
+        val sents = cnf2.toSentences(index)
+        assertEquals(2, sents.size)
+        assertContentEquals(intArrayOf(0, 2, 4), sents[0].literals)
+        assertContentEquals(intArrayOf(0, 4, 6), sents[1].literals)
+    }
+
+    @Test
+    fun pullInTautology() {
+        // (a or b) and (c or d)
+        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
+        val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(!vars[0])))
+        val sents = cnf2.toSentences(index)
+        assertEquals(1, sents.size)
+        assertContentEquals(intArrayOf(1, 4, 6), sents[0].literals)
+    }
+
+    @Test
+    fun distribute() {
+        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
+        val cnf2 = CnfBuilder(arrayOf(
+                DisjunctionBuilder(arrayOf(!vars[0], vars[4], vars[5])),
+                DisjunctionBuilder(arrayOf(!vars[1], vars[3], vars[5]))))
+        val cnf3 = cnf1.distribute(cnf2)
+        assertEquals(4, cnf3.disjunctions.size)
+        val sents = cnf3.toSentences(index)
+        assertEquals(2, sents.size)
     }
 }

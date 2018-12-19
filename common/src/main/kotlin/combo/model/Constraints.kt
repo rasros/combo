@@ -57,11 +57,13 @@ class DisjunctionBuilder(override val references: Array<out Reference>) : Clause
     override fun toClause(fi: ReferenceIndex): Clause {
         // Also performs simplification caused by AndBuilder#pullIn and #distribute
         var literals = fi.indexOf(references)
+        var offset = 0
         for (i in 1 until literals.size)
-            if (literals[i].asIx() == literals[i - 1].asIx())
-                if (literals[i] == literals[i - 1])
-                    literals = literals.remove(i)
-                else return Tautology
+            if (literals[i - offset].asIx() == literals[i - 1 - offset].asIx())
+                if (literals[i - offset] == literals[i - 1 - offset]) {
+                    literals = literals.remove(i - offset)
+                    offset++
+                } else return Tautology
         return when {
             literals.isEmpty() -> Tautology
             literals.size == 1 -> Conjunction(intArrayOf(literals[0]))
@@ -209,8 +211,7 @@ private class Not(private val wrap: Reference) : Reference() {
     override fun toString(): String = "Not($wrap)"
 }
 
-
-private class CnfBuilder(val disjunctions: Array<DisjunctionBuilder>) : BaseSentenceBuilder() {
+class CnfBuilder(val disjunctions: Array<DisjunctionBuilder>) : BaseSentenceBuilder() {
     override val references: Array<out Reference>
         get() = disjunctions.asSequence().flatMap { it.references.asSequence() }.toList().toTypedArray()
 
