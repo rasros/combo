@@ -72,7 +72,6 @@ sealed class LocalSearch(val problem: Problem, val propTable: UnitPropagationTab
             }
         }
     }
-
 }
 
 class LocalSearchOptimizer<O : ObjectiveFunction>(problem: Problem,
@@ -80,7 +79,7 @@ class LocalSearchOptimizer<O : ObjectiveFunction>(problem: Problem,
                                                   propTable: UnitPropagationTable? = UnitPropagationTable(problem),
                                                   val timeout: Long = -1L,
                                                   val restarts: Int = 5,
-                                                  val maxSteps: Int = problem.nbrVariables,
+                                                  val maxSteps: Int = max(1, problem.nbrVariables),
                                                   val maxSidewaySteps: Int = problem.nbrVariables / 2,
                                                   val pRandomWalk: Double = 0.05,
                                                   val greedyHeuristic: Boolean = true,
@@ -192,7 +191,7 @@ class LocalSearchSolver(problem: Problem,
                         propTable: UnitPropagationTable? = UnitPropagationTable(problem),
                         val timeout: Long = -1L,
                         val maxRestarts: Int = 10,
-                        val maxSteps: Int = problem.nbrVariables,
+                        val maxSteps: Int = max(1, problem.nbrVariables),
                         val pRandomWalk: Double = 0.05,
                         val maxConsideration: Int = 20) : LocalSearch(problem, propTable), Solver {
 
