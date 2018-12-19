@@ -44,7 +44,7 @@ class AssignmentTest {
     fun getOrThrow() {
         val f = flag(value = "a", name = "f")
         val m = Model.builder().optional(f).build()
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(NoSuchElementException::class) {
             assertNull(m.toAssignment(BitFieldLabeling(3, LongArray(1) { 0b000 })).getOrThrow(f))
         }
         assertEquals("a", m.toAssignment(BitFieldLabeling(3, LongArray(3) { 0b011 })).getOrThrow(f))
