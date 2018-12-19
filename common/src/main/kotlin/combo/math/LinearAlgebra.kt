@@ -137,6 +137,7 @@ fun Matrix.cholDowndate(v: Vector) {
 }
 
 fun Vector.toRoundedArray(eps: Double = 1.0 / Int.MAX_VALUE * size): DoubleArray {
+    if (size == 0) return DoubleArray(0)
     val arr = DoubleArray(size)
     val sorted = sortedArray()
     val max = max(abs(sorted[size - 1]), abs(sorted[0]))
