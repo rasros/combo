@@ -31,7 +31,9 @@ abstract class LabelingTrackerTest {
                 assertEquals(p.sentences.count { !it.satisfies(l) }, t.unsatisfied.size)
             }
         }
-        for ((i, d) in (SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems).withIndex()) {
+
+        val list = SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems
+        for ((i, d) in list.withIndex()) {
             val (p, pt) = d
             helper(p, pt, i)
         }
@@ -49,7 +51,9 @@ abstract class LabelingTrackerTest {
             t.undo(lit)
             assertEquals(l1, l)
         }
-        for (d in (SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems)) {
+
+        val list = SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems
+        for (d in list) {
             val (p, pt) = d
             helper(p, pt)
         }
@@ -70,7 +74,9 @@ abstract class LabelingTrackerTest {
                 assertEquals(p.sentences.count { !it.satisfies(l) }, t.unsatisfied.size)
             }
         }
-        for ((i, d) in (SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems).withIndex()) {
+
+        val list = SolverTest.smallUnsatProblems + SolverTest.smallProblems + SolverTest.largeProblems
+        for ((i, d) in list.withIndex()) {
             val (p, pt) = d
             helper(p, pt, i)
         }
