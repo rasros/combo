@@ -60,15 +60,12 @@ sealed class LocalSearch(val problem: Problem, val propTable: UnitPropagationTab
             bestLitIx
         }
         if (litIx < 0) return -1
-        val ix = literals[litIx].asIx()
-        if (ix in assumptionIxs) return -1
-        return ix
+        return literals[litIx].asIx()
     }
 
     protected fun makeContextSet(assumptions: Literals) = IntSet().apply {
         assumptions.forEach { lit ->
             add(lit.asIx())
-            //else problem.sentencesWith(lit.asIx())
             if (propTable != null) {
                 val sentences = propTable.literalPropagations[lit]
                 sentences.forEach { j -> add(j.asIx()) }
@@ -92,24 +89,30 @@ class LocalSearchOptimizer<O : ObjectiveFunction>(problem: Problem,
     private fun penalty(labeling: Labeling) = problem.flipsToSatisfy(labeling)
 
     protected fun pickSatOpt(tracker: LabelingTracker, function: ObjectiveFunction, lowerBound: Double, upperBound: Double,
-
                              pRandomWalk: Double, rng: Random, assumptionIxs: IntSet, maxConsideration: Int): Int {
-        return if (pRandomWalk > rng.nextDouble()) {
+        if (pRandomWalk > rng.nextDouble()) {
             return IntPermutation(problem.nbrVariables).firstOrNull {
                 it !in assumptionIxs
             } ?: -1
         } else {
-            // TODO implement _maxCon
-            IntPermutation(problem.nbrVariables).maxBy { ix ->
-                if (ix in assumptionIxs) Double.NEGATIVE_INFINITY
-                else {
-                    val lit = !tracker.labeling.asLiteral(ix)
-                    tracker.set(lit)
-                    function.value(tracker.labeling, penalty(tracker.labeling), lowerBound, upperBound, config.maximize).also {
-                        tracker.undo(lit)
-                    }
+            val n = min(maxConsideration, problem.nbrVariables)
+            val perm = if (problem.nbrVariables > maxConsideration) IntPermutation(problem.nbrVariables) else null
+            var maxValue = Double.NEGATIVE_INFINITY
+            var bestIx = -1
+            for (k in 0 until n) {
+                val ix = perm?.encode(k) ?: k
+                if (ix in assumptionIxs) continue
+                val lit = !tracker.labeling.asLiteral(ix)
+                tracker.set(lit)
+                val value = function.value(tracker.labeling, penalty(tracker.labeling), lowerBound, upperBound, config.maximize).also {
+                    tracker.undo(lit)
                 }
-            } ?: -1
+                if (value > maxValue) {
+                    maxValue = value
+                    bestIx = ix
+                }
+            }
+            return bestIx
         }
     }
 
@@ -197,7 +200,6 @@ class LocalSearchSolver(problem: Problem,
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         val assumptionIxs = makeContextSet(assumptions)
         val _maxCon = max(2, min(maxConsideration, problem.nbrVariables))
-        val assumptionCon = Conjunction(assumptions)
 
         for (restart in 1..maxRestarts) {
             recordIteration()

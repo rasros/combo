@@ -4,8 +4,6 @@ import combo.math.IntPermutation
 import combo.util.IntSet
 import kotlin.random.Random
 
-// TODO use weights during initialization
-
 interface LabelingTracker {
     val labeling: MutableLabeling
     val unsatisfied: IntSet
@@ -23,11 +21,7 @@ class RandomSelector(val rng: Random) : ValueSelector {
 }
 
 class WeightSelector(val weights: DoubleArray, val rng: Random) : ValueSelector {
-    override fun value(ix: Int) = rng.nextBoolean()
-            //if (rng.nextBoolean())
-                //weights[ix] >= 0
-            //else rng.nextBoolean()
-
+    override fun value(ix: Int) = weights[ix] >=0
 }
 
 class FlipLabelingTracker(override val labeling: MutableLabeling,

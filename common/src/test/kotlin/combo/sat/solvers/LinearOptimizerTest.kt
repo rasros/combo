@@ -69,8 +69,8 @@ abstract class LinearOptimizerTest {
                 assertEquals(target, optimizeOrThrow dot weights, delta)
             }
         }
-        testOptimize(DoubleArray(49) { 1.0 }, SolverTest.largeProblems[0], true, 5.0, 1.0)
-        testOptimize(DoubleArray(49) { 1.0 }, SolverTest.largeProblems[0], false, 1.0, 0.0)
+        testOptimize(DoubleArray(49) { -2.0 + it.toDouble() * 0.1 }, SolverTest.largeProblems[0], true, 2.2, 0.5)
+        testOptimize(DoubleArray(49) { -2.0 + it.toDouble() * 0.1 }, SolverTest.largeProblems[0], false, -4.1, 0.5)
     }
 
     @Test
