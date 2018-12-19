@@ -45,7 +45,7 @@ class FlagTest {
     fun missingValue() {
         val f = flag(2, "a")
         val ie = f.createIndexEntry(intArrayOf(1))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(4)
         }
     }
@@ -73,7 +73,7 @@ class OptionTest {
     @Test
     fun missingOptionTest() {
         val o = multiple(1.0, 2.0, 3.0)
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             o.option(1.2)
         }
     }
@@ -94,10 +94,10 @@ class AlternativeTest {
         assertNull(ie.valueOf(BitFieldLabeling(0)))
         assertNull(ie.valueOf(BitFieldLabeling(1).apply { this[0] = true }))
         for (i in 1 until 3)
-            assertFailsWith(ValidationException::class) {
+            assertFailsWith(UnsatisfiableException::class) {
                 ie.toLiterals(i)
             }
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(4)
         }
         assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(null))
@@ -111,10 +111,10 @@ class AlternativeTest {
             assertContentEquals(intArrayOf((i - 2).asLiteral(true)), ie.toLiterals(i))
             assertEquals(i, ie.valueOf(BitFieldLabeling(5).apply { this[i - 2] = true }))
         }
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(7)
         }
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(null)
         }
     }
@@ -138,7 +138,7 @@ class AlternativeTest {
         for (i in 1..3)
             assertContentEquals(intArrayOf((i).asLiteral(true)), ie.toLiterals(i))
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(4))
         }
     }
@@ -147,7 +147,7 @@ class AlternativeTest {
     fun missingValue() {
         val f = alternative(listOf(1, 3, 2), "a")
         val ie = f.createIndexEntry(intArrayOf(0, 1, 2, 4))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(4)
         }
     }
@@ -217,10 +217,10 @@ class MultipleTest {
         for (i in 1 until 3)
             assertContentEquals(intArrayOf((i - 1).asLiteral(true)), ie.toLiterals(setOf(i)))
         assertContentEquals(intArrayOf(0, 4), ie.toLiterals(setOf(1, 3)))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(setOf(1, 11, 3, 10))
         }
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalStateException::class) {
             ie.valueOf(BitFieldLabeling(3))
         }
     }
@@ -245,10 +245,10 @@ class MultipleTest {
         assertEquals(setOf(3), ie.valueOf(IntSetLabeling(6).apply { this[2] = true; this[5] = true }))
         assertContentEquals(intArrayOf(5), ie.toLiterals(null))
         assertContentEquals(intArrayOf(6, 8, 10), ie.toLiterals(setOf(1, 2, 3)))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(setOf(1, 2, 4))
         }
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(emptySet<Int>())
         }
     }
@@ -257,10 +257,10 @@ class MultipleTest {
     fun notACollection() {
         val f = multiple(listOf(10, 5, 3))
         val ie = f.createIndexEntry(intArrayOf(0, 1, 2, 3))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(4)
         }
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(3)
         }
     }
@@ -270,7 +270,7 @@ class MultipleTest {
         val f = multiple(listOf(1, 2, 3), "a")
         val ie = f.createIndexEntry(intArrayOf(0, 1, 2, 3))
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(setOf(4))
         }
     }
