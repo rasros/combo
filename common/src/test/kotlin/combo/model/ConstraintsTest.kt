@@ -42,10 +42,47 @@ class ConstraintsTest {
     }
 
     @Test
+    fun notDoubleConjunction() {
+        val c1 = vars[0] and vars[1]
+        val c2 = vars[2] and vars[3]
+        val neg = !(c1 and c2)
+        val sents = neg.toSentences(index)
+        assertEquals(1, sents.size)
+        val d = sents[0] as Disjunction
+        assertContentEquals(intArrayOf(1, 3, 5, 7), d.literals)
+    }
+
+    @Test
+    fun notDoubleDisjunction() {
+        val c1 = vars[0] or vars[1]
+        val c2 = vars[2] or vars[3]
+        val neg = !(c1 and c2)
+        val sents = neg.toSentences(index)
+        assertEquals(4, sents.size)
+        for (sent in sents) assertTrue(sent is Disjunction)
+        assertContentEquals(intArrayOf(1, 5), sents[0].literals)
+        assertContentEquals(intArrayOf(1, 7), sents[1].literals)
+        assertContentEquals(intArrayOf(3, 5), sents[2].literals)
+        assertContentEquals(intArrayOf(3, 7), sents[3].literals)
+    }
+
+    @Test
+    fun notDisjunctionAndConjunction() {
+        val c1 = vars[0] or vars[1]
+        val c2 = vars[2] and vars[3]
+        val neg = !(c1 and c2)
+        val sents = neg.toSentences(index)
+        assertEquals(2, sents.size)
+        for (sent in sents) assertTrue(sent is Disjunction)
+        assertContentEquals(intArrayOf(1, 5, 7), sents[0].literals)
+        assertContentEquals(intArrayOf(3, 5, 7), sents[1].literals)
+    }
+
+    @Test
     fun disjunctionTautology() {
         val db = vars[0] or !vars[0]
         val d = db.toClause(index)
-        assertTrue(d === Tautology)
+        assertSame(d, Tautology)
     }
 
     @Test
@@ -137,7 +174,7 @@ class ConstraintsTest {
 
     @Test
     fun excludesNegated() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             excludes(!vars[0], vars[1]).toSentences(index)
         }
     }
@@ -204,7 +241,7 @@ class ConstraintsTest {
 
     @Test
     fun reifiedWithItself() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             (vars[0] reified or(!vars[0], vars[1])).toSentences(index)
         }
     }
@@ -246,6 +283,51 @@ class ConstraintsTest {
         assertContentEquals(intArrayOf(0, 8), sents[0].literals)
     }
 
-    // TODO long and/or cnf examples
-    // TODO not on big cnf
+    @Test
+    fun largeCnf() {
+        val a = flag("a")
+        val b = flag("b")
+        val c = flag("c")
+        val d = flag("d")
+        val e = flag("e")
+        val f = flag("f")
+        val g = flag("g")
+        val con = (f and g) or ((a or b or !c) and d and e)
+        val index = ReferenceIndex(arrayOf(a, b, c, d, e, f, g))
+        val sents = con.toSentences(index)
+        val p = Problem(sents, 7)
+
+        // Random sample
+        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111111 })))
+        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111110 })))
+        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0101111 })))
+        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0000111 })))
+        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b1110011 })))
+        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0011011 })))
+    }
+
+    @Test
+    @Ignore
+    fun negatedLargeCnf() {
+        val a = flag("a")
+        val b = flag("b")
+        val c = flag("c")
+        val d = flag("d")
+        val e = flag("e")
+        val f = flag("f")
+        val g = flag("g")
+        val con = (f and g) or ((a or b or !c) and d and e)
+        val neg = !con
+        val index = ReferenceIndex(arrayOf(a, b, c, d, e, f, g))
+        val sents = neg.toSentences(index)
+        val p = Problem(sents, 7)
+
+        // Random sample
+        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111111 })))
+        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111110 })))
+        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0101111 })))
+        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0000111 })))
+        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b1110011 })))
+        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0011011 })))
+    }
 }
