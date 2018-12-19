@@ -7,16 +7,16 @@ import combo.sat.UnitPropagationTable
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchSolverPropTest().solver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().solver(problem, propTable))
 
     override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchSolverPropTest().largeSolver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().largeSolver(problem, propTable))
 
     override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchSolverPropTest().unsatSolver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().unsatSolver(problem, propTable))
 
     override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchSolverPropTest().timeoutSolver(problem, propTable), pNew = 0.5)
+            CachedSolver(LocalSearchSolverPropTest().timeoutSolver(problem, propTable))
 }
 
 class FallbackSolverTest : SolverTest() {
@@ -34,19 +34,29 @@ class FallbackSolverTest : SolverTest() {
 }
 
 class CachedOptimizerTest : LinearOptimizerTest() {
-    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
     override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
             CachedOptimizer(LocalSearchOptimizerPropTest().optimizer(problem, propTable, config))
 
+    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            CachedOptimizer(LocalSearchOptimizerPropTest().largeOptimizer(problem, propTable, config))
+
+    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            CachedOptimizer(LocalSearchOptimizerPropTest().unsatOptimizer(problem, propTable, config))
+
+    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            CachedOptimizer(LocalSearchOptimizerPropTest().unsatOptimizer(problem, propTable, config))
+}
+
+class FallbackOptimizerTest : LinearOptimizerTest() {
+    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            FallbackOptimizer(LocalSearchOptimizerPropTest().optimizer(problem, propTable, config))
+
+    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            FallbackOptimizer(LocalSearchOptimizerPropTest().largeOptimizer(problem, propTable, config))
+
+    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            FallbackOptimizer(LocalSearchOptimizerPropTest().unsatOptimizer(problem, propTable, config))
+
+    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
+            FallbackOptimizer(LocalSearchOptimizerPropTest().unsatOptimizer(problem, propTable, config))
 }
