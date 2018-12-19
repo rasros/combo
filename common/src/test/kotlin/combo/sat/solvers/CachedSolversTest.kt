@@ -7,7 +7,7 @@ import combo.sat.UnitPropagationTable
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem, propTable: UnitPropagationTable) =
-            CachedSolver(LocalSearchSolverPropTest().solver(problem, propTable))
+            CachedSolver(LocalSearchSolverPropTest().solver(problem, propTable), pNew = 0.8)
 
     override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
             CachedSolver(LocalSearchSolverPropTest().largeSolver(problem, propTable))

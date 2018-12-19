@@ -187,7 +187,7 @@ class ModelTest {
 
     @Test
     fun cantUseUnregisteredFeature() {
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Model.builder().constrained(flag()).build()
         }
     }
@@ -195,7 +195,7 @@ class ModelTest {
     @Test
     fun cantRegisterFeatureTwice() {
         val f = flag()
-        assertFailsWith(ValidationException::class) {
+        assertFailsWith(IllegalArgumentException::class) {
             Model.builder().optional(f).optional(f).build()
         }
     }

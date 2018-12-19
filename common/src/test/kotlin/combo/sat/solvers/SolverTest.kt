@@ -30,6 +30,17 @@ abstract class SolverTest {
     }
 
     @Test
+    fun emptyProblemSat() {
+        val p = Problem(arrayOf(), 0)
+        val pt = UnitPropagationTable(p)
+        val solver = solver(p, pt)
+        if (solver != null) {
+            val l = solver.witnessOrThrow()
+            assertEquals(0, l.size)
+        }
+    }
+
+    @Test
     fun smallUnsat() {
         for ((i, d) in smallUnsatProblems.withIndex()) {
             val (p, pt) = d

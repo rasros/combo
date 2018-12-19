@@ -6,6 +6,7 @@ import combo.test.assertEquals
 import kotlin.math.max
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -15,6 +16,17 @@ abstract class LinearOptimizerTest {
     abstract fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig = SolverConfig()): Optimizer<LinearObjective>?
     abstract fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig = SolverConfig()): Optimizer<LinearObjective>?
     abstract fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig = SolverConfig()): Optimizer<LinearObjective>?
+
+    @Test
+    fun emptyProblemSat() {
+        val p = Problem(arrayOf(), 0)
+        val pt = UnitPropagationTable(p)
+        val optimizer = optimizer(p, pt)
+        if (optimizer != null) {
+            val l = optimizer.optimizeOrThrow(LinearObjective(doubleArrayOf()))
+            assertEquals(0, l.size)
+        }
+    }
 
     @Test
     fun smallUnsat() {

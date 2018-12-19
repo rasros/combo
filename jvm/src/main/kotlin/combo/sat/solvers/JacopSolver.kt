@@ -72,6 +72,7 @@ class JacopSolver(problem: Problem,
     override fun witnessOrThrow(assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
+            if (optimizeVars.isEmpty()) return config.labelingBuilder.build(0)
             if (assumptions.isNotEmpty()) {
                 for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
@@ -130,6 +131,7 @@ class JacopSolver(problem: Problem,
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
+            if (optimizeVars.isEmpty()) return config.labelingBuilder.build(0)
             if (assumptions.isNotEmpty()) {
                 for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }

@@ -8,17 +8,6 @@ import kotlin.test.assertTrue
 class TreeTest {
     class TestTree(override val value: String, override val children: List<TestTree>) : Tree<String, TestTree>
 
-    // TODO more tests
-
-    // h
-    //   g
-    //   f
-    //     c
-    //     d
-    //     e
-    //       a
-    //       b
-
     private val a = TestTree("a", emptyList())
     private val b = TestTree("b", emptyList())
     private val c = TestTree("c", emptyList())
