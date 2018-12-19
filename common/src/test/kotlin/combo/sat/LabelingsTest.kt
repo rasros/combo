@@ -95,7 +95,7 @@ abstract class LabelingTest<T : MutableLabeling> {
         val l = builder.build(3).apply { setAll(intArrayOf(0, 2, 5)) }
         val l2 = l.copy()
         l2[0] = false
-        assertNotEquals(l, l2)
+        assertFalse(l == l2) // cant use assertEquals due to kotlin-js-test bug
         assertTrue(l[0])
         assertFalse(l2[0])
     }
