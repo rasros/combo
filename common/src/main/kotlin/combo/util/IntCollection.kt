@@ -23,8 +23,8 @@ interface IntCollection : Iterable<Ix> {
 
     fun random(rng: Random = Random.Default): Int
     fun add(ix: Ix): Boolean
-    fun addAll(ixs: IntArray) = ixs.fold(true) { all, it -> this.add(it) && all }
-    fun addAll(ixs: Iterable<Ix>) = ixs.fold(true) { all, it -> this.add(it) && all }
+    fun addAll(ixs: IntArray) = ixs.fold(false) { any, it -> this.add(it) || any }
+    fun addAll(ixs: Iterable<Ix>) = ixs.fold(false) { any, it -> this.add(it) || any }
     fun remove(ix: Ix): Boolean
 }
 
@@ -93,10 +93,12 @@ class IntSet private constructor(private var table: IntArray, private var _size:
             override fun hasNext() = seen < size
 
             override fun nextInt(): Int {
-                while (table[ptr] < 0)
-                    ptr++
                 seen++
-                return table[ptr++]
+                while (table[ptr] < 0)
+                    ptr = (ptr + 1) % table.size
+                return table[ptr].also {
+                    ptr = (ptr + 1) % table.size
+                }
             }
         }
     }
@@ -159,7 +161,7 @@ class IntSet private constructor(private var table: IntArray, private var _size:
 
 class IntList private constructor(private var array: IntArray, private var _size: Int) : IntCollection {
 
-    constructor(initialSize: Int) : this(IntArray(initialSize), 0)
+    constructor(initialSize: Int = 4) : this(IntArray(initialSize), 0)
 
     override val size: Int
         get () = _size
