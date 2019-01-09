@@ -2,24 +2,18 @@ package combo.sat
 
 import combo.math.LongPermutation
 import combo.util.ConcurrentLong
-import kotlin.jvm.JvmOverloads
-import kotlin.jvm.JvmStatic
 import kotlin.math.ceil
 import kotlin.math.pow
 import kotlin.random.Random
 
-class LabelingPermutation<T : MutableLabeling> private constructor(val builder: LabelingBuilder<T>, rng: Random, private val nbrVariables: Int) {
+class LabelingPermutation private constructor(val factory: LabelingFactory, rng: Random, private val nbrVariables: Int) {
 
     companion object {
-        @JvmStatic
-        @JvmOverloads
-        fun sequence(nbrVariables: Int, rng: Random = Random.Default) = sequence(nbrVariables, BitFieldLabelingBuilder(), rng)
+        fun sequence(nbrVariables: Int, rng: Random = Random) = sequence(nbrVariables, BitFieldLabelingFactory, rng)
 
-        @JvmStatic
-        @JvmOverloads
-        fun <T : MutableLabeling> sequence(nbrVariables: Int, builder: LabelingBuilder<T>, rng: Random = Random.Default): Sequence<T> {
+        fun sequence(nbrVariables: Int, factory: LabelingFactory, rng: Random = Random): Sequence<MutableLabeling> {
             val limit = 2.0.pow(nbrVariables).toInt()
-            val r = LabelingPermutation(builder, rng, nbrVariables)
+            val r = LabelingPermutation(factory, rng, nbrVariables)
             return generateSequence { r.next() }.take(limit)
         }
     }
@@ -35,8 +29,8 @@ class LabelingPermutation<T : MutableLabeling> private constructor(val builder: 
         }
     }
 
-    fun next(): T {
-        val labeling = builder.build(nbrVariables)
+    fun next(): MutableLabeling {
+        val labeling = factory.create(nbrVariables)
         val c = count.getAndIncrement()
         for ((i, perm) in permutation.withIndex()) {
             val mask = perm.encode(c)
