@@ -219,6 +219,7 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
                     ?: throw IllegalArgumentException("Value of ${this@Multiple} must be a collection but got $t.")
             if (col.isEmpty())
                 throw UnsatisfiableException("Collection for ${this@Multiple} can not be empty.")
+            // TODO should use labeling truthIterator to loop instead
             val arr = IntArray(col.size)
             var k = 0
             for (v in col) {
@@ -276,7 +277,7 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
 
         override fun valueOf(labeling: Labeling): V? {
             if (indices[0] >= 0 && !labeling[indices[0]]) return null
-            // TODO should use labeling to loop instead
+            // TODO should use labeling truthIterator to loop instead
             for (i in 1 until indices.size)
                 if (indices[i] >= 0 && labeling[indices[i]]) return values[i - 1]
             throw IllegalStateException("Inconsistent labeling, should have something set for ${this@Alternative}.")
