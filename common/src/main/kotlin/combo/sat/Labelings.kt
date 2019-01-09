@@ -5,21 +5,57 @@ import combo.util.IntSet
 import kotlin.experimental.and
 import kotlin.experimental.xor
 import kotlin.math.max
-import kotlin.random.Random
+
+interface Labeling : Iterable<Int> {
+    val size: Int
+    val indices: IntRange
+        get() = 0 until size
+
+    fun copy(): Labeling
+    fun asLiteral(ix: Ix): Literal = ix.asLiteral(this[ix])
+    operator fun get(ix: Ix): Boolean
+
+    override fun iterator() = object : IntIterator() {
+        var i = 0
+        override fun hasNext() = i < size
+        override fun nextInt() = this@Labeling.asLiteral(i++)
+    }
+
+    fun truthIterator() = object : IntIterator() {
+        var i = 0
+
+        init {
+            while (i < size && !this@Labeling[i]) i++
+        }
+
+        override fun hasNext() = i < size
+        override fun nextInt() = this@Labeling.asLiteral(i).also {
+            i++
+            while (i < size && !this@Labeling[i]) i++
+        }
+    }
+
+    fun asLiterals() = IntArray(size) { asLiteral(it) }
+}
+
+interface MutableLabeling : Labeling {
+    fun flip(ix: Ix) = set(ix, !get(ix))
+    fun set(literal: Literal) = set(literal.asIx(), literal.asBoolean())
+    fun setAll(literals: Literals) = literals.forEach { set(it) }
+    override fun copy(): MutableLabeling
+    operator fun set(ix: Ix, value: Boolean)
+}
 
 internal fun Labeling.deepEquals(other: Labeling): Boolean {
     if (size != other.size) return false
-    for (l in truthIterator())
-        if (!other[l.asIx()])
-            return false
+    for (i in 0 until size) if (this[i] != other[i]) return false
     return true
 }
 
 internal fun Labeling.deepHashCode(): Int {
     var result = size
-    for (i in truthIterator()) {
-        result = 31 * result + i.asIx()
-    }
+    for (i in truthIterator())
+        result = 31 * result + i
     return result
 }
 
@@ -30,21 +66,12 @@ infix fun Labeling.dot(v: Vector) =
 
 fun Labeling.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
 
-interface LabelingBuilder<out T : MutableLabeling> {
-    fun build(size: Int): T
-    fun build(size: Int, posLiterals: Literals) = build(size).apply {
-        for (l in posLiterals) this.set(l)
-    }
-
-    fun generate(size: Int, rng: Random) = build(size).apply {
-        for (i in this.indices)
-            if (rng.nextBoolean())
-                this.flip(i)
-    }
+interface LabelingFactory {
+    fun create(size: Int): MutableLabeling
 }
 
-class IntSetLabelingBuilder : LabelingBuilder<IntSetLabeling> {
-    override fun build(size: Int) = IntSetLabeling(size)
+object IntSetLabelingFactory : LabelingFactory {
+    override fun create(size: Int) = IntSetLabeling(size)
 }
 
 class IntSetLabeling(override val size: Int, val intSet: IntSet = IntSet(max(2, (size * 0.2).toInt()))) : MutableLabeling {
@@ -62,8 +89,8 @@ class IntSetLabeling(override val size: Int, val intSet: IntSet = IntSet(max(2, 
     override fun toString() = deepToString()
 }
 
-class ByteArrayLabelingBuilder : LabelingBuilder<ByteArrayLabeling> {
-    override fun build(size: Int) = ByteArrayLabeling(size)
+object ByteArrayLabelingFactory : LabelingFactory {
+    override fun create(size: Int) = ByteArrayLabeling(size)
 }
 
 class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
@@ -96,17 +123,8 @@ class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
     override fun toString() = deepToString()
 }
 
-class BitFieldLabelingBuilder : LabelingBuilder<BitFieldLabeling> {
-    override fun build(size: Int) = BitFieldLabeling(size)
-    override fun generate(size: Int, rng: Random) = build(size).apply {
-        for (i in 0 until field.size) {
-            field[i] = rng.nextLong()
-        }
-        if (field.isNotEmpty()) {
-            val mask = (1L shl (size.rem(Long.SIZE_BITS))) - 1
-            field[0] = field[0] and mask
-        }
-    }
+object BitFieldLabelingFactory : LabelingFactory {
+    override fun create(size: Int) = BitFieldLabeling(size)
 }
 
 class BitFieldLabeling constructor(override val size: Int, val field: LongArray) : MutableLabeling {
