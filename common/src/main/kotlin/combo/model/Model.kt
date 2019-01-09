@@ -25,11 +25,23 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
 
     fun toAssignment(labeling: Labeling) = Assignment(labeling, featureMetas)
 
+    fun variableIndex(): Array<Feature<*>> {
+        val list = ArrayList<Feature<*>>()
+        for (f in featureMetas)
+            for (j in f.value.indexEntry.indices) {
+                if (j >= 0) list.add(f.key)
+            }
+        require(list.size == problem.nbrVariables)
+        return list.toTypedArray()
+    }
+
     class Builder private constructor(
             override val value: Feature<*>,
             override val children: MutableList<Builder>,
             private val declarations: MutableSet<Feature<*>>? = null,
             private val sentences: MutableList<SentenceBuilder>? = null) : Tree<Feature<*>, Builder> {
+        // TODO optimizations in building procedure
+        // TODO ideas: don't add disjunctions to root
 
         @JvmOverloads
         constructor(feature: Feature<*> = flag("root")) : this(feature, ArrayList(), HashSet(), ArrayList()) {
