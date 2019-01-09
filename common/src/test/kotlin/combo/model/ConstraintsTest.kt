@@ -14,7 +14,7 @@ class ConstraintsTest {
         val cb = vars[0] and vars[1] and vars[3]
         val c = cb.toClause(index)
         assertTrue(c is Conjunction)
-        assertContentEquals(intArrayOf(0, 2, 6), c.literals)
+        assertContentEquals(intArrayOf(0, 2, 6), c.literals.toArray().apply { sort() })
     }
 
     @Test
@@ -22,7 +22,7 @@ class ConstraintsTest {
         val c = vars[2] and !vars[3] and vars[4]
         val d = (!c).toClause(index)
         assertTrue(d is Disjunction)
-        assertContentEquals(intArrayOf(5, 6, 9), d.literals)
+        assertContentEquals(intArrayOf(5, 6, 9), d.literals.toArray().apply { sort() })
     }
 
     @Test
@@ -30,7 +30,7 @@ class ConstraintsTest {
         val db = vars[1] or vars[4] or vars[5]
         val d = db.toClause(index)
         assertTrue(d is Disjunction)
-        assertContentEquals(intArrayOf(2, 8, 10), d.literals)
+        assertContentEquals(intArrayOf(2, 8, 10), d.literals.toArray().apply { sort() })
     }
 
     @Test
@@ -38,7 +38,7 @@ class ConstraintsTest {
         val d = vars[4] and !vars[5]
         val c = d.toClause(index)
         assertTrue(c is Conjunction)
-        assertContentEquals(intArrayOf(8, 11), c.literals)
+        assertContentEquals(intArrayOf(8, 11), c.literals.toArray().apply { sort() })
     }
 
     @Test
@@ -49,7 +49,7 @@ class ConstraintsTest {
         val sents = neg.toSentences(index)
         assertEquals(1, sents.size)
         val d = sents[0] as Disjunction
-        assertContentEquals(intArrayOf(1, 3, 5, 7), d.literals)
+        assertContentEquals(intArrayOf(1, 3, 5, 7), d.literals.toArray().apply { sort() })
     }
 
     @Test
@@ -60,10 +60,10 @@ class ConstraintsTest {
         val sents = neg.toSentences(index)
         assertEquals(4, sents.size)
         for (sent in sents) assertTrue(sent is Disjunction)
-        assertContentEquals(intArrayOf(1, 5), sents[0].literals)
-        assertContentEquals(intArrayOf(1, 7), sents[1].literals)
-        assertContentEquals(intArrayOf(3, 5), sents[2].literals)
-        assertContentEquals(intArrayOf(3, 7), sents[3].literals)
+        assertContentEquals(intArrayOf(1, 5), sents[0].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(1, 7), sents[1].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(3, 5), sents[2].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(3, 7), sents[3].literals.toArray().apply { sort() })
     }
 
     @Test
@@ -74,8 +74,8 @@ class ConstraintsTest {
         val sents = neg.toSentences(index)
         assertEquals(2, sents.size)
         for (sent in sents) assertTrue(sent is Disjunction)
-        assertContentEquals(intArrayOf(1, 5, 7), sents[0].literals)
-        assertContentEquals(intArrayOf(3, 5, 7), sents[1].literals)
+        assertContentEquals(intArrayOf(1, 5, 7), sents[0].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(3, 5, 7), sents[1].literals.toArray().apply { sort() })
     }
 
     @Test
@@ -277,7 +277,7 @@ class ConstraintsTest {
         val sents = c.toSentences(index)
         assertEquals(1, sents.size)
         assertTrue(sents[0] is Conjunction)
-        assertContentEquals(intArrayOf(0, 8), sents[0].literals)
+        assertContentEquals(intArrayOf(0, 8), sents[0].literals.toArray().apply { sort() })
     }
 
     @Test
@@ -289,7 +289,7 @@ class ConstraintsTest {
         val sents = c.toSentences(index)
         assertEquals(1, sents.size)
         assertTrue(sents[0] is Conjunction)
-        assertContentEquals(intArrayOf(0, 8), sents[0].literals)
+        assertContentEquals(intArrayOf(0, 8), sents[0].literals.toArray().apply { sort() })
     }
 
     @Test
@@ -354,10 +354,10 @@ class CnfBuilderTest {
         val sents2 = cnf2.toSentences(index)
         assertEquals(2, sents1.size)
         assertEquals(2, sents2.size)
-        assertContentEquals(intArrayOf(0, 2), sents1[0].literals)
-        assertContentEquals(intArrayOf(4, 6), sents1[1].literals)
-        assertContentEquals(intArrayOf(0, 2, 8, 10), sents2[0].literals)
-        assertContentEquals(intArrayOf(4, 6, 8, 10), sents2[1].literals)
+        assertContentEquals(intArrayOf(0, 2), sents1[0].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(4, 6), sents1[1].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(0, 2, 8, 10), sents2[0].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(4, 6, 8, 10), sents2[1].literals.toArray().apply { sort() })
     }
 
     @Test
@@ -367,8 +367,8 @@ class CnfBuilderTest {
         val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(vars[0], vars[2])))
         val sents = cnf2.toSentences(index)
         assertEquals(2, sents.size)
-        assertContentEquals(intArrayOf(0, 2, 4), sents[0].literals)
-        assertContentEquals(intArrayOf(0, 4, 6), sents[1].literals)
+        assertContentEquals(intArrayOf(0, 2, 4), sents[0].literals.toArray().apply { sort() })
+        assertContentEquals(intArrayOf(0, 4, 6), sents[1].literals.toArray().apply { sort() })
     }
 
     @Test
@@ -378,7 +378,7 @@ class CnfBuilderTest {
         val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(!vars[0])))
         val sents = cnf2.toSentences(index)
         assertEquals(1, sents.size)
-        assertContentEquals(intArrayOf(1, 4, 6), sents[0].literals)
+        assertContentEquals(intArrayOf(1, 4, 6), sents[0].literals.toArray().apply { sort() })
     }
 
     @Test
