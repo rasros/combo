@@ -7,9 +7,9 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
     val nbrSentences get() = sentences.size
 
-    val variableSentences: Array<IntArray> = Array(nbrVariables) { IntList(2) }.let { lists ->
-        for ((i, clause) in sentences.withIndex()) {
-            for (lit in clause) {
+    private val variableSentences: Array<IntArray> = Array(nbrVariables) { IntList() }.let { lists ->
+        for ((i, sent) in sentences.withIndex()) {
+            for (lit in sent) {
                 val ix = lit.asIx()
                 lists[ix].add(i)
             }
@@ -19,9 +19,9 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
     fun sentencesWith(varIx: Ix) = variableSentences[varIx]
 
-    fun satisfies(l: Labeling, s: Labeling? = null) = sentences.all { it.satisfies(l, s) }
+    fun satisfies(l: Labeling) = sentences.all { it.satisfies(l) }
 
-    fun flipsToSatisfy(l: Labeling, s: Labeling? = null) = sentences.sumBy { it.flipsToSatisfy(l, s) }
+    fun flipsToSatisfy(l: Labeling) = sentences.sumBy { it.flipsToSatisfy(l) }
 
     fun unitPropagation(units: IntSet = IntSet()): Array<Sentence> {
 
@@ -34,7 +34,7 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
         if (units.isNotEmpty())
             unitsIx.add(sentences.size + 1)
 
-        val initial = Conjunction(units.toArray().apply { sort() })
+        val initial = Conjunction(units.copy())
         for (i in sentences.indices)
             if (sentences[i].isUnit()) {
                 unitsIx.add(i)
@@ -66,7 +66,7 @@ class Problem(val sentences: Array<out Sentence>, val nbrVariables: Int) {
 
     fun simplify(units: IntSet = IntSet(), addConjunction: Boolean = false): Problem {
         var reduced = unitPropagation(units)
-        if (addConjunction && units.isNotEmpty()) reduced += Conjunction(units.toArray().apply { sort() })
+        if (addConjunction && units.isNotEmpty()) reduced += Conjunction(units)
         return Problem(reduced, nbrVariables)
     }
 }
