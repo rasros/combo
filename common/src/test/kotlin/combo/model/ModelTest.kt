@@ -1,16 +1,17 @@
 package combo.model
 
+import combo.math.IntPermutation
 import combo.sat.BitFieldLabeling
-import combo.sat.ValidationException
 import combo.sat.solvers.ExhaustiveSolver
 import combo.sat.solvers.LocalSearchSolver
+import kotlin.random.Random
 import kotlin.test.*
 
 class ModelTest {
 
     companion object {
 
-        val small1 = let {
+        val SMALL1 = let {
             // UnitFlag
             // NormalFlag
             // NormalAlternative
@@ -35,7 +36,7 @@ class ModelTest {
                     .build()
         }
 
-        val small2 = let {
+        val SMALL2 = let {
             // NullFlag
             // NullOr
             // NullAlternative
@@ -56,7 +57,7 @@ class ModelTest {
                     .build()
         }
 
-        val small3 = let {
+        val SMALL3 = let {
             // UnitOptions
             val f1 = flag(name = "f1")
             val f2 = flag(name = "f2")
@@ -73,7 +74,7 @@ class ModelTest {
                     .build()
         }
 
-        val small4 = let {
+        val SMALL4 = let {
             // Small and predictable
             val a = alternative(1, 2)
             val f = flag()
@@ -81,7 +82,33 @@ class ModelTest {
             Model.builder().optional(a).optional(o).optional(f).build()
         }
 
-        val smallUnsat1 = let {
+        val SMALL5 = let {
+            // Using constraint with all cardinality options
+            val a = alternative(1, 2, 3)
+            val b = flag()
+            val c = flag()
+            val d = flag()
+            val o = multiple(5, 6, 7, 8)
+            Model.builder()
+                    .optional(a).optional(b).optional(c).optional(d).optional(o)
+                    .constrained(atMost(b, c, d, degree = 1))
+                    .constrained(exactly(a.option(2), o.option(8), b, c, degree = 1))
+                    .constrained(atLeast(a, b, c, d, o, degree = 1))
+                    .build()
+        }
+
+        val SMALL_UNSAT1 = let {
+            val f1 = flag()
+            val f2 = flag()
+            val builder = Model.builder().optional(f1).optional(f2)
+            builder.constrained(f1 or f2)
+            builder.constrained(f1 or !f2)
+            builder.constrained(!f1 or f2)
+            builder.constrained(!f1 or !f2)
+            builder.build()
+        }
+
+        val SMALL_UNSAT2 = let {
             val f1 = flag()
             val f2 = flag()
             val f3 = flag()
@@ -97,15 +124,24 @@ class ModelTest {
             builder.build()
         }
 
-        val large1 = let {
+        val SMALL_UNSAT3 = let {
+            val builder = Model.builder()
+            val a = alternative(1..10)
+            builder.optional(a)
+            builder.constrained(atLeast(a.option(1), a.option(2), a.option(3), degree = 2))
+            builder.build()
+        }
+
+        val LARGE1 = let {
             // Alternative hierarchies
-            val A1 = alternative(1 until 10, "A1")
-            val A2 = alternative(5 until 100 step 5, "A2")
-            val A3 = alternative(5 until 100 step 5, "A3")
+            val A1 = alternative(1 until 100, "A1")
+            val A2 = alternative(1 until 100, "A2")
+            val A3 = alternative(1 until 100, "A3")
             Model.builder(A1).optional(Model.builder(A2).optional(Model.builder(A3))).build()
         }
 
-        val large2 = let {
+        val LARGE2 = let {
+            // Typical hierarchy
             val root = Model.builder("Category")
             for (i in 1..5) {
                 val sub = Model.builder("Cat$i")
@@ -120,37 +156,40 @@ class ModelTest {
                 sub.constrained(sub.value reified or(sub.children.map { it.value }))
                 root.optional(sub)
             }
-            root.constrained(atMost(root.leaves().map { it.value }.toList(), 5))
+            root.constrained(exactly(root.leaves().map { it.value }.toList(), 5))
             root.build()
         }
 
-        val smallModels: Array<Model> = arrayOf(small1, small2, small3, small4)
-        val smallUnsatModels: Array<Model> = arrayOf(smallUnsat1)
-        val largeModels: Array<Model> = arrayOf(large1, large2)
+        val LARGE3 = let {
+            // Flag chain
+            val root = Model.builder("Flag chain")
+            var k = 0
+            var next = Model.builder("${k++}")
+            root.optional(next)
+            for (i in 1..500)
+                next = Model.builder("${k++}").also { next.optional(it) }
+            root.build()
+        }
 
-        val hugeModel = let {
-            val root = Model.builder("Category")
-            for (i in 1..5) {
-                val sub = Model.builder("Cat$i")
-                for (j in 1..10) {
-                    val subsub = Model.builder("Cat$i$j")
-                    for (k in 1..10) {
-                        subsub.optional(flag("Cat$i$j$k"))
-                    }
-                    subsub.constrained(subsub.value reified or(subsub.children.map { it.value }))
-                    sub.optional(subsub)
-                }
-                sub.constrained(sub.value reified or(sub.children.map { it.value }))
-                root.optional(sub)
+        val LARGE4 = let {
+            // Random disjunctions
+            val flags = Array(500) { flag("$it") }
+            val root = Model.builder("Random disjunctions")
+            for (flag in flags) root.optional(flag)
+            val rng = Random(0)
+            for (i in 1..1000) {
+                root.constrained(DisjunctionBuilder(IntPermutation(flags.size, rng).asSequence()
+                        .take(rng.nextInt(8) + 2)
+                        .map { flags[it] }
+                        .map { if (rng.nextBoolean()) it.not() else it }
+                        .toList().toTypedArray()))
             }
-            root.mandatory(alternative(1..100))
-            root.constrained(exactly(root.leaves().map { it.value }.toList(), 10))
-            root.constrained(exactly(root.children.map { it.value }.toList(), 2))
-            root.constrained(exactly(root.children.filter { it.children.isNotEmpty() }.map { it.children[0].value }, 1))
-            root.constrained(excludes(root.children[0].value, root.children[4].value, root.children[1].children[0].value))
-            root.constrained(excludes(root.children[1].value, root.children[5].value, root.children[3].value))
             root.build()
         }
+
+        val SMALL_MODELS: Array<Model> = arrayOf(SMALL1, SMALL2, SMALL3, SMALL4, SMALL5)
+        val SMALL_UNSAT_MODELS: Array<Model> = arrayOf(SMALL_UNSAT1, SMALL_UNSAT2, SMALL_UNSAT3)
+        val LARGE_MODEL: Array<Model> = arrayOf(LARGE1, LARGE2, LARGE3, LARGE4)
     }
 
     @Test
@@ -175,12 +214,12 @@ class ModelTest {
 
     @Test
     fun problemCreation() {
-        val p = small4.problem
+        val p = SMALL4.problem
         assertEquals(7, p.nbrVariables)
         val l = BitFieldLabeling(1, LongArray(1) { 0b0 })
-        for (f in small4.features) {
+        for (f in SMALL4.features) {
             if (f.name != "${"$"}root")
-                assertNull(small4.toAssignment(l)[f])
+                assertNull(SMALL4.toAssignment(l)[f])
         }
         assertTrue(p.satisfies(l))
     }
