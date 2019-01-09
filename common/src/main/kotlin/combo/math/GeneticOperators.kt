@@ -3,9 +3,7 @@
 package combo.math
 
 import combo.sat.MutableLabeling
-import combo.sat.UnitPropagationTable
 import kotlin.jvm.JvmName
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 class PopulationState(
@@ -20,10 +18,10 @@ interface CrossoverFunction {
     fun crossover(l1: MutableLabeling, l2: MutableLabeling, rng: Random)
 }
 
-class UniformCrossoverFunction(private val mixingRate: Double = 0.5) : CrossoverFunction {
+object UniformCrossoverFunction : CrossoverFunction {
     override fun crossover(l1: MutableLabeling, l2: MutableLabeling, rng: Random) {
         for (i in 0 until l1.size) {
-            if (rng.nextDouble() < mixingRate) {
+            if (rng.nextBoolean()) {
                 val tmp = l1[i]
                 l1[i] = l2[i]
                 l2[i] = tmp
@@ -59,7 +57,7 @@ interface SelectionFunction {
 /**
  * Implemented using stochastic acceptance
  */
-class FitnessProportionalSampling : SelectionFunction {
+object FitnessProportionalSampling : SelectionFunction {
     override fun select(nbrParents: Int, scores: DoubleArray, rng: Random, state: PopulationState): Int {
         if (state.scoreStatistic.max.isInfinite() || state.scoreStatistic.max.isNaN()) return rng.nextInt(nbrParents)
         while (true) {
@@ -120,6 +118,8 @@ interface MutationFunction {
     fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState)
 }
 
+// TODO One plus one and fastga
+
 class FlipMutation(val flips: Int = 1) : MutationFunction {
     override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
         for (i in 1..flips) {
@@ -129,23 +129,3 @@ class FlipMutation(val flips: Int = 1) : MutationFunction {
     }
 }
 
-class PropagatedFlipMutation(val problem: UnitPropagationTable, val flips: Int = 1) : MutationFunction {
-    override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
-        for (i in 1..flips) {
-            val ix = rng.nextInt(labeling.size)
-            labeling.flip(ix)
-            labeling.setAll(problem.literalPropagations[labeling.asLiteral(ix)])
-        }
-    }
-}
-
-class PropagatedAdaptiveFlipMutation(val problem: UnitPropagationTable) : MutationFunction {
-    override fun mutate(labeling: MutableLabeling, score: Double, rng: Random, state: PopulationState) {
-        val flips = (state.scoreStatistic.max - score) / (state.scoreStatistic.max - state.scoreStatistic.mean) * 0.5
-        for (i in 1..flips.roundToInt()) {
-            val ix = rng.nextInt(labeling.size)
-            labeling.flip(ix)
-            labeling.setAll(problem.literalPropagations[labeling.asLiteral(ix)])
-        }
-    }
-}
