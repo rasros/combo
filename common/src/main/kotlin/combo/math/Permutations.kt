@@ -5,7 +5,7 @@ import kotlin.random.Random
 private const val INT_ROUNDS = 4
 private const val LONG_ROUNDS = 7
 
-class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random.Default) : Iterable<Int> {
+class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random) : Iterable<Int> {
 
     private val mask: Int // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
