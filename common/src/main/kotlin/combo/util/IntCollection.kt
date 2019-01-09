@@ -1,5 +1,6 @@
 package combo.util
 
+import combo.math.IntPermutation
 import combo.sat.Ix
 import combo.util.IntSet.Companion.LOAD_FACTOR
 import combo.util.IntSet.Companion.hash
@@ -9,6 +10,10 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.random.Random
 
+fun collectionOf(array: IntArray) =
+        if (array.size > 20) IntSet().apply { addAll(array) }
+        else IntList(array)
+
 interface IntCollection : Iterable<Ix> {
 
     val size: Int
@@ -16,10 +21,12 @@ interface IntCollection : Iterable<Ix> {
     fun isNotEmpty() = size > 0
     fun copy(): IntCollection
     fun clear()
-    fun contains(ix: Ix): Boolean
+    operator fun contains(ix: Ix): Boolean
     fun toArray(): IntArray
+    fun map(transform: (Int) -> Int): IntCollection
 
     override fun iterator(): IntIterator
+    fun permutation(rng: Random = Random): IntIterator
 
     fun random(rng: Random = Random.Default): Int
     fun add(ix: Ix): Boolean
@@ -33,7 +40,7 @@ interface IntCollection : Iterable<Ix> {
  * Also supports getting a random value from the index. It uses linear probing (remove operation works only with linear
  * probing).
  */
-class IntSet private constructor(private var table: IntArray, private var _size: Int) : IntCollection {
+class IntSet private constructor(private var table: IntArray, size: Int) : IntCollection {
 
     constructor(initialSize: Int = 4) : this(IntArray(tableSizeFor(initialSize)) { -1 }, 0)
 
@@ -65,15 +72,15 @@ class IntSet private constructor(private var table: IntArray, private var _size:
         }
     }
 
-    override val size: Int
-        get() = _size
+    override var size: Int = size
+        private set
 
     override fun copy() = IntSet(table.copyOf(), size)
 
     override fun clear() {
         table = table.copyOf(tableSizeFor(4))
         table.forEachIndexed { i, _ -> table[i] = -1 }
-        _size = 0
+        size = 0
     }
 
     override operator fun contains(ix: Int) = table[linearProbe(ix)] >= 0
@@ -84,6 +91,14 @@ class IntSet private constructor(private var table: IntArray, private var _size:
         for (i in table.indices)
             if (table[i] >= 0) result[ix++] = table[i]
         return result
+    }
+
+    override fun map(transform: (Int) -> Int): IntCollection {
+        val mapped = IntSet(size)
+        for (i in table) {
+            if (i >= 0) mapped.add(transform(i))
+        }
+        return mapped
     }
 
     override fun iterator(): IntIterator {
@@ -97,6 +112,24 @@ class IntSet private constructor(private var table: IntArray, private var _size:
                 while (table[ptr] < 0)
                     ptr = (ptr + 1) % table.size
                 return table[ptr].also {
+                    ptr = (ptr + 1) % table.size
+                }
+            }
+        }
+    }
+
+    override fun permutation(rng: Random): IntIterator {
+        return object : IntIterator() {
+            private var perm = IntPermutation(table.size, rng)
+            private var seen = 0
+            private var ptr = 0
+            override fun hasNext() = seen < size
+
+            override fun nextInt(): Int {
+                seen++
+                while (table[perm.encode(ptr)] < 0)
+                    ptr = (ptr + 1) % table.size
+                return table[perm.encode(ptr)].also {
                     ptr = (ptr + 1) % table.size
                 }
             }
@@ -117,16 +150,16 @@ class IntSet private constructor(private var table: IntArray, private var _size:
             return false
         if (tableSizeFor(size + 1) > table.size)
             rehash()
-        _size++
+        size++
         table[linearProbe(ix)] = ix
         return true
     }
 
     private fun rehash() {
         val old = table
-        table = IntArray(tableSizeFor((_size.toDouble() / LOAD_FACTOR).toInt()))
+        table = IntArray(tableSizeFor((size.toDouble() / LOAD_FACTOR).toInt()))
         table.forEachIndexed { i, _ -> table[i] = -1 }
-        _size = 0
+        size = 0
         for (i in old.indices)
             if (old[i] >= 0) add(old[i])
     }
@@ -134,7 +167,7 @@ class IntSet private constructor(private var table: IntArray, private var _size:
     override fun remove(ix: Ix): Boolean {
         var i = linearProbe(ix)
         if (table[i] < 0) return false
-        _size--
+        size--
 
         var j = i
         table[i] = -1
@@ -159,31 +192,37 @@ class IntSet private constructor(private var table: IntArray, private var _size:
     }
 }
 
-class IntList private constructor(private var array: IntArray, private var _size: Int) : IntCollection {
+class IntList private constructor(private var array: IntArray, size: Int) : IntCollection {
 
     constructor(initialSize: Int = 4) : this(IntArray(initialSize), 0)
+    constructor(array: IntArray) : this(array, array.size)
 
-    override val size: Int
-        get () = _size
+    override var size: Int = size
+        private set
 
     override fun copy() = IntList(array.copyOf(), size)
 
     override fun clear() {
-        _size = 0
+        size = 0
     }
 
-    operator override fun contains(ix: Ix) = indexOf(ix) >= 0
+    override operator fun contains(ix: Ix) = indexOf(ix) >= 0
 
     operator fun get(index: Int) = array[index]
 
     fun indexOf(ix: Int): Int {
-        for (i in 0 until _size) {
+        for (i in 0 until size) {
             if (array[i] == ix) return i
         }
         return -1
     }
 
-    override fun toArray() = array.copyOfRange(0, _size)
+    override fun toArray() = array.copyOfRange(0, size)
+
+    override fun map(transform: (Int) -> Int) =
+            IntList(IntArray(size) { i ->
+                transform(this.array[i])
+            })
 
     override fun iterator() = object : IntIterator() {
         private var ptr = 0
@@ -191,21 +230,29 @@ class IntList private constructor(private var array: IntArray, private var _size
         override fun nextInt() = array[ptr++]
     }
 
-    override fun random(rng: Random) = array[rng.nextInt(_size)]
+    override fun permutation(rng: Random) = object : IntIterator() {
+        private var ptr = 0
+        private var perm = IntPermutation(size, rng)
+        override fun hasNext() = ptr < size
+        override fun nextInt() = array[perm.encode(ptr++)]
+    }
+
+    override fun random(rng: Random) = array[rng.nextInt(size)]
 
     override fun add(ix: Int): Boolean {
-        if (array.size == _size)
+        if (array.size == size)
             array = array.copyOf(array.size * 2)
-        array[_size++] = ix
+        array[size++] = ix
         return true
     }
 
     override fun remove(ix: Int): Boolean {
         val indexOf = indexOf(ix)
         if (indexOf >= 0) {
-            _size--
-            for (i in indexOf until _size)
+            size--
+            for (i in indexOf until size)
                 array[i] = array[i + 1]
+            array[size] = 0
             return true
         }
         return false
@@ -214,26 +261,33 @@ class IntList private constructor(private var array: IntArray, private var _size
 
 typealias IntEntry = Long
 
-fun IntEntry.key() = (this ushr (Int.SIZE_BITS)).toInt()
-fun IntEntry.value() = (this shl (Int.SIZE_BITS)).toInt()
-
 /**
  * Specialized open addressing hash table for storing index variables. Storing only positive (>=0) integers.
  * Also supports getting a random value from the index. It uses linear probing (remove operation works only with linear
  * probing).
  */
-class IntMap private constructor(private var table: LongArray, private var _size: Int) : Iterable<IntEntry> {
+class IntMap private constructor(private var table: LongArray, size: Int) : Iterable<IntEntry> {
+    companion object {
+        private val INITIAL_VALUE: IntEntry = (-1L shl Int.SIZE_BITS)
 
-    constructor(initialSize: Int = 4) : this(LongArray(tableSizeFor(initialSize)), 0)
+        fun IntEntry.key() = (this ushr (Int.SIZE_BITS)).toInt()
+        fun IntEntry.value() = (this shl (Int.SIZE_BITS)).toInt()
+        fun entry(key: Int, value: Int) = key.toLong() shl Int.SIZE_BITS or value.toLong()
+    }
 
-    val size: Int
-        get() = _size
+    constructor(initialSize: Int = 4) : this(LongArray(tableSizeFor(initialSize)) { INITIAL_VALUE }, 0)
+
+    var size: Int = size
+        private set
 
     fun copy() = IntMap(table.copyOf(), size)
 
+    fun isEmpty() = size == 0
+    fun isNotEmpty() = size > 0
+
     fun clear() {
-        table.forEachIndexed { i, _ -> table[i] = -1 }
-        _size = 0
+        table.forEachIndexed { i, _ -> table[i] = INITIAL_VALUE }
+        size = 0
     }
 
     operator fun contains(ix: Int) = table[linearProbe(ix)] >= 0
@@ -271,7 +325,7 @@ class IntMap private constructor(private var table: LongArray, private var _size
 
     fun add(entry: IntEntry) = set(entry.key(), entry.value())
 
-    operator fun get(key: Int, default: Int = -1): Int {
+    operator fun get(key: Int, default: Int = 0): Int {
         require(key >= 0)
         val entry = table[linearProbe(key)]
         return if (entry >= 0) entry.value()
@@ -284,16 +338,16 @@ class IntMap private constructor(private var table: LongArray, private var _size
             return false
         if (tableSizeFor(size + 1) > table.size)
             rehash()
-        _size++
-        table[linearProbe(key)] = key.toLong() shl Int.SIZE_BITS or value.toLong()
+        size++
+        table[linearProbe(key)] = entry(key, value)
         return true
     }
 
     private fun rehash() {
         val old = table
-        table = LongArray(tableSizeFor((_size.toDouble() / LOAD_FACTOR).toInt()))
+        table = LongArray(tableSizeFor((size.toDouble() / LOAD_FACTOR).toInt()))
         table.forEachIndexed { i, _ -> table[i] = -1 }
-        _size = 0
+        size = 0
         for (i in old.indices)
             if (old[i] >= 0) add(old[i])
     }
@@ -301,7 +355,7 @@ class IntMap private constructor(private var table: LongArray, private var _size
     fun remove(ix: Ix): Boolean {
         var i = linearProbe(ix)
         if (table[i] < 0) return false
-        _size--
+        size--
 
         var j = i
         table[i] = -1
