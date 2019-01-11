@@ -1,24 +1,24 @@
 package combo.sat.solvers
 
 import combo.sat.Problem
-import combo.sat.UnitPropagationTable
+import combo.sat.BinaryPropagationGraph
 import kotlin.test.Ignore
 
 @Ignore
-class GAOptimizerTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
+class GAOptimizerTest : LinearOptimizerTest {
+    override fun optimizer(problem: Problem): Optimizer<LinearObjective>? {
         TODO("not implemented")
     }
 
-    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
+    override fun largeOptimizer(problem: Problem): Optimizer<LinearObjective>? {
         TODO("not implemented")
     }
 
-    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
+    override fun unsatOptimizer(problem: Problem): Optimizer<LinearObjective>? {
         TODO("not implemented")
     }
 
-    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig): Optimizer<LinearObjective>? {
+    override fun timeoutOptimizer(problem: Problem): Optimizer<LinearObjective>? {
         TODO("not implemented")
     }
     /*override fun optimizer(problem: Problem, config: SolverConfig) = GALinearOptimizer(problem, config)
@@ -29,20 +29,20 @@ class GAOptimizerTest : LinearOptimizerTest() {
 }
 
 @Ignore
-class GASolverTest : SolverTest() {
-    override fun solver(problem: Problem, propTable: UnitPropagationTable): Solver? {
+class GASolverTest : SolverTest {
+    override fun solver(problem: Problem): Solver? {
         TODO("not implemented")
     }
 
-    override fun largeSolver(problem: Problem, propTable: UnitPropagationTable): Solver? {
+    override fun largeSolver(problem: Problem): Solver? {
         TODO("not implemented")
     }
 
-    override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable): Solver? {
+    override fun unsatSolver(problem: Problem): Solver? {
         TODO("not implemented")
     }
 
-    override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable): Solver? {
+    override fun timeoutSolver(problem: Problem): Solver? {
         TODO("not implemented")
     }
 
