@@ -2,6 +2,7 @@ package combo.model
 
 import combo.math.IntPermutation
 import combo.sat.BitFieldLabeling
+import combo.sat.Relation.*
 import combo.sat.solvers.ExhaustiveSolver
 import combo.sat.solvers.LocalSearchSolver
 import kotlin.random.Random
@@ -83,7 +84,7 @@ class ModelTest {
         }
 
         val SMALL5 = let {
-            // Using constraint with all cardinality options
+            // Using constraint with most cardinality options
             val a = alternative(1, 2, 3)
             val b = flag()
             val c = flag()
@@ -94,6 +95,32 @@ class ModelTest {
                     .constrained(atMost(b, c, d, degree = 1))
                     .constrained(exactly(a.option(2), o.option(8), b, c, degree = 1))
                     .constrained(atLeast(a, b, c, d, o, degree = 1))
+                    .build()
+        }
+
+        val SMALL6 = let {
+            // Using constraint with all cardinality options
+            val a = alternative(1, 2, 3)
+            val b = flag()
+            val c = flag()
+            val d = flag()
+            val o = multiple(5, 6, 7, 8)
+            // a(1),a(2),c,o(6) < 3
+            // b,c,d <= 2
+            // b,c,d,o(5) = 2
+            // b,c,o(5) >= 2
+            // a(1),o(5),b,c,d > 2
+            // a(1),o(5),b,c,d != 2
+
+            // b=1, c=1, d=0, o(5)=0, a(1)=1, a(2)=0, o(6)=0
+
+            Model.builder()
+                    .optional(a).optional(b).optional(c).optional(d).optional(o)
+                    .constrained(CardinalityBuilder(arrayOf(a.option(1), a.option(2), c, o.option(6)), 3, LT))
+                    .constrained(CardinalityBuilder(arrayOf(b, c, d), 2, LE))
+                    .constrained(CardinalityBuilder(arrayOf(b, c, d, o.option(5)), 2, EQ))
+                    .constrained(CardinalityBuilder(arrayOf(b, c, o.option(5)), 2, GE))
+                    .constrained(CardinalityBuilder(arrayOf(b, c, d, a.option(1), o.option(5)), 2, GT))
                     .build()
         }
 
@@ -187,7 +214,7 @@ class ModelTest {
             root.build()
         }
 
-        val SMALL_MODELS: Array<Model> = arrayOf(SMALL1, SMALL2, SMALL3, SMALL4, SMALL5)
+        val SMALL_MODELS: Array<Model> = arrayOf(SMALL1, SMALL2, SMALL3, SMALL4, SMALL5, SMALL6)
         val SMALL_UNSAT_MODELS: Array<Model> = arrayOf(SMALL_UNSAT1, SMALL_UNSAT2, SMALL_UNSAT3)
         val LARGE_MODEL: Array<Model> = arrayOf(LARGE1, LARGE2, LARGE3, LARGE4)
     }
