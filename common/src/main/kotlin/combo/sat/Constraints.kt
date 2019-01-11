@@ -1,14 +1,16 @@
-@file:JvmName("Sentences")
+@file:JvmName("Constraints")
 
 package combo.sat
 
+import combo.sat.Relation.*
 import combo.util.IntCollection
 import combo.util.IntList
 import kotlin.jvm.JvmName
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-interface Sentence : Iterable<Literal> {
+interface Constraint : Iterable<Literal> {
 
     val literals: IntCollection
     val size get() = literals.size
@@ -16,33 +18,54 @@ interface Sentence : Iterable<Literal> {
     override fun iterator(): IntIterator = literals.iterator()
 
     fun isUnit(): Boolean = size == 1
-    fun toDimacs(): String = toCnf().map { it.toDimacs() }.joinToString(separator = "\n")
 
+    /**
+     * Returns the number of changes necessary for the constraint to be satisfied, based on a cached result.
+     */
+    fun flipsToSatisfy(matches: Int): Int
+
+    /**
+     * Update the cached result with the changing literal [lit].
+     */
+    fun matchesUpdate(lit: Literal, oldMatches: Int) = oldMatches + if (lit in literals) 1 else -1
+
+    /**
+     * Calculate the cached result.
+     */
     fun matches(l: Labeling): Int {
         // Not using Iterable<Int>.sumBy to avoid auto boxing
         var sum = 0
         for (it in literals.iterator()) {
-            sum += if (l.asLiteral(it.asIx()) == it) 1 else 0
+            sum += if (l.literal(it.toIx()) == it) 1 else 0
         }
         return sum
     }
 
-    fun matchesUpdate(lit: Literal, oldMatches: Int) = oldMatches + if (lit in literals) 1 else -1
-    fun flipsToSatisfy(matches: Int): Int
-
+    /**
+     * Returns the number of changes necessary for the constraint to be satisfied.
+     */
     fun flipsToSatisfy(l: Labeling): Int
-    fun satisfies(l: Labeling) = flipsToSatisfy(l) == 0
-
-    fun propagateUnit(unit: Literal): Sentence
-    fun toCnf(): Sequence<Disjunction>
 
     /**
-     * Reuses the clause if possible.
+     * Returns whether the constraint satisfies the labeling.
      */
-    fun remap(remappedIds: IntArray): Sentence {
+    fun satisfies(l: Labeling) = flipsToSatisfy(l) == 0
+
+    /**
+     * Change the constraint based on the value of a unit literal.
+     * @throws UnsatisfiableException if there is a contradiction.
+     */
+    fun propagateUnit(unit: Literal): Constraint
+
+    /**
+     * Changes the variable indices used by the literals in the constraint to the new ones given by the mapping in
+     * [remappedIxs]. If no changes are necessary then this method can do nothing. This is used as part of the
+     * simplification process during initialization.
+     */
+    fun remap(remappedIxs: IntArray): Constraint {
         val lits = literals.toArray()
         for ((i, l) in lits.withIndex()) {
-            val remapped = remappedIds[lits[i].asIx()].asLiteral(l.asBoolean())
+            val remapped = remappedIxs[lits[i].toIx()].toLiteral(l.toBoolean())
             require(remapped >= 0)
             literals.remove(lits[i])
             literals.add(remapped)
@@ -51,7 +74,7 @@ interface Sentence : Iterable<Literal> {
     }
 }
 
-sealed class Clause(override val literals: IntCollection) : Sentence {
+sealed class Clause(override val literals: IntCollection) : Constraint {
     abstract override fun propagateUnit(unit: Literal): Clause
 }
 
@@ -59,7 +82,6 @@ object Tautology : Clause(IntList(0)) {
     override fun flipsToSatisfy(matches: Int) = 0
     override fun flipsToSatisfy(l: Labeling) = 0
     override fun propagateUnit(unit: Literal) = this
-    override fun toCnf(): Sequence<Disjunction> = emptySequence()
     override fun toString() = "Tautology"
 }
 
@@ -72,8 +94,8 @@ class Disjunction(literals: IntCollection) : Clause(literals) {
 
     override fun flipsToSatisfy(l: Labeling): Int {
         for (lit in literals) {
-            val ix = lit.asIx()
-            if (l[ix] == lit.asBoolean())
+            val ix = lit.toIx()
+            if (l[ix] == lit.toBoolean())
                 return 0
         }
         return 1
@@ -93,9 +115,6 @@ class Disjunction(literals: IntCollection) : Clause(literals) {
         } else return this
     }
 
-    override fun toCnf() = sequenceOf(this)
-
-    override fun toDimacs() = literals.joinToString(separator = " ", postfix = " 0") { it.asDimacs().toString() }
     override fun toString() = literals.joinToString(", ", "Disjunction(", ")") { it.toString() }
 }
 
@@ -108,7 +127,7 @@ class Conjunction(literals: IntCollection) : Clause(literals) {
     override fun flipsToSatisfy(l: Labeling): Int {
         var unmatched = 0
         for (lit in literals)
-            if (l.asLiteral(lit.asIx()) != lit) unmatched++
+            if (l.literal(lit.toIx()) != lit) unmatched++
         return unmatched
     }
 
@@ -117,8 +136,6 @@ class Conjunction(literals: IntCollection) : Clause(literals) {
         return this
     }
 
-    override fun toCnf(): Sequence<Disjunction> = literals.asSequence().map { Disjunction(IntList(intArrayOf(it))) }
-
     override fun isUnit() = true
     override fun toString() = literals.joinToString(", ", "Conjunction(", ")") { it.toString() }
 }
@@ -126,10 +143,10 @@ class Conjunction(literals: IntCollection) : Clause(literals) {
 /**
  * literal <=> clause
  */
-class Reified(val literal: Literal, val clause: Clause) : Sentence {
+class Reified(val literal: Literal, val clause: Clause) : Constraint {
 
     init {
-        if (clause.literals.isEmpty()) throw IllegalArgumentException("Empty clause.")
+        require(clause.literals.isNotEmpty()) { "Literals in clause should not be empty." }
         if (literal in clause.literals || !literal in clause.literals)
             throw IllegalArgumentException("Literal appears in clause for reified.")
     }
@@ -140,37 +157,37 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
 
     override fun matches(l: Labeling): Int {
         val clauseMatches = clause.matches(l)
-        return clauseMatches.asLiteral(l.asLiteral(literal.asIx()) == literal)
+        return clauseMatches.toLiteral(l.literal(literal.toIx()) == literal)
     }
 
     override fun matchesUpdate(lit: Literal, oldMatches: Int): Int {
-        val oldClauseMatch = oldMatches.asIx()
-        return if (literal.asIx() == lit.asIx()) {
-            oldClauseMatch.asLiteral(lit == literal)
+        val oldClauseMatch = oldMatches.toIx()
+        return if (literal.toIx() == lit.toIx()) {
+            oldClauseMatch.toLiteral(lit == literal)
         } else {
-            val oldLiteralMatch = oldMatches.asBoolean()
-            clause.matchesUpdate(lit, oldClauseMatch).asLiteral(oldLiteralMatch)
+            val oldLiteralMatch = oldMatches.toBoolean()
+            clause.matchesUpdate(lit, oldClauseMatch).toLiteral(oldLiteralMatch)
         }
     }
 
     override fun flipsToSatisfy(matches: Int): Int {
-        val clauseFlips = clause.flipsToSatisfy(matches.asIx())
-        return if (matches.asBoolean()) min(1, clauseFlips)
+        val clauseFlips = clause.flipsToSatisfy(matches.toIx())
+        return if (matches.toBoolean()) min(1, clauseFlips)
         else return if (clauseFlips == 0) 1 else 0
     }
 
     override fun flipsToSatisfy(l: Labeling): Int {
-        return if (l[literal.asIx()] == literal.asBoolean()) {
+        return if (l[literal.toIx()] == literal.toBoolean()) {
             min(1, clause.flipsToSatisfy(l))
         } else {
             // Make sure the clause CAN be negated
             when (clause) {
                 is Disjunction -> {
-                    if (clause.literals.any { l[it.asIx()] == it.asBoolean() }) 1
+                    if (clause.literals.any { l[it.toIx()] == it.toBoolean() }) 1
                     else 0
                 }
                 is Conjunction -> {
-                    if (clause.literals.all { l[it.asIx()] == it.asBoolean() }) 1
+                    if (clause.literals.all { l[it.toIx()] == it.toBoolean() }) 1
                     else 0
                 }
                 is Tautology -> 1
@@ -178,10 +195,10 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
         }
     }
 
-    override fun propagateUnit(unit: Literal): Sentence {
+    override fun propagateUnit(unit: Literal): Constraint {
         return when {
             unit == literal -> clause
-            unit.asIx() == literal.asIx() -> {
+            unit.toIx() == literal.toIx() -> {
                 val negated = clause.literals.map { !it }
                 when (clause) {
                     is Disjunction -> Conjunction(negated)
@@ -209,7 +226,7 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
         }
     }
 
-    override fun toCnf(): Sequence<Disjunction> {
+    fun toCnf(): Sequence<Disjunction> {
         return when (clause) {
             is Disjunction -> {
                 val c1 = clause.literals.asSequence().map { Disjunction(IntList(intArrayOf(literal, !it))) }
@@ -225,78 +242,99 @@ class Reified(val literal: Literal, val clause: Clause) : Sentence {
         }
     }
 
-    override fun remap(remappedIds: IntArray): Sentence {
-        val reifiedLiteral = remappedIds[literal.asIx()].asLiteral(literal.asBoolean())
-        return Reified(reifiedLiteral, clause.remap(remappedIds) as Clause)
+    override fun remap(remappedIxs: IntArray): Constraint {
+        val reifiedLiteral = remappedIxs[literal.toIx()].toLiteral(literal.toBoolean())
+        return Reified(reifiedLiteral, clause.remap(remappedIxs) as Clause)
     }
 
     override fun toString() = "Reified($literal, $clause)"
 }
 
-class Cardinality(override val literals: IntCollection, val degree: Int = 1, val operator: Operator = Operator.AT_MOST) : Sentence {
+class Cardinality(override val literals: IntCollection, val degree: Int = 1, val relation: Relation = LE) : Constraint {
 
     init {
-        for (l in literals)
-            require(l.asBoolean()) {
-                "Can only have non-negated literals in $this. " +
-                        "Offending literal: $l"
-            }
-        if ((operator == Operator.AT_LEAST || operator == Operator.EXACTLY) && degree > literals.size)
-            throw UnsatisfiableException("$this is not satisfiable (${literals.size} cannot be ${operator.operator}).")
+        for (l in literals) require(l.toBoolean()) {
+            "Can only have non-negated literals in $this. Offending literal: $l"
+        }
+        require(degree >= 0) { "Degree must be >= 0 in $this." }
+        require(literals.isNotEmpty()) { "Literals should not be empty." }
+        val satisfiable = if (relation === EQ) degree in 0 until literals.size
+        else if (relation === NE) literals.isNotEmpty() || degree > 0
+        else relation.flipsToSatisfy(literals.size, degree) != 0 || relation.flipsToSatisfy(0, degree) != 0
+        if (!satisfiable)
+            throw UnsatisfiableException("$this is not satisfiable, (${literals.size} cannot be ${relation.operator}).")
     }
 
-    enum class Operator(val operator: String) {
-        AT_LEAST(">=") {
-            override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, degree - matches)
-        },
-        AT_MOST("<=") {
-            override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, matches - degree)
-        },
-        EXACTLY("=") {
-            override fun flipsToSatisfy(matches: Int, degree: Int) =
-                    max(AT_LEAST.flipsToSatisfy(matches, degree), AT_MOST.flipsToSatisfy(matches, degree))
-        };
-
-        abstract fun flipsToSatisfy(matches: Int, degree: Int): Int
-    }
-
-    override fun flipsToSatisfy(matches: Int) = operator.flipsToSatisfy(matches, degree)
+    override fun flipsToSatisfy(matches: Int) = relation.flipsToSatisfy(matches, degree)
 
     override fun flipsToSatisfy(l: Labeling): Int {
         var matches = 0
         for (lit in literals) {
-            if (l.asLiteral(lit.asIx()) == lit) matches++
+            if (l.literal(lit.toIx()) == lit) matches++
         }
-        return operator.flipsToSatisfy(matches, degree)
+        return relation.flipsToSatisfy(matches, degree)
     }
 
-    override fun propagateUnit(unit: Literal): Sentence {
+    override fun propagateUnit(unit: Literal): Constraint {
+        // TODO redo generic
         val pos = unit in literals
         val neg = !unit in literals
         return if (pos || neg) {
             val copy = literals.copy().apply { if (pos) remove(unit) else remove(!unit) }
             val d = degree - if (pos) 1 else 0
             if (d <= 0) {
-                if (copy.isEmpty() || operator == Operator.AT_LEAST) Tautology
+                if (copy.isEmpty() || relation == GE) Tautology
                 else Conjunction(copy.map { !it })
-            } else if (d >= copy.size && operator == Operator.AT_MOST) Tautology
-            else if (d > copy.size && operator != Operator.AT_MOST)
+            } else if (d >= copy.size && relation == LE) Tautology
+            else if (d > copy.size && relation != LE)
                 throw UnsatisfiableException(
-                        "$this is not satisfiable (${literals.size} cannot be ${operator.operator}).")
-            else Cardinality(copy, d, operator)
+                        "$this is not satisfiable (${literals.size} cannot be ${relation.operator}).")
+            else Cardinality(copy, d, relation)
         } else this
     }
 
-    override fun toCnf(): Sequence<Disjunction> {
-        if (operator != Operator.AT_MOST || degree != 1)
-            TODO("Generating CNF clauses for cardinality constraint for operator other than <=1 is not implemented.")
-        val array = literals.toArray()
-        return array.indices.asSequence()
-                .flatMap { i ->
-                    (i + 1 until array.size).asSequence()
-                            .map { j -> Disjunction(IntList(intArrayOf(!array[i], !array[j]))) }
-                }
+    override fun toString() = literals.joinToString(", ", "Cardinality(", ") $relation $degree") { it.toString() }
+}
+
+enum class Relation(val operator: String) {
+    GT(">") {
+        override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, -1 + degree - matches)
+    },
+    GE(">=") {
+        override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, degree - matches)
+    },
+    LE("<=") {
+        override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, matches - degree)
+    },
+    LT("<") {
+        override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, 1 + matches - degree)
+    },
+    NE("!=") {
+        override fun flipsToSatisfy(matches: Int, degree: Int) = if (matches == degree) 1 else 0
+    },
+    EQ("=") {
+        override fun flipsToSatisfy(matches: Int, degree: Int) = abs(matches - degree)
+    };
+
+    fun not(): Relation {
+        return when (this) {
+            GT -> LE
+            GE -> LT
+            LE -> GT
+            LT -> GE
+            NE -> EQ
+            EQ -> NE
+        }
     }
 
-    override fun toString() = literals.joinToString(", ", "Cardinality(", ") $operator $degree") { it.toString() }
+    companion object {
+        fun String.toRelation(): Relation {
+            for (r in values())
+                if (r.operator == this) return r
+            if (this == "==") return EQ
+            throw IllegalArgumentException("Unknown relation: $this.")
+        }
+    }
+
+    abstract fun flipsToSatisfy(matches: Int, degree: Int): Int
 }
