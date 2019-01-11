@@ -1,7 +1,9 @@
 package combo.sat.solvers
 
+import combo.math.RandomSequence
 import combo.sat.*
 import combo.util.millis
+import combo.util.nanos
 import org.jacop.constraints.SumBool
 import org.jacop.constraints.XeqC
 import org.jacop.core.BooleanVar
@@ -17,12 +19,24 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.random.Random
 
-// TODO stats
-// TODO debug
+/**
+ * [Solver] and [Optimizer] of [LinearObjective] using the JaCoP constraint satisfactory problem (CSP) library.
+ */
 class JacopSolver(problem: Problem,
-                  override var config: SolverConfig = SolverConfig(),
-                  var timeout: Long = -1L) : Solver, Optimizer<LinearObjective> {
+                  val timeout: Long = -1L,
+                  val randomSeed: Long = nanos(),
+                  val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
+                  constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Nothing = { _, _, _ ->
+                      throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+                  })
+    : Solver, Optimizer<LinearObjective> {
 
+    var totalSuccesses: Long = 0
+        private set
+    var totalEvaluated: Long = 0
+        private set
+
+    private val randomSequence = RandomSequence(randomSeed)
     private val store = Store()
     private val vars = Array(problem.nbrVariables) { i ->
         BooleanVar(store, "x$i")
@@ -34,35 +48,48 @@ class JacopSolver(problem: Problem,
     init {
         val translation = SatTranslation(store)
         for (i in vars.indices) store.impose(XeqP(vars[i], optimizeVars[i]))
-        for (c in problem.sentences) {
-            if (c is Conjunction)
-                for (l in c.literals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
-            else if (c is Cardinality) {
-                val cardVars = Array(c.literals.size) { i ->
-                    vars[c.literals[i].asIx()]
-                }
-                val degree = IntVar(store, c.degree, c.degree)
-                store.impose(SumBool(cardVars, c.operator.operator, degree))
-            } else if (c is Reified && c.clause is Disjunction) {
-                val literal = if (!c.literal.asBoolean()) {
-                    val negated = BooleanVar(store, "-x${c.literal.asIx()}")
-                    translation.generate_not(vars[c.literal.asIx()], negated)
-                    negated
-                } else vars[c.literal.asIx()]
-                val reified = c.clause
-                val pos = reified.literals.asSequence().filter { it.asBoolean() }
-                        .map { vars[it.asIx()] }.toList().toTypedArray()
-                val neg = reified.literals.asSequence().filter { !it.asBoolean() }
-                        .map { vars[it.asIx()] }.toList().toTypedArray()
-                translation.generate_clause_reif(pos, neg, literal)
-            } else {
-                for (d in c.toCnf()) {
-                    val pos = d.literals.asSequence().filter { it.asBoolean() }
+        for (c in problem.constraints) {
+            when (c) {
+                is Disjunction -> {
+                    val pos = c.literals.asSequence().filter { it.asBoolean() }
                             .map { vars[it.asIx()] }.toList().toTypedArray()
-                    val neg = d.literals.asSequence().filter { !it.asBoolean() }
+                    val neg = c.literals.asSequence().filter { !it.asBoolean() }
                             .map { vars[it.asIx()] }.toList().toTypedArray()
                     translation.generate_clause(pos, neg)
                 }
+                is Conjunction -> for (l in c.literals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+                is Cardinality -> {
+                    val array = c.literals.toArray()
+                    val cardVars = Array(c.literals.size) { i ->
+                        vars[array[i].asIx()]
+                    }
+                    val degree = IntVar(store, c.degree, c.degree)
+                    store.impose(SumBool(cardVars, c.relation.operator, degree))
+                }
+                is Reified -> {
+                    val literal = if (!c.literal.asBoolean()) {
+                        val negated = BooleanVar(store, "-x${c.literal.asIx()}")
+                        translation.generate_not(vars[c.literal.asIx()], negated)
+                        negated
+                    } else vars[c.literal.asIx()]
+                    val reified = c.clause
+                    if (reified is Disjunction) {
+                        val pos = reified.literals.asSequence().filter { it.asBoolean() }
+                                .map { vars[it.asIx()] }.toList().toTypedArray()
+                        val neg = reified.literals.asSequence().filter { !it.asBoolean() }
+                                .map { vars[it.asIx()] }.toList().toTypedArray()
+                        translation.generate_clause_reif(pos, neg, literal)
+                    } else {
+                        for (d in c.toCnf()) {
+                            val pos = d.literals.asSequence().filter { it.asBoolean() }
+                                    .map { vars[it.asIx()] }.toList().toTypedArray()
+                            val neg = d.literals.asSequence().filter { !it.asBoolean() }
+                                    .map { vars[it.asIx()] }.toList().toTypedArray()
+                            translation.generate_clause(pos, neg)
+                        }
+                    }
+                }
+                !is Tautology -> constraintHandler.invoke(c, store, vars)
             }
         }
         translation.impose()
@@ -72,19 +99,22 @@ class JacopSolver(problem: Problem,
     override fun witnessOrThrow(assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
-            if (optimizeVars.isEmpty()) return config.labelingBuilder.build(0)
+            totalEvaluated++
+            if (optimizeVars.isEmpty()) return labelingFactory.create(0)
             if (assumptions.isNotEmpty()) {
                 for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
             val search = DepthFirstSearch<BooleanVar>().apply {
+                setPrintInfo(false)
                 setTimeout(this)
             }
-            val result = search.labeling(store, SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRandom())))
+            val result = search.labeling(store, SimpleSelect(vars, MostConstrainedDynamic(), BinaryIndomainRandom(randomSequence.next())))
             if (!result) {
                 if (search.timeOutOccured) throw TimeoutException(timeout)
                 else throw UnsatisfiableException()
             }
-            return toLabeling(config.labelingBuilder)
+            totalSuccesses++
+            return toLabeling(labelingFactory)
         } finally {
             store.removeLevel(store.level)
             store.setLevel(store.level - 1)
@@ -108,15 +138,17 @@ class JacopSolver(problem: Problem,
                 for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
 
-            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(config.nextRandom()))
+            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(randomSequence.next()))
             val search = DepthFirstSearch<BooleanVar>().apply {
                 setPrintInfo(false)
                 setTimeout(this)
             }
             search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
                 override fun recordSolution() {
+                    totalEvaluated++
+                    totalSuccesses++
                     super.recordSolution()
-                    labelingConsumer.invoke(toLabeling(config.labelingBuilder))
+                    labelingConsumer.invoke(toLabeling(labelingFactory))
                 }
             })
             search.getSolutionListener().setSolutionLimit(limit)
@@ -131,7 +163,8 @@ class JacopSolver(problem: Problem,
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
-            if (optimizeVars.isEmpty()) return config.labelingBuilder.build(0)
+            totalEvaluated++
+            if (optimizeVars.isEmpty()) return labelingFactory.create(0)
             if (assumptions.isNotEmpty()) {
                 for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
             }
@@ -139,7 +172,7 @@ class JacopSolver(problem: Problem,
             val cost = FloatVar(store, -max, max)
             store.impose(LinearFloat(optimizeVars, function.weights, "=", cost))
             val costVar =
-                    if (config.maximize) {
+                    if (function.maximize) {
                         val negCost = FloatVar(store, -max, max)
                         store.impose(PmulCeqR(cost, -1.0, negCost))
                         negCost
@@ -157,19 +190,20 @@ class JacopSolver(problem: Problem,
                     throw UnsatisfiableException()
                 }
             }
-            return toLabeling(config.labelingBuilder)
+            totalSuccesses++
+            return toLabeling(labelingFactory)
         } finally {
             store.removeLevel(store.level)
             store.setLevel(store.level - 1)
         }
     }
 
-    private fun toLabeling(builder: LabelingBuilder<*>): Labeling {
+    private fun toLabeling(factory: LabelingFactory): Labeling {
         val nbrPos = vars.count { it.value() == 1 }
         val lits = IntArray(nbrPos)
         var k = 0
         vars.forEachIndexed { i, v -> if (v.value() == 1) lits[k++] = i.asLiteral(true) }
-        return builder.build(vars.size, lits)
+        return factory.create(vars.size).apply { setAll(lits) }
     }
 
     private fun setTimeout(search: DepthFirstSearch<*>) {
@@ -189,5 +223,3 @@ class JacopSolver(problem: Problem,
         override fun indomain(v: BooleanVar) = rng.nextInt(2)
     }
 }
-
-
