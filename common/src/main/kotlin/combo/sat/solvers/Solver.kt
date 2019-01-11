@@ -25,9 +25,6 @@ interface Solver : Iterable<Labeling> {
     fun sequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Labeling> {
         return generateSequence { witness(assumptions) }
     }
-
-    val config: SolverConfig
-
 }
 
 
