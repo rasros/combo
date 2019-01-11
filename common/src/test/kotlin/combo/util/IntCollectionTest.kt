@@ -1,5 +1,6 @@
 package combo.util
 
+import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -178,6 +179,14 @@ class IntListTest {
         for (i in s1) {
             assertTrue(i in s2)
         }
+    }
+
+    @Test
+    fun permutation() {
+        val s1 = IntList()
+        s1.addAll(10..20)
+        val s2 = s1.permutation().asSequence().toSet()
+        assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
     }
 }
 
@@ -376,5 +385,13 @@ class IntSetTest {
         for (i in s1) {
             assertTrue(i in s2)
         }
+    }
+
+    @Test
+    fun permutation() {
+        val s1 = IntSet()
+        s1.addAll(10..20)
+        val s2 = s1.permutation().asSequence().toSet()
+        assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
     }
 }
