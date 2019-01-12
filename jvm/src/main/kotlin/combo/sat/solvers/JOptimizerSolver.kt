@@ -10,7 +10,7 @@ import com.joptimizer.optimizers.BIPLokbaTableMethod
 import com.joptimizer.optimizers.BIPOptimizationRequest
 import combo.math.RandomSequence
 import combo.sat.*
-import combo.sat.Cardinality.Relation.*
+import combo.sat.Relation.*
 import combo.util.IntCollection
 import combo.util.IntList
 import combo.util.nanos
@@ -67,8 +67,8 @@ class JOptimizerSolver(val problem: Problem,
         fun addDisjunction(literals: IntCollection) {
             var nbrNegative = 0
             for (l in literals) {
-                G.set(row, l.asIx(), if (l.asBoolean()) -1 else 1)
-                nbrNegative += if (l.asBoolean()) 0 else 1
+                G.set(row, l.toIx(), if (l.toBoolean()) -1 else 1)
+                nbrNegative += if (l.toBoolean()) 0 else 1
             }
             h.set(row, -1 + nbrNegative)
             row++
@@ -77,13 +77,13 @@ class JOptimizerSolver(val problem: Problem,
             if (c is Cardinality) {
                 if (c.relation in arrayOf(GE, GT, EQ)) {
                     for (l in c.literals)
-                        G.set(row, l.asIx(), -1)
-                    h.set(row, -c.degree + if (c.relation == GT) 1 else 0)
+                        G.set(row, l.toIx(), -1)
+                    h.set(row, -c.degree - if (c.relation == GT) 1 else 0)
                     row++
                 }
                 if (c.relation in arrayOf(LE, LT, EQ)) {
                     for (l in c.literals)
-                        G.set(row, l.asIx(), 1)
+                        G.set(row, l.toIx(), 1)
                     h.set(row, c.degree - if (c.relation == LT) 1 else 0)
                     row++
                 }
@@ -127,8 +127,8 @@ class JOptimizerSolver(val problem: Problem,
                 val A = SparseIntMatrix2D(assumptions.size, problem.nbrVariables)
                 val B = DenseIntMatrix1D(assumptions.size)
                 for ((i, lit) in assumptions.withIndex()) {
-                    A.set(i, lit.asIx(), 1)
-                    B.set(i, if (lit.asBoolean()) 1 else 0)
+                    A.set(i, lit.toIx(), 1)
+                    B.set(i, if (lit.toBoolean()) 1 else 0)
                 }
                 setA(A)
                 setB(B)
@@ -173,7 +173,7 @@ class JOptimizerSolver(val problem: Problem,
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0
-        forEachIndexed { i, dl -> if (dl == 1) lits[k++] = i.asLiteral(true) }
+        forEachIndexed { i, dl -> if (dl == 1) lits[k++] = i.toLiteral(true) }
         return factory.create(size).apply { setAll(lits) }
     }
 }
