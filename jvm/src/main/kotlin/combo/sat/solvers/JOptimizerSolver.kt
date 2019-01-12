@@ -27,11 +27,11 @@ class JOptimizerSolver(val problem: Problem,
                        val maxIterations: Int = Int.MAX_VALUE,
                        val delta: Double = 1e-3,
                        constraintHandler: (Constraint, row: Int, G: IntMatrix2D, h: IntMatrix1D) -> Int = { _, _, _, _ ->
-                     throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                 },
+                           throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+                       },
                        constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
-                     throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                 }) : Optimizer<LinearObjective>, Solver {
+                           throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+                       }) : Optimizer<LinearObjective>, Solver {
 
     var totalSuccesses: Long = 0
         private set
@@ -136,13 +136,8 @@ class JOptimizerSolver(val problem: Problem,
             maxIteration = maxIterations
         }
         val opt = BIPLokbaTableMethod().apply {
-            try {
-                val cls = Class.forName("com.joptimizer.optimizers.BIPLokbaTableMethod")
-                val fld = cls.getDeclaredField("log")
-                fld.isAccessible = true
-                fld.set(this, NoOpLog())
-            } catch (e: Exception) {
-            }
+            disableLogging(this, "com.joptimizer.optimizers.BIPLokbaTableMethod", "log")
+            disableLogging(null, "com.joptimizer.optimizers.BIPBfMethod", "log")
             bipOptimizationRequest = request
             try {
                 optimize()
@@ -154,6 +149,16 @@ class JOptimizerSolver(val problem: Problem,
         }
         return opt.bipOptimizationResponse.solution.toLabeling(labelingFactory).also {
             totalSuccesses++
+        }
+    }
+
+    private fun disableLogging(obj: Any?, name: String, field: String) {
+        try {
+            val cls = Class.forName(name)
+            val fld = cls.getDeclaredField(field)
+            fld.isAccessible = true
+            fld.set(obj, NoOpLog())
+        } catch (e: Exception) {
         }
     }
 
