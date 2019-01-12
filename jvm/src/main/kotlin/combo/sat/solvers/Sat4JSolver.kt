@@ -3,6 +3,7 @@ package combo.sat.solvers
 import combo.math.RandomSequence
 import combo.math.toIntArray
 import combo.sat.*
+import combo.sat.Relation.*
 import combo.util.millis
 import combo.util.nanos
 import combo.util.transformArray
@@ -156,12 +157,12 @@ class Sat4JSolver(val problem: Problem,
                     is Cardinality -> {
                         val cardLits = c.literals.toArray().apply { sort() }.toDimacs()
                         when (c.relation) {
-                            Cardinality.Relation.GE -> addAtLeast(cardLits, c.degree)
-                            Cardinality.Relation.LE -> addAtMost(cardLits, c.degree)
-                            Cardinality.Relation.EQ -> addExactly(cardLits, c.degree)
-                            Cardinality.Relation.GT -> addAtLeast(cardLits, c.degree + 1)
-                            Cardinality.Relation.LT -> addAtMost(cardLits, c.degree - 1)
-                            Cardinality.Relation.NE ->
+                            GE -> addAtLeast(cardLits, c.degree)
+                            LE -> addAtMost(cardLits, c.degree)
+                            EQ -> addExactly(cardLits, c.degree)
+                            GT -> addAtLeast(cardLits, c.degree + 1)
+                            LT -> addAtMost(cardLits, c.degree - 1)
+                            NE ->
                                 throw UnsupportedOperationException("Relation != cannot be expressed as a linear inequality.")
                         }
                     }
@@ -179,7 +180,7 @@ class Sat4JSolver(val problem: Problem,
     private fun Literals.toDimacs(): VecInt {
         val newClause = IntArray(size)
         for (i in indices)
-            newClause[i] = this[i].asDimacs()
+            newClause[i] = this[i].toDimacs()
         return VecInt(newClause)
     }
 
@@ -187,7 +188,7 @@ class Sat4JSolver(val problem: Problem,
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0
-        forEachIndexed { i, dl -> if (dl > 0) lits[k++] = i.asLiteral(true) }
+        forEachIndexed { i, dl -> if (dl > 0) lits[k++] = i.toLiteral(true) }
         return factory.create(size).apply { setAll(lits) }
     }
 }

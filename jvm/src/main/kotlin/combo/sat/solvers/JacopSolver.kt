@@ -51,40 +51,40 @@ class JacopSolver(problem: Problem,
         for (c in problem.constraints) {
             when (c) {
                 is Disjunction -> {
-                    val pos = c.literals.asSequence().filter { it.asBoolean() }
-                            .map { vars[it.asIx()] }.toList().toTypedArray()
-                    val neg = c.literals.asSequence().filter { !it.asBoolean() }
-                            .map { vars[it.asIx()] }.toList().toTypedArray()
+                    val pos = c.literals.asSequence().filter { it.toBoolean() }
+                            .map { vars[it.toIx()] }.toList().toTypedArray()
+                    val neg = c.literals.asSequence().filter { !it.toBoolean() }
+                            .map { vars[it.toIx()] }.toList().toTypedArray()
                     translation.generate_clause(pos, neg)
                 }
-                is Conjunction -> for (l in c.literals) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+                is Conjunction -> for (l in c.literals) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
                 is Cardinality -> {
                     val array = c.literals.toArray()
                     val cardVars = Array(c.literals.size) { i ->
-                        vars[array[i].asIx()]
+                        vars[array[i].toIx()]
                     }
                     val degree = IntVar(store, c.degree, c.degree)
                     store.impose(SumBool(cardVars, c.relation.operator, degree))
                 }
                 is Reified -> {
-                    val literal = if (!c.literal.asBoolean()) {
-                        val negated = BooleanVar(store, "-x${c.literal.asIx()}")
-                        translation.generate_not(vars[c.literal.asIx()], negated)
+                    val literal = if (!c.literal.toBoolean()) {
+                        val negated = BooleanVar(store, "-x${c.literal.toIx()}")
+                        translation.generate_not(vars[c.literal.toIx()], negated)
                         negated
-                    } else vars[c.literal.asIx()]
+                    } else vars[c.literal.toIx()]
                     val reified = c.clause
                     if (reified is Disjunction) {
-                        val pos = reified.literals.asSequence().filter { it.asBoolean() }
-                                .map { vars[it.asIx()] }.toList().toTypedArray()
-                        val neg = reified.literals.asSequence().filter { !it.asBoolean() }
-                                .map { vars[it.asIx()] }.toList().toTypedArray()
+                        val pos = reified.literals.asSequence().filter { it.toBoolean() }
+                                .map { vars[it.toIx()] }.toList().toTypedArray()
+                        val neg = reified.literals.asSequence().filter { !it.toBoolean() }
+                                .map { vars[it.toIx()] }.toList().toTypedArray()
                         translation.generate_clause_reif(pos, neg, literal)
                     } else {
                         for (d in c.toCnf()) {
-                            val pos = d.literals.asSequence().filter { it.asBoolean() }
-                                    .map { vars[it.asIx()] }.toList().toTypedArray()
-                            val neg = d.literals.asSequence().filter { !it.asBoolean() }
-                                    .map { vars[it.asIx()] }.toList().toTypedArray()
+                            val pos = d.literals.asSequence().filter { it.toBoolean() }
+                                    .map { vars[it.toIx()] }.toList().toTypedArray()
+                            val neg = d.literals.asSequence().filter { !it.toBoolean() }
+                                    .map { vars[it.toIx()] }.toList().toTypedArray()
                             translation.generate_clause(pos, neg)
                         }
                     }
@@ -102,7 +102,7 @@ class JacopSolver(problem: Problem,
             totalEvaluated++
             if (optimizeVars.isEmpty()) return labelingFactory.create(0)
             if (assumptions.isNotEmpty()) {
-                for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
             }
             val search = DepthFirstSearch<BooleanVar>().apply {
                 setPrintInfo(false)
@@ -122,21 +122,23 @@ class JacopSolver(problem: Problem,
     }
 
     /**
-     * This method is not lazy due to limitations in jacop. Use another solver or [iterateSolutions] instead.
+     * This method is not lazy due to limitations in jacop. Use another solver or [forEachLabeling] instead.
      * If timeout is not set it will only terminate once all solutions are exhausted, which is probably never.
      */
     override fun sequence(assumptions: Literals): Sequence<Labeling> {
         val list = ArrayList<Labeling>()
-        iterateSolutions(Integer.MAX_VALUE, assumptions) { list.add(it) }
+        forEachLabeling(Integer.MAX_VALUE, assumptions) { list.add(it) }
         return list.asSequence()
     }
 
-    fun iterateSolutions(limit: Int, assumptions: Literals, labelingConsumer: (Labeling) -> Unit) {
+    /**
+     * This method is the preferred way to iterate through solutions using Jacop.
+     */
+    fun forEachLabeling(limit: Int, assumptions: Literals, labelingConsumer: (Labeling) -> Unit) {
         try {
             store.setLevel(store.level + 1)
-            if (assumptions.isNotEmpty()) {
-                for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
-            }
+            if (assumptions.isNotEmpty())
+                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
             val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(randomSequence.next()))
             val search = DepthFirstSearch<BooleanVar>().apply {
@@ -166,7 +168,7 @@ class JacopSolver(problem: Problem,
             totalEvaluated++
             if (optimizeVars.isEmpty()) return labelingFactory.create(0)
             if (assumptions.isNotEmpty()) {
-                for (l in assumptions) store.impose(XeqC(vars[l.asIx()], if (l.asBoolean()) 1 else 0))
+                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
             }
             val max = function.weights.asSequence().map { abs(it) }.sum()
             val cost = FloatVar(store, -max, max)
@@ -184,11 +186,8 @@ class JacopSolver(problem: Problem,
             val result = search.labeling(store, SimpleSelect<BooleanVar>(
                     vars, MostConstrainedDynamic<BooleanVar>(), IndomainMax<BooleanVar>()), costVar)
             if (!result) {
-                if (search.timeOutOccured) {
-                    throw TimeoutException(timeout)
-                } else {
-                    throw UnsatisfiableException()
-                }
+                if (search.timeOutOccured) throw TimeoutException(timeout)
+                else throw UnsatisfiableException()
             }
             totalSuccesses++
             return toLabeling(labelingFactory)
@@ -202,7 +201,7 @@ class JacopSolver(problem: Problem,
         val nbrPos = vars.count { it.value() == 1 }
         val lits = IntArray(nbrPos)
         var k = 0
-        vars.forEachIndexed { i, v -> if (v.value() == 1) lits[k++] = i.asLiteral(true) }
+        vars.forEachIndexed { i, v -> if (v.value() == 1) lits[k++] = i.toLiteral(true) }
         return factory.create(vars.size).apply { setAll(lits) }
     }
 
@@ -219,7 +218,7 @@ class JacopSolver(problem: Problem,
         }
     }
 
-    class BinaryIndomainRandom(private val rng: Random) : Indomain<BooleanVar> {
+    private class BinaryIndomainRandom(private val rng: Random) : Indomain<BooleanVar> {
         override fun indomain(v: BooleanVar) = rng.nextInt(2)
     }
 }
