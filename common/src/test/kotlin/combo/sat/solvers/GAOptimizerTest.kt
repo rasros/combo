@@ -1,11 +1,10 @@
 package combo.sat.solvers
 
 import combo.sat.Problem
-import combo.sat.BinaryPropagationGraph
 import kotlin.test.Ignore
 
 @Ignore
-class GAOptimizerTest : LinearOptimizerTest {
+class GAOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem): Optimizer<LinearObjective>? {
         TODO("not implemented")
     }
@@ -29,7 +28,7 @@ class GAOptimizerTest : LinearOptimizerTest {
 }
 
 @Ignore
-class GASolverTest : SolverTest {
+class GASolverTest : SolverTest() {
     override fun solver(problem: Problem): Solver? {
         TODO("not implemented")
     }
