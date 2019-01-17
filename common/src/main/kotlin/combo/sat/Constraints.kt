@@ -6,6 +6,7 @@ import combo.sat.Relation.*
 import combo.util.IntCollection
 import combo.util.IntList
 import kotlin.jvm.JvmName
+import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -250,7 +251,7 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
     override fun toString() = "Reified($literal, $clause)"
 }
 
-class Cardinality(override val literals: IntCollection, val degree: Int = 1, val relation: Relation = LE) : Constraint {
+class Cardinality(override val literals: IntCollection, val degree: Int, val relation: Relation) : Constraint {
 
     init {
         for (l in literals) require(l.toBoolean()) {
@@ -258,11 +259,18 @@ class Cardinality(override val literals: IntCollection, val degree: Int = 1, val
         }
         require(degree >= 0) { "Degree must be >= 0 in $this." }
         require(literals.isNotEmpty()) { "Literals should not be empty." }
-        val satisfiable = if (relation === EQ) degree in 0 until literals.size
-        else if (relation === NE) literals.isNotEmpty() || degree > 0
-        else relation.flipsToSatisfy(literals.size, degree) != 0 || relation.flipsToSatisfy(0, degree) != 0
-        if (!satisfiable)
+        if (!isSatisfiable(degree, literals.size, relation))
             throw UnsatisfiableException("$this is not satisfiable, (${literals.size} cannot be ${relation.operator}).")
+    }
+
+    private companion object {
+        fun isSatisfiable(degree: Int, nbrLiterals: Int, relation: Relation): Boolean {
+            return when (relation) {
+                EQ -> degree in 0..nbrLiterals
+                NE -> true
+                else -> relation.flipsToSatisfy(nbrLiterals, degree) == 0 || relation.flipsToSatisfy(0, degree) == 0
+            }
+        }
     }
 
     override fun flipsToSatisfy(matches: Int) = relation.flipsToSatisfy(matches, degree)
@@ -276,21 +284,37 @@ class Cardinality(override val literals: IntCollection, val degree: Int = 1, val
     }
 
     override fun propagateUnit(unit: Literal): Constraint {
-        // TODO redo generic
-        val pos = unit in literals
-        val neg = !unit in literals
-        return if (pos || neg) {
-            val copy = literals.copy().apply { if (pos) remove(unit) else remove(!unit) }
-            val d = degree - if (pos) 1 else 0
-            if (d <= 0) {
-                if (copy.isEmpty() || relation == GE) Tautology
-                else Conjunction(copy.map { !it })
-            } else if (d >= copy.size && relation == LE) Tautology
-            else if (d > copy.size && relation != LE)
+        return if (unit.toIx().toLiteral(true) in literals) {
+            val copy = literals.copy().apply { if (unit.toBoolean()) remove(unit) else remove(!unit) }
+            val d = degree - if (unit.toBoolean()) 1 else 0
+            if (!isSatisfiable(d, copy.size, relation))
                 throw UnsatisfiableException(
-                        "$this is not satisfiable (${literals.size} cannot be ${relation.operator}).")
-            else Cardinality(copy, d, relation)
+                        "$this with unit $unit is not satisfiable (${copy.size} cannot be ${relation.operator} $d).")
+            else if (d >= copy.size && relation === LE) Tautology
+            else if (d > copy.size && relation === LT) Tautology
+            else if (d <= 0 && relation === GE) Tautology
+            else if (d < 0 && relation === GT) Tautology
+            else if ((d < 0 || d > copy.size) && relation === NE) Tautology
+            else if (copy.isEmpty()) {
+                if (relation.flipsToSatisfy(0, d) == 0) Tautology
+                else throw UnsatisfiableException(
+                        "$this with unit $unit is not satisfiable (${copy.size} cannot be ${relation.operator} $d).")
+            } else Cardinality(copy, d, relation)
         } else this
+    }
+
+    override fun isUnit(): Boolean {
+        // TODO could be more cases where literals.size > 1
+        return if (literals.size == 1) {
+            when (relation) {
+                GT -> degree == 0
+                GE -> degree == 1
+                LE -> false
+                LT -> false
+                NE -> degree == 0
+                EQ -> degree == 1
+            }
+        } else false
     }
 
     override fun toString() = literals.joinToString(", ", "Cardinality(", ") $relation $degree") { it.toString() }
@@ -298,7 +322,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int = 1, val
 
 enum class Relation(val operator: String) {
     GT(">") {
-        override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, -1 + degree - matches)
+        override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, 1 + degree - matches)
     },
     GE(">=") {
         override fun flipsToSatisfy(matches: Int, degree: Int) = max(0, degree - matches)
@@ -328,6 +352,7 @@ enum class Relation(val operator: String) {
     }
 
     companion object {
+        @JvmStatic
         fun String.toRelation(): Relation {
             for (r in values())
                 if (r.operator == this) return r
