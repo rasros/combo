@@ -5,6 +5,7 @@ import combo.sat.BitFieldLabeling
 import combo.sat.Relation.*
 import combo.sat.solvers.ExhaustiveSolver
 import combo.sat.solvers.LocalSearchSolver
+import combo.sat.solvers.ObjectiveFunction
 import kotlin.random.Random
 import kotlin.test.*
 

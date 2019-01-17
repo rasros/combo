@@ -56,7 +56,7 @@ class SelectTest {
     @Test
     fun referencesTest() {
         val a = alternative(2.0, 4.5, 9.0, 12.0, name = "a")
-        assertEquals(5, a.references.size)
+        assertEquals(5, a.variables.size)
     }
 }
 
@@ -81,7 +81,7 @@ class OptionTest {
     @Test
     fun referencesTest() {
         val a = alternative(1.0, 2.0, 2.5)
-        assertEquals(1, a.option(2.0).references.size)
+        assertEquals(1, a.option(2.0).variables.size)
     }
 }
 
@@ -108,7 +108,7 @@ class AlternativeTest {
         val f = alternative(4, 5, 6)
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, 2, 3, 4))
         for (i in 4..6) {
-            assertContentEquals(intArrayOf((i - 2).asLiteral(true)), ie.toLiterals(i))
+            assertContentEquals(intArrayOf((i - 2).toLiteral(true)), ie.toLiterals(i))
             assertEquals(i, ie.valueOf(BitFieldLabeling(5).apply { this[i - 2] = true }))
         }
         assertFailsWith(IllegalArgumentException::class) {
@@ -136,7 +136,7 @@ class AlternativeTest {
         assertNull(ie.valueOf(BitFieldLabeling(4)))
         assertEquals(3, ie.valueOf(BitFieldLabeling(4).apply { this[0] = true; this[3] = true }))
         for (i in 1..3)
-            assertContentEquals(intArrayOf((i).asLiteral(true)), ie.toLiterals(i))
+            assertContentEquals(intArrayOf((i).toLiteral(true)), ie.toLiterals(i))
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
         assertFailsWith(IllegalArgumentException::class) {
             assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(4))
@@ -215,7 +215,7 @@ class MultipleTest {
         assertEquals(setOf(1, 2), ie.valueOf(BitFieldLabeling(3).apply { setAll(intArrayOf(0, 2)) }))
         assertEquals(setOf(2, 3), ie.valueOf(BitFieldLabeling(3).apply { setAll(intArrayOf(2, 4)) }))
         for (i in 1 until 3)
-            assertContentEquals(intArrayOf((i - 1).asLiteral(true)), ie.toLiterals(setOf(i)))
+            assertContentEquals(intArrayOf((i - 1).toLiteral(true)), ie.toLiterals(setOf(i)))
         assertContentEquals(intArrayOf(0, 4), ie.toLiterals(setOf(1, 3)))
         assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(setOf(1, 11, 3, 10))

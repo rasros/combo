@@ -18,7 +18,7 @@ const val UNIT_TRUE = -2
 /**
  * TODO explain
  */
-abstract class Feature<T>(val name: String) : Reference() {
+abstract class Feature<T>(val name: String) : Variable() {
 
     abstract val values: Array<*>
     internal abstract val nbrLiterals: Int
@@ -75,8 +75,8 @@ class Flag<T>(val value: T, name: String = defaultName()) : Feature<T>(name) {
 
     private inner class FlagIndexEntry(override val indices: IntArray) : combo.model.IndexEntry<T> {
 
-        private val negLit = if (indices[0] >= 0) intArrayOf(indices[0].asLiteral(false)) else EMPTY_INT_ARRAY
-        private val posLit = if (indices[0] >= 0) intArrayOf(indices[0].asLiteral(true)) else EMPTY_INT_ARRAY
+        private val negLit = if (indices[0] >= 0) intArrayOf(indices[0].toLiteral(false)) else EMPTY_INT_ARRAY
+        private val posLit = if (indices[0] >= 0) intArrayOf(indices[0].toLiteral(true)) else EMPTY_INT_ARRAY
 
         override fun toLiterals(t: Any?): Literals {
             return if (t == null && indices[0] == UNIT_TRUE) throw UnsatisfiableException("Value of ${this@Flag} must not be null.")
@@ -91,8 +91,8 @@ class Flag<T>(val value: T, name: String = defaultName()) : Feature<T>(name) {
                 else null
     }
 
-    override fun toLiteral(ix: Ix) = ix.asLiteral(true)
-    override val references: Array<out Reference> get() = arrayOf(this)
+    override fun toLiteral(ix: Ix) = ix.toLiteral(true)
+    override val variables: Array<out Variable> get() = arrayOf(this)
     override val values: Array<Any> = arrayOf(value as Any)
     override fun toString() = "Flag($name)"
 }
@@ -130,7 +130,7 @@ fun <V> multiple(values: Iterable<V>, name: String = defaultName()): Multiple<V>
 abstract class Select<V, T>(override val values: Array<out V>, name: String = defaultName()) : Feature<T>(name) {
 
     override val nbrLiterals get() = 1 + values.size
-    override fun toLiteral(ix: Ix) = ix.asLiteral(true)
+    override fun toLiteral(ix: Ix) = ix.toLiteral(true)
 
     fun optionIx(index: Int) = Option(this, index)
     fun option(value: V): Option<V> {
@@ -140,7 +140,7 @@ abstract class Select<V, T>(override val values: Array<out V>, name: String = de
                 "Expected to find $value in ${values.joinToString()}")
     }
 
-    override val references: Array<out Reference>
+    override val variables: Array<out Variable>
         get() = (sequenceOf(this) + values.asSequence().mapIndexed { ix, _ -> optionIx(ix) }).toList().toTypedArray()
 
 
@@ -175,19 +175,19 @@ abstract class Select<V, T>(override val values: Array<out V>, name: String = de
     }
 }
 
-class Option<V> constructor(private val select: Select<V, *>, private val valueIndex: Int) : Reference() {
-    override fun toLiteral(ix: Ix) = (ix + valueIndex + 1).asLiteral(true)
+class Option<V> constructor(private val select: Select<V, *>, private val valueIndex: Int) : Variable() {
+    override fun toLiteral(ix: Ix) = (ix + valueIndex + 1).toLiteral(true)
     override val rootFeature get() = select
-    override val references: Array<out Reference> get() = arrayOf(this)
+    override val variables: Array<out Variable> get() = arrayOf(this)
 }
 
 class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Set<V>>(values, name) {
 
-    override fun toSentences(ri: ReferenceIndex): Array<Sentence> {
+    override fun toConstraints(ri: ReferenceIndex): Array<Constraint> {
         val alternatives = values.map { option(it) }.toTypedArray()
         if (alternatives.isEmpty()) return arrayOf(Tautology)
-        if (alternatives.size == 1) return (this equivalent alternatives[0]).toSentences(ri)
-        return arrayOf(Reified(ri.indexOf(this).asLiteral(true), or(*alternatives).toClause(ri)))
+        if (alternatives.size == 1) return (this equivalent alternatives[0]).toConstraints(ri)
+        return arrayOf(Reified(ri.indexOf(this).toLiteral(true), or(*alternatives).toClause(ri)))
     }
 
     override fun createIndexEntry(indices: IntArray): IndexEntry<Set<V>> {
@@ -199,7 +199,7 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
 
     private inner class MultipleIndexEntry(indices: IntArray) : SelectIndexEntry<Set<V>>(indices) {
 
-        private val rootFalse = if (indices[0] >= 0) intArrayOf(indices[0].asLiteral(false)) else EMPTY_INT_ARRAY
+        private val rootFalse = if (indices[0] >= 0) intArrayOf(indices[0].toLiteral(false)) else EMPTY_INT_ARRAY
 
         override fun valueOf(labeling: Labeling) =
                 if (indices[0] >= 0 && !labeling[indices[0]]) null
@@ -224,7 +224,7 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
             var k = 0
             for (v in col) {
                 val id = valueIx(v ?: throw NullPointerException("Value is null in list $k"))
-                if (id > 0) arr[k++] = indices[id].asLiteral(true)
+                if (id > 0) arr[k++] = indices[id].toLiteral(true)
             }
             if (k < arr.size) return arr.sliceArray(0 until k)
             return arr.apply { sort() }
@@ -236,12 +236,12 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
 
     override fun toString() = "Alternative($name)"
 
-    override fun toSentences(ri: ReferenceIndex): Array<Sentence> {
+    override fun toConstraints(ri: ReferenceIndex): Array<Constraint> {
         val alternatives = values.map { option(it) }.toTypedArray()
         if (alternatives.isEmpty()) return arrayOf(Tautology)
-        if (alternatives.size == 1) return (this equivalent alternatives[0]).toSentences(ri)
-        return arrayOf<Sentence>(Reified(ri.indexOf(this).asLiteral(true), or(*alternatives).toClause(ri))) +
-                excludes(*alternatives).toSentences(ri)
+        if (alternatives.size == 1) return (this equivalent alternatives[0]).toConstraints(ri)
+        return arrayOf<Constraint>(Reified(ri.indexOf(this).toLiteral(true), or(*alternatives).toClause(ri))) +
+                excludes(*alternatives).toConstraints(ri)
     }
 
     override fun createIndexEntry(indices: IntArray): IndexEntry<V> {
@@ -270,8 +270,8 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
          * for when each alternative is on respectively.
          */
         private val lits = Array(ids.size) {
-            if (it == 0) if (ids[0] >= 0) intArrayOf(ids[0].asLiteral(false)) else EMPTY_INT_ARRAY
-            else if (ids[it] >= 0) intArrayOf(ids[it].asLiteral(true))
+            if (it == 0) if (ids[0] >= 0) intArrayOf(ids[0].toLiteral(false)) else EMPTY_INT_ARRAY
+            else if (ids[it] >= 0) intArrayOf(ids[it].toLiteral(true))
             else EMPTY_INT_ARRAY
         }
 

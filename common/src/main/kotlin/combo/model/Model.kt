@@ -3,7 +3,7 @@ package combo.model
 import combo.sat.Labeling
 import combo.sat.Problem
 import combo.sat.Tautology
-import combo.sat.asLiteral
+import combo.sat.toLiteral
 import combo.util.IntSet
 import combo.util.Tree
 import kotlin.jvm.JvmOverloads
@@ -39,7 +39,7 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
             override val value: Feature<*>,
             override val children: MutableList<Builder>,
             private val declarations: MutableSet<Feature<*>>? = null,
-            private val sentences: MutableList<SentenceBuilder>? = null) : Tree<Feature<*>, Builder> {
+            private val constraints: MutableList<ConstraintBuilder>? = null) : Tree<Feature<*>, Builder> {
         // TODO optimizations in building procedure
         // TODO ideas: don't add disjunctions to root
 
@@ -53,9 +53,9 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
             val features = this.asSequence().map { it.value }.toList()
 
             val index = ReferenceIndex(features.toTypedArray())
-            val fullSentences = ((sentences ?: emptyList<SentenceBuilder>())
-                    .asSequence().flatMap { it.toSentences(index).asSequence() })
-                    .plus(features.asSequence().flatMap { it.toSentences(index).asSequence() })
+            val fullSentences = ((constraints ?: emptyList<ConstraintBuilder>())
+                    .asSequence().flatMap { it.toConstraints(index).asSequence() })
+                    .plus(features.asSequence().flatMap { it.toConstraints(index).asSequence() })
                     .filterNot { it is Tautology }
                     .toList().toTypedArray()
 
@@ -73,8 +73,8 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
                 var variableId = 0
                 for (i in remappedIds.indices)
                     when {
-                        unitLiterals.contains(i.asLiteral(true)) -> remappedIds[i] = UNIT_TRUE
-                        unitLiterals.contains(i.asLiteral(false)) -> remappedIds[i] = UNIT_FALSE
+                        unitLiterals.contains(i.toLiteral(true)) -> remappedIds[i] = UNIT_TRUE
+                        unitLiterals.contains(i.toLiteral(false)) -> remappedIds[i] = UNIT_FALSE
                         else -> remappedIds[i] = variableId++
                     }
                 variableId
@@ -90,7 +90,7 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
                 FeatureMeta(feature, indexEntry)
             }
 
-            val remappedSentences = problem.sentences.asSequence().map { it.remap(remappedIds) }.toList().toTypedArray()
+            val remappedSentences = problem.constraints.asSequence().map { it.remap(remappedIds) }.toList().toTypedArray()
             val featureMetaMap: Map<Feature<*>, FeatureMeta<*>> = LinkedHashMap<Feature<*>, FeatureMeta<*>>().apply {
                 for (f in featureMetas)
                     this[f.feature] = f
@@ -100,18 +100,18 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
                     Problem(remappedSentences, nbrVariables), root)
         }
 
-        fun constrained(by: SentenceBuilder): Builder {
-            for (ref in by.references) if (!declarations!!.contains(ref.rootFeature))
-                throw IllegalArgumentException("Use of undeclared reference $ref in operator: $by")
-            sentences!!.add(by)
+        fun constrained(by: ConstraintBuilder): Builder {
+            for (ref in by.variables) if (!declarations!!.contains(ref.rootFeature))
+                throw IllegalArgumentException("Use of undeclared reference $ref in constraint: $by")
+            constraints!!.add(by)
             return this
         }
 
         fun optional(childFeature: Feature<*>) = optional(Builder(childFeature))
         fun optional(childBuilder: Builder): Builder {
             childBuilder.declarations?.forEach { this.addDeclaration(it) }
-            childBuilder.sentences?.forEach { this.constrained(it) }
-            this.children.add(Builder(childBuilder.value, childBuilder.children, this.declarations, this.sentences))
+            childBuilder.constraints?.forEach { this.constrained(it) }
+            this.children.add(Builder(childBuilder.value, childBuilder.children, this.declarations, this.constraints))
             constrained(childBuilder.value implies value)
             return this
         }
@@ -119,8 +119,8 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
         fun mandatory(childFeature: Feature<*>) = mandatory(Builder(childFeature))
         fun mandatory(childBuilder: Builder): Builder {
             childBuilder.declarations?.forEach { this.addDeclaration(it) }
-            childBuilder.sentences?.forEach { this.constrained(it) }
-            this.children.add(Builder(childBuilder.value, childBuilder.children, this.declarations, this.sentences))
+            childBuilder.constraints?.forEach { this.constrained(it) }
+            this.children.add(Builder(childBuilder.value, childBuilder.children, this.declarations, this.constraints))
             constrained(childBuilder.value equivalent value)
             return this
         }

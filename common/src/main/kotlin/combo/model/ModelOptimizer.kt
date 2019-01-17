@@ -1,25 +1,19 @@
 package combo.model
 
 import combo.bandit.Bandit
-import combo.bandit.DecisionTreeBandit
-import combo.bandit.MultiArmedBandit
-import combo.bandit.glm.GaussianVariance
-import combo.bandit.glm.VarianceFunction
-import combo.math.*
-import combo.sat.Problem
-import combo.sat.UnitPropagationTable
-import combo.sat.solvers.*
+import combo.sat.solvers.Solver
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
-import kotlin.jvm.JvmStatic
 
 class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iterable<Assignment> {
     companion object {
 
-        private fun defaultSolver(p: Problem, c: SolverConfig, pt: UnitPropagationTable?): Solver =
-                LocalSearchSolver(p, c, pt, maxRestarts = Int.MAX_VALUE)
+        /*
+        TODO
+        private fun defaultSolver(p: Problem, pt: BinaryPropagationGraph?): Solver =
+                LocalSearchSolver(p, pt, maxRestarts = Int.MAX_VALUE)
 
-        private fun defaultLinOpt(p: Problem, c: SolverConfig, pt: UnitPropagationTable?): Optimizer<LinearObjective> =
+        private fun defaultLinOpt(p: Problem, c: SolverConfig, pt: BinaryPropagationGraph?): Optimizer<LinearObjective> =
                 FallbackOptimizer(LocalSearchOptimizer(p, c, pt, restarts = 1))
 
         @JvmStatic
@@ -40,7 +34,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         fun dtBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
                      posterior: Posterior = NormalPosterior,
-                     solver: Solver = defaultSolver(model.problem, config, UnitPropagationTable(model.problem))): ModelOptimizer {
+                     solver: Solver = defaultSolver(model.problem, config, BinaryPropagationGraph(model.problem))): ModelOptimizer {
             val bandit = DecisionTreeBandit(model.problem, config, solver, posterior)
             return ModelOptimizer(model, solver, bandit)
         }
@@ -52,9 +46,9 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
                       family: VarianceFunction = GaussianVariance,
                       link: Transform = family.canonicalLink(),
                       regularization: Loss = SquaredLoss,
-                      propagationTable: UnitPropagationTable? = UnitPropagationTable(model.problem),
-                      linearOptimizer: Optimizer<LinearObjective> = defaultLinOpt(model.problem, config, propagationTable),
-                      solver: Solver = defaultSolver(model.problem, config, propagationTable)): ModelOptimizer {
+                      propagationGraph: BinaryPropagationGraph? = BinaryPropagationGraph(model.problem),
+                      linearOptimizer: Optimizer<LinearObjective> = defaultLinOpt(model.problem, config, propagationGraph),
+                      solver: Solver = defaultSolver(model.problem, config, propagationGraph)): ModelOptimizer {
             TODO()
         }
 
@@ -62,11 +56,12 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         @JvmOverloads
         fun gaBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
-                     propagationTable: UnitPropagationTable?,
+                     propagationGraph: BinaryPropagationGraph?,
                      posterior: Posterior? = null,
-                     solver: Solver = defaultSolver(model.problem, config, propagationTable)): ModelOptimizer {
+                     solver: Solver = defaultSolver(model.problem, config, propagationGraph)): ModelOptimizer {
             TODO()
         }
+         */
     }
 
     @JvmOverloads
