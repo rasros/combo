@@ -31,7 +31,7 @@ class JOptimizerSolver(val problem: Problem,
                        },
                        constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
                            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                       }) : Optimizer<LinearObjective>, Solver {
+                       }) : Optimizer<LinearObjective> {
 
     var totalSuccesses: Long = 0
         private set
@@ -96,13 +96,6 @@ class JOptimizerSolver(val problem: Problem,
             else {
                 row += constraintHandler.invoke(c, row, G, h)
             }
-    }
-
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
-        val rng = randomSequence.next()
-        return optimizeOrThrow(
-                LinearObjective(false, DoubleArray(problem.nbrVariables) { rng.nextDouble() - 0.5 }), assumptions
-        )
     }
 
     /**
