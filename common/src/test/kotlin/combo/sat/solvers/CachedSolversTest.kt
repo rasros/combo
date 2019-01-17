@@ -1,7 +1,5 @@
 package combo.sat.solvers
 
-import combo.sat.LocalSearchLinearOptimizerTest
-import combo.sat.LocalSearchSolverTest
 import combo.sat.Problem
 
 class CachedSolverTest : SolverTest() {
