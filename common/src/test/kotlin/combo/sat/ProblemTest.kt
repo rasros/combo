@@ -5,41 +5,44 @@ import combo.math.binomial
 import combo.model.ModelTest
 import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
+import combo.util.IntList
 import combo.util.IntSet
 import kotlin.random.Random
 import kotlin.test.*
 
 class ProblemTest {
     private val problem = Problem(
-            arrayOf(Disjunction(intArrayOf(0, 2, 4)),
-                    Disjunction(intArrayOf(1, 5)),
-                    Disjunction(intArrayOf(8, 10)),
-                    Disjunction(intArrayOf(1, 3, 5, 9)),
-                    Conjunction(intArrayOf(4)),
-                    Cardinality(intArrayOf(4, 6))
+            arrayOf(Disjunction(IntList(intArrayOf(0, 2, 4))),
+                    Disjunction(IntList(intArrayOf(1, 5))),
+                    Disjunction(IntList(intArrayOf(8, 10))),
+                    Disjunction(IntList(intArrayOf(1, 3, 5, 9))),
+                    Conjunction(IntList(intArrayOf(4))),
+                    Cardinality(IntList(intArrayOf(4, 6)), 1, Relation.LE)
             ), 6)
 
     @Test
     fun unitPropagationReduction() {
-        problem.sentences.forEach { it.validate() }
-        val reduced = problem.simplify(IntSet())
-        assertTrue(reduced.nbrSentences < problem.nbrSentences)
+        val units = IntSet()
+        val reduced = problem.unitPropagation(units)
+        assertTrue(reduced.size < problem.nbrSentences)
     }
 
     @Test
     fun unitPropagationSameSolution() {
         val solutions1 = ExhaustiveSolver(problem).sequence().toSet()
         val units = IntSet()
-        val reduced = problem.simplify(units, true)
-        val solutions2 = ExhaustiveSolver(reduced).sequence(units.toArray().apply { sort() }).toSet()
-        val unitsSentence = Conjunction(units.toArray().apply { sort() })
-        val sentences: MutableList<Sentence> = reduced.sentences.toMutableList()
-        sentences.add(unitsSentence)
+        var reducedConstraints = problem.unitPropagation(units)
+        if (units.isNotEmpty()) reducedConstraints += Conjunction(units)
+        val reducedProblem = Problem(reducedConstraints, problem.nbrVariables)
+        val solutions2 = ExhaustiveSolver(reducedProblem).sequence(units.toArray().apply { sort() }).toSet()
+        val unitsSentence = Conjunction(units)
+        val constraints: MutableList<Constraint> = reducedProblem.constraints.toMutableList()
+        constraints.add(unitsSentence)
         val solutions3 = ExhaustiveSolver(
-                Problem(sentences.toTypedArray(), 6)).sequence().toSet()
+                Problem(constraints.toTypedArray(), 6)).sequence().toSet()
         for (l in solutions1) {
             assertTrue(problem.satisfies(l))
-            assertTrue(reduced.satisfies(l))
+            assertTrue(reducedProblem.satisfies(l))
             assertTrue(solutions2.contains(l))
             assertTrue(solutions3.contains(l))
         }
@@ -50,23 +53,26 @@ class ProblemTest {
     @Test
     fun unitPropagationUnsat() {
         assertFailsWith(UnsatisfiableException::class) {
-            Problem(arrayOf(Disjunction(intArrayOf(0)), Disjunction(intArrayOf(1))), 1).unitPropagation()
+            Problem(arrayOf(Disjunction(IntList(intArrayOf(0))), Disjunction(IntList(intArrayOf(1)))), 1).unitPropagation()
         }
     }
 
     @Test
     fun randomPropagation() {
         val rng = Random.Default
-        val p = ModelTest.large2.problem
+        val p = ModelTest.LARGE2.problem
         val perm = IntPermutation(p.nbrVariables, rng)
         val lits = (0 until rng.binomial(0.7, p.nbrVariables)).asSequence()
                 .map { perm.encode(it) }
-                .map { it.asLiteral(rng.nextBoolean()) }
+                .map { it.toLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }
-        val sents: Array<Sentence> = p.sentences.toList().toTypedArray()
-        val p2 = Problem(sents + Conjunction(lits), p.nbrVariables)
+        val sents: Array<Constraint> = p.constraints.toList().toTypedArray()
+        val p2 = Problem(sents + Conjunction(IntList(lits)), p.nbrVariables)
         val reduced = try {
-            p.simplify(IntSet().apply { addAll(lits) }, true)
+            val units = IntSet().apply { addAll(lits) }
+            var reduced = p.unitPropagation(units)
+            if (units.isNotEmpty()) reduced += Conjunction(units)
+            Problem(reduced, p.nbrVariables)
         } catch (e: UnsatisfiableException) {
             return
         }
@@ -77,7 +83,7 @@ class ProblemTest {
 
     @Test
     fun satisfies() {
-        val sentences = arrayOf(Cardinality(intArrayOf(0, 2, 4), 1, Cardinality.Operator.AT_MOST))
+        val sentences = arrayOf(Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE))
         val problem = Problem(sentences, 3)
         assertFalse(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
         assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
@@ -88,8 +94,8 @@ class ProblemTest {
     @Test
     fun clauseMatch() {
         val problem = Problem(arrayOf(
-                Disjunction(intArrayOf(0, 2, 4)),
-                Conjunction(intArrayOf(1))), 3)
+                Disjunction(IntList(intArrayOf(0, 2, 4))),
+                Conjunction(IntList(intArrayOf(1)))), 3)
         assertContentEquals(intArrayOf(0, 1), problem.sentencesWith(0))
         assertContentEquals(intArrayOf(0), problem.sentencesWith(1))
         assertContentEquals(intArrayOf(0), problem.sentencesWith(2))

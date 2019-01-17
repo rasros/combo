@@ -6,28 +6,28 @@ class LiteralsTest {
 
     @Test
     fun toLiteral() {
-        assertEquals(0, 0.asLiteral(true))
-        assertEquals(1, 0.asLiteral(false))
+        assertEquals(0, 0.toLiteral(true))
+        assertEquals(1, 0.toLiteral(false))
 
-        assertEquals(20, 10.asLiteral(true))
-        assertEquals(21, 10.asLiteral(false))
+        assertEquals(20, 10.toLiteral(true))
+        assertEquals(21, 10.toLiteral(false))
     }
 
     @Test
     fun toId() {
-        assertEquals(0, 0.asIx())
-        assertEquals(0, 1.asIx())
-        assertEquals(3, 7.asIx())
-        assertEquals(4, 8.asIx())
-        assertEquals(4, 9.asIx())
+        assertEquals(0, 0.toIx())
+        assertEquals(0, 1.toIx())
+        assertEquals(3, 7.toIx())
+        assertEquals(4, 8.toIx())
+        assertEquals(4, 9.toIx())
     }
 
     @Test
     fun toBoolean() {
-        assertTrue(0.asBoolean())
-        assertFalse(1.asBoolean())
-        assertTrue(6.asBoolean())
-        assertFalse(7.asBoolean())
+        assertTrue(0.toBoolean())
+        assertFalse(1.toBoolean())
+        assertTrue(6.toBoolean())
+        assertFalse(7.toBoolean())
     }
 
     @Test
@@ -40,30 +40,11 @@ class LiteralsTest {
     }
 
     @Test
-    fun validateOk() {
-        intArrayOf(0, 2, 6, 9).validate()
-    }
-
-    @Test
-    fun validateFailDuplicated() {
-        assertFailsWith(IllegalArgumentException::class) {
-            intArrayOf(0, 1).validate()
-        }
-    }
-
-    @Test
-    fun validateUnorderedFail() {
-        assertFailsWith(IllegalArgumentException::class) {
-            intArrayOf(2, 0).validate()
-        }
-    }
-
-    @Test
     fun toDimacs() {
-        assertEquals(1, 0.asDimacs())
-        assertEquals(-1, 1.asDimacs())
-        assertEquals(11, 20.asDimacs())
-        assertEquals(-11, 21.asDimacs())
+        assertEquals(1, 0.toDimacs())
+        assertEquals(-1, 1.toDimacs())
+        assertEquals(11, 20.toDimacs())
+        assertEquals(-11, 21.toDimacs())
     }
 
     @Test
@@ -77,8 +58,8 @@ class LiteralsTest {
     @Test
     fun fromAndToDimacs() {
         for (i in 0 until 100) {
-            assertEquals(i, i.asDimacs().fromDimacs())
-            assertEquals(i, i.fromDimacs().asDimacs())
+            assertEquals(i, i.toDimacs().fromDimacs())
+            assertEquals(i, i.fromDimacs().toDimacs())
         }
     }
 }
