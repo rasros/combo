@@ -184,7 +184,7 @@ class ConstraintsBuilderTest {
     @Test
     fun excludesNegated() {
         assertFailsWith(IllegalArgumentException::class) {
-            excludes(!vars[0], vars[1]).toConstraints(index)
+            excludes(!vars[0], vars[1], vars[2]).toConstraints(index)
         }
     }
 
