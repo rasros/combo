@@ -1,6 +1,6 @@
-package combo.sat
+package combo.sat.solvers
 
-import combo.sat.solvers.*
+import combo.sat.*
 
 class LocalSearchSolverTest : SolverTest() {
     override fun solver(problem: Problem) = LocalSearchSolver(
