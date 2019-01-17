@@ -4,15 +4,19 @@ import combo.math.*
 import combo.sat.Conjunction
 import combo.sat.Labeling
 import combo.sat.UnsatisfiableException
-import combo.sat.solvers.SolverConfig
+import combo.util.IntList
+import combo.util.collectionOf
+import combo.util.nanos
 import kotlin.jvm.JvmOverloads
 
 class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
-                                                 override val config: SolverConfig,
+                                                 val maximize: Boolean = true,
+                                                 val randomSeed: Long = nanos(),
                                                  val posterior: Posterior,
                                                  override val rewards: DataSample = GrowingDataSample(20),
                                                  val prior: VarianceStatistic = posterior.defaultPrior()) : Bandit {
 
+    private val randomSequence = RandomSequence(randomSeed)
     val banditMap: Map<Labeling, VarianceStatistic> = bandits.associate { Pair(it, prior.copy()) }
 
     override fun update(labeling: Labeling, result: Double, weight: Double) {
@@ -21,9 +25,9 @@ class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
     }
 
     override fun chooseOrThrow(assumptions: IntArray): Labeling {
-        val rng = config.nextRandom()
-        val con = Conjunction(assumptions)
-        val labeling = if (config.maximize) {
+        val rng = randomSequence.next()
+        val con = Conjunction(collectionOf(assumptions))
+        val labeling = if (maximize) {
             banditMap.maxBy { if (con.satisfies(it.key)) posterior.sample(rng, it.value) else Double.NEGATIVE_INFINITY }
         } else {
             banditMap.minBy { if (con.satisfies(it.key)) posterior.sample(rng, it.value) else Double.POSITIVE_INFINITY }

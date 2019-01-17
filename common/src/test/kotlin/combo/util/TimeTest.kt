@@ -15,6 +15,6 @@ class TimeTest {
         val nowNanos = nanos()
         val thenMillis = millis()
         val thenNanos = nanos()
-        assertTrue(thenNanos - nowNanos > thenMillis - nowMillis)
+        assertTrue(thenNanos - nowNanos >= thenMillis - nowMillis)
     }
 }

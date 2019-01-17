@@ -3,7 +3,6 @@ package combo.bandit
 import combo.math.DataSample
 import combo.sat.Labeling
 import combo.sat.ValidationException
-import combo.sat.solvers.SolverConfig
 import kotlin.math.abs
 
 interface Bandit {
@@ -18,7 +17,6 @@ interface Bandit {
             }
 
     fun update(labeling: Labeling, result: Double, weight: Double)
-    val config: SolverConfig
     val rewards: DataSample
 }
 

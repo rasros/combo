@@ -3,11 +3,12 @@ package combo.bandit.glm
 import combo.bandit.PredictionBandit
 import combo.math.DataSample
 import combo.sat.Labeling
+import combo.sat.Problem
 import combo.sat.solvers.LinearObjective
 import combo.sat.solvers.Optimizer
-import combo.sat.solvers.SolverConfig
 
-class GLMBandit(override val config: SolverConfig,
+class GLMBandit(val problem: Problem,
+                val maximize: Boolean = true,
                 override val rewards: DataSample,
                 val optimizer: Optimizer<LinearObjective>,
                 override val trainAbsError: DataSample,
@@ -24,7 +25,7 @@ class GLMBandit(override val config: SolverConfig,
     override fun chooseOrThrow(assumptions: IntArray): Labeling {
         val weights = DoubleArray(0)
 
-        val l = optimizer.optimize(LinearObjective(weights), assumptions)
+        val l = optimizer.optimize(LinearObjective(maximize, weights), assumptions)
         TODO("not implemented")
     }
 

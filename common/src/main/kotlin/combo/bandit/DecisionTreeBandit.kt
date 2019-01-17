@@ -1,23 +1,20 @@
 package combo.bandit
 
-import combo.math.DataSample
-import combo.math.GrowingDataSample
-import combo.math.Posterior
-import combo.math.VarianceStatistic
+import combo.math.*
 import combo.sat.*
 import combo.sat.solvers.LocalSearchSolver
 import combo.sat.solvers.Solver
-import combo.sat.solvers.SolverConfig
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.IntSet
+import combo.util.nanos
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
 import kotlin.math.sqrt
 
-// TODO improvement idea compare with something other 2nd best. Perhaps middle or top-k
 class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
-                                                   override val config: SolverConfig = SolverConfig(),
-                                                   val solver: Solver = LocalSearchSolver(problem, config, UnitPropagationTable(problem)),
+                                                   val maximize: Boolean = true,
+                                                   val randomSeed: Long = nanos(),
+                                                   val solver: Solver = LocalSearchSolver(problem, randomSeed = randomSeed),
                                                    val posterior: Posterior,
                                                    val prior: VarianceStatistic = posterior.defaultPrior(),
                                                    override val rewards: DataSample = GrowingDataSample(20),
@@ -27,24 +24,19 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                                                    val tau: Double = 0.1,
                                                    override val trainAbsError: DataSample = GrowingDataSample(),
                                                    override val testAbsError: DataSample = GrowingDataSample()) : PredictionBandit {
-    override fun predict(labeling: Labeling): Double {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
 
-    override fun train(labeling: Labeling, result: Double, weight: Double) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
 
     // For info on delta and tau parameters of the VFDT algorithm check out these resources:
     // https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
     // http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
 
+    private val randomSequence = RandomSequence(randomSeed)
     private val leaves: MutableList<LeafNode> = ArrayList()
     private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior)
 
     override fun chooseOrThrow(assumptions: IntArray): Labeling {
-        val rng = config.nextRandom()
-        val node = if (config.maximize) {
+        val rng = randomSequence.next()
+        val node = if (maximize) {
             leaves.maxBy {
                 if (matches(it.setLiterals, assumptions)) posterior.sample(rng, it.total)
                 else Double.NEGATIVE_INFINITY
@@ -59,15 +51,23 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         else solver.witnessOrThrow(assumptions + node.setLiterals)
     }
 
+    override fun predict(labeling: Labeling): Double {
+        TODO("not implemented")
+    }
+
+    override fun train(labeling: Labeling, result: Double, weight: Double) {
+        TODO("not implemented")
+    }
+
     override fun update(labeling: Labeling, result: Double, weight: Double) {
         root = root.update(labeling, result, weight)
     }
 
     /**
-     * Fully build the decision tree down to [maxDepth] depth.
+     * Fully build the decision tree down to [maxDepth] depth using random decisions.
      */
     fun explode() {
-        val rng = config.nextRandom()
+        //val rng = config.nextRandom()
         TODO()
     }
 
@@ -77,7 +77,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
             val l1 = assumptions[i]
             while (setLiterals[j] < l1) j++
             val l2 = setLiterals[j]
-            if (l1.asIx() == l2.asIx() && l1 != l2) return false
+            if (l1.toIx() == l2.toIx() && l1 != l2) return false
         }
         return true
     }
@@ -122,7 +122,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
         val ids = IntSet().let { s ->
             s.addAll(0 until problem.nbrVariables)
-            setLiterals.map { it.asIx() }.forEach { s.remove(it) }
+            setLiterals.map { it.toIx() }.forEach { s.remove(it) }
             s.toArray().apply { sort() }
         }
         val dataPos: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }
@@ -155,8 +155,8 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
                     val pos: Node
                     val neg: Node
-                    val posLiterals = (setLiterals + ids[bestI].asLiteral(true)).apply { sort() }
-                    val negLiterals = (setLiterals + ids[bestI].asLiteral(false)).apply { sort() }
+                    val posLiterals = (setLiterals + ids[bestI].toLiteral(true)).apply { sort() }
+                    val negLiterals = (setLiterals + ids[bestI].toLiteral(false)).apply { sort() }
                     if (setLiterals.size + 1 >= maxDepth) {
                         pos = DeadNode(posLiterals, dataPos[bestI])
                         neg = DeadNode(negLiterals, dataNeg[bestI])
