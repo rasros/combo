@@ -4,10 +4,14 @@ package combo.sat
 
 import kotlin.jvm.JvmName
 
+/**
+ * A validation exception is thrown only if there is a logical contradiction in the model or the model could not be
+ * solved due to timeouts or iterations reached. In general, this does not indicate an incorrect usage of the library.
+ */
 sealed class ValidationException(message: String, cause: Throwable? = null, val literal: Literal? = null)
     : RuntimeException(message, cause) {
     override fun toString(): String {
-        return super.toString() + if (literal != null) " For literal: ${literal}." else ""
+        return super.toString() + if (literal != null) " For literal: $literal." else ""
     }
 }
 

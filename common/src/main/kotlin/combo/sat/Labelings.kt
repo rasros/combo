@@ -1,27 +1,31 @@
 package combo.sat
 
 import combo.math.Vector
+import combo.util.IntList
 import combo.util.IntSet
 import kotlin.experimental.and
 import kotlin.experimental.xor
 import kotlin.math.max
 
+/**
+ * A labeling is used by the solvers to find a valid truth assignment.
+ */
 interface Labeling : Iterable<Int> {
     val size: Int
     val indices: IntRange
         get() = 0 until size
 
-    fun copy(): Labeling
-    fun asLiteral(ix: Ix): Literal = ix.asLiteral(this[ix])
+    fun copy(): MutableLabeling
+    fun literal(ix: Ix): Literal = ix.toLiteral(this[ix])
     operator fun get(ix: Ix): Boolean
 
     override fun iterator() = object : IntIterator() {
         var i = 0
         override fun hasNext() = i < size
-        override fun nextInt() = this@Labeling.asLiteral(i++)
+        override fun nextInt() = this@Labeling.literal(i++)
     }
 
-    fun truthIterator() = object : IntIterator() {
+    fun truthIterator(): IntIterator = object : IntIterator() {
         var i = 0
 
         init {
@@ -29,18 +33,23 @@ interface Labeling : Iterable<Int> {
         }
 
         override fun hasNext() = i < size
-        override fun nextInt() = this@Labeling.asLiteral(i).also {
+        override fun nextInt() = this@Labeling.literal(i).also {
             i++
             while (i < size && !this@Labeling[i]) i++
         }
     }
 
-    fun asLiterals() = IntArray(size) { asLiteral(it) }
+    fun toLiterals(trueValuesOnly: Boolean = true) = if (trueValuesOnly) {
+        val list = IntList()
+        val itr = truthIterator()
+        while (itr.hasNext()) list.add(itr.nextInt())
+        list.toArray()
+    } else IntArray(size) { literal(it) }
 }
 
 interface MutableLabeling : Labeling {
     fun flip(ix: Ix) = set(ix, !get(ix))
-    fun set(literal: Literal) = set(literal.asIx(), literal.asBoolean())
+    fun set(literal: Literal) = set(literal.toIx(), literal.toBoolean())
     fun setAll(literals: Literals) = literals.forEach { set(it) }
     override fun copy(): MutableLabeling
     operator fun set(ix: Ix, value: Boolean)
@@ -54,17 +63,23 @@ internal fun Labeling.deepEquals(other: Labeling): Boolean {
 
 internal fun Labeling.deepHashCode(): Int {
     var result = size
-    for (i in truthIterator())
-        result = 31 * result + i
+    val itr = truthIterator()
+    while (itr.hasNext())
+        result = 31 * result + itr.nextInt()
     return result
 }
 
 internal fun Labeling.deepToString() = toIntArray().joinToString(",", "[", "]")
 
-infix fun Labeling.dot(v: Vector) =
-        v.foldIndexed(0.0) { i, dot, d -> dot + d * this[i].toInt() }
+infix fun Labeling.dot(v: Vector): Double {
+    var sum = 0.0
+    val itr = truthIterator()
+    while (itr.hasNext()) sum += v[itr.nextInt().toIx()]
+    return sum
+}
 
 fun Labeling.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
+fun Labeling.toDoubleArray() = DoubleArray(size) { if (this[it]) 1.0 else 0.0 }
 
 interface LabelingFactory {
     fun create(size: Int): MutableLabeling
@@ -75,11 +90,11 @@ object IntSetLabelingFactory : LabelingFactory {
 }
 
 class IntSetLabeling(override val size: Int, val intSet: IntSet = IntSet(max(2, (size * 0.2).toInt()))) : MutableLabeling {
-    override fun get(ix: Ix) = ix.asLiteral(true) in intSet
+    override fun get(ix: Ix) = ix.toLiteral(true) in intSet
     override fun copy() = IntSetLabeling(size, intSet.copy())
     override fun set(ix: Ix, value: Boolean) {
-        if (value) intSet.add(ix.asLiteral(true))
-        else intSet.remove(ix.asLiteral(true))
+        if (value) intSet.add(ix.toLiteral(true))
+        else intSet.remove(ix.toLiteral(true))
     }
 
     override fun truthIterator() = intSet.iterator()
@@ -116,7 +131,7 @@ class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
 
     override operator fun get(ix: Ix): Boolean = (values[ix] and 1) == ONE
 
-    override fun asLiteral(ix: Ix): Literal = ix.asLiteral(this[ix])
+    override fun literal(ix: Ix): Literal = ix.toLiteral(this[ix])
 
     override fun equals(other: Any?) = if (other is Labeling) deepEquals(other) else false
     override fun hashCode() = deepHashCode()
