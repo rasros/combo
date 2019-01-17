@@ -2,57 +2,50 @@ package combo.sat
 
 import combo.sat.solvers.*
 
-class LocalSearchSolverFlipTest : SolverTest() {
-    override fun solver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), null, timeout = 5 * 1000L, maxRestarts = Int.MAX_VALUE)
+class LocalSearchSolverTest : SolverTest() {
+    override fun solver(problem: Problem) = LocalSearchSolver(
+            problem, randomSeed = 0L, timeout = 5 * 1000L, restarts = Int.MAX_VALUE, stateFactory = BasicSearchStateFactory(problem))
 
-    override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), null, timeout = 10 * 1000L, maxRestarts = Int.MAX_VALUE)
+    override fun unsatSolver(problem: Problem) = LocalSearchSolver(
+            problem, randomSeed = 0L, timeout = 1L, maxSteps = 1, restarts = 1, stateFactory = BasicSearchStateFactory(problem))
+}
 
-    override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), null, maxSteps = 10, maxRestarts = 1)
+class LocalSearchLinearOptimizerTest : LinearOptimizerTest() {
 
-    override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), null, timeout = 1L, maxConsideration = 1, maxSteps = Int.MAX_VALUE, maxRestarts = Int.MAX_VALUE)
+    override fun largeOptimizer(problem: Problem) = LocalSearchOptimizer(
+            problem, randomSeed = 0L, restarts = 50, timeout = 5 * 1000L, stateFactory = BasicSearchStateFactory(problem), selector = WeightSelector)
+
+    override fun optimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+            problem, randomSeed = 0L, restarts = 50, timeout = 5 * 1000L, stateFactory = BasicSearchStateFactory(problem), selector = RandomSelector)
+
+    override fun unsatOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+            problem, randomSeed = 0L, timeout = 1L, restarts = 1, maxSteps = 1, stateFactory = BasicSearchStateFactory(problem))
+}
+
+class LocalSearchOptimizerTest : OptimizerTest() {
+    override fun <O : ObjectiveFunction> optimizer(problem: Problem, function: O) = LocalSearchOptimizer<O>(
+            problem, randomSeed = 0L, restarts = 100, timeout = 5 * 1000L, stateFactory = BasicSearchStateFactory(problem))
 }
 
 class LocalSearchSolverPropTest : SolverTest() {
-    override fun solver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 5 * 1000L, maxRestarts = Int.MAX_VALUE)
+    override fun solver(problem: Problem) = LocalSearchSolver(
+            problem, timeout = 5 * 1000L, restarts = Int.MAX_VALUE,
+            stateFactory = PropSearchStateFactory(problem))
 
-    override fun largeSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 10 * 1000L, maxRestarts = Int.MAX_VALUE)
-
-    override fun unsatSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), propTable, maxSteps = 10, maxRestarts = 1)
-
-    override fun timeoutSolver(problem: Problem, propTable: UnitPropagationTable) =
-            LocalSearchSolver(problem, SolverConfig(), propTable, timeout = 1L, maxConsideration = 1, maxSteps = Int.MAX_VALUE, maxRestarts = Int.MAX_VALUE)
+    override fun unsatSolver(problem: Problem) = LocalSearchSolver(
+            problem, timeout = 1L, maxSteps = 1, restarts = 1, stateFactory = PropSearchStateFactory(problem))
 }
 
-class LocalSearchOptimizerFlipTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, null, timeout = 5 * 1000L, restarts = 100, greedyHeuristic = false)
+class LocalSearchLinearOptimizerPropTest : LinearOptimizerTest() {
+    override fun optimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+            problem, timeout = 5 * 1000L, stateFactory = PropSearchStateFactory(problem), selector = WeightSelector)
 
-    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) = null
-
-    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, null, restarts = 1, maxSteps = 10)
-
-    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, null, timeout = 1L, restarts = Int.MAX_VALUE, maxSteps = Int.MAX_VALUE)
+    override fun unsatOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+            problem, timeout = 1L, restarts = 1, maxSteps = 1, stateFactory = PropSearchStateFactory(problem))
 }
 
-class LocalSearchOptimizerPropTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, timeout = 5 * 1000L)
+class LocalSearchOptimizerPropTest : OptimizerTest() {
 
-    override fun largeOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, timeout = 10 * 1000L, greedyHeuristic = true)
-
-    override fun unsatOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, restarts = 1, maxSteps = 10)
-
-    override fun timeoutOptimizer(problem: Problem, propTable: UnitPropagationTable, config: SolverConfig) =
-            LocalSearchOptimizer<LinearObjective>(problem, config, propTable, timeout = 1L, restarts = Int.MAX_VALUE, maxSteps = Int.MAX_VALUE)
+    override fun <O : ObjectiveFunction> optimizer(problem: Problem, function: O) = LocalSearchOptimizer<O>(
+            problem, randomSeed = 0L, restarts = 10, timeout = 5 * 1000L, stateFactory = PropSearchStateFactory(problem), selector = RandomSelector)
 }

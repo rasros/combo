@@ -13,12 +13,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-interface SolverTest {
+abstract class SolverTest {
 
-    fun solver(problem: Problem): Solver?
-    fun largeSolver(problem: Problem): Solver? = solver(problem)
-    fun unsatSolver(problem: Problem): Solver? = solver(problem)
-    fun timeoutSolver(problem: Problem): Solver? = unsatSolver(problem)
+    abstract fun solver(problem: Problem): Solver?
+    open fun largeSolver(problem: Problem): Solver? = solver(problem)
+    open fun unsatSolver(problem: Problem): Solver? = solver(problem)
+    open fun timeoutSolver(problem: Problem): Solver? = unsatSolver(problem)
 
     companion object {
         val SMALL_PROBLEMS = ModelTest.SMALL_MODELS.map { m -> m.problem }
@@ -84,16 +84,13 @@ interface SolverTest {
     }
 
     @Test
-    fun satAfterSequence() {
+    fun smallSatAfterSequence() {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
-            try {
-                val solver = solver(p)
-                if (solver != null) {
-                    assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
-                    assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
-                    assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
-                }
-            } catch (e: UnsatisfiableException) {
+            val solver = solver(p)
+            if (solver != null) {
+                assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
+                assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
+                assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
             }
         }
     }
@@ -121,7 +118,7 @@ interface SolverTest {
                 val assumptions = IntList()
                 for (j in 0 until l.size) {
                     if (rng.nextBoolean())
-                        assumptions.add(l.asLiteral(j))
+                        assumptions.add(l.literal(j))
                 }
                 assertTrue(p.satisfies(l))
                 val restricted = solver.witnessOrThrow(assumptions.toArray())
@@ -134,7 +131,7 @@ interface SolverTest {
     }
 
     @Test
-    fun smallSatSequenceAssumptions() {
+    fun ssmallSatSequenceAssumptions() {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
@@ -143,7 +140,7 @@ interface SolverTest {
                 val assumptions = IntList()
                 for (j in 0 until l.size) {
                     if (rng.nextBoolean())
-                        assumptions.add(l.asLiteral(j))
+                        assumptions.add(l.literal(j))
                 }
                 val restricted = solver.witnessOrThrow(assumptions.toArray())
                 assertTrue(p.satisfies(restricted),

@@ -99,7 +99,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionFunction {
     override fun eliminate(nbrParents: Int, scores: DoubleArray, rng: Random, state: PopulationState): Int {
         var score = Double.POSITIVE_INFINITY
         var worst = 0
-        for (ix in IntPermutation(nbrParents, rng).iterator()) {
+        for (ix in IntPermutation(nbrParents, rng)) {
             if (scores[ix] < score) {
                 worst = ix
                 score = scores[ix]
