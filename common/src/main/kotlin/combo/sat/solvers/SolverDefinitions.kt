@@ -68,7 +68,7 @@ interface ObjectiveFunction {
     /**
      * For information about possibilities, see:
      * Penalty Function Methods for Constrained Optimization with Genetic Algorithms
-     * http://dx.doi.org/10.3390/mca10010045
+     * https://doi.org/10.3390/mca10010045
      */
     fun penalty(violations: Int) = (violations * violations).toDouble()
 
