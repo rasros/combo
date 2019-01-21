@@ -1,10 +1,7 @@
 package combo.sat.solvers
 
 import combo.model.ModelTest
-import combo.sat.Conjunction
-import combo.sat.Problem
-import combo.sat.UnsatisfiableException
-import combo.sat.ValidationException
+import combo.sat.*
 import combo.util.IntList
 import kotlin.math.pow
 import kotlin.random.Random
@@ -99,17 +96,15 @@ abstract class SolverTest {
     fun largeSat() {
         for ((i, p) in LARGE_PROBLEMS.withIndex()) {
             val solver = largeSolver(p)
-            //for (z in 1..100) {
             if (solver != null) {
                 assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
                 assertTrue(p.satisfies(solver.witness()!!), "Model $i")
             }
-            //}
         }
     }
 
     @Test
-    fun smallSatAssumptions() {
+    fun smallSatAssumptionsAuto() {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
