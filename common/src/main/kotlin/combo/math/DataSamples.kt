@@ -67,7 +67,9 @@ class FullSample : DataSample {
         size++
     }
 
-    override val nbrSamples = size.toLong()
+    override val nbrSamples
+        get() = size.toLong()
+
     override fun collect() = data.toDoubleArray()
 }
 
