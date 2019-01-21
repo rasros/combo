@@ -5,15 +5,15 @@ import combo.util.IntSet
 
 /**
  * This class sufficiently describes a SAT problem, with the constraints and a count of the number of variables. It also
- * holds an index of variable to constraints in [sentencesWith].
+ * holds an index of variable to constraints in [constraintsWith].
  */
 class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
 
-    val nbrSentences get() = constraints.size
+    val nbrConstraints get() = constraints.size
 
-    private val variableSentences: Array<IntArray> = Array(nbrVariables) { IntList() }.let { lists ->
-        for ((i, sent) in constraints.withIndex()) {
-            for (lit in sent) {
+    private val variableConstraints: Array<IntArray> = Array(nbrVariables) { IntList() }.let { lists ->
+        for ((i, cons) in constraints.withIndex()) {
+            for (lit in cons) {
                 val ix = lit.toIx()
                 lists[ix].add(i)
             }
@@ -24,7 +24,7 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
     /**
      * Returns the index into the [constraints] array of all constraints with the given variable.
      */
-    fun sentencesWith(varIx: Ix) = variableSentences[varIx]
+    fun constraintsWith(varIx: Ix) = variableConstraints[varIx]
 
     fun satisfies(l: Labeling) = constraints.all { it.satisfies(l) }
 
@@ -60,7 +60,7 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
             val clause = if (clauseId >= constraints.size) initial else copy[clauseId] ?: constraints[clauseId]
             for (unitLit in clause.literals) {
                 val unitId = unitLit.toIx()
-                val matching = sentencesWith(unitId)
+                val matching = constraintsWith(unitId)
                 for (i in matching.indices) {
                     val reduced = (copy[matching[i]] ?: constraints[matching[i]]).propagateUnit(unitLit)
                     copy[matching[i]] = reduced

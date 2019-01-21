@@ -24,7 +24,7 @@ class ProblemTest {
     fun unitPropagationReduction() {
         val units = IntSet()
         val reduced = problem.unitPropagation(units)
-        assertTrue(reduced.size < problem.nbrSentences)
+        assertTrue(reduced.size < problem.nbrConstraints)
     }
 
     @Test
@@ -96,9 +96,9 @@ class ProblemTest {
         val problem = Problem(arrayOf(
                 Disjunction(IntList(intArrayOf(0, 2, 4))),
                 Conjunction(IntList(intArrayOf(1)))), 3)
-        assertContentEquals(intArrayOf(0, 1), problem.sentencesWith(0))
-        assertContentEquals(intArrayOf(0), problem.sentencesWith(1))
-        assertContentEquals(intArrayOf(0), problem.sentencesWith(2))
+        assertContentEquals(intArrayOf(0, 1), problem.constraintsWith(0))
+        assertContentEquals(intArrayOf(0), problem.constraintsWith(1))
+        assertContentEquals(intArrayOf(0), problem.constraintsWith(2))
     }
 }
 
