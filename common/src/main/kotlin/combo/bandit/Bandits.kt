@@ -2,21 +2,23 @@ package combo.bandit
 
 import combo.math.DataSample
 import combo.sat.Labeling
+import combo.sat.Literals
 import combo.sat.ValidationException
+import combo.util.EMPTY_INT_ARRAY
 import kotlin.math.abs
 
 interface Bandit {
 
-    fun chooseOrThrow(assumptions: IntArray): Labeling
+    fun chooseOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Labeling
 
-    fun choose(assumptions: IntArray) =
+    fun choose(assumptions: Literals = EMPTY_INT_ARRAY) =
             try {
                 chooseOrThrow(assumptions)
             } catch (e: ValidationException) {
                 null
             }
 
-    fun update(labeling: Labeling, result: Double, weight: Double)
+    fun update(labeling: Labeling, result: Double, weight: Double = 1.0)
     val rewards: DataSample
 }
 
@@ -30,7 +32,7 @@ interface PredictionBandit : Bandit {
     override fun update(labeling: Labeling, result: Double, weight: Double) {
         rewards.accept(result)
         testAbsError.accept(abs((result - predict(labeling)) * weight))
-        update(labeling, result, weight)
+        train(labeling, result, weight)
         trainAbsError.accept(abs((result - predict(labeling)) * weight))
     }
 }
