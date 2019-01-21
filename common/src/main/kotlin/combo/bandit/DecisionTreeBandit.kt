@@ -14,14 +14,16 @@ import kotlin.math.sqrt
 class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                                                    val maximize: Boolean = true,
                                                    val randomSeed: Long = nanos(),
-                                                   val solver: Solver = LocalSearchSolver(problem, randomSeed = randomSeed),
+                                                   val solver: Solver = LocalSearchSolver(
+                                                           problem, randomSeed = randomSeed, timeout = 1000L),
                                                    val posterior: Posterior,
                                                    val prior: VarianceStatistic = posterior.defaultPrior(),
                                                    override val rewards: DataSample = GrowingDataSample(20),
-                                                   val maxDepth: Int = 10,
                                                    val nMin: Int = 5,
                                                    val delta: Double = 0.05,
                                                    val tau: Double = 0.1,
+                                                   val maxDepth: Int = Int.MAX_VALUE,
+                                                   val maxNodes: Int = Int.MAX_VALUE,
                                                    override val trainAbsError: DataSample = GrowingDataSample(),
                                                    override val testAbsError: DataSample = GrowingDataSample()) : PredictionBandit {
 
@@ -31,8 +33,13 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     // http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
 
     private val randomSequence = RandomSequence(randomSeed)
-    private val leaves: MutableList<LeafNode> = ArrayList()
-    private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior)
+    var root: Node = AuditNode(EMPTY_INT_ARRAY, prior.copy())
+        private set
+    private val leaves: MutableList<LeafNode> = arrayListOf(root as AuditNode)
+    var nbrNodes = 1
+        private set
+    var nbrAuditNodes = 1
+        private set
 
     override fun chooseOrThrow(assumptions: IntArray): Labeling {
         val rng = randomSequence.next()
@@ -51,27 +58,13 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         else solver.witnessOrThrow(assumptions + node.setLiterals)
     }
 
-    override fun predict(labeling: Labeling): Double {
-        TODO("not implemented")
-    }
+    override fun predict(labeling: Labeling) = root.findLeaf(labeling).total.mean
 
     override fun train(labeling: Labeling, result: Double, weight: Double) {
-        TODO("not implemented")
-    }
-
-    override fun update(labeling: Labeling, result: Double, weight: Double) {
         root = root.update(labeling, result, weight)
     }
 
-    /**
-     * Fully build the decision tree down to [maxDepth] depth using random decisions.
-     */
-    fun explode() {
-        //val rng = config.nextRandom()
-        TODO()
-    }
-
-    private fun matches(assumptions: Literals, setLiterals: Literals): Boolean {
+    private fun matches(setLiterals: Literals, assumptions: Literals): Boolean {
         var j = 0
         for (i in assumptions.indices) {
             val l1 = assumptions[i]
@@ -82,16 +75,18 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         return true
     }
 
-    private interface Node {
+    interface Node {
         fun findLeaf(labeling: Labeling): LeafNode
         fun update(labeling: Labeling, result: Double, weight: Double): Node
         val setLiterals: Literals
     }
 
-    private inner class SplitNode(override val setLiterals: Literals,
-                                  val ix: Ix,
-                                  var pos: Node,
-                                  var neg: Node) : Node {
+    inner class SplitNode(override val setLiterals: Literals,
+                          val ix: Ix, pos: Node, neg: Node) : Node {
+        var pos: Node = pos
+            private set
+        var neg: Node = neg
+            private set
 
         override fun update(labeling: Labeling, result: Double, weight: Double): Node {
             if (labeling[ix])
@@ -106,34 +101,35 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                 else neg.findLeaf(labeling)
     }
 
-    private abstract inner class LeafNode(override val setLiterals: Literals,
-                                          val total: VarianceStatistic = prior.copy()) : Node {
+    abstract inner class LeafNode(override val setLiterals: Literals,
+                                  val total: VarianceStatistic = prior.copy()) : Node {
         override fun findLeaf(labeling: Labeling) = this
     }
 
-    private inner class DeadNode(setLiterals: Literals, total: VarianceStatistic) : LeafNode(setLiterals, total) {
+    inner class DeadNode(setLiterals: Literals, total: VarianceStatistic) : LeafNode(setLiterals, total) {
         override fun update(labeling: Labeling, result: Double, weight: Double) =
                 this.apply { total.accept(result, weight) }
     }
 
-    private inner class AuditNode(setLiterals: Literals, total: VarianceStatistic) : LeafNode(setLiterals, total) {
+    inner class AuditNode(setLiterals: Literals, total: VarianceStatistic) : LeafNode(setLiterals, total) {
 
         var nViewed: Int = 0
 
-        val ids = IntSet().let { s ->
-            s.addAll(0 until problem.nbrVariables)
-            setLiterals.map { it.toIx() }.forEach { s.remove(it) }
-            s.toArray().apply { sort() }
+        val ids = IntSet().let { set ->
+            set.addAll(0 until problem.nbrVariables)
+            setLiterals.forEach { set.remove(it.toIx()) }
+            set.toArray().apply { sort() }
         }
-        val dataPos: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }
-        val dataNeg: Array<VarianceStatistic> = Array(problem.nbrVariables - setLiterals.size) { prior.copy() }
+        val dataPos: Array<VarianceStatistic> = Array(ids.size) { prior.copy() }
+        val dataNeg: Array<VarianceStatistic> = Array(ids.size) { prior.copy() }
 
         override fun update(labeling: Labeling, result: Double, weight: Double): Node {
-
+            total.accept(result, weight)
             nViewed++
-            for (i in ids)
-                if (labeling[i]) dataPos[i].accept(result, weight)
+            for ((i, ix) in ids.withIndex()) {
+                if (labeling[ix]) dataPos[i].accept(result, weight)
                 else dataNeg[i].accept(result, weight)
+            }
 
             if (nViewed > nMin) {
                 var ig1 = 0.0
@@ -151,22 +147,38 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                 }
 
                 val eps = hoeffdingBound(delta, total.nbrWeightedSamples)
-                if (bestI >= 0 && (ig2 / ig1 < 1 - eps || eps < tau)) {
+                if (bestI >= 0 && dataPos[bestI].nbrSamples > prior.nbrSamples && dataNeg[bestI].nbrSamples > prior.nbrSamples &&
+                        (ig2 / ig1 < 1 - eps || eps < tau)) {
 
-                    val pos: Node
-                    val neg: Node
+                    val pos: LeafNode
+                    val neg: LeafNode
                     val posLiterals = (setLiterals + ids[bestI].toLiteral(true)).apply { sort() }
                     val negLiterals = (setLiterals + ids[bestI].toLiteral(false)).apply { sort() }
-                    if (setLiterals.size + 1 >= maxDepth) {
-                        pos = DeadNode(posLiterals, dataPos[bestI])
-                        neg = DeadNode(negLiterals, dataNeg[bestI])
-                    } else {
+                    if (setLiterals.size + 1 < maxDepth && 2 + nbrNodes + 2 * (nbrAuditNodes + 1) <= maxNodes) {
                         pos = AuditNode(posLiterals, dataPos[bestI])
                         neg = AuditNode(negLiterals, dataNeg[bestI])
+                        nbrAuditNodes++
+                    } else if (setLiterals.size + 1 < maxDepth && 2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes) {
+                        val posHigh = dataPos[bestI].mean > dataNeg[bestI].mean
+                        if ((posHigh && maximize) || (!posHigh && !maximize)) {
+                            pos = AuditNode(posLiterals, dataPos[bestI])
+                            neg = DeadNode(negLiterals, dataNeg[bestI])
+                        } else {
+                            pos = DeadNode(posLiterals, dataPos[bestI])
+                            neg = AuditNode(negLiterals, dataNeg[bestI])
+                        }
+                    } else {
+                        pos = DeadNode(posLiterals, dataPos[bestI])
+                        neg = DeadNode(negLiterals, dataNeg[bestI])
+                        nbrAuditNodes--
                     }
-                    nViewed = 0
+                    nbrNodes += 2
+                    leaves.remove(this)
+                    leaves.add(pos)
+                    leaves.add(neg)
                     return SplitNode(setLiterals, ids[bestI], pos, neg)
                 }
+                nViewed = 0
             }
             return this
         }
@@ -187,7 +199,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
     private fun hoeffdingBound(delta: Double, count: Double): Double {
         // R = 1 for both binary classification and with variance ratio
-        return sqrt(/* R*R* */ ln(1.0 / delta) / (2.0 * count));
+        return sqrt(/* R*R* */ ln(1.0 / delta) / (2.0 * count))
     }
 }
 
