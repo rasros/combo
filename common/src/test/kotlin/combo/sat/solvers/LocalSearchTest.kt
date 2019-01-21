@@ -4,7 +4,7 @@ import combo.sat.*
 
 class LocalSearchSolverTest : SolverTest() {
     override fun solver(problem: Problem) = LocalSearchSolver(
-            problem, randomSeed = 0L, timeout = 5 * 1000L, restarts = Int.MAX_VALUE, stateFactory = BasicSearchStateFactory(problem))
+            problem, randomSeed = 0L, timeout = 5 * 1000L, stateFactory = BasicSearchStateFactory(problem))
 
     override fun unsatSolver(problem: Problem) = LocalSearchSolver(
             problem, randomSeed = 0L, timeout = 1L, maxSteps = 1, restarts = 1, stateFactory = BasicSearchStateFactory(problem))
@@ -29,15 +29,14 @@ class LocalSearchOptimizerTest : OptimizerTest() {
 
 class LocalSearchSolverPropTest : SolverTest() {
     override fun solver(problem: Problem) = LocalSearchSolver(
-            problem, timeout = 5 * 1000L, restarts = Int.MAX_VALUE,
-            stateFactory = PropSearchStateFactory(problem))
+            problem, timeout = 5 * 1000L, stateFactory = PropSearchStateFactory(problem))
 
     override fun unsatSolver(problem: Problem) = LocalSearchSolver(
             problem, timeout = 1L, maxSteps = 1, restarts = 1, stateFactory = PropSearchStateFactory(problem))
 }
 
 class LocalSearchLinearOptimizerPropTest : LinearOptimizerTest() {
-    override fun optimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+    override fun optimizer(problem: Problem) = LocalSearchOptimizer(
             problem, timeout = 5 * 1000L, stateFactory = PropSearchStateFactory(problem), selector = WeightSelector)
 
     override fun unsatOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
