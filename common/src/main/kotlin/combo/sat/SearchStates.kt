@@ -187,18 +187,6 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
     }
 }
 
-class FixedSearchState(override val labeling: MutableLabeling) : SearchState {
-    override val assumption: Conjunction
-        get() = Conjunction(IntList(IntArray(0)))
-
-    override fun randomUnsatisfied(rng: Random) = Tautology
-    override val totalUnsatisfied: Int
-        get() = 0
-
-    override fun flip(ix: Ix) = throw UnsupportedOperationException()
-    override fun improvement(ix: Ix) = 0
-}
-
 /**
  * Uses information from a binary disjunctions propagations.
  */
@@ -207,8 +195,6 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
     private val literalPropagations: Array<Literals>
     private val variableSentences: Array<IntArray>
     private val complexSentences = IntSet()
-
-    private val assumptionPenalty = 1000
 
     private val cardinalitySentences = (0 until problem.nbrConstraints).asSequence()
             .filter { problem.constraints[it] is Cardinality }.filter { it in complexSentences }
@@ -230,24 +216,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
                         implicationSets[array[j]].add(!array[i])
                     }
                 }
-            }
-            /*else if (sent is Reified) {
-                complexSentences.add(sentId) // TODO investigate cases where not necessary
-                if (sent.clause is Disjunction) {
-                    for (clauseLit in sent.clause.literals) {
-                        implicationSets[!sent.literal].add(!clauseLit)
-                        implicationSets[clauseLit].add(sent.literal)
-                    }
-                } else if (sent.clause is Conjunction) {
-                // TODO at least this one
-                    for (clauseLit in sent.clause.literals) {
-                        implicationSets[sent.literal].add(clauseLit)
-                        implicationSets[clauseLit].add(sent.literal)
-                        implicationSets[!clauseLit].add(!sent.literal)
-                        implicationSets[!sent.literal].add(!clauseLit)
-                    }
-                }
-            }*/ else complexSentences.add(sentId)
+            } else complexSentences.add(sentId)
         }
 
         // Adds transitive implications like: a -> b -> c
@@ -329,7 +298,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
         state.matches[state.matches.lastIndex] = state.assumption.matches(labeling)
         val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
-        state.totalUnsatisfied += assumptionFlips*assumptionPenalty
+        state.totalUnsatisfied += assumptionFlips
         if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
 
         for (card in cardinalitySentences) {
@@ -378,7 +347,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
         override var totalUnsatisfied: Int = 0
 
         val unsatisfied = IntSet()
-        val matches = IntArray(problem.nbrConstraints + 1) // TODO use IntMap ???
+        val matches = IntArray(problem.nbrConstraints + 1)
         override val assumption = Conjunction(collectionOf(assumptions))
 
         override fun randomUnsatisfied(rng: Random): Constraint {
@@ -389,7 +358,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
         override fun flip(ix: Ix) {
             val literal = !labeling.literal(ix)
-            flipSentence(literal, assumption, matches.lastIndex, assumptionPenalty)
+            flipSentence(literal, assumption, matches.lastIndex)
             variableSentences[ix].forEach { sentId ->
                 val sent = problem.constraints[sentId]
                 flipSentence(literal, sent, sentId)
@@ -400,15 +369,15 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
         override fun changes(ix: Ix) = literalPropagations[!labeling.literal(ix)]
 
-        private inline fun flipSentence(literal: Literal, sent: Constraint, sentId: Int, weight: Int = 1) {
+        private inline fun flipSentence(literal: Literal, sent: Constraint, sentId: Int) {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
                 if (lit != labeling.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))
                     matchUpdate = sent.matchesUpdate(lit, matchUpdate)
             }
-            val newFlips = sent.flipsToSatisfy(matchUpdate) * weight
-            val oldFlips = sent.flipsToSatisfy(matches[sentId]) * weight
+            val newFlips = sent.flipsToSatisfy(matchUpdate)
+            val oldFlips = sent.flipsToSatisfy(matches[sentId])
             matches[sentId] = matchUpdate
             if (oldFlips > 0 && newFlips == 0) unsatisfied.remove(sentId)
             else if (newFlips > 0 && oldFlips == 0) unsatisfied.add(sentId)
@@ -417,22 +386,22 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
         override fun improvement(ix: Ix): Int {
             val literal = !labeling.literal(ix)
-            return improvementSentence(literal, assumption, matches.lastIndex, assumptionPenalty) +
+            return improvementSentence(literal, assumption, matches.lastIndex) +
                     variableSentences[ix].sumBy { sentId ->
                         val sent = problem.constraints[sentId]
                         improvementSentence(literal, sent, sentId)
                     }
         }
 
-        private inline fun improvementSentence(literal: Literal, sent: Constraint, sentId: Int, weight: Int = 1): Int {
+        private inline fun improvementSentence(literal: Literal, sent: Constraint, sentId: Int): Int {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
                 if (lit != labeling.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))
                     matchUpdate = sent.matchesUpdate(lit, matchUpdate)
             }
-            val newFlips = sent.flipsToSatisfy(matchUpdate) * weight
-            val oldFlips = sent.flipsToSatisfy(matches[sentId]) * weight
+            val newFlips = sent.flipsToSatisfy(matchUpdate)
+            val oldFlips = sent.flipsToSatisfy(matches[sentId])
             return oldFlips - newFlips
         }
     }
