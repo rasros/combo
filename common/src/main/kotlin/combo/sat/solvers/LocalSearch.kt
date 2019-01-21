@@ -52,9 +52,6 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
         for (restart in 1..restarts) {
             totalIterations++
             val rng = randomSequence.next()
-            if (restart > 40 && bestLabeling == null) {
-                println()
-            }
 
             val labeling = labelingFactory.create(problem.nbrVariables)
             val state = stateFactory.build(labeling, assumptions, selector, function, rng)
@@ -84,8 +81,6 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
                         val literals = state.randomUnsatisfied(rng).literals
                         n = min(adjustedMaxConsideration, literals.size)
                         literals.permutation(rng)
-                        //if (literals.size > adjustedMaxConsideration) literals.permutation(rng)
-                        //else literals.iterator()
                     } else {
                         n = min(adjustedMaxConsideration, problem.nbrVariables)
                         if (problem.nbrVariables > adjustedMaxConsideration) IntPermutation(problem.nbrVariables).iterator()
@@ -136,7 +131,7 @@ class LocalSearchSolver(problem: Problem,
                         randomSeed: Long = nanos(),
                         restarts: Int = Int.MAX_VALUE,
                         maxSteps: Int = max(1, problem.nbrVariables),
-                        pRandomWalk: Double = 0.0,
+                        pRandomWalk: Double = 0.05,
                         labelingFactory: LabelingFactory = BitFieldLabelingFactory,
                         stateFactory: SearchStateFactory = PropSearchStateFactory(problem),
                         selector: ValueSelector<SatObjective> = RandomSelector,
