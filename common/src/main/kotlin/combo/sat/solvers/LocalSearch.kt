@@ -83,7 +83,7 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
                         literals.permutation(rng)
                     } else {
                         n = min(adjustedMaxConsideration, problem.nbrVariables)
-                        if (problem.nbrVariables > adjustedMaxConsideration) IntPermutation(problem.nbrVariables).iterator()
+                        if (problem.nbrVariables > adjustedMaxConsideration) IntPermutation(problem.nbrVariables, rng).iterator()
                         else (0 until problem.nbrVariables).iterator()
                     }
                     var maxSatImp = Int.MIN_VALUE
