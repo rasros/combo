@@ -102,7 +102,7 @@ class BucketsSample(val samplesPerBucket: Int) : DataSample {
     val size get() = history.size
 }
 
-class ReservoirSample(size: Int, private val rng: Random = Random.Default) : DataSample {
+class ReservoirSample(size: Int, private val rng: Random) : DataSample {
     private val data = DoubleArray(size)
     override var nbrSamples = 0L
         private set

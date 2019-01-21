@@ -9,7 +9,7 @@ class LabelingPermutationTest {
 
     @Test
     fun emptySequence() {
-        assertEquals(1, LabelingPermutation.sequence(0).count())
+        assertEquals(1, LabelingPermutation.sequence(0, Random).count())
     }
 
     @Test
@@ -27,6 +27,6 @@ class LabelingPermutationTest {
 
     @Test
     fun takeMany() {
-        assertEquals(16, LabelingPermutation.sequence(4).take(1000).toList().size)
+        assertEquals(16, LabelingPermutation.sequence(4, Random).take(1000).toList().size)
     }
 }

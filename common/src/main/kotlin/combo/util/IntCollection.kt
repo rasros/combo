@@ -26,9 +26,9 @@ interface IntCollection : Iterable<Ix> {
     fun map(transform: (Int) -> Int): IntCollection
 
     override fun iterator(): IntIterator
-    fun permutation(rng: Random = Random): IntIterator
+    fun permutation(rng: Random): IntIterator
 
-    fun random(rng: Random = Random.Default): Int
+    fun random(rng: Random): Int
     fun add(ix: Ix): Boolean
     fun addAll(ixs: IntArray) = ixs.fold(false) { any, it -> this.add(it) || any }
     fun addAll(ixs: Iterable<Ix>) = ixs.fold(false) { any, it -> this.add(it) || any }

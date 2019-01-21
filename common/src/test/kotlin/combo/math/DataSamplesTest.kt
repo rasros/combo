@@ -1,17 +1,18 @@
 package combo.math
 
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class DataSamplesTest {
     @Test
     fun emptyReservoirSample() {
-        assertEquals(0, ReservoirSample(10).collect().size)
+        assertEquals(0, ReservoirSample(10, Random).collect().size)
     }
 
     @Test
     fun reservoirSampleFull() {
-        val s = ReservoirSample(10)
+        val s = ReservoirSample(10, Random)
         for (i in 1..10)
             s.accept(i.toDouble())
         val collect = s.collect()
@@ -21,7 +22,7 @@ class DataSamplesTest {
 
     @Test
     fun reservoirSampleUnderSize() {
-        val s = ReservoirSample(100)
+        val s = ReservoirSample(100, Random)
         for (i in 1..10)
             s.accept(i.toDouble())
         val collect = s.collect()
@@ -32,7 +33,7 @@ class DataSamplesTest {
 
     @Test
     fun reservoirSampleOverSize() {
-        val s = ReservoirSample(20)
+        val s = ReservoirSample(20, Random)
         for (i in 1..100)
             s.accept(i.toDouble())
         val collect = s.collect()

@@ -9,9 +9,9 @@ import kotlin.random.Random
 class LabelingPermutation private constructor(val factory: LabelingFactory, rng: Random, private val nbrVariables: Int) {
 
     companion object {
-        fun sequence(nbrVariables: Int, rng: Random = Random) = sequence(nbrVariables, BitFieldLabelingFactory, rng)
+        fun sequence(nbrVariables: Int, rng: Random) = sequence(nbrVariables, BitFieldLabelingFactory, rng)
 
-        fun sequence(nbrVariables: Int, factory: LabelingFactory, rng: Random = Random): Sequence<MutableLabeling> {
+        fun sequence(nbrVariables: Int, factory: LabelingFactory, rng: Random): Sequence<MutableLabeling> {
             val limit = 2.0.pow(nbrVariables).toInt()
             val r = LabelingPermutation(factory, rng, nbrVariables)
             return generateSequence { r.next() }.take(limit)

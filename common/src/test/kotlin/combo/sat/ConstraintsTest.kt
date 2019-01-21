@@ -32,7 +32,7 @@ private fun randomExhaustivePropagations(cs: Array<Constraint>) {
 private fun checkUpdateMatches(labeling: MutableLabeling, constraint: Constraint) {
     val pre = constraint.matches(labeling)
     assertEquals(constraint.flipsToSatisfy(labeling), constraint.flipsToSatisfy(pre), "" + pre + ": " + labeling.toString())
-    val lit = constraint.literals.random()
+    val lit = constraint.literals.random(Random)
     labeling.flip(lit.toIx())
     val updatedMatches = constraint.matchesUpdate(labeling.literal(lit.toIx()), pre)
     val post = constraint.matches(labeling)
