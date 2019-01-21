@@ -4,7 +4,6 @@ import combo.math.*
 import combo.sat.Conjunction
 import combo.sat.Labeling
 import combo.sat.UnsatisfiableException
-import combo.util.IntList
 import combo.util.collectionOf
 import combo.util.nanos
 import kotlin.jvm.JvmOverloads
@@ -35,6 +34,4 @@ class MultiArmedBandit @JvmOverloads constructor(bandits: Array<Labeling>,
         if (labeling == null || !con.satisfies(labeling)) throw UnsatisfiableException("No labeling matching assumption literals.")
         return labeling
     }
-
-    val data: Array<VarianceStatistic> = Array(bandits.size) { RunningVariance() }
 }
