@@ -26,18 +26,21 @@ import kotlin.jvm.JvmOverloads
  */
 class MultiArmedBandit @JvmOverloads constructor(labelings: Array<Labeling>,
                                                  val maximize: Boolean = true,
-                                                 historicData: Map<Labeling, VarianceStatistic>? = null,
+                                                 historicData: Array<BanditArmData>? = null,
                                                  val randomSeed: Long = nanos(),
                                                  val posterior: Posterior = NormalPosterior,
                                                  prior: VarianceStatistic = posterior.defaultPrior(),
                                                  override val rewards: DataSample = GrowingDataSample(20)) : Bandit {
 
-    val labelingData: Map<Labeling, VarianceStatistic> = HashMap<Labeling, VarianceStatistic>().apply {
+    private val labelingData: Map<Labeling, VarianceStatistic> = HashMap<Labeling, VarianceStatistic>().apply {
         labelings.associateTo(this) { it to prior.copy() }
-        if (historicData != null) putAll(historicData)
+        historicData?.forEach { put(it.labeling, it.total) }
     }
 
     private val randomSequence = RandomSequence(randomSeed)
+
+    fun exportData() =
+            labelingData.asSequence().map { BanditArmData(it.key, it.value) }.toList().toTypedArray()
 
     override fun update(labeling: Labeling, result: Double, weight: Double) {
         rewards.accept(result)
@@ -56,3 +59,5 @@ class MultiArmedBandit @JvmOverloads constructor(labelings: Array<Labeling>,
         return labeling
     }
 }
+
+class BanditArmData(val labeling: Labeling, val total: VarianceStatistic)
