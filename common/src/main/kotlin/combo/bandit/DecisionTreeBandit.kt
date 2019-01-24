@@ -9,11 +9,17 @@ import combo.util.IntSet
 import combo.util.nanos
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
+import kotlin.math.sign
 import kotlin.math.sqrt
 
 /**
  * This bandit uses Thompson sampling where a Decision Tree approximates the full posterior distribution. Each leaf node
  * has an independent uni-variate distribution. The
+ *
+ * For more info on delta and tau parameters of the VFDT algorithm check out these resources:
+ * https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
+ * http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
+ *
  *
  * @param problem
  * @param maximize
@@ -39,7 +45,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                                                            problem, randomSeed = randomSeed, timeout = 1000L),
                                                    val posterior: Posterior,
                                                    val prior: VarianceStatistic = posterior.defaultPrior(),
-                                                   val historicData: Array<NodeData>? = null,
+                                                   historicData: Array<NodeData>? = null,
                                                    val delta: Double = 0.05,
                                                    val tau: Double = 0.1,
                                                    val maxNodes: Int = 10000,
@@ -51,13 +57,18 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                                                    override val testAbsError: DataSample = GrowingDataSample()) : PredictionBandit {
 
     init {
-        if (historicData != null) {
+        if (historicData != null && historicData.isNotEmpty()) {
+            //matches(intArrayOf(17), intArrayOf(1, 5, 16))
+            historicData.sortWith(object : Comparator<NodeData> {
+                override fun compare(a: NodeData, b: NodeData): Int {
+                    val c = a.setLiterals.size - b.setLiterals.size
+                    return if (c == 0) sign(a.total.mean - b.total.mean).toInt()
+                    else c
+                }
+            })
         }
     }
 
-    // For info on delta and tau parameters of the VFDT algorithm check out these resources:
-    // https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
-    // http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
 
     private val randomSequence = RandomSequence(randomSeed)
     private var root: Node = AuditNode(EMPTY_INT_ARRAY, prior.copy())
@@ -99,13 +110,26 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         root = root.update(labeling, result, weight)
     }
 
+    /**
+     * Checks whether the assumptions can be satisfied by the conjunction formed by setLiterals.
+     * Both arrays are assumed sorted.
+     */
     private fun matches(setLiterals: Literals, assumptions: Literals): Boolean {
+        var i = 0
         var j = 0
-        for (i in assumptions.indices) {
-            val l1 = assumptions[i]
-            while (setLiterals[j] < l1) j++
-            val l2 = setLiterals[j]
-            if (l1.toIx() == l2.toIx() && l1 != l2) return false
+        while (i < setLiterals.size && j < assumptions.size) {
+            while (setLiterals[i].toIx() < assumptions[j].toIx() && i < setLiterals.size) i++
+            while (assumptions[j].toIx() < setLiterals[i].toIx() && j < assumptions.size) {
+                require(assumptions[j].toIx() < assumptions[j + 1].toIx()) { "Literals in assumption must be sorted." }
+                j++
+            }
+            val l1 = setLiterals[i]
+            val l2 = assumptions[j]
+            if (l1.toIx() == l2.toIx()) {
+                if (l1 != l2) return false
+                i++
+                j++
+            }
         }
         return true
     }
