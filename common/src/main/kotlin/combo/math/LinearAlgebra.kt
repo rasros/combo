@@ -58,6 +58,9 @@ fun Vector.multiply(s: Double) = transformArray { d -> d * s }
 operator fun Vector.div(s: Double) = mapArray { d -> d / s }
 fun Vector.divide(s: Double) = transformArray { d -> d / s }
 
+fun Vector.add(v: Vector) = transformArrayIndexed { i, d -> d + v[i] }
+fun Vector.sub(v: Vector) = transformArrayIndexed { i, d -> d - v[i] }
+
 infix fun Vector.dot(v: Vector) = foldIndexed(0.0) { i, dot, d -> dot + d * v[i] }
 infix fun Vector.outer(v: Vector) = Array(size) { DoubleArray(size) }.also {
     for (i in 0 until size)
