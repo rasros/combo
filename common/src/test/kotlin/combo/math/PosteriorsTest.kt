@@ -58,7 +58,7 @@ class PosteriorsTest {
 
     @Test
     fun normalPriorSignUnbiased() {
-        val p = NormalPosterior
+        val p = GaussianPosterior
         val stat = p.defaultPrior()
         val r = Random(893)
         val dataSample = generateSequence { p.sample(r, stat) }.take(100).sample(FullSample())
@@ -69,7 +69,7 @@ class PosteriorsTest {
 
     @Test
     fun normalPriorFinite() {
-        val p = NormalPosterior
+        val p = GaussianPosterior
         val stat = p.defaultPrior()
         val r = Random(46978)
         generateSequence { p.sample(r, stat) }.take(50).forEach {
@@ -80,7 +80,7 @@ class PosteriorsTest {
 
     @Test
     fun normalUpdate() {
-        val p = NormalPosterior
+        val p = GaussianPosterior
         val stat = p.defaultPrior()
         val r = Random(46978)
         val s1 = generateSequence { p.sample(r, stat) }.take(50).sample(RunningVariance())

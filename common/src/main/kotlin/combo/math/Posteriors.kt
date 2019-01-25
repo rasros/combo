@@ -29,6 +29,7 @@ interface Posterior {
     }
 }
 
+typealias BernoulliPosterior = BinomialPosterior
 object BinomialPosterior : Posterior {
     /** results in uniform prior over p */
     override fun defaultPrior() = SumData(1.0, 2.0)
@@ -56,7 +57,7 @@ object GeometricPosterior : Posterior {
             rng.beta(stat.nbrWeightedSamples, stat.sum - stat.nbrWeightedSamples)
 }
 
-object NormalPosterior : Posterior {
+object GaussianPosterior : Posterior {
     /** this design does not permit individual prior for sigma and mu */
     override fun defaultPrior() = RunningVariance(0.0, 0.02, 0.02)
 

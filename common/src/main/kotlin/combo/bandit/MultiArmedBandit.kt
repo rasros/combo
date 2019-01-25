@@ -28,7 +28,7 @@ class MultiArmedBandit @JvmOverloads constructor(labelings: Array<Labeling>,
                                                  val maximize: Boolean = true,
                                                  historicData: Array<BanditArmData>? = null,
                                                  val randomSeed: Long = nanos(),
-                                                 val posterior: Posterior = NormalPosterior,
+                                                 val posterior: Posterior = GaussianPosterior,
                                                  prior: VarianceStatistic = posterior.defaultPrior(),
                                                  override val rewards: DataSample = GrowingDataSample(20)) : Bandit {
 
