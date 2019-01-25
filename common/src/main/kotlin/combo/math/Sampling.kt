@@ -39,12 +39,7 @@ tailrec fun Random.nextTruncatedGaussian(mean: Double = 0.0, std: Double = 1.0,
     }
 }
 
-/**
- * @param Cholesky decomposition
- * @param scale     L'*L*scale = scale*Sigma^-1
- */
-fun Random.nextMultiGaussian(means: Vector, L: Matrix, scale: Double = 1.0) =
-        means + DoubleArray(means.size) { nextGaussian() * scale } * L
+
 
 fun Random.gamma(shape: Double, scale: Double = 1.0): Double {
     fun randomForShapeGreaterThan1(shape: Double): Double {

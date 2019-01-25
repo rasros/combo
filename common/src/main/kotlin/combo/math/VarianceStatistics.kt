@@ -19,8 +19,8 @@ interface VarianceStatistic : DataSample {
     val squaredDeviations: Double get() = (nbrWeightedSamples - 1) / variance
     val variance: Double get() = squaredDeviations / (nbrWeightedSamples - 1)
     val standardDeviation: Double get() = sqrt(variance)
+    val sum: Double get() = mean * nbrWeightedSamples
 
-    fun sum() = mean * nbrWeightedSamples
     fun copy(): VarianceStatistic
 
     operator fun component1() = mean
@@ -48,22 +48,38 @@ class DescriptiveStatistic(val decorated: VarianceStatistic) : VarianceStatistic
     }
 }
 
+class SumData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceStatistic {
+
+    override fun accept(value: Double, weight: Double) {
+        sum += value * weight
+        nbrWeightedSamples += weight
+    }
+
+    override var sum = sum
+        private set
+
+    override var nbrWeightedSamples: Double = nbrWeightedSamples
+        private set
+
+    override val mean: Double
+        get() = sum / nbrWeightedSamples
+
+    override val variance: Double
+        get() = mean * (1 - mean)
+
+    override fun copy() = SumData()
+}
+
 class RunningVariance(mean: Double = 0.0,
                       squaredDeviations: Double = 0.0,
                       nbrWeightedSamples: Double = 0.0) : VarianceStatistic {
 
-    override var mean = 0.0
+    override var mean = mean
         private set
-    override var squaredDeviations = 0.0
+    override var squaredDeviations = squaredDeviations
         private set
-    override var nbrWeightedSamples = 0.0
+    override var nbrWeightedSamples = nbrWeightedSamples
         private set
-
-    init {
-        this.mean = mean
-        this.squaredDeviations = squaredDeviations
-        this.nbrWeightedSamples = nbrWeightedSamples
-    }
 
     override fun copy(): RunningVariance {
         val copy = RunningVariance()
@@ -85,13 +101,11 @@ class RunningVariance(mean: Double = 0.0,
         }
     }
 
-
     fun combine(vs: VarianceStatistic) = RunningVariance().also {
         it.mean = (this.mean + vs.mean) / 2
         it.nbrWeightedSamples = this.nbrWeightedSamples + vs.nbrWeightedSamples
         it.squaredDeviations = (this.mean - it.mean).pow(2) + (vs.mean - it.mean).pow(2)
     }
-
 
     override fun toString() = "RunningVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
 }
@@ -106,18 +120,15 @@ class ExponentialDecayVariance(val beta: Double = 0.02,
 
     constructor(window: Int) : this(2.0 / (window - 1.0))
 
-    override var mean = 0.0
+    override var mean = mean
         private set
-    override var variance = 0.0
+    override var variance = variance
         private set
-    override var nbrWeightedSamples = 0.0
+    override var nbrWeightedSamples = nbrWeightedSamples
         private set
 
     init {
-        require(beta < 1.0 && beta > 0.0)
-        this.mean = mean
-        this.variance = variance
-        this.nbrWeightedSamples = nbrWeightedSamples
+        require(beta < 1.0 && beta > 0.0) { "Beta parameter must be within 0 to 1 range, got $beta." }
     }
 
     override fun copy(): VarianceStatistic {

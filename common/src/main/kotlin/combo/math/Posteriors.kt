@@ -31,10 +31,10 @@ interface Posterior {
 
 object BinomialPosterior : Posterior {
     /** results in uniform prior over p */
-    override fun defaultPrior() = RunningVariance().apply { accept(.5, 2.0) }
+    override fun defaultPrior() = SumData(1.0, 2.0)
 
     override fun sample(rng: Random, stat: VarianceStatistic): Double {
-        val alpha = stat.sum()
+        val alpha = stat.sum
         val beta = stat.nbrWeightedSamples - alpha
         return rng.beta(alpha, beta)
     }
@@ -42,18 +42,18 @@ object BinomialPosterior : Posterior {
 
 object PoissonPosterior : Posterior {
     /** results in wide GammaVariance(0.01, 0.01) prior over p */
-    override fun defaultPrior() = RunningVariance().apply { accept(1.0, .01) }
+    override fun defaultPrior() = SumData(0.01, 0.01)
 
     override fun sample(rng: Random, stat: VarianceStatistic) =
-            rng.gamma(stat.sum(), 1.0 / stat.nbrWeightedSamples)
+            rng.gamma(stat.sum, 1.0 / stat.nbrWeightedSamples)
 }
 
 object GeometricPosterior : Posterior {
     /** results in uniform prior over p */
-    override fun defaultPrior() = RunningVariance().apply { accept(2.0, 1.0) }
+    override fun defaultPrior() = SumData(2.0, 1.0)
 
     override fun sample(rng: Random, stat: VarianceStatistic) =
-            rng.beta(stat.nbrWeightedSamples, stat.sum() - stat.nbrWeightedSamples)
+            rng.beta(stat.nbrWeightedSamples, stat.sum - stat.nbrWeightedSamples)
 }
 
 object NormalPosterior : Posterior {
@@ -90,26 +90,23 @@ object LogNormalPosterior : Posterior {
         return sample
     }
 
-
     override fun update(stat: VarianceStatistic, value: Double, weight: Double) {
         stat.accept(ln(value), weight)
     }
 }
 
 object ExponentialPosterior : Posterior {
-    override fun defaultPrior() = RunningVariance().apply { accept(0.01, 0.01) }
-
-    override fun sample(rng: Random, stat: VarianceStatistic) = rng.gamma(stat.nbrWeightedSamples, 1.0 / stat.sum())
+    override fun defaultPrior() = SumData(0.0001, 0.01)
+    override fun sample(rng: Random, stat: VarianceStatistic) = rng.gamma(stat.nbrWeightedSamples, 1.0 / stat.sum)
 }
 
 /**
  * mean of samples will be = fixedShape / mean
  */
 class GammaScalePosterior(val fixedShape: Double) : Posterior {
-    override fun defaultPrior() = RunningVariance().apply { accept(0.01, 0.01) }
-
+    override fun defaultPrior() = SumData(0.0001, 0.01)
     override fun sample(rng: Random, stat: VarianceStatistic): Double {
-        return rng.gamma(stat.nbrWeightedSamples * fixedShape, 1 / stat.sum())
+        return rng.gamma(stat.nbrWeightedSamples * fixedShape, 1.0 / stat.sum)
     }
 }
 
