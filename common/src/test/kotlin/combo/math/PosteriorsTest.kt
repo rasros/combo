@@ -12,7 +12,8 @@ class PosteriorsTest {
         val stat = BinomialPosterior.defaultPrior()
         val r = Random(1024)
         val s1 = generateSequence { BinomialPosterior.sample(r, stat) }.take(50).sample(RunningVariance())
-        assertEquals(0.5, s1.mean, 0.1)
+        assertEquals(.5, s1.mean, 0.1)
+        assertEquals(25.0, s1.sum, 5.0)
         doubleArrayOf(1.0, 1.0, 0.0).forEach { BinomialPosterior.update(stat, it) }
         val s2 = generateSequence { BinomialPosterior.sample(r, stat) }.take(50).sample(RunningVariance())
         assertEquals(3 / 5.0, s2.mean, 0.1)
@@ -24,10 +25,9 @@ class PosteriorsTest {
         val p = PoissonPosterior
         val stat = p.defaultPrior()
         val r = Random(6768)
-        generateSequence { p.sample(r, stat) }.take(50).forEach {
-            assertFalse(it.isNaN())
-            assertFalse(it.isInfinite())
-        }
+        val sum = generateSequence { p.sample(r, stat) }.take(50).sumByDouble { it }
+        assertTrue(sum.isFinite())
+        assertFalse(sum.isNaN())
     }
 
     @Test
