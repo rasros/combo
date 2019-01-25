@@ -12,7 +12,7 @@ class VarianceStatisticsTest {
     fun fixedEstimate() {
         val s = FixedVariance(1.0, 2.0, 10.0)
         assertEquals(sqrt(2.0), s.standardDeviation)
-        assertEquals(10.0, s.sum())
+        assertEquals(10.0, s.sum)
         assertEquals(4.5, s.squaredDeviations)
         assertEquals(10, s.nbrSamples)
     }
