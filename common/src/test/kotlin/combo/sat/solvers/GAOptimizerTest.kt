@@ -13,7 +13,7 @@ class GAOptimizerTest : LinearOptimizerTest() {
         TODO("not implemented")
     }
 
-    override fun unsatOptimizer(problem: Problem): Optimizer<LinearObjective>? {
+    override fun infeasibleOptimizer(problem: Problem): Optimizer<LinearObjective>? {
         TODO("not implemented")
     }
 

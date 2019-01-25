@@ -18,7 +18,7 @@ class LocalSearchLinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
             problem, randomSeed = 0L, restarts = 50, timeout = 5 * 1000L, stateFactory = BasicSearchStateFactory(problem), selector = RandomSelector)
 
-    override fun unsatOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+    override fun infeasibleOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
             problem, randomSeed = 0L, timeout = 1L, restarts = 1, maxSteps = 1, stateFactory = BasicSearchStateFactory(problem))
 }
 
@@ -39,7 +39,7 @@ class LocalSearchLinearOptimizerPropTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = LocalSearchOptimizer(
             problem, timeout = 5 * 1000L, stateFactory = PropSearchStateFactory(problem), selector = WeightSelector)
 
-    override fun unsatOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
+    override fun infeasibleOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(
             problem, timeout = 1L, restarts = 1, maxSteps = 1, stateFactory = PropSearchStateFactory(problem))
 }
 

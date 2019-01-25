@@ -15,8 +15,8 @@ abstract class LinearOptimizerTest {
 
     abstract fun optimizer(problem: Problem): Optimizer<LinearObjective>?
     open fun largeOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
-    open fun unsatOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
-    open fun timeoutOptimizer(problem: Problem): Optimizer<LinearObjective>? = unsatOptimizer(problem)
+    open fun infeasibleOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
+    open fun timeoutOptimizer(problem: Problem): Optimizer<LinearObjective>? = infeasibleOptimizer(problem)
 
     @Test
     fun emptyProblemOptimize() {
@@ -32,7 +32,7 @@ abstract class LinearOptimizerTest {
     fun smallOptimizeInfeasible() {
         for ((i, p) in SolverTest.SMALL_UNSAT_PROBLEMS.withIndex()) {
             try {
-                val unsatOptimizer = unsatOptimizer(p)
+                val unsatOptimizer = infeasibleOptimizer(p)
                 if (unsatOptimizer != null) {
                     assertFailsWith(ValidationException::class, "Model $i") {
                         unsatOptimizer.optimizeOrThrow(LinearObjective(false, DoubleArray(p.nbrVariables) { 0.0 }))
@@ -126,7 +126,7 @@ abstract class LinearOptimizerTest {
     @Test
     fun smallOptimizeAssumptionsInfeasible() {
         fun testUnsat(assumptions: IntArray, p: Problem) {
-            val solver = unsatOptimizer(p)
+            val solver = infeasibleOptimizer(p)
             if (solver != null) {
                 assertFailsWith(ValidationException::class) {
                     solver.optimizeOrThrow(LinearObjective(true, DoubleArray(p.nbrVariables)), assumptions)

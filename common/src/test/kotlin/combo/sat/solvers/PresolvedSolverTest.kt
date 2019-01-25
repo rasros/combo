@@ -18,6 +18,6 @@ class PresolvedLinearOptimizerTest : LinearOptimizerTest() {
 
     override fun largeOptimizer(problem: Problem): PresolvedSolver? = null
 
-    override fun unsatOptimizer(problem: Problem) =
-            PresolvedSolver(ExhaustiveLinearOptimizerTest().unsatOptimizer(problem).sequence().toList().toTypedArray())
+    override fun infeasibleOptimizer(problem: Problem) =
+            PresolvedSolver(ExhaustiveLinearOptimizerTest().infeasibleOptimizer(problem).sequence().toList().toTypedArray())
 }

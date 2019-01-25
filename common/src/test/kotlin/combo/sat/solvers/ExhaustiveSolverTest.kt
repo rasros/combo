@@ -11,7 +11,7 @@ class ExhaustiveSolverTest : SolverTest() {
 class ExhaustiveLinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = ExhaustiveSolver(problem)
     override fun largeOptimizer(problem: Problem): ExhaustiveSolver? = null
-    override fun unsatOptimizer(problem: Problem) = ExhaustiveSolver(problem, timeout = 1L)
+    override fun infeasibleOptimizer(problem: Problem) = ExhaustiveSolver(problem, timeout = 1L)
 }
 
 class ExhaustiveOptimizerTest : OptimizerTest() {
