@@ -3,6 +3,7 @@
 package combo.math
 
 import kotlin.jvm.JvmName
+import kotlin.jvm.JvmOverloads
 import kotlin.math.round
 import kotlin.random.Random
 
@@ -11,8 +12,6 @@ fun <S : DataSample> Sequence<Number>.sample(s: S): S {
     return s
 }
 
-fun DoubleArray.asPercentile() = Percentile(this)
-
 class Percentile(data: DoubleArray) {
     val data: DoubleArray = data.sortedArray()
     fun percentile(p: Double) = data[round((data.size - 1) * p).toInt()]
@@ -20,6 +19,9 @@ class Percentile(data: DoubleArray) {
     val median get() = percentile(0.5)
 }
 
+/**
+ * Samples a stream of numbers.
+ */
 interface DataSample {
     fun accept(value: Double)
 
@@ -29,13 +31,16 @@ interface DataSample {
     }
 
     /**
-     * @return all data points sampled
+     * Returns all data points sampled.
      */
     fun collect(): DoubleArray
 
     val nbrSamples: Long
 }
 
+/**
+ * Contains the latest numbers in the stream.
+ */
 class WindowSample(size: Int) : DataSample {
     private val window = DoubleArray(size)
     private var pointer: Int = 0
@@ -57,6 +62,9 @@ class WindowSample(size: Int) : DataSample {
     val size = window.size
 }
 
+/**
+ * Stores all data seen.
+ */
 class FullSample : DataSample {
     private var data = ArrayList<Double>()
     var size: Int = 0
@@ -73,6 +81,9 @@ class FullSample : DataSample {
     override fun collect() = data.toDoubleArray()
 }
 
+/**
+ * Aggregates data into buckets, where each bucket has a fixed size.
+ */
 class BucketsSample(val samplesPerBucket: Int) : DataSample {
     private var history = ArrayList<VarianceStatistic>(samplesPerBucket)
     override var nbrSamples = 0L
@@ -102,6 +113,9 @@ class BucketsSample(val samplesPerBucket: Int) : DataSample {
     val size get() = history.size
 }
 
+/**
+ * Keeps a fixed size cache of seen data. Each new data point has a random chance of replacing an old data.
+ */
 class ReservoirSample(size: Int, private val rng: Random) : DataSample {
     private val data = DoubleArray(size)
     override var nbrSamples = 0L
@@ -127,7 +141,11 @@ class ReservoirSample(size: Int, private val rng: Random) : DataSample {
     val size = data.size
 }
 
-class GrowingDataSample(maxSize: Int = 10) : DataSample {
+/**
+ * Keeps a fixed size history where each element grows in size.
+ * @param maxSize size of data, must be even.
+ */
+class GrowingDataSample @JvmOverloads constructor(maxSize: Int) : DataSample {
 
     init {
         if (maxSize % 2 != 0) throw IllegalArgumentException("Max size must be even, got $maxSize.")
