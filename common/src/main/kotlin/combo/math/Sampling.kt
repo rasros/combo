@@ -2,14 +2,14 @@
 
 package combo.math
 
-import combo.util.ConcurrentLong
+import combo.util.AtomicLong
 import kotlin.jvm.JvmName
 import kotlin.math.*
 import kotlin.random.Random
 
-class RandomSequence(startingSeed: Long) {
+class RandomSequence(val startingSeed: Long) {
     private val permutation = LongPermutation(rng = Random(startingSeed))
-    private val counter: ConcurrentLong = ConcurrentLong()
+    private val counter: AtomicLong = AtomicLong()
 
     fun next(): Random {
         val count = counter.getAndIncrement()
