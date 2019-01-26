@@ -14,6 +14,10 @@ import combo.util.nanos
  */
 interface Solver : Iterable<Labeling> {
 
+    /**
+     * Generates a random solution, ie. a witness.
+     * @param assumptions these variables will be fixed during solving, see [Literal].
+     */
     fun witness(assumptions: Literals = EMPTY_INT_ARRAY): Labeling? {
         return try {
             witnessOrThrow(assumptions)
@@ -23,16 +27,26 @@ interface Solver : Iterable<Labeling> {
     }
 
     /**
-     * @throws ValidationException
+     * @param assumptions these variables will be fixed during solving, see [Literal].
+     * @throws ValidationException if there is a logical error in the problem or a solution cannot be found with the
+     * allotted resources..
      */
     fun witnessOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Labeling
 
+    /**
+     * Note that the iterator cannot be used in parallel, but multiple iterators can be used in parallel from the same
+     * solver.
+     */
     override fun iterator() = sequence().iterator()
 
+    /**
+     * Note that the sequence cannot be used in parallel, but multiple sequences can be used in parallel from the same
+     * solver. The method does not throw exceptions if
+     * @param assumptions these variables will be fixed during solving, see [Literal].
+     */
     fun sequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Labeling> {
         return generateSequence { witness(assumptions) }
     }
-
 }
 
 /**
@@ -43,6 +57,8 @@ interface Optimizer<in O : ObjectiveFunction> {
     /**
      * Minimize the [function], optionally with the additional constraints in [assumptions].
      * Returns null if no labeling can be found.
+     * @param function the objective function to optimize on.
+     * @param assumptions these variables will be fixed during solving, see [Literal].
      */
     fun optimize(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Labeling? {
         return try {
@@ -54,7 +70,10 @@ interface Optimizer<in O : ObjectiveFunction> {
 
     /**
      * Minimize the [function], optionally with the additional constraints in [assumptions].
-     * Throws a sub-class of [ValidationException] if no labeling can be found.
+     * @param function the objective function to optimize on.
+     * @param assumptions these variables will be fixed during solving, see [Literal].
+     * @throws ValidationException if there is a logical error in the problem or a solution cannot be found with the
+     * allotted resources.
      */
     fun optimizeOrThrow(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Labeling
 }
@@ -121,10 +140,6 @@ object SatObjective : ObjectiveFunction {
     override fun lowerBound() = 0.0
     override fun improvement(labeling: Labeling, ix: Literal, propagations: Literals) = 0.0
     override fun penalty(violations: Int) = violations.toDouble()
-}
-
-fun Optimizer<SatObjective>.toSolver(): Solver = object : Solver {
-    override fun witnessOrThrow(assumptions: Literals) = optimizeOrThrow(SatObjective, assumptions)
 }
 
 fun Optimizer<LinearObjective>.toSolver(problem: Problem, randomSeed: Long = nanos()): Solver = object : Solver {
