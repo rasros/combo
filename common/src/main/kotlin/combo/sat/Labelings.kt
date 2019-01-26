@@ -1,3 +1,5 @@
+@file:JvmName("Labelings")
+
 package combo.sat
 
 import combo.math.Vector
@@ -5,10 +7,17 @@ import combo.util.IntList
 import combo.util.IntSet
 import kotlin.experimental.and
 import kotlin.experimental.xor
+import kotlin.jvm.JvmName
 import kotlin.math.max
 
 /**
- * A labeling is used by the solvers to find a valid truth assignment.
+ * A labeling is used by the solvers to find a valid truth assignment. There are three implementations:
+ * 1) [BitFieldLabeling] will suit most applications, 2) [ByteArrayLabeling] trades better CPU performance for worse
+ * memory consumption, and finally 3) [IntSetLabeling] will work better for [Problem]s with very sparse solutions.
+ * The [LabelingFactory] class is used to create the [Labeling]s in a generic way by eg. an
+ * [combo.sat.solvers.Optimizer].
+ *
+ * Equals and hashCode are defined through actual assignment values.
  */
 interface Labeling : Iterable<Int> {
     val size: Int
@@ -19,12 +28,19 @@ interface Labeling : Iterable<Int> {
     fun literal(ix: Ix): Literal = ix.toLiteral(this[ix])
     operator fun get(ix: Ix): Boolean
 
+    /**
+     * Iterates over all values, returning both true and false literals.
+     */
     override fun iterator() = object : IntIterator() {
         var i = 0
         override fun hasNext() = i < size
         override fun nextInt() = this@Labeling.literal(i++)
     }
 
+    /**
+     * Iterates over all values, returning true literals only. This method has an efficient implementation for
+     * [IntSetLabeling] for sparse [Labeling]s.
+     */
     fun truthIterator(): IntIterator = object : IntIterator() {
         var i = 0
 
@@ -56,6 +72,7 @@ interface MutableLabeling : Labeling {
 }
 
 internal fun Labeling.deepEquals(other: Labeling): Boolean {
+    if (this == other) return true
     if (size != other.size) return false
     for (i in 0 until size) if (this[i] != other[i]) return false
     return true
