@@ -3,14 +3,14 @@
 package combo.model
 
 import combo.sat.*
-import combo.util.ConcurrentInteger
+import combo.util.AtomicInt
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.Tree
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
 
 private fun defaultName() = "x_${COUNTER.getAndIncrement()}"
-private val COUNTER: ConcurrentInteger = ConcurrentInteger()
+private val COUNTER: AtomicInt = AtomicInt()
 
 const val UNIT_FALSE = -1
 const val UNIT_TRUE = -2
@@ -35,7 +35,7 @@ abstract class Feature<T>(val name: String) : Variable() {
 class FeatureTree(override val value: Feature<*>,
                   override val children: List<FeatureTree> = emptyList()) : Tree<Feature<*>, FeatureTree>
 
-internal interface IndexEntry<T> {
+interface IndexEntry<T> {
 
     /**
      * Length of array must be same as [Feature.nbrLiterals]. A negative value means the value is unit.
@@ -49,7 +49,7 @@ internal interface IndexEntry<T> {
     fun isRootUnit(): Boolean = indices[0] >= 0
 }
 
-internal data class FeatureMeta<T>(val feature: Feature<T>, val indexEntry: IndexEntry<T>) {
+data class FeatureMeta<T>(val feature: Feature<T>, val indexEntry: IndexEntry<T>) {
     override fun toString() = "FeatureMeta($feature)"
 }
 

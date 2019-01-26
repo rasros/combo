@@ -1,7 +1,7 @@
 package combo.sat
 
 import combo.math.LongPermutation
-import combo.util.ConcurrentLong
+import combo.util.AtomicLong
 import kotlin.math.ceil
 import kotlin.math.pow
 import kotlin.random.Random
@@ -12,7 +12,7 @@ import kotlin.random.Random
 class LabelingPermutation constructor(private val nbrVariables: Int, val factory: LabelingFactory, rng: Random) : Iterator<Labeling> {
 
     private val permutation: Array<LongPermutation>
-    private var count: ConcurrentLong = ConcurrentLong(0)
+    private var count: AtomicLong = AtomicLong(0)
 
     init {
         val size = ceil(nbrVariables / 64.0).toInt()

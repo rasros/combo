@@ -76,7 +76,7 @@ class ProblemTest {
         } catch (e: UnsatisfiableException) {
             return
         }
-        LabelingPermutation.sequence(p.nbrVariables, rng).take(100).forEach {
+        LabelingPermutation(p.nbrVariables, BitFieldLabelingFactory, rng).iterator().asSequence().take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }
