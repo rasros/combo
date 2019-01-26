@@ -6,17 +6,10 @@ import kotlin.math.ceil
 import kotlin.math.pow
 import kotlin.random.Random
 
-class LabelingPermutation private constructor(val factory: LabelingFactory, rng: Random, private val nbrVariables: Int) {
-
-    companion object {
-        fun sequence(nbrVariables: Int, rng: Random) = sequence(nbrVariables, BitFieldLabelingFactory, rng)
-
-        fun sequence(nbrVariables: Int, factory: LabelingFactory, rng: Random): Sequence<MutableLabeling> {
-            val limit = 2.0.pow(nbrVariables).toInt()
-            val r = LabelingPermutation(factory, rng, nbrVariables)
-            return generateSequence { r.next() }.take(limit)
-        }
-    }
+/**
+ * This class iterates over a labeling in a random order without repetitions.
+ */
+class LabelingPermutation constructor(private val nbrVariables: Int, val factory: LabelingFactory, rng: Random) : Iterator<Labeling> {
 
     private val permutation: Array<LongPermutation>
     private var count: ConcurrentLong = ConcurrentLong(0)
@@ -29,7 +22,11 @@ class LabelingPermutation private constructor(val factory: LabelingFactory, rng:
         }
     }
 
-    fun next(): MutableLabeling {
+    private val limit = 2.0.pow(nbrVariables).toLong()
+
+    override fun hasNext() = count.get() < limit
+
+    override fun next(): MutableLabeling {
         val labeling = factory.create(nbrVariables)
         val c = count.getAndIncrement()
         for ((i, perm) in permutation.withIndex()) {
