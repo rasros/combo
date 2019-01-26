@@ -5,13 +5,13 @@ import combo.sat.Problem
 class ExhaustiveSolverTest : SolverTest() {
     override fun solver(problem: Problem) = ExhaustiveSolver(problem)
     override fun largeSolver(problem: Problem): ExhaustiveSolver? = null
-    override fun unsatSolver(problem: Problem) = ExhaustiveSolver(problem, timeout = 1L)
+    override fun unsatSolver(problem: Problem) = ExhaustiveSolver(problem).apply { timeout = 1L }
 }
 
 class ExhaustiveLinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = ExhaustiveSolver(problem)
     override fun largeOptimizer(problem: Problem): ExhaustiveSolver? = null
-    override fun infeasibleOptimizer(problem: Problem) = ExhaustiveSolver(problem, timeout = 1L)
+    override fun infeasibleOptimizer(problem: Problem) = ExhaustiveSolver(problem).apply { timeout = 1L }
 }
 
 class ExhaustiveOptimizerTest : OptimizerTest() {

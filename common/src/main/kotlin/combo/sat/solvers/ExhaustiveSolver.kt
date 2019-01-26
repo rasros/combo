@@ -6,49 +6,55 @@ import combo.util.EMPTY_INT_ARRAY
 import combo.util.IntSet
 import combo.util.millis
 import combo.util.nanos
-import kotlin.jvm.JvmOverloads
 
-class ExhaustiveSolver @JvmOverloads constructor(
-        val problem: Problem,
-        val timeout: Long = -1L,
-        val randomSeed: Long = nanos(),
-        val labelingFactory: LabelingFactory = BitFieldLabelingFactory) : Solver, Optimizer<ObjectiveFunction> {
+/**
+ * This [Solver] and [Optimizer] uses brute force. It can only solve small and easy problems.
+ * @param problem the problem contains the [Constraint]s and the number of variables.
+ */
+class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFunction> {
 
-    var totalSatisfied: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
-    val solutionDensity get() = totalSatisfied / totalEvaluated.toDouble()
-    private val randomSequence = RandomSequence(randomSeed)
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
+
+    /**
+     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+     */
+    var timeout: Long = -1L
+
+    /**
+     * Determines the [Labeling] that will be created for solving, for very sparse problems use
+     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     */
+    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+
+    private var randomSequence = RandomSequence(nanos())
 
     override fun witnessOrThrow(assumptions: Literals): Labeling {
         val remap = createRemap(assumptions)
         val nbrVariables = problem.nbrVariables - assumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return LabelingPermutation.sequence(nbrVariables, labelingFactory, randomSequence.next())
+        return LabelingPermutation(nbrVariables, labelingFactory, randomSequence.next())
+                .asSequence()
                 .map { if (millis() <= end) it else throw TimeoutException(timeout) }
                 .map { remapLabeling(assumptions, it, remap) }
-                .firstOrNull {
-                    val satisfied = problem.satisfies(it)
-                    if (satisfied) totalSatisfied++
-                    totalEvaluated++
-                    satisfied
-                } ?: throw UnsatisfiableException()
+                .firstOrNull { problem.satisfies(it) } ?: throw UnsatisfiableException()
     }
 
     override fun sequence(assumptions: Literals): Sequence<Labeling> {
         val remap = createRemap(assumptions)
         val nbrVariables = problem.nbrVariables - assumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return LabelingPermutation.sequence(nbrVariables, labelingFactory, randomSequence.next())
+        return LabelingPermutation(nbrVariables, labelingFactory, randomSequence.next())
+                .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapLabeling(assumptions, it, remap) }
-                .filter {
-                    val satisfied = problem.satisfies(it)
-                    if (satisfied) totalSatisfied++
-                    totalEvaluated++
-                    satisfied
-                }
+                .filter { problem.satisfies(it) }
     }
 
     override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: Literals) = sequence(assumptions).minBy {
@@ -81,5 +87,4 @@ class ExhaustiveSolver @JvmOverloads constructor(
         } else labeling
     }
 }
-
 
