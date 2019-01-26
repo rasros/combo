@@ -22,21 +22,33 @@ import kotlin.random.Random
 /**
  * [Solver] and [Optimizer] of [LinearObjective] using the JaCoP constraint satisfactory problem (CSP) library.
  */
-class JacopSolver(problem: Problem,
-                  val timeout: Long = -1L,
-                  val randomSeed: Long = nanos(),
-                  val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                  constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Nothing = { _, _, _ ->
-                      throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                  })
-    : Solver, Optimizer<LinearObjective> {
+class JacopSolver @JvmOverloads constructor(
+        problem: Problem,
+        constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Nothing = { _, _, _ ->
+            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+        }) : Solver, Optimizer<LinearObjective> {
 
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
 
-    private val randomSequence = RandomSequence(randomSeed)
+    /**
+     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+     */
+    var timeout: Long = -1L
+
+    /**
+     * Determines the [Labeling] that will be created for solving, for very sparse problems use
+     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     */
+    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+
+    private var randomSequence = RandomSequence(nanos())
     private val store = Store()
     private val vars = Array(problem.nbrVariables) { i ->
         BooleanVar(store, "x$i")
@@ -99,7 +111,6 @@ class JacopSolver(problem: Problem,
     override fun witnessOrThrow(assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
-            totalEvaluated++
             if (optimizeVars.isEmpty()) return labelingFactory.create(0)
             if (assumptions.isNotEmpty()) {
                 for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
@@ -113,7 +124,6 @@ class JacopSolver(problem: Problem,
                 if (search.timeOutOccured) throw TimeoutException(timeout)
                 else throw UnsatisfiableException()
             }
-            totalSuccesses++
             return toLabeling(labelingFactory)
         } finally {
             store.removeLevel(store.level)
@@ -147,8 +157,6 @@ class JacopSolver(problem: Problem,
             }
             search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
                 override fun recordSolution() {
-                    totalEvaluated++
-                    totalSuccesses++
                     super.recordSolution()
                     labelingConsumer.invoke(toLabeling(labelingFactory))
                 }
@@ -165,7 +173,6 @@ class JacopSolver(problem: Problem,
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
         try {
             store.setLevel(store.level + 1)
-            totalEvaluated++
             if (optimizeVars.isEmpty()) return labelingFactory.create(0)
             if (assumptions.isNotEmpty()) {
                 for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
@@ -189,7 +196,6 @@ class JacopSolver(problem: Problem,
                 if (search.timeOutOccured) throw TimeoutException(timeout)
                 else throw UnsatisfiableException()
             }
-            totalSuccesses++
             return toLabeling(labelingFactory)
         } finally {
             store.removeLevel(store.level)

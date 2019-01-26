@@ -13,7 +13,6 @@ import combo.sat.*
 import combo.sat.Relation.*
 import combo.util.IntCollection
 import combo.util.IntList
-import combo.util.nanos
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt
 
@@ -21,24 +20,45 @@ import kotlin.math.roundToInt
  * [Optimizer] of [LinearObjective] using the binary integer programming (BIP) solver of the JOptimizer library.
  * Assumptions during solving are added using the A=b matrices, allowing reuse of the constant G<=h matrices.
  */
-class JOptimizerSolver(val problem: Problem,
-                       val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                       val randomSeed: Long = nanos(),
-                       val maxIterations: Int = Int.MAX_VALUE,
-                       val delta: Double = 1e-3,
-                       constraintHandler: (Constraint, row: Int, G: IntMatrix2D, h: IntMatrix1D) -> Int = { _, _, _, _ ->
-                           throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                       },
-                       constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
-                           throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                       }) : Optimizer<LinearObjective> {
+class JOptimizerSolver @JvmOverloads constructor(
+        val problem: Problem,
+        constraintHandler: (Constraint, row: Int, G: IntMatrix2D, h: IntMatrix1D) -> Int = { _, _, _, _ ->
+            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+        },
+        constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
+            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+        }) : Optimizer<LinearObjective> {
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
 
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
+    /**
+     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+     */
+    var timeout: Long = -1L
 
-    private val randomSequence = RandomSequence(randomSeed)
+    /**
+     * Maximum number of iteration in the search algorithm.
+     */
+    var maxIterations: Int = Int.MAX_VALUE
+
+    /**
+     * Threshold of improvement to stop current iteration in the search.
+     */
+    var delta: Double = 1e-4
+
+    /**
+     * Determines the [Labeling] that will be created for solving, for very sparse problems use
+     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     */
+    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+
+    private var randomSequence = RandomSequence(randomSeed)
     private val G: IntMatrix2D
     private val h: IntMatrix1D
 
@@ -106,9 +126,6 @@ class JOptimizerSolver(val problem: Problem,
      * @throws IterationsReachedException by config.maxIterations
      */
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
-
-        totalEvaluated++
-
         val request = BIPOptimizationRequest().apply {
             val mult = if (function.maximize) -1 else 1
             setC(IntArray(function.weights.size) { i ->
@@ -140,9 +157,7 @@ class JOptimizerSolver(val problem: Problem,
                 throw IterationsReachedException(maxIterations)
             }
         }
-        return opt.bipOptimizationResponse.solution.toLabeling(labelingFactory).also {
-            totalSuccesses++
-        }
+        return opt.bipOptimizationResponse.solution.toLabeling(labelingFactory)
     }
 
     private fun disableLogging(obj: Any?, name: String, field: String) {
