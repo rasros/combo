@@ -72,7 +72,7 @@ interface MutableLabeling : Labeling {
 }
 
 internal fun Labeling.deepEquals(other: Labeling): Boolean {
-    if (this == other) return true
+    if (this === other) return true
     if (size != other.size) return false
     for (i in 0 until size) if (this[i] != other[i]) return false
     return true
