@@ -4,7 +4,7 @@ import combo.sat.Problem
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem) =
-            CachedSolver(LocalSearchSolverTest().solver(problem), pNew = 0.8)
+            CachedSolver(LocalSearchSolverTest().solver(problem)).apply { pNew = 0.5 }
 
     override fun largeSolver(problem: Problem) =
             CachedSolver(LocalSearchSolverTest().largeSolver(problem)!!)

@@ -14,19 +14,12 @@ import kotlin.math.min
  */
 open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Long
+    override var randomSeed: Long
         set(value) {
             this.randomSequence = RandomSequence(value)
         }
         get() = randomSequence.startingSeed
-
-    /**
-     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
-     */
-    var timeout: Long = -1L
+    override var timeout: Long = -1L
 
     /**
      * The search will be restarted up to [restarts] number of time and the best value will be selected from each

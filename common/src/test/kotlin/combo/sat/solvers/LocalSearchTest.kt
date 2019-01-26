@@ -54,7 +54,6 @@ class LocalSearchLinearOptimizerPropTest : LinearOptimizerTest() {
 }
 
 class LocalSearchOptimizerPropTest : OptimizerTest() {
-
     override fun <O : ObjectiveFunction> optimizer(problem: Problem, function: O) = LocalSearchOptimizer<O>(problem).apply {
         randomSeed = 0L; restarts = 10; timeout = 5 * 1000L; stateFactory = PropSearchStateFactory(problem); selector = RandomSelector
     }

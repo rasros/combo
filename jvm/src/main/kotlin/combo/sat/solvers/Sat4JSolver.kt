@@ -39,19 +39,13 @@ class Sat4JSolver @JvmOverloads constructor(
         val constraintHandler: (Constraint, Sat4J<*>) -> Nothing = { _, _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Long
+
+    override var randomSeed: Long
         set(value) {
             this.randomSequence = RandomSequence(value)
         }
         get() = randomSequence.startingSeed
-
-    /**
-     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
-     */
-    var timeout: Long = -1L
+    override var timeout: Long = -1L
 
     /**
      * Determines the [Labeling] that will be created for solving, for very sparse problems use
@@ -70,6 +64,7 @@ class Sat4JSolver @JvmOverloads constructor(
      */
     var forgetLearnedClauses: Boolean = true
 
+    private val solverLock = Object()
     private var randomSequence = RandomSequence(nanos())
     private val literalSelection = RandomLiteralSelectionStrategySeeded(randomSequence.next())
     private val solver: Sat4J<*> = solverCreator.invoke()
@@ -82,16 +77,18 @@ class Sat4JSolver @JvmOverloads constructor(
     }
 
     override fun witnessOrThrow(assumptions: Literals): Labeling {
-        literalSelection.rng = randomSequence.next()
-        if (timeout > 0L) timeoutOrder.setTimeout(timeout)
-        solver.setTimeoutOnConflicts(maxConflicts)
-        val assumption = assumptions.toDimacs()
-        if (solver.isSatisfiable(assumption)) {
-            val l = solver.model().toLabeling(labelingFactory)
-            if (forgetLearnedClauses) solver.clearLearntClauses()
-            return l
-        } else {
-            throw UnsatisfiableException()
+        synchronized(solverLock) {
+            literalSelection.rng = randomSequence.next()
+            if (timeout > 0L) timeoutOrder.setTimeout(timeout)
+            solver.setTimeoutOnConflicts(maxConflicts)
+            val assumption = assumptions.toDimacs()
+            if (solver.isSatisfiable(assumption)) {
+                val l = solver.model().toLabeling(labelingFactory)
+                if (forgetLearnedClauses) solver.clearLearntClauses()
+                return l
+            } else {
+                throw UnsatisfiableException()
+            }
         }
     }
 

@@ -15,6 +15,7 @@ import org.jacop.floats.constraints.XeqP
 import org.jacop.floats.core.FloatVar
 import org.jacop.satwrapper.SatTranslation
 import org.jacop.search.*
+import java.util.*
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.random.Random
@@ -28,25 +29,20 @@ class JacopSolver @JvmOverloads constructor(
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
 
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Long
+    override var randomSeed: Long
         set(value) {
             this.randomSequence = RandomSequence(value)
         }
         get() = randomSequence.startingSeed
-
-    /**
-     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
-     */
-    var timeout: Long = -1L
+    override var timeout: Long = -1L
 
     /**
      * Determines the [Labeling] that will be created for solving, for very sparse problems use
      * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
      */
     var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+
+    private val lock = Object()
 
     private var randomSequence = RandomSequence(nanos())
     private val store = Store()
@@ -109,25 +105,27 @@ class JacopSolver @JvmOverloads constructor(
 
 
     override fun witnessOrThrow(assumptions: Literals): Labeling {
-        try {
-            store.setLevel(store.level + 1)
-            if (optimizeVars.isEmpty()) return labelingFactory.create(0)
-            if (assumptions.isNotEmpty()) {
-                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+        synchronized(lock) {
+            try {
+                store.setLevel(store.level + 1)
+                if (optimizeVars.isEmpty()) return labelingFactory.create(0)
+                if (assumptions.isNotEmpty()) {
+                    for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+                }
+                val search = DepthFirstSearch<BooleanVar>().apply {
+                    setPrintInfo(false)
+                    setTimeout(this)
+                }
+                val result = search.labeling(store, SimpleSelect(vars, MostConstrainedDynamic(), BinaryIndomainRandom(randomSequence.next())))
+                if (!result) {
+                    if (search.timeOutOccured) throw TimeoutException(timeout)
+                    else throw UnsatisfiableException()
+                }
+                return toLabeling(labelingFactory)
+            } finally {
+                store.removeLevel(store.level)
+                store.setLevel(store.level - 1)
             }
-            val search = DepthFirstSearch<BooleanVar>().apply {
-                setPrintInfo(false)
-                setTimeout(this)
-            }
-            val result = search.labeling(store, SimpleSelect(vars, MostConstrainedDynamic(), BinaryIndomainRandom(randomSequence.next())))
-            if (!result) {
-                if (search.timeOutOccured) throw TimeoutException(timeout)
-                else throw UnsatisfiableException()
-            }
-            return toLabeling(labelingFactory)
-        } finally {
-            store.removeLevel(store.level)
-            store.setLevel(store.level - 1)
         }
     }
 
@@ -145,61 +143,65 @@ class JacopSolver @JvmOverloads constructor(
      * This method is the preferred way to iterate through solutions using Jacop.
      */
     fun forEachLabeling(limit: Int, assumptions: Literals, labelingConsumer: (Labeling) -> Unit) {
-        try {
-            store.setLevel(store.level + 1)
-            if (assumptions.isNotEmpty())
-                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+        synchronized(lock) {
+            try {
+                store.setLevel(store.level + 1)
+                if (assumptions.isNotEmpty())
+                    for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
-            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(randomSequence.next()))
-            val search = DepthFirstSearch<BooleanVar>().apply {
-                setPrintInfo(false)
-                setTimeout(this)
-            }
-            search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
-                override fun recordSolution() {
-                    super.recordSolution()
-                    labelingConsumer.invoke(toLabeling(labelingFactory))
+                val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(randomSequence.next()))
+                val search = DepthFirstSearch<BooleanVar>().apply {
+                    setPrintInfo(false)
+                    setTimeout(this)
                 }
-            })
-            search.getSolutionListener().setSolutionLimit(limit)
-            search.getSolutionListener().searchAll(true)
-            search.labeling(store, select)
-        } finally {
-            store.removeLevel(store.level)
-            store.setLevel(store.level - 1)
+                search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
+                    override fun recordSolution() {
+                        super.recordSolution()
+                        labelingConsumer.invoke(toLabeling(labelingFactory))
+                    }
+                })
+                search.getSolutionListener().setSolutionLimit(limit)
+                search.getSolutionListener().searchAll(true)
+                search.labeling(store, select)
+            } finally {
+                store.removeLevel(store.level)
+                store.setLevel(store.level - 1)
+            }
         }
     }
 
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
-        try {
-            store.setLevel(store.level + 1)
-            if (optimizeVars.isEmpty()) return labelingFactory.create(0)
-            if (assumptions.isNotEmpty()) {
-                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+        synchronized(lock) {
+            try {
+                store.setLevel(store.level + 1)
+                if (optimizeVars.isEmpty()) return labelingFactory.create(0)
+                if (assumptions.isNotEmpty()) {
+                    for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+                }
+                val max = function.weights.asSequence().map { abs(it) }.sum()
+                val cost = FloatVar(store, -max, max)
+                store.impose(LinearFloat(optimizeVars, function.weights, "=", cost))
+                val costVar =
+                        if (function.maximize) {
+                            val negCost = FloatVar(store, -max, max)
+                            store.impose(PmulCeqR(cost, -1.0, negCost))
+                            negCost
+                        } else cost
+                val search = DepthFirstSearch<BooleanVar>().apply {
+                    setPrintInfo(false)
+                    setTimeout(this)
+                }
+                val result = search.labeling(store, SimpleSelect<BooleanVar>(
+                        vars, MostConstrainedDynamic<BooleanVar>(), IndomainMax<BooleanVar>()), costVar)
+                if (!result) {
+                    if (search.timeOutOccured) throw TimeoutException(timeout)
+                    else throw UnsatisfiableException()
+                }
+                return toLabeling(labelingFactory)
+            } finally {
+                store.removeLevel(store.level)
+                store.setLevel(store.level - 1)
             }
-            val max = function.weights.asSequence().map { abs(it) }.sum()
-            val cost = FloatVar(store, -max, max)
-            store.impose(LinearFloat(optimizeVars, function.weights, "=", cost))
-            val costVar =
-                    if (function.maximize) {
-                        val negCost = FloatVar(store, -max, max)
-                        store.impose(PmulCeqR(cost, -1.0, negCost))
-                        negCost
-                    } else cost
-            val search = DepthFirstSearch<BooleanVar>().apply {
-                setPrintInfo(false)
-                setTimeout(this)
-            }
-            val result = search.labeling(store, SimpleSelect<BooleanVar>(
-                    vars, MostConstrainedDynamic<BooleanVar>(), IndomainMax<BooleanVar>()), costVar)
-            if (!result) {
-                if (search.timeOutOccured) throw TimeoutException(timeout)
-                else throw UnsatisfiableException()
-            }
-            return toLabeling(labelingFactory)
-        } finally {
-            store.removeLevel(store.level)
-            store.setLevel(store.level - 1)
         }
     }
 

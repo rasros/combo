@@ -4,6 +4,7 @@ import combo.math.*
 import combo.sat.Labeling
 import combo.sat.Literals
 import combo.sat.Problem
+import combo.util.nanos
 
 /**
  * Steady state GA ModelOptimizer.
@@ -11,20 +12,21 @@ import combo.sat.Problem
  * https://sfi-edu.s3.amazonaws.com/sfi-edu/production/uploads/sfi-com/dev/uploads/filer/2b/07/2b071152-def2-4475-8d18-3161db1bd7e3/92-07-032.pdf
  */
 class GASolver<in O : ObjectiveFunction>(val problem: Problem,
-                                      val timeout: Long = -1L,
-                                      val popSize: Int = 50,
-                                      val maxIter: Int = Int.MAX_VALUE,
-                                      val initFromPooled: Int = 10,
-                                      val selection: SelectionFunction = FitnessProportionalSampling,
-                                      val elimination: SelectionFunction = UniformSampling,
-                                      val crossover: CrossoverFunction = UniformCrossoverFunction,
-                                      val pCrossover: Double = 0.7,
+                                         override var timeout: Long = -1L,
+                                         override var randomSeed: Long = nanos(),
+                                         val popSize: Int = 50,
+                                         val maxIter: Int = Int.MAX_VALUE,
+                                         val initFromPooled: Int = 10,
+                                         val selection: SelectionFunction = FitnessProportionalSampling,
+                                         val elimination: SelectionFunction = UniformSampling,
+                                         val crossover: CrossoverFunction = UniformCrossoverFunction,
+                                         val pCrossover: Double = 0.7,
         //TODO val crossoverSelection: CrossoverFunction = KPointCrossoverFunction(1),
-                                      val mutation: MutationFunction,
-                                      val pMutation: Double = 0.02,
-                                      val eps: Double = 1E-5,
-                                      val greedyHeuristic: Boolean = true,
-                                      val genCacheSize: Int = 25) : Optimizer<O> {
+                                         val mutation: MutationFunction,
+                                         val pMutation: Double = 0.02,
+                                         val eps: Double = 1E-5,
+                                         val greedyHeuristic: Boolean = true,
+                                         val genCacheSize: Int = 25) : Optimizer<O> {
 
     override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
         TODO("not implemented")

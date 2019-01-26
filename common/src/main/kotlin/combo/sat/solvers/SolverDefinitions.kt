@@ -2,11 +2,9 @@
 
 package combo.sat.solvers
 
-import combo.math.RandomSequence
 import combo.math.Vector
 import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.nanos
 
 /**
  * A solver can generate a random [witness] that satisfy the constraints and
@@ -47,6 +45,16 @@ interface Solver : Iterable<Labeling> {
     fun sequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Labeling> {
         return generateSequence { witness(assumptions) }
     }
+
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+
+    /**
+     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+     */
+    var timeout: Long
 }
 
 /**
@@ -76,6 +84,16 @@ interface Optimizer<in O : ObjectiveFunction> {
      * allotted resources.
      */
     fun optimizeOrThrow(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Labeling
+
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+
+    /**
+     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+     */
+    var timeout: Long
 }
 
 interface ObjectiveFunction {
@@ -142,12 +160,3 @@ object SatObjective : ObjectiveFunction {
     override fun penalty(violations: Int) = violations.toDouble()
 }
 
-fun Optimizer<LinearObjective>.toSolver(problem: Problem, randomSeed: Long = nanos()): Solver = object : Solver {
-    val randomSequence = RandomSequence(randomSeed)
-
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
-        val rng = randomSequence.next()
-        return optimizeOrThrow(
-                LinearObjective(false, DoubleArray(problem.nbrVariables) { rng.nextDouble() - 0.5 }), assumptions)
-    }
-}

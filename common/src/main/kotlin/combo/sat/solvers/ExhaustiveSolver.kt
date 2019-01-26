@@ -13,19 +13,12 @@ import combo.util.nanos
  */
 class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFunction> {
 
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Long
+    override var randomSeed: Long
         set(value) {
             this.randomSequence = RandomSequence(value)
         }
         get() = randomSequence.startingSeed
-
-    /**
-     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
-     */
-    var timeout: Long = -1L
+    override var timeout: Long = -1L
 
     /**
      * Determines the [Labeling] that will be created for solving, for very sparse problems use

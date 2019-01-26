@@ -13,6 +13,7 @@ import combo.sat.*
 import combo.sat.Relation.*
 import combo.util.IntCollection
 import combo.util.IntList
+import combo.util.nanos
 import org.apache.commons.logging.impl.NoOpLog
 import kotlin.math.roundToInt
 
@@ -28,19 +29,13 @@ class JOptimizerSolver @JvmOverloads constructor(
         constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Optimizer<LinearObjective> {
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Long
+
+    override var randomSeed: Long
         set(value) {
             this.randomSequence = RandomSequence(value)
         }
         get() = randomSequence.startingSeed
-
-    /**
-     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
-     */
-    var timeout: Long = -1L
+    override var timeout: Long = -1L
 
     /**
      * Maximum number of iteration in the search algorithm.
@@ -58,7 +53,7 @@ class JOptimizerSolver @JvmOverloads constructor(
      */
     var labelingFactory: LabelingFactory = BitFieldLabelingFactory
 
-    private var randomSequence = RandomSequence(randomSeed)
+    private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D
     private val h: IntMatrix1D
 
