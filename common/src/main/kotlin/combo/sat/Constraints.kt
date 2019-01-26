@@ -11,6 +11,9 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * A constraint must be satisfied during solving. See [Literal] for more information on the binary format of variables.
+ */
 interface Constraint : Iterable<Literal> {
 
     val literals: IntCollection
@@ -75,10 +78,16 @@ interface Constraint : Iterable<Literal> {
     }
 }
 
+/**
+ * A clause is a basic constraint and is one of [Disjunction] or [Conjunction] or [Tautology].
+ */
 sealed class Clause(override val literals: IntCollection) : Constraint {
     abstract override fun propagateUnit(unit: Literal): Clause
 }
 
+/**
+ * This constraint is always satisfied.
+ */
 object Tautology : Clause(IntList(0)) {
     override fun flipsToSatisfy(matches: Int) = 0
     override fun flipsToSatisfy(l: Labeling) = 0
@@ -87,7 +96,7 @@ object Tautology : Clause(IntList(0)) {
 }
 
 /*
- * (a || b || c)
+ * A disjunction is an OR relation between variables:  (a || b || c)
  */
 class Disjunction(literals: IntCollection) : Clause(literals) {
 
@@ -120,7 +129,7 @@ class Disjunction(literals: IntCollection) : Clause(literals) {
 }
 
 /**
- * a && b && c
+ * A conjunction is an AND relation between variables: a && b && c
  */
 class Conjunction(literals: IntCollection) : Clause(literals) {
 
@@ -142,7 +151,8 @@ class Conjunction(literals: IntCollection) : Clause(literals) {
 }
 
 /**
- * literal <=> clause
+ * Reified encodes the constraint [literal] <=> [clause]. That is, the constraint is satisfied when both the
+ * [clause] and [literal] is satisfied or when neither of them are.
  */
 class Reified(val literal: Literal, val clause: Clause) : Constraint {
 
@@ -251,6 +261,11 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
     override fun toString() = "Reified($literal, $clause)"
 }
 
+/**
+ * Cardinality constraint encodes a linear equality [relation] with a [degree].
+ * Note that all literals must be true, because they are used as linear constraints by some solvers
+ * (e.g. x+y+z < degree). These solvers cannot handle [Relation.NE] because it cannot be expressed as a linear relation.
+ */
 class Cardinality(override val literals: IntCollection, val degree: Int, val relation: Relation) : Constraint {
 
     init {
