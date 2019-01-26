@@ -14,7 +14,6 @@ import kotlin.math.min
  */
 open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
