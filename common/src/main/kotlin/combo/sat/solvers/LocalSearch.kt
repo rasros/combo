@@ -10,34 +10,70 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * TODO explain parameters
+ * This solver implements WalkSAT for sat solving and Hill climbing for optimization.
  */
-open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
-                                                          val timeout: Long = -1L,
-                                                          val randomSeed: Long = nanos(),
-                                                          val restarts: Int = 5,
-                                                          val maxSteps: Int = max(1, problem.nbrVariables),
-                                                          val pRandomWalk: Double = 0.0,
-                                                          val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                                                          val stateFactory: SearchStateFactory = PropSearchStateFactory(problem),
-                                                          val selector: ValueSelector<O> = RandomSelector,
-                                                          val eps: Double = 1E-4,
-                                                          val maxConsideration: Int = max(20, problem.nbrVariables / 5))
-    : Optimizer<O> {
+open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-    private val randomSequence = RandomSequence(randomSeed)
 
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
-    var totalIterations: Long = 0
-        private set
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
 
-    private fun recordCompleted(satisfied: Boolean) {
-        if (satisfied) totalSuccesses++
-        totalEvaluated++
-    }
+    /**
+     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+     */
+    var timeout: Long = -1L
+
+    /**
+     * The search will be restarted up to [restarts] number of time and the best value will be selected from each
+     * restart. For SAT solving restarts will be set to [Int.MAX_VALUE].
+     */
+    var restarts: Int = 5
+
+    /**
+     * Maximum number of steps for each of the [restarts].
+     */
+    var maxSteps: Int = max(1, problem.nbrVariables)
+
+    /**
+     * Chance of talking a random walk according to the WalkSAT algorithm.
+     */
+    var pRandomWalk: Double = 0.0
+
+    /**
+     * Determines the [Labeling] that will be created for solving, for very sparse problems use
+     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     */
+    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+
+    /**
+     * This contains cached information about satisfied constraints during search. [PropSearchStateFactory] is more
+     * efficient for optimizing but uses more memory than [BasicSearchStateFactory].
+     */
+    var stateFactory: SearchStateFactory = PropSearchStateFactory(problem)
+
+    /**
+     * Variables will be initialized according to this during each iteration. Use [WeightSelector] for
+     * [LinearObjective].
+     */
+    var selector: ValueSelector<O> = RandomSelector
+
+    /**
+     * Threshold of improvement to stop current iteration in the search.
+     */
+    var eps: Double = 1E-4
+
+    /**
+     * Maximum number of variables to consider during each search, set to [Int.MAX_VALUE] to disable.
+     */
+    var maxConsideration: Int = max(20, problem.nbrVariables / 5)
+
+    private var randomSequence = RandomSequence(nanos())
 
     override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
@@ -50,7 +86,6 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
         val lowerBound = function.lowerBound()
 
         for (restart in 1..restarts) {
-            totalIterations++
             val rng = randomSequence.next()
 
             val labeling = labelingFactory.create(problem.nbrVariables)
@@ -66,10 +101,9 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
             var prevValue = function.value(labeling)
             setReturnValue(prevValue)
 
-            if (state.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0)) {
-                recordCompleted(true)
+            if (state.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0))
                 return state.labeling
-            }
+
 
             for (flips in 1..maxSteps) {
                 val n: Int
@@ -111,34 +145,25 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
                 if (flips.rem(1) == 0) prevValue = function.value(labeling)
                 else prevValue -= improvement
                 if (state.totalUnsatisfied == 0) {
-                    if (abs(bestValue - lowerBound) < eps) {
-                        recordCompleted(true)
-                        return state.labeling
-                    } else if (improvement < eps) break
+                    if (abs(bestValue - lowerBound) < eps) return state.labeling
+                    else if (improvement < eps) break
                 }
                 if (millis() > end) break
             }
             if (millis() > end) break
         }
-        recordCompleted(bestLabeling != null)
         return bestLabeling
                 ?: (if (millis() > end) throw TimeoutException(timeout) else throw IterationsReachedException(restarts))
     }
 }
 
-class LocalSearchSolver(problem: Problem,
-                        timeout: Long = -1L,
-                        randomSeed: Long = nanos(),
-                        restarts: Int = Int.MAX_VALUE,
-                        maxSteps: Int = max(1, problem.nbrVariables),
-                        pRandomWalk: Double = 0.05,
-                        labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                        stateFactory: SearchStateFactory = PropSearchStateFactory(problem),
-                        selector: ValueSelector<SatObjective> = RandomSelector,
-                        eps: Double = 1E-4,
-                        maxConsideration: Int = max(20, problem.nbrVariables / 5)) : LocalSearchOptimizer<SatObjective>(
-        problem, timeout, randomSeed, restarts, maxSteps, pRandomWalk, labelingFactory, stateFactory, selector, eps, maxConsideration), Solver {
+/**
+ * This class changes the default parameters to be suitable for SAT solving.
+ */
+class LocalSearchSolver(problem: Problem) : LocalSearchOptimizer<SatObjective>(problem), Solver {
+    init {
+        restarts = Int.MAX_VALUE
+    }
 
     override fun witnessOrThrow(assumptions: Literals) = optimizeOrThrow(SatObjective, assumptions)
 }
-
