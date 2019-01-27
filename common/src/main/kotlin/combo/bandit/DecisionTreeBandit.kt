@@ -22,49 +22,72 @@ import kotlin.math.sqrt
  * http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
  *
  *
- * @param problem
- * @param maximize
- * @param randomSeed
- * @param solver
- * @param posterior
- * @param prior
- * @param historicData
- * @param delta VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
- * than the second best (default 0.05).
- * @param tau VFDT parameter, this is the threshold with which the algorithm splits even if it is not proven best.
- * Set to 1.0 for never and close to 0.0 for always (default is 0.1).
- * @param maxNodes total number of nodes that are permitted to build.
- * @param maxLiveNodes only live nodes can be selected by [choose] method. By limiting the number of them we reduce
- * computation cost of [choose] but potentially limits optimal value.
- * @param maxConsideration the number of randomly selected variables that leaf nodes consider for splitting the
- * posterior distribution further during [update].
- * @param updateRate how often we check whether a split can be performed during [update].
- * @param rewards sample of the obtained rewards for analysis convenience.
- * @param trainAbsError the total absolute error obtained on a prediction before update.
- * @param testAbsError the total absolute error obtained on a prediction after update.
+ * @param problem the problem contains the [Constraint]s and the number of variables.
+ * @param posterior the posterior family distribution to use for each labeling. Default is normal distribution.
+ * @param prior the arms will start of with the value given here. Make sure that it results in valid parameters to
+ * the posterior (eg. variance should be above zero for normal distribution).
+ * @param historicData any historic data can be added in the map, this can be used to store and re-start the bandit.
+ * @param solver the solver will be used to generate [Labeling]s that satisfy the constraints from the [Problem].
  */
 class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
-                                                   val maximize: Boolean = true,
-                                                   val randomSeed: Long = nanos(),
-                                                   val solver: Solver = LocalSearchSolver(
-                                                           problem, randomSeed = randomSeed, timeout = 1000L),
-                                                   val posterior: Posterior,
+                                                   val posterior: Posterior = GaussianPosterior,
                                                    val prior: VarianceStatistic = posterior.defaultPrior(),
                                                    historicData: Array<NodeData>? = null,
-                                                   val delta: Double = 0.05,
-                                                   val tau: Double = 0.1,
-                                                   val maxNodes: Int = 10000,
-                                                   val maxLiveNodes: Int = 500,
-                                                   val maxConsideration: Int = 500,
-                                                   val updateRate: Int = 5,
-                                                   override val rewards: DataSample = GrowingDataSample(20),
-                                                   override val trainAbsError: DataSample = GrowingDataSample(),
-                                                   override val testAbsError: DataSample = GrowingDataSample()) : PredictionBandit {
+                                                   val solver: Solver = LocalSearchSolver(problem).apply {
+                                                       this.restarts = 10
+                                                       this.randomSeed = randomSeed
+                                                       this.timeout = 1000L
+                                                   }) : PredictionBandit {
+
+    override var maximize: Boolean = true
+    override var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
+
+    override var rewards: DataSample = GrowingDataSample(20)
+    override var trainAbsError: DataSample = GrowingDataSample(10)
+    override var testAbsError: DataSample = GrowingDataSample(10)
+
+    /**
+     * VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
+     * than the second best (default 0.05).
+     */
+    var delta: Double = 0.05
+
+    /**
+     * VFDT parameter, this is the threshold with which the algorithm splits even if it is not proven best.
+     * Set to 1.0 for never and close to 0.0 for always (default is 0.1).
+     */
+    var tau: Double = 0.1
+
+    /**
+     * Total number of nodes that are permitted to build.
+     */
+    var maxNodes: Int = 10000
+
+    /**
+     * Only live nodes can be selected by [choose] method. By limiting the number of them we reduce
+     * computation cost of [choose] but potentially limits optimal value.
+     */
+    var maxLiveNodes: Int = 500
+
+    /**
+     * The number of randomly selected variables that leaf nodes consider for splitting the
+     * posterior distribution further during [update].
+     */
+    var maxConsideration: Int = 500
+
+    /**
+     * How often we check whether a split can be performed during [update].
+     */
+    var updateRate: Int = 5
 
     private var root: Node
 
     private val liveNodes: MutableList<LeafNode>
-    private val randomSequence = RandomSequence(randomSeed)
+    private var randomSequence = RandomSequence(nanos())
 
     private var nbrNodes = 1
     private var nbrAuditNodes = 1
@@ -75,19 +98,24 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
             liveNodes = ArrayList()
             root = historicData[0].setLiterals[0].toIx().let { ix ->
-                SplitNode(EMPTY_INT_ARRAY, ix,
-                        BlockNode(intArrayOf(ix.toLiteral(true)), prior.copy()),
-                        BlockNode(intArrayOf(ix.toLiteral(false)), prior.copy()))
+                SplitNode(ix, BlockNode(intArrayOf(ix.toLiteral(true)), prior),
+                        BlockNode(intArrayOf(ix.toLiteral(false)), prior))
             }
             nbrNodes = 3
             nbrAuditNodes = 0
 
             fun createHistoricNode(setLiterals: Literals, total: VarianceStatistic): LeafNode {
-                val node = if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes) {
-                    AuditNode(setLiterals, total).also {
+                val propagatedLiterals = IntSet().also {
+                    it.addAll(setLiterals)
+                    problem.unitPropagation(it)
+                }.toArray().apply { sort() }
+
+                val node = if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes &&
+                        propagatedLiterals.size < problem.nbrVariables) {
+                    AuditNode(propagatedLiterals, total).also {
                         nbrAuditNodes++
                     }
-                } else BlockNode(setLiterals, total)
+                } else BlockNode(propagatedLiterals, total)
                 if (liveNodes.size + 1 <= maxLiveNodes) liveNodes.add(node)
                 return node
             }
@@ -101,27 +129,53 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                     else break
                     stopIx++
                 }
+
                 while (stopIx + 1 < node.setLiterals.size) {
                     val ix = node.setLiterals[stopIx + 1].toIx()
-                    if (r.ix.toLiteral(true) in node.setLiterals) {
-                        val setLiterals = r.pos.setLiterals
-                        r.pos = SplitNode(setLiterals, ix,
-                                BlockNode((setLiterals + ix.toLiteral(true)).apply { sort() }, prior.copy()),
-                                BlockNode((setLiterals + ix.toLiteral(false)).apply { sort() }, prior.copy()))
+                    if (r.ix.toLiteral(true) == node.setLiterals[stopIx]) {
+                        if (r.pos is LeafNode && (r.pos as LeafNode).total !== prior)
+                            break
+                        val setLiterals = node.setLiterals.sliceArray(0 until stopIx) + r.ix.toLiteral(true)
+                        r.pos = SplitNode(ix, BlockNode((setLiterals + ix.toLiteral(true)), prior),
+                                BlockNode((setLiterals + ix.toLiteral(false)), prior))
                         r = r.pos as SplitNode
-                    } else {
-                        val setLiterals = r.neg.setLiterals
-                        r.neg = SplitNode(setLiterals, ix,
-                                BlockNode((setLiterals + ix.toLiteral(true)).apply { sort() }, prior.copy()),
-                                BlockNode((setLiterals + ix.toLiteral(false)).apply { sort() }, prior.copy()))
+                    } else if (r.ix.toLiteral(false) == node.setLiterals[stopIx]) {
+                        if (r.neg is LeafNode && (r.neg as LeafNode).total !== prior)
+                            break
+                        val setLiterals = node.setLiterals.sliceArray(0 until stopIx) + r.ix.toLiteral(false)
+                        r.neg = SplitNode(ix, BlockNode((setLiterals + ix.toLiteral(true)), prior),
+                                BlockNode((setLiterals + ix.toLiteral(false)), prior))
                         r = r.neg as SplitNode
-                    }
+                    } else
+                        break
                     nbrNodes += 2
                     stopIx++
                 }
-                if (node.setLiterals[stopIx].toBoolean()) r.pos = createHistoricNode(node.setLiterals.sortedArray(), node.total.copy())
-                else r.neg = createHistoricNode(node.setLiterals.sortedArray(), node.total.copy())
+
+                if (node.setLiterals[stopIx] == r.ix.toLiteral(true)) {
+                    if ((r.pos as? LeafNode)?.total === prior)
+                        r.pos = createHistoricNode(node.setLiterals.sortedArray(), node.total.copy())
+                    // else there is junk in the historicData and the current node is ignored
+                } else if (node.setLiterals[stopIx] == r.ix.toLiteral(false)) {
+                    if ((r.neg as? LeafNode)?.total === prior)
+                        r.neg = createHistoricNode(node.setLiterals.sortedArray(), node.total.copy())
+                    // else there is junk in the historicData and the current node is ignored
+                }
             }
+
+            // Replace all BlockNodes with total == prior with real node
+            val queue = ArrayList<SplitNode>()
+            queue.add(root as SplitNode)
+            while (queue.isNotEmpty()) {
+                val r = queue.removeAt(queue.lastIndex)
+                if (r.pos is SplitNode) queue.add(r.pos as SplitNode)
+                else if ((r.pos is BlockNode) && (r.pos as BlockNode).total === prior)
+                    r.pos = createHistoricNode((r.pos as BlockNode).setLiterals, prior.copy())
+                if (r.neg is SplitNode) queue.add(r.neg as SplitNode)
+                else if ((r.neg is BlockNode) && (r.neg as BlockNode).total === prior)
+                    r.neg = createHistoricNode((r.neg as BlockNode).setLiterals, prior.copy())
+            }
+
         } else {
             root = AuditNode(EMPTY_INT_ARRAY, prior.copy())
             liveNodes = arrayListOf(root as AuditNode)
@@ -131,26 +185,22 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     /**
      * Return all leaf nodes to use for external storage. They can be used to create a new [DecisionTreeBandit] that
      * continues optimizing through the historicData constructor parameter. Note that the order of the literals in
-     * [NodeData] should not be changed.
+     * [NodeData] should not be changed. The order of the returned array does not matter.
      */
-    fun exportData() = root.asSequence().map {
-        // We change the order from sorted in ascending numeric value to split order, so that the tree can be
-        // re-constructed exactly as is.
-        val splitOrdered = IntArray(it.setLiterals.size)
-        var r: Node = root
-        var i = 0
-        while (r is SplitNode) {
-            if (r.ix.toLiteral(true) in it.setLiterals) {
-                splitOrdered[i++] = r.ix.toLiteral(true)
-                r = r.pos
-            } else {
-                splitOrdered[i++] = r.ix.toLiteral(false)
-                r = r.neg
-            }
+    fun exportData(): Array<NodeData> {
+        val data = ArrayList<NodeData>()
+        val queue = ArrayList<Pair<IntArray, SplitNode>>()
+        if (root is SplitNode) queue.add(EMPTY_INT_ARRAY to root as SplitNode)
+        while (queue.isNotEmpty()) {
+            val (lits, r) = queue.removeAt(queue.lastIndex)
+            val posLits = lits + r.ix.toLiteral(true)
+            val negLits = lits + r.ix.toLiteral(false)
+            if (r.pos is SplitNode) queue.add(posLits to r.pos as SplitNode)
+            else data += NodeData(posLits, (r.pos as LeafNode).total)
+            if (r.neg is SplitNode) queue.add(negLits to r.neg as SplitNode)
+            else data += NodeData(negLits, (r.neg as LeafNode).total)
         }
-        NodeData(splitOrdered, it.total)
-    }.toList().toTypedArray().apply {
-        sortBy { if (maximize) -it.total.mean else it.total.mean }
+        return data.toTypedArray()
     }
 
     override fun chooseOrThrow(assumptions: IntArray): Labeling {
@@ -167,7 +217,14 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
             }
         }
         return if (node == null) solver.witnessOrThrow(assumptions)
-        else solver.witnessOrThrow(assumptions + node.setLiterals)
+        else {
+            return try {
+                // Assumptions did not match node setLiterals
+                solver.witnessOrThrow(assumptions + node.setLiterals)
+            } catch (e: ValidationException) {
+                solver.witnessOrThrow(assumptions)
+            }
+        }
     }
 
     override fun predict(labeling: Labeling) = root.findLeaf(labeling).total.mean
@@ -184,17 +241,21 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         var i = 0
         var j = 0
         while (i < setLiterals.size && j < assumptions.size) {
-            while (setLiterals[i].toIx() < assumptions[j].toIx() && i < setLiterals.size) i++
-            while (assumptions[j].toIx() < setLiterals[i].toIx() && j < assumptions.size) {
-                require(assumptions[j].toIx() < assumptions[j + 1].toIx()) { "Literals in assumption must be sorted." }
+            while (setLiterals[i].toIx() < assumptions[j].toIx() && i + 1 < setLiterals.size) i++
+            while (assumptions[j].toIx() < setLiterals[i].toIx() && j + 1 < assumptions.size) {
                 j++
+                require(assumptions[j - 1].toIx() < assumptions[j].toIx()) { "Literals in assumption must be sorted." }
             }
             val l1 = setLiterals[i]
             val l2 = assumptions[j]
-            if (l1.toIx() == l2.toIx()) {
-                if (l1 != l2) return false
-                i++
-                j++
+            when {
+                l1.toIx() == l2.toIx() -> {
+                    if (l1 != l2) return false
+                    i++
+                    j++
+                }
+                l1 < l2 -> i++
+                else -> j++
             }
         }
         return true
@@ -203,12 +264,9 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     private interface Node {
         fun findLeaf(labeling: Labeling): LeafNode
         fun update(labeling: Labeling, result: Double, weight: Double): Node
-        val setLiterals: Literals
-        fun asSequence(): Sequence<LeafNode>
     }
 
-    private inner class SplitNode(override val setLiterals: Literals,
-                                  val ix: Ix, var pos: Node, var neg: Node) : Node {
+    private inner class SplitNode(val ix: Ix, var pos: Node, var neg: Node) : Node {
 
         override fun update(labeling: Labeling, result: Double, weight: Double): Node {
             if (labeling[ix]) pos = pos.update(labeling, result, weight)
@@ -219,25 +277,11 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
         override fun findLeaf(labeling: Labeling) =
                 if (labeling[ix]) pos.findLeaf(labeling)
                 else neg.findLeaf(labeling)
-
-        fun findParent(literals: Literals): SplitNode? {
-            for (lit in literals) {
-                if (lit.toIx() == ix) {
-                    val node = if (lit.toBoolean()) pos else neg
-                    return if (node is LeafNode) this
-                    else (node as SplitNode).findParent(literals)
-                }
-            }
-            return null
-        }
-
-        override fun asSequence() = pos.asSequence() + neg.asSequence()
     }
 
-    private abstract inner class LeafNode(override val setLiterals: Literals,
+    private abstract inner class LeafNode(val setLiterals: Literals,
                                           val total: VarianceStatistic = prior.copy()) : Node {
         override fun findLeaf(labeling: Labeling) = this
-        override fun asSequence() = sequenceOf(this)
     }
 
     private inner class BlockNode(setLiterals: Literals, total: VarianceStatistic) : LeafNode(setLiterals, total) {
@@ -291,16 +335,16 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
 
                     val totalPos: VarianceStatistic = dataPos[bestI]
                     val totalNeg: VarianceStatistic = dataNeg[bestI]
-                    val literalsPos: Literals = (setLiterals + ixs[bestI].toLiteral(true)).apply { sort() }
-                    val literalsNeg: Literals = (setLiterals + ixs[bestI].toLiteral(false)).apply { sort() }
+                    val literalsPos: Literals = (setLiterals + ixs[bestI].toLiteral(true))
+                    val literalsNeg: Literals = (setLiterals + ixs[bestI].toLiteral(false))
 
                     val posHigh = dataPos[bestI].mean > dataNeg[bestI].mean
                     val inOrder = (posHigh && maximize) || (!posHigh && !maximize)
 
                     liveNodes.remove(this)
+
                     nbrAuditNodes--
                     nbrNodes += 2
-
 
                     val pos: LeafNode
                     val neg: LeafNode
@@ -312,7 +356,7 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
                         pos = createNode(literalsPos, totalPos)
                     }
 
-                    return SplitNode(setLiterals, ixs[bestI], pos, neg)
+                    return SplitNode(ixs[bestI], pos, neg)
                 }
                 nViewed = 0
             }
@@ -334,13 +378,19 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
     }
 
     private fun createNode(setLiterals: Literals, total: VarianceStatistic): LeafNode {
-        return if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes) {
-            AuditNode(setLiterals, total).also {
+        val propagatedLiterals = IntSet().also {
+            it.addAll(setLiterals)
+            problem.unitPropagation(it)
+        }.toArray().apply { sort() }
+
+        return if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes
+                && propagatedLiterals.size < problem.nbrVariables) {
+            AuditNode(propagatedLiterals, total).also {
                 nbrAuditNodes++
                 liveNodes.add(it)
             }
         } else if (liveNodes.size < maxLiveNodes) {
-            BlockNode(setLiterals, total).also {
+            BlockNode(propagatedLiterals, total).also {
                 liveNodes.add(it)
             }
         } else {
@@ -352,16 +402,25 @@ class DecisionTreeBandit @JvmOverloads constructor(val problem: Problem,
             if ((maximize && worstNode.total.mean < total.mean) || (!maximize && worstNode.total.mean > total.mean)) {
                 if (worstNode is AuditNode) {
                     // audit node should be replaced with dead node
-                    val parent = (root as SplitNode).findParent(worstNode.setLiterals)!!
+                    var parent = root as SplitNode
+                    while (true) {
+                        parent = if (parent.ix.toLiteral(true) in worstNode.setLiterals) {
+                            if (parent.pos is SplitNode) parent.pos as SplitNode
+                            else break
+                        } else {
+                            if (parent.neg is SplitNode) parent.neg as SplitNode
+                            else break
+                        }
+                    }
                     val deadNode = BlockNode(worstNode.setLiterals, worstNode.total)
                     if (worstNode == parent.pos) parent.pos = deadNode
                     else parent.neg = deadNode
-                    liveNodes[ix] = AuditNode(setLiterals, total)
+                    liveNodes[ix] = AuditNode(propagatedLiterals, total)
                 } else {
-                    liveNodes[ix] = BlockNode(setLiterals, total)
+                    liveNodes[ix] = BlockNode(propagatedLiterals, total)
                 }
                 liveNodes[ix]
-            } else BlockNode(setLiterals, total)
+            } else BlockNode(propagatedLiterals, total)
         }
     }
 
