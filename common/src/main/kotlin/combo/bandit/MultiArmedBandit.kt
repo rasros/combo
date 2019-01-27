@@ -16,29 +16,36 @@ import kotlin.jvm.JvmOverloads
  * For Java, there is a builder to use.
  *
  * @param labelings all arms to use by the bandit.
- * @param maximize whether the bandit should maximize or minimize the total rewards.
- * @param historicData any historic data can be added in the map, this can be used to store and re-start the bandit.
- * @param randomSeed set the random seed to a specific value to have a reproducible algorithm.
  * @param posterior the posterior family distribution to use for each labeling. Default is normal distribution.
  * @param prior the arms will start of with the value given here. Make sure that it results in valid parameters to
  * the posterior (eg. variance should be above zero for normal distribution).
- * @param rewards sample of the obtained rewards for analysis convenience.
+ * @param historicData any historic data can be added in the map, this can be used to store and re-start the bandit.
  */
 class MultiArmedBandit @JvmOverloads constructor(labelings: Array<Labeling>,
-                                                 val maximize: Boolean = true,
-                                                 historicData: Array<BanditArmData>? = null,
-                                                 val randomSeed: Long = nanos(),
                                                  val posterior: Posterior = GaussianPosterior,
                                                  prior: VarianceStatistic = posterior.defaultPrior(),
-                                                 override val rewards: DataSample = GrowingDataSample(20)) : Bandit {
+                                                 historicData: Array<BanditArmData>? = null) : Bandit {
 
     private val labelingData: Map<Labeling, VarianceStatistic> = HashMap<Labeling, VarianceStatistic>().apply {
         labelings.associateTo(this) { it to prior.copy() }
         historicData?.forEach { put(it.labeling, it.total) }
     }
 
-    private val randomSequence = RandomSequence(randomSeed)
+    override var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
+    override var maximize: Boolean = true
+    override var rewards: DataSample = GrowingDataSample(20)
 
+    private var randomSequence = RandomSequence(nanos())
+
+    /**
+     * Exports all data to use for external storage. They can be used to create a new [MultiArmedBandit] instance that
+     * continues optimizing through the historicData constructor parameter. The order of the returned array does not
+     * matter.
+     */
     fun exportData() =
             labelingData.asSequence().map { BanditArmData(it.key, it.value) }.toList().toTypedArray()
 

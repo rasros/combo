@@ -31,21 +31,33 @@ interface Bandit {
     /**
      * A sample of the total rewards obtained, for use in analysis and debugging.
      */
-    val rewards: DataSample
+    var rewards: DataSample
+
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm.
+     */
+    var randomSeed: Long
+
+    /**
+     * Whether the bandit should maximize or minimize the total rewards.
+     */
+    var maximize: Boolean
 }
 
 /**
  * A [PredictionBandit] uses a machine learning model as part of the algorithm.
  */
 interface PredictionBandit : Bandit {
+
     /**
      * The total absolute error obtained on a prediction before update.
      */
-    val trainAbsError: DataSample
+    var trainAbsError: DataSample
+
     /**
      * The total absolute error obtained on a prediction after update.
      */
-    val testAbsError: DataSample
+    var testAbsError: DataSample
 
     /**
      * Evaluate the machine learning model on a [labeling].
