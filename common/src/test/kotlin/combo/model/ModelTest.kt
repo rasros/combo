@@ -5,7 +5,6 @@ import combo.sat.BitFieldLabeling
 import combo.sat.Relation.*
 import combo.sat.solvers.ExhaustiveSolver
 import combo.sat.solvers.LocalSearchSolver
-import combo.sat.solvers.ObjectiveFunction
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -13,7 +12,7 @@ class ModelTest {
 
     companion object {
 
-        val SMALL1 = let {
+        val SMALL1 by lazy {
             // UnitFlag
             // NormalFlag
             // NormalAlternative
@@ -38,7 +37,7 @@ class ModelTest {
                     .build()
         }
 
-        val SMALL2 = let {
+        val SMALL2 by lazy {
             // NullFlag
             // NullOr
             // NullAlternative
@@ -59,7 +58,7 @@ class ModelTest {
                     .build()
         }
 
-        val SMALL3 = let {
+        val SMALL3 by lazy {
             // UnitOptions
             val f1 = flag(name = "f1")
             val f2 = flag(name = "f2")
@@ -76,7 +75,7 @@ class ModelTest {
                     .build()
         }
 
-        val SMALL4 = let {
+        val SMALL4 by lazy {
             // Small and predictable
             val a = alternative(1, 2)
             val f = flag()
@@ -84,7 +83,7 @@ class ModelTest {
             Model.builder().optional(a).optional(o).optional(f).build()
         }
 
-        val SMALL5 = let {
+        val SMALL5 by lazy {
             // Using constraint with most cardinality options
             val a = alternative(1, 2, 3)
             val b = flag()
@@ -99,7 +98,7 @@ class ModelTest {
                     .build()
         }
 
-        val SMALL6 = let {
+        val SMALL6 by lazy {
             // Using constraint with all cardinality options
             val a = alternative(1, 2, 3)
             val b = flag()
@@ -125,7 +124,7 @@ class ModelTest {
                     .build()
         }
 
-        val SMALL_UNSAT1 = let {
+        val SMALL_UNSAT1 by lazy {
             val f1 = flag()
             val f2 = flag()
             val builder = Model.builder().optional(f1).optional(f2)
@@ -136,7 +135,7 @@ class ModelTest {
             builder.build()
         }
 
-        val SMALL_UNSAT2 = let {
+        val SMALL_UNSAT2 by lazy {
             val f1 = flag()
             val f2 = flag()
             val f3 = flag()
@@ -152,7 +151,7 @@ class ModelTest {
             builder.build()
         }
 
-        val SMALL_UNSAT3 = let {
+        val SMALL_UNSAT3 by lazy {
             val builder = Model.builder()
             val a = alternative(1..10)
             builder.optional(a)
@@ -160,7 +159,7 @@ class ModelTest {
             builder.build()
         }
 
-        val LARGE1 = let {
+        val LARGE1 by lazy {
             // Alternative hierarchies
             val A1 = alternative(1 until 100, "A1")
             val A2 = alternative(1 until 100, "A2")
@@ -168,7 +167,7 @@ class ModelTest {
             Model.builder(A1).optional(Model.builder(A2).optional(Model.builder(A3))).build()
         }
 
-        val LARGE2 = let {
+        val LARGE2 by lazy {
             // Typical hierarchy
             val root = Model.builder("Category")
             for (i in 1..5) {
@@ -188,7 +187,7 @@ class ModelTest {
             root.build()
         }
 
-        val LARGE3 = let {
+        val LARGE3 by lazy {
             // Flag chain
             val root = Model.builder("Flag chain")
             var k = 0
@@ -199,7 +198,7 @@ class ModelTest {
             root.build()
         }
 
-        val LARGE4 = let {
+        val LARGE4 by lazy {
             // Random disjunctions
             val flags = Array(500) { flag("$it") }
             val root = Model.builder("Random disjunctions")
@@ -215,9 +214,9 @@ class ModelTest {
             root.build()
         }
 
-        val SMALL_MODELS: Array<Model> = arrayOf(SMALL1, SMALL2, SMALL3, SMALL4, SMALL5, SMALL6)
-        val SMALL_UNSAT_MODELS: Array<Model> = arrayOf(SMALL_UNSAT1, SMALL_UNSAT2, SMALL_UNSAT3)
-        val LARGE_MODEL: Array<Model> = arrayOf(LARGE1, LARGE2, LARGE3, LARGE4)
+        val SMALL_MODELS: Array<Model> by lazy { arrayOf(SMALL1, SMALL2, SMALL3, SMALL4, SMALL5, SMALL6) }
+        val SMALL_UNSAT_MODELS: Array<Model> by lazy { arrayOf(SMALL_UNSAT1, SMALL_UNSAT2, SMALL_UNSAT3) }
+        val LARGE_MODEL: Array<Model> by lazy { arrayOf(LARGE1, LARGE2, LARGE3, LARGE4) }
     }
 
     @Test
