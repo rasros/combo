@@ -11,6 +11,7 @@ import kotlin.math.min
 
 /**
  * This solver implements WalkSAT for sat solving and Hill climbing for optimization.
+ * @param problem the problem contains the [Constraint]s and the number of variables.
  */
 open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
