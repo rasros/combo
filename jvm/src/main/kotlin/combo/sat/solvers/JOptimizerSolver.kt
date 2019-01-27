@@ -35,6 +35,10 @@ class JOptimizerSolver @JvmOverloads constructor(
             this.randomSequence = RandomSequence(value)
         }
         get() = randomSequence.startingSeed
+
+    /**
+     * Timeout is not supported by JOptimizer, use maxIterations for pre-mature cancellation..
+     */
     override var timeout: Long = -1L
 
     /**
@@ -43,7 +47,7 @@ class JOptimizerSolver @JvmOverloads constructor(
     var maxIterations: Int = Int.MAX_VALUE
 
     /**
-     * Threshold of improvement to stop current iteration in the search.
+     * Sensitivity of conversion of float objective function to int objective function.
      */
     var delta: Double = 1e-4
 
@@ -118,7 +122,7 @@ class JOptimizerSolver @JvmOverloads constructor(
      * Does not support timeout.
      *
      * @throws UnsatisfiableException
-     * @throws IterationsReachedException by config.maxIterations
+     * @throws IterationsReachedException by maxIterations
      */
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
         val request = BIPOptimizationRequest().apply {
