@@ -16,8 +16,8 @@ interface VarianceStatistic : DataSample {
     override val nbrSamples: Long get() = nbrWeightedSamples.toLong()
     val nbrWeightedSamples: Double
     val mean: Double
-    val squaredDeviations: Double get() = (nbrWeightedSamples - 1) / variance
-    val variance: Double get() = squaredDeviations / (nbrWeightedSamples - 1)
+    val squaredDeviations: Double get() = nbrWeightedSamples / variance
+    val variance: Double get() = squaredDeviations / nbrWeightedSamples
     val standardDeviation: Double get() = sqrt(variance)
     val sum: Double get() = mean * nbrWeightedSamples
 
@@ -67,7 +67,7 @@ class SumData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceSta
     override val variance: Double
         get() = mean * (1 - mean)
 
-    override fun copy() = SumData()
+    override fun copy() = SumData(sum, nbrWeightedSamples)
 }
 
 class RunningVariance(mean: Double = 0.0,

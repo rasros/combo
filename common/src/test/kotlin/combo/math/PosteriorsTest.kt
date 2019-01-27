@@ -136,4 +136,20 @@ class PosteriorsTest {
         assertEquals(2.0 / 3.0, s2.mean, 0.1)
         assertTrue(s2.variance < s1.variance)
     }
+
+    @Test
+    fun varianceBound() {
+        for ((i, posterior) in arrayOf(PoissonPosterior, ExponentialPosterior, GaussianPosterior, GammaScalePosterior(0.1),
+                BinomialPosterior, GeometricPosterior, LogNormalPosterior).withIndex()) {
+            val prior = posterior.defaultPrior()
+            assertTrue(prior.variance.isFinite(), i.toString())
+            assertTrue(prior.mean.isFinite(), i.toString())
+        }
+        for ((i, posterior) in arrayOf(ExponentialPosterior, GaussianPosterior, GammaScalePosterior(0.1),
+                BinomialPosterior, LogNormalPosterior).withIndex()) {
+            val prior = posterior.defaultPrior()
+            assertTrue(prior.variance > 0.0, i.toString())
+        }
+
+    }
 }
