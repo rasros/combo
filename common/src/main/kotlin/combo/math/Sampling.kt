@@ -39,8 +39,6 @@ tailrec fun Random.nextTruncatedGaussian(mean: Double = 0.0, std: Double = 1.0,
     }
 }
 
-
-
 fun Random.gamma(shape: Double, scale: Double = 1.0): Double {
     fun randomForShapeGreaterThan1(shape: Double): Double {
         val a = sqrt(2.0 * shape - 1.0)

@@ -145,7 +145,7 @@ class ReservoirSample(size: Int, private val rng: Random) : DataSample {
  * Keeps a fixed size history where each element grows in size.
  * @param maxSize size of data, must be even.
  */
-class GrowingDataSample @JvmOverloads constructor(maxSize: Int) : DataSample {
+class GrowingDataSample @JvmOverloads constructor(maxSize: Int = 10) : DataSample {
 
     init {
         if (maxSize % 2 != 0) throw IllegalArgumentException("Max size must be even, got $maxSize.")
