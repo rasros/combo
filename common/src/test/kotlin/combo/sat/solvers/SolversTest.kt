@@ -1,7 +1,10 @@
 package combo.sat.solvers
 
 import combo.model.ModelTest
-import combo.sat.*
+import combo.sat.Conjunction
+import combo.sat.Problem
+import combo.sat.UnsatisfiableException
+import combo.sat.ValidationException
 import combo.util.IntList
 import kotlin.math.pow
 import kotlin.random.Random
@@ -18,9 +21,9 @@ abstract class SolverTest {
     open fun timeoutSolver(problem: Problem): Solver? = unsatSolver(problem)
 
     companion object {
-        val SMALL_PROBLEMS = ModelTest.SMALL_MODELS.map { m -> m.problem }
-        val SMALL_UNSAT_PROBLEMS = ModelTest.SMALL_UNSAT_MODELS.map { m -> m.problem }
-        val LARGE_PROBLEMS = ModelTest.LARGE_MODEL.map { m -> m.problem }
+        val SMALL_PROBLEMS: List<Problem> by lazy { ModelTest.SMALL_MODELS.map { m -> m.problem } }
+        val SMALL_UNSAT_PROBLEMS: List<Problem> by lazy { ModelTest.SMALL_UNSAT_MODELS.map { m -> m.problem } }
+        val LARGE_PROBLEMS: List<Problem>  by lazy { ModelTest.LARGE_MODEL.map { m -> m.problem } }
     }
 
     @Test
