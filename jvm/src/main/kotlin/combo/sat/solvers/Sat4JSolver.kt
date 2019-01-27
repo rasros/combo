@@ -82,12 +82,13 @@ class Sat4JSolver @JvmOverloads constructor(
             if (timeout > 0L) timeoutOrder.setTimeout(timeout)
             solver.setTimeoutOnConflicts(maxConflicts)
             val assumption = assumptions.toDimacs()
-            if (solver.isSatisfiable(assumption)) {
-                val l = solver.model().toLabeling(labelingFactory)
+            try {
+                if (solver.isSatisfiable(assumption)) return solver.model().toLabeling(labelingFactory)
+                else throw UnsatisfiableException()
+            } catch (e: org.sat4j.specs.TimeoutException) {
+                throw IterationsReachedException(maxConflicts)
+            } finally {
                 if (forgetLearnedClauses) solver.clearLearntClauses()
-                return l
-            } else {
-                throw UnsatisfiableException()
             }
         }
     }
@@ -97,17 +98,20 @@ class Sat4JSolver @JvmOverloads constructor(
                 MixedDataStructureDanielWL(),
                 VarOrderHeap(RandomLiteralSelectionStrategySeeded(randomSequence.next())))
         base.setup(problem, constraintHandler)
+        base.setTimeoutOnConflicts(maxConflicts)
         val solver = ModelIterator(base)
         val iterator = ModelIterator(solver)
         val assumption = assumptions.toDimacs()
         val timeout = timeout
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         return generateSequence {
-            if (millis() >= end) null
-            else if (!iterator.isSatisfiable(assumption)) null
-            else
-                iterator.model().toLabeling(labelingFactory)
-
+            try {
+                if (millis() >= end) null
+                else if (!iterator.isSatisfiable(assumption)) null
+                else iterator.model().toLabeling(labelingFactory)
+            } catch (e: org.sat4j.specs.TimeoutException) {
+                throw IterationsReachedException(maxConflicts)
+            }
         }
     }
 
@@ -120,12 +124,17 @@ class Sat4JSolver @JvmOverloads constructor(
         pbSolver.setup(problem, constraintHandler)
         val intWeights = function.weights.toIntArray()
         if (function.maximize) intWeights.transformArray { -it }
+        optimizer.setTimeoutOnConflicts(maxConflicts)
         optimizer.objectiveFunction = ObjectiveFunction(
                 VecInt((1..intWeights.size).toList().toIntArray()),
                 Vec(intWeights.map { valueOf(it.toLong()) }.toTypedArray()))
-        if (!optimizer.isSatisfiable(assumptions.toDimacs()))
-            throw UnsatisfiableException()
-        return optimizer.model().toLabeling(labelingFactory)
+        try {
+            if (!optimizer.isSatisfiable(assumptions.toDimacs()))
+                throw UnsatisfiableException()
+            return optimizer.model().toLabeling(labelingFactory)
+        } catch (e: org.sat4j.specs.TimeoutException) {
+            throw IterationsReachedException(maxConflicts)
+        }
     }
 
     private class TimeoutOrder(val base: IOrder) : IOrder by base {
