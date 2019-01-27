@@ -25,20 +25,20 @@ fun assertContentEquals(expected: Array<DoubleArray>, actual: Array<DoubleArray>
 
 fun assertContentEquals(expected: Array<*>, actual: Array<*>, message: String? = null) {
     assertTrue(expected.contentEquals(actual), message
-            ?: "Expected ${actual.joinToString(",", "<", ">")} to equal ${expected.joinToString(",", "<", ">")}")
+            ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }
 
 fun assertContentEquals(expected: IntArray, actual: IntArray, message: String? = null) {
     assertTrue(expected.contentEquals(actual), message
-            ?: "Expected ${actual.joinToString(",", "<", ">")} to equal ${expected.joinToString(",", "<", ">")}")
+            ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }
 
 fun assertContentEquals(expected: LongArray, actual: LongArray, message: String? = null) {
     assertTrue(expected.contentEquals(actual), message
-            ?: "Expected ${actual.joinToString(",", "<", ">")} to equal ${expected.joinToString(",", "<", ">")}")
+            ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }
 
 fun assertContentEquals(expected: List<*>, actual: List<*>, message: String? = null) {
     assertTrue(expected.toTypedArray().contentEquals(actual.toTypedArray()), message
-            ?: "Expected ${actual.joinToString(",", "<", ">")} to equal ${expected.joinToString(",", "<", ">")}")
+            ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }

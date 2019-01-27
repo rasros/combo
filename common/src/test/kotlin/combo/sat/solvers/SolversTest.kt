@@ -129,7 +129,7 @@ abstract class SolverTest {
     }
 
     @Test
-    fun ssmallSatSequenceAssumptions() {
+    fun smallSatSequenceAssumptions() {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {

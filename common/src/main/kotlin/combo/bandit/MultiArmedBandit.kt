@@ -26,7 +26,7 @@ class MultiArmedBandit @JvmOverloads constructor(labelings: Array<Labeling>,
                                                  prior: VarianceStatistic = posterior.defaultPrior(),
                                                  historicData: Array<BanditArmData>? = null) : Bandit {
 
-    private val labelingData: Map<Labeling, VarianceStatistic> = HashMap<Labeling, VarianceStatistic>().apply {
+    private val labelingData: Map<Labeling, VarianceStatistic> = LinkedHashMap<Labeling, VarianceStatistic>().apply {
         labelings.associateTo(this) { it to prior.copy() }
         historicData?.forEach { put(it.labeling, it.total) }
     }
@@ -51,7 +51,9 @@ class MultiArmedBandit @JvmOverloads constructor(labelings: Array<Labeling>,
 
     override fun update(labeling: Labeling, result: Double, weight: Double) {
         rewards.accept(result)
-        posterior.update(labelingData[labeling]!!, result, weight)
+        labelingData[labeling]?.also {
+            posterior.update(it, result, weight)
+        }
     }
 
     override fun chooseOrThrow(assumptions: IntArray): Labeling {
