@@ -1,7 +1,7 @@
 package combo.sat
 
 import combo.math.IntPermutation
-import combo.math.binomial
+import combo.math.nextBinomial
 import combo.model.ModelTest
 import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
@@ -62,7 +62,7 @@ class ProblemTest {
         val rng = Random.Default
         val p = ModelTest.LARGE2.problem
         val perm = IntPermutation(p.nbrVariables, rng)
-        val lits = (0 until rng.binomial(0.7, p.nbrVariables)).asSequence()
+        val lits = (0 until rng.nextBinomial(0.7, p.nbrVariables)).asSequence()
                 .map { perm.encode(it) }
                 .map { it.toLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }

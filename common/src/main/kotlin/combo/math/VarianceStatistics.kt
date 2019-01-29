@@ -8,7 +8,7 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-interface VarianceStatistic : DataSample {
+interface Estimator : DataSample {
 
     override fun accept(value: Double) = accept(value, 1.0)
     fun accept(value: Double, weight: Double)
@@ -21,34 +21,30 @@ interface VarianceStatistic : DataSample {
     val standardDeviation: Double get() = sqrt(variance)
     val sum: Double get() = mean * nbrWeightedSamples
 
-    fun copy(): VarianceStatistic
+    fun copy(): Estimator
 
-    operator fun component1() = mean
-    operator fun component2() = variance
-    operator fun component3() = nbrWeightedSamples
     override fun collect() = doubleArrayOf(mean)
 }
 
-class DescriptiveStatistic(val decorated: VarianceStatistic) : VarianceStatistic by decorated {
-    var min: Double = Double.POSITIVE_INFINITY
+class DescriptiveStatistic(val decorated: Estimator,
+                           min: Double = Double.POSITIVE_INFINITY, max: Double = Double.NEGATIVE_INFINITY) : Estimator by decorated {
+    var min: Double = min
         private set
-    var max: Double = Double.NEGATIVE_INFINITY
+    var max: Double = max
         private set
 
-    override fun accept(value: Double) {
-        decorated.accept(value)
-        max = max(value, max)
-        min = min(value, min)
-    }
+    override fun accept(value: Double) = accept(value, 1.0)
 
     override fun accept(value: Double, weight: Double) {
         decorated.accept(value, weight)
         max = max(value, max)
         min = min(value, min)
     }
+
+    override fun copy() = DescriptiveStatistic(decorated, min, max)
 }
 
-class SumData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceStatistic {
+class SumData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : Estimator {
 
     override fun accept(value: Double, weight: Double) {
         sum += value * weight
@@ -72,7 +68,7 @@ class SumData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceSta
 
 class RunningVariance(mean: Double = 0.0,
                       squaredDeviations: Double = 0.0,
-                      nbrWeightedSamples: Double = 0.0) : VarianceStatistic {
+                      nbrWeightedSamples: Double = 0.0) : Estimator {
 
     override var mean = mean
         private set
@@ -101,7 +97,7 @@ class RunningVariance(mean: Double = 0.0,
         }
     }
 
-    fun combine(vs: VarianceStatistic) = RunningVariance().also {
+    fun combine(vs: Estimator) = RunningVariance().also {
         it.mean = (this.mean + vs.mean) / 2
         it.nbrWeightedSamples = this.nbrWeightedSamples + vs.nbrWeightedSamples
         it.squaredDeviations = (this.mean - it.mean).pow(2) + (vs.mean - it.mean).pow(2)
@@ -116,7 +112,7 @@ class RunningVariance(mean: Double = 0.0,
 class ExponentialDecayVariance(val beta: Double = 0.02,
                                mean: Double = 0.0,
                                variance: Double = 0.0,
-                               nbrWeightedSamples: Double = 0.0) : VarianceStatistic {
+                               nbrWeightedSamples: Double = 0.0) : Estimator {
 
     constructor(window: Int) : this(2.0 / (window - 1.0))
 
@@ -131,7 +127,7 @@ class ExponentialDecayVariance(val beta: Double = 0.02,
         require(beta < 1.0 && beta > 0.0) { "Beta parameter must be within 0 to 1 range, got $beta." }
     }
 
-    override fun copy(): VarianceStatistic {
+    override fun copy(): Estimator {
         val copy = ExponentialDecayVariance(beta)
         copy.nbrWeightedSamples = nbrWeightedSamples
         copy.mean = mean
@@ -150,7 +146,7 @@ class ExponentialDecayVariance(val beta: Double = 0.02,
     override fun toString() = "ExponentialDecayVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples, beta=$beta)"
 }
 
-class FixedVariance(override val mean: Double, override val variance: Double, override val nbrWeightedSamples: Double) : VarianceStatistic {
+class FixedVariance(override val mean: Double, override val variance: Double, override val nbrWeightedSamples: Double) : Estimator {
     override fun copy() = FixedVariance(mean, variance, nbrWeightedSamples)
     override fun accept(value: Double, weight: Double) = throw UnsupportedOperationException()
     override fun toString() = "FixedVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"

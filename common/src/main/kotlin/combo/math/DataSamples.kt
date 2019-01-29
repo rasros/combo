@@ -85,7 +85,7 @@ class FullSample : DataSample {
  * Aggregates data into buckets, where each bucket has a fixed size.
  */
 class BucketsSample(val samplesPerBucket: Int) : DataSample {
-    private var history = ArrayList<VarianceStatistic>(samplesPerBucket)
+    private var history = ArrayList<Estimator>(samplesPerBucket)
     override var nbrSamples = 0L
         private set
 
