@@ -46,7 +46,7 @@ class SamplingTest {
         val r = Random(100)
         val shape = 0.1
         val scale = 1.0
-        val s = generateSequence { r.gamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape, scale) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
@@ -56,10 +56,10 @@ class SamplingTest {
 
     @Test
     fun gammaShapeEquals1() {
-        val r = Random(12934)
+        val r = Random(2934)
         val shape = 1.0
         val scale = 1.0
-        val s = generateSequence { r.gamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape, scale) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
@@ -70,11 +70,11 @@ class SamplingTest {
     @Test
     fun gammaShapeGreaterThan1() {
         val r = Random(12934)
-        val shape = 10.0
-        val scale = 1.0
-        val s = generateSequence { r.gamma(shape, scale) }
-                .take(200)
-                .map { assertFalse(it <= 0, "$it"); it }
+        val shape = 2.0
+        val scale = 6.0
+        val s = generateSequence { r.nextGamma(shape, scale) }
+                .take(200000)
+                //.map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(shape * scale.pow(2), s.variance, 2.0)
         assertEquals(shape * scale, s.mean, 1.0)
@@ -82,10 +82,10 @@ class SamplingTest {
 
     @Test
     fun gammaShapeHuge() {
-        val r = Random(12934)
-        val shape = 100.0 // will trigger gaussian approximation
+        val r = Random(1934)
+        val shape = 100.0
         val scale = 1.0
-        val s = generateSequence { r.gamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape, scale) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
@@ -96,7 +96,7 @@ class SamplingTest {
     @Test
     fun betaUniform() {
         val r = Random(1023)
-        val s = generateSequence { r.beta(1.0, 1.0) }
+        val s = generateSequence { r.nextBeta(1.0, 1.0) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
                 .sample(RunningVariance())
@@ -109,7 +109,7 @@ class SamplingTest {
         val r = Random(12410)
         val a = 1.0
         val b = 10.0
-        val s = generateSequence { r.beta(a, b) }
+        val s = generateSequence { r.nextBeta(a, b) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
                 .sample(RunningVariance())
@@ -122,7 +122,7 @@ class SamplingTest {
         val r = Random(-10)
         val a = 10.0
         val b = 1.0
-        val s = generateSequence { r.beta(a, b) }
+        val s = generateSequence { r.nextBeta(a, b) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); assertFalse(it >= 1, "$it"); it }
                 .sample(RunningVariance())
@@ -132,9 +132,9 @@ class SamplingTest {
 
     @Test
     fun poissonSmall() {
-        val r = Random(5468)
+        val r = Random(548)
         val lambda = 0.1
-        val s = generateSequence { r.poisson(lambda) }
+        val s = generateSequence { r.nextPoisson(lambda) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
@@ -146,31 +146,31 @@ class SamplingTest {
     fun poissonMedium() {
         val r = Random(1546)
         val lambda = 2.0
-        val s = generateSequence { r.poisson(lambda) }
+        val s = generateSequence { r.nextPoisson(lambda) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(lambda, s.variance, 1.0)
-        assertEquals(lambda, s.mean, 0.5)
+        assertEquals(lambda, s.variance, 0.5)
+        assertEquals(lambda, s.mean, 0.2)
     }
 
     @Test
     fun poissonHuge() {
         val r = Random(68)
         val lambda = 100.0 // will trigger gaussian approximation
-        val s = generateSequence { r.poisson(lambda) }
+        val s = generateSequence { r.nextPoisson(lambda) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(lambda, s.variance, 20.0)
-        assertEquals(lambda, s.mean, 5.0)
+        assertEquals(lambda, s.variance, 10.0)
+        assertEquals(lambda, s.mean, 0.5)
     }
 
     @Test
     fun bernoulli() {
         val r = Random(568)
         val p = 0.1
-        val s = generateSequence { r.binomial(p) }
+        val s = generateSequence { r.nextBinomial(p) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); assertFalse(it > 1, "$it"); it }
                 .sample(RunningVariance())
@@ -183,7 +183,7 @@ class SamplingTest {
         val r = Random(789)
         val p = 0.2
         val n = 100
-        val s = generateSequence { r.binomial(p, n) }
+        val s = generateSequence { r.nextBinomial(p, n) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
@@ -195,7 +195,7 @@ class SamplingTest {
     fun geometric() {
         val r = Random(978546)
         val p = 10.0
-        val s = generateSequence { r.geometric(p) }
+        val s = generateSequence { r.nextGeometric(p) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
@@ -207,7 +207,7 @@ class SamplingTest {
     fun exponential() {
         val r = Random(100)
         val rate = 10.0
-        val s = generateSequence { r.exponential(rate) }
+        val s = generateSequence { r.nextExponential(rate) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())

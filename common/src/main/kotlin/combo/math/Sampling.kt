@@ -17,6 +17,13 @@ class RandomSequence(val startingSeed: Long) {
     }
 }
 
+fun Random.nextDoublePos(): Double {
+    while (true) {
+        val u = nextDouble()
+        if (u > 0.0) return u
+    }
+}
+
 fun Random.nextGaussian(mean: Double = 0.0, std: Double = 1.0): Double {
     var u: Double
     var s: Double
@@ -29,111 +36,93 @@ fun Random.nextGaussian(mean: Double = 0.0, std: Double = 1.0): Double {
     return mean + std * u * mul
 }
 
-tailrec fun Random.nextTruncatedGaussian(mean: Double = 0.0, std: Double = 1.0,
-                                         min: Double = -Double.MAX_VALUE, max: Double = Double.MAX_VALUE): Double {
-    val next = mean + nextGaussian() * std
-    if (next < min || next > max) {
-        return nextTruncatedGaussian(mean, std, min, max)
+fun Random.nextGamma(alpha: Double, beta: Double): Double {
+    // Gamma(alpha,lambda) generator using Marsaglia and Tsang method
+    // Algorithm 4.33
+    if (alpha < 1.0) {
+        val u = nextDoublePos()
+        return nextGamma(1.0 + alpha, beta) * u.pow(1.0 / alpha);
     } else {
-        return next
+        val d = alpha - 1.0 / 3.0
+        val c = (1.0 / 3.0) / sqrt(d)
+
+        var v: Double
+        var x: Double
+
+        while (true) {
+            do {
+                x = nextGaussian()
+                v = 1.0 + c * x
+            } while (v <= 0)
+
+            v = v * v * v
+            val u = nextDoublePos()
+
+            if (u < 1 - 0.0331 * x * x * x * x)
+                break
+
+            if (ln(u) < 0.5 * x * x + d * (1 - v + ln(v)))
+                break
+        }
+        return beta * d * v
     }
 }
 
-fun Random.gamma(shape: Double, scale: Double = 1.0): Double {
-    fun randomForShapeGreaterThan1(shape: Double): Double {
-        val a = sqrt(2.0 * shape - 1.0)
-        val b = shape - ln(4.0)
-        val q = shape + 1 / a
-        val d = 1 + ln(4.5)
-        for (i in 1..20) {
-            val u1 = nextDouble()
-            val u2 = nextDouble()
-            val v = a * ln(u1 / (1 - u1))
-            val y = shape * exp(v)
-            val z = u1 * u1 * u2
-            val w = b + q * v - y
-            if (w + d - 4.5 * z >= 0 || w >= ln(z)) {
-                return y
-            }
-        }
-        return nextTruncatedGaussian(shape, sqrt(shape), min = 0.0)
-    }
-
-    fun randomForShapeLessThan1(shape: Double): Double {
-        val b = (E + shape) / E
-        for (i in 1..10) {
-            val p = nextDouble(0.0, b)
-            if (p > 1) {
-                val y = -ln((b - p) / shape)
-                if (nextDouble() <= y.pow(shape - 1.0)) {
-                    return y
-                }
-            }
-            val y = p.pow(1 / shape)
-            if (nextDouble() <= exp(-y)) {
-                return y
-            }
-        }
-        return nextTruncatedGaussian(shape, sqrt(shape), min = 0.0)
-    }
-    return scale *
-            if (shape > 30) {
-                nextTruncatedGaussian(shape, sqrt(shape), min = 0.0)
-            } else if (shape > 1) {
-                randomForShapeGreaterThan1(shape)
-            } else if (shape < 1) {
-                randomForShapeLessThan1(shape)
-            } else {
-                -ln(1 - nextDouble())
-            }
-}
-
-fun Random.beta(alpha: Double, beta: Double): Double {
-    val a = gamma(alpha)
-    val b = gamma(beta)
+fun Random.nextBeta(alpha: Double, beta: Double): Double {
+    val a = nextGamma(alpha, 1.0)
+    val b = nextGamma(beta, 1.0)
     return a / (a + b)
 }
 
 fun Random.inverseGamma(shape: Double, scale: Double): Double {
-    return gamma(shape, 1.0 / scale)
+    return nextGamma(shape, 1.0 / scale)
 }
 
-fun Random.poisson(lambda: Double): Int {
+/**
+ * Approximation implementation, it is only used in simulations.
+ */
+fun Random.nextPoisson(lambda: Double): Int {
     // Knuth's algorithm
     return if (lambda < 30) {
-        val l = exp(-lambda)
-        var k = 0
-        var p = 1.0
-        do {
-            k++
-            p *= nextDouble()
-        } while (p > l)
-        k - 1
-    } else {
-        round(nextTruncatedGaussian(lambda, sqrt(lambda), min = 0.0)).toInt()
-    }
+        val p = exp(-lambda)
+        var n = 0
+        var r = 1.0
+
+        while (n < 1000 * lambda) {
+            val u = nextDouble()
+            r *= u
+            if (r >= p) n++
+            else return n
+        }
+        return n
+    } else max(0.0, nextGaussian(lambda + .5, sqrt(lambda))).toInt()
 }
 
-fun Random.binomial(p: Double, n: Int = 1): Int {
-    return if (n < 50) {
+/**
+ * Approximation implementation, it is only used in simulations.
+ */
+fun Random.nextBinomial(p: Double, n: Int = 1): Int {
+    if (p > 0.5) return n - nextBinomial(1 - p, n)
+    val np = n * p
+    val np1p = np * (1 - p)
+    return if (n <= 5) {
         var sum = 0
         for (i in 0 until n)
             sum += if (nextDouble() < p) 1 else 0
         sum
-    } else {
-        round(nextTruncatedGaussian(n * p, sqrt(n * p * (1 - p)), min = 0.0)).toInt()
-    }
+    } else if (np < 20 && n > 100 && p < 0.05)
+        min(n, nextPoisson(np))
+    else
+        min(n, max(0.0, nextGaussian(np + 0.5, sqrt(np1p))).toInt())
 }
 
-fun Random.geometric(p: Double): Int {
-    var u: Double
-    do {
-        u = nextDouble()
-    } while (u == 0.0)
-    return floor(ln(u) / ln(1 - p)).toInt()
+fun Random.nextGeometric(p: Double): Int {
+    val u = nextDoublePos()
+    return if (p == 1.0) 1
+    else (ln(u) / ln(1 - p) + 1).toInt()
 }
 
-fun Random.exponential(rate: Double): Double {
+fun Random.nextExponential(rate: Double): Double {
     var u: Double
     do {
         u = nextDouble()
