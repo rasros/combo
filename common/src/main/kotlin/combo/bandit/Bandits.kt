@@ -1,6 +1,7 @@
 package combo.bandit
 
 import combo.math.DataSample
+import combo.math.VarianceEstimator
 import combo.sat.Labeling
 import combo.sat.Literals
 import combo.sat.ValidationException
@@ -8,10 +9,10 @@ import combo.util.EMPTY_INT_ARRAY
 import kotlin.math.abs
 
 /**
- * A bandit optimizes an online binary decision problem. All bandits in combo are multi-variate, ie. there are multiple
- * binary decision variables.
+ * A bandit optimizes an online binary decision problem. These bandits are multi-variate,
+ * ie. there are multiple binary decision variables.
  */
-interface Bandit {
+interface Bandit<D> {
 
     fun chooseOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Labeling
 
@@ -27,6 +28,18 @@ interface Bandit {
      * binomial this is interpreted as the n-parameter.
      */
     fun update(labeling: Labeling, result: Double, weight: Double = 1.0)
+
+    /**
+     * Add historic data to the bandit, this can be used to store and re-start the bandit. In general, any existing
+     * data is lost when importing.
+     */
+    fun importData(historicData: D)
+
+    /**
+     * Exports all data to use for external storage. They can be used in a new [Bandit] instance that
+     * continues optimizing through the [importData] function.
+     */
+    fun exportData(): D
 
     /**
      * A sample of the total rewards obtained, for use in analysis and debugging.
@@ -47,7 +60,7 @@ interface Bandit {
 /**
  * A [PredictionBandit] uses a machine learning model as part of the algorithm.
  */
-interface PredictionBandit : Bandit {
+interface PredictionBandit<D> : Bandit<D> {
 
     /**
      * The total absolute error obtained on a prediction before update.
@@ -67,9 +80,18 @@ interface PredictionBandit : Bandit {
     fun train(labeling: Labeling, result: Double, weight: Double)
 
     override fun update(labeling: Labeling, result: Double, weight: Double) {
-        rewards.accept(result)
+        rewards.accept(result, weight)
         testAbsError.accept(abs((result - predict(labeling)) * weight))
         train(labeling, result, weight)
         trainAbsError.accept(abs((result - predict(labeling)) * weight))
     }
 }
+
+
+/**
+ * This class holds the data in the leaf nodes. The order of the literals in [setLiterals] is significant and cannot
+ * be changed.
+ */
+class LiteralData<E : VarianceEstimator>(val setLiterals: Literals, val data: E)
+
+class LabelingData<E : VarianceEstimator>(val labeling: Labeling, val data: E)
