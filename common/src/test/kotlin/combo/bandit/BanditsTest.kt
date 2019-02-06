@@ -2,8 +2,8 @@ package combo.bandit
 
 import combo.math.FullSample
 import combo.math.GrowingDataSample
-import combo.math.nextGaussian
-import combo.math.poisson
+import combo.math.nextNormal
+import combo.math.nextPoisson
 import combo.model.ModelTest
 import combo.sat.*
 import combo.sat.solvers.SolverTest
@@ -16,19 +16,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-abstract class BanditTest {
-    abstract fun bandit(problem: Problem, type: BanditType): Bandit?
-    open fun infeasibleBandit(problem: Problem, maximize: Boolean, type: BanditType): Bandit? =
+abstract class BanditTest<D> {
+    abstract fun bandit(problem: Problem, type: BanditType): Bandit<D>
+    open fun infeasibleBandit(problem: Problem, maximize: Boolean, type: BanditType): Bandit<D>? =
             bandit(problem, type)
 
     @Test
     fun emptyProblem() {
         val p = Problem(arrayOf(), 0)
         val bandit = bandit(p, BanditType.random())
-        if (bandit != null) {
-            val l = bandit.chooseOrThrow()
-            assertEquals(0, l.size)
-        }
+        val l = bandit.chooseOrThrow()
+        assertEquals(0, l.size)
     }
 
     @Test
@@ -47,13 +45,13 @@ abstract class BanditTest {
     }
 
     @Test
-    fun linearSmallProblem() {
+    fun minimizeVsMaximize() {
         val p = ModelTest.SMALL1.problem
-        val bandit1 = bandit(p, BanditType.BINOMIAL) ?: return
+        val bandit1 = bandit(p, BanditType.BINOMIAL)
         bandit1.rewards = FullSample()
         bandit1.maximize = true
         bandit1.randomSeed = 1L
-        val bandit2 = bandit(p, BanditType.BINOMIAL) ?: return
+        val bandit2 = bandit(p, BanditType.BINOMIAL)
         bandit2.rewards = FullSample()
         bandit2.maximize = false
         bandit2.randomSeed = 2L
@@ -66,15 +64,15 @@ abstract class BanditTest {
             bandit1.update(l1, BanditType.BINOMIAL.linearRewards(l1, rng), (rng.nextInt(5) + 1).toDouble())
             bandit2.update(l2, BanditType.BINOMIAL.linearRewards(l2, rng), (rng.nextInt(5) + 1).toDouble())
         }
-        val sum1 = bandit1.rewards.collect().sum()
-        val sum2 = bandit2.rewards.collect().sum()
+        val sum1 = bandit1.rewards.toArray().sum()
+        val sum2 = bandit2.rewards.toArray().sum()
         assertTrue(sum1 > sum2)
     }
 
     @Test
-    fun linearSmallProblemAssumptions() {
+    fun assumptionsSatisfied() {
         val p = ModelTest.SMALL3.problem
-        val bandit = bandit(p, BanditType.POISSON) ?: return
+        val bandit = bandit(p, BanditType.POISSON)
         bandit.rewards = GrowingDataSample(4)
         for (i in 1..100) {
             val l = if (Random.nextBoolean()) bandit.chooseOrThrow(intArrayOf(4, 12)).also {
@@ -87,12 +85,11 @@ abstract class BanditTest {
     }
 
     @Test
-    fun smallProblemAssumptionsInfeasible() {
+    fun assumptionsToInfeasible() {
         fun testInfeasible(assumptions: IntArray, p: Problem) {
             assertFailsWith(ValidationException::class) {
                 val bandit = bandit(p, BanditType.NORMAL)
-                if (bandit != null) bandit.chooseOrThrow(assumptions)
-                else throw UnsatisfiableException()
+                bandit.chooseOrThrow(assumptions)
             }
         }
         testInfeasible(intArrayOf(20, 22), SMALL_PROBLEMS[0])
@@ -105,10 +102,9 @@ abstract class BanditTest {
     }
 
     @Test
-    fun randomSeed() {
+    fun randomSeedDeterministic() {
         val bandit1 = bandit(SMALL_PROBLEMS[2], BanditType.NORMAL)
         val bandit2 = bandit(SMALL_PROBLEMS[2], BanditType.NORMAL)
-        if (bandit1 == null || bandit2 == null) return
         bandit1.randomSeed = 0L
         bandit2.randomSeed = 0L
         val rng1 = Random(1L)
@@ -128,21 +124,46 @@ abstract class BanditTest {
         }
         assertContentEquals(labelings1, labelings2)
     }
+
+    @Test
+    fun storeLoadStore() {
+        //for ((index, p) in SMALL_PROBLEMS.withIndex()) {
+        val p = SMALL_PROBLEMS[1]
+        val bandit = bandit(p, BanditType.BINOMIAL)
+        for (i in 0 until 100) {
+            val l = bandit.chooseOrThrow()
+            bandit.update(l, BanditType.BINOMIAL.linearRewards(l, Random))
+        }
+        val list1 = bandit.exportData()
+        val bandit2 = bandit(p, BanditType.BINOMIAL)
+        bandit2.importData(list1)
+
+        bandit.randomSeed = 1L
+        bandit2.randomSeed = 1L
+
+        if (bandit.chooseOrThrow() != bandit2.chooseOrThrow()) {
+            throw IllegalArgumentException()
+        }
+        assertEquals(bandit.chooseOrThrow(), bandit2.chooseOrThrow())
+        if (list1 is Array<*>)
+            assertEquals(list1.size, (bandit2.exportData() as Array<*>).size)
+        //}
+    }
 }
 
 enum class BanditType {
     BINOMIAL {
-        override fun linearRewards(mean: Double, rng: Random) = (mean < rng.nextDouble()).toInt().toDouble()
+        override fun linearRewards(mean: Double, rng: Random) = (mean > rng.nextDouble()).toInt().toDouble()
     },
     NORMAL {
-        override fun linearRewards(mean: Double, rng: Random) = rng.nextGaussian(mean)
+        override fun linearRewards(mean: Double, rng: Random) = rng.nextNormal(mean)
     },
     POISSON {
-        override fun linearRewards(mean: Double, rng: Random) = rng.poisson(mean).toDouble()
+        override fun linearRewards(mean: Double, rng: Random) = rng.nextPoisson(mean).toDouble()
     };
 
     fun linearRewards(labeling: Labeling, rng: Random): Double {
-        val sum = labeling.truthIterator().asSequence().sum().toDouble()
+        val sum = labeling.truthIterator().asSequence().map { if (it.toBoolean()) 1.0 else 0.0 }.sum()
         return linearRewards(sum / labeling.size, rng)
     }
 
