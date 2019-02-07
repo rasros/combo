@@ -19,7 +19,8 @@ abstract class OptimizerTest {
     @Test
     fun hardObjectiveTest() {
         for ((i, p) in SolverTest.SMALL_PROBLEMS.withIndex()) {
-            val function = InteractionObjective(DoubleArray(p.nbrVariables) { Random.nextDouble() - 0.5 })
+            val rng = Random(i)
+            val function = InteractionObjective(DoubleArray(p.nbrVariables) { rng.nextDouble() - 0.5 })
             val optimizer = optimizer(p, function)
             val labeling = optimizer.optimizeOrThrow(function)
             assertTrue(p.satisfies(labeling))
