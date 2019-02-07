@@ -5,7 +5,7 @@ import combo.sat.solvers.Solver
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
 
-class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iterable<Assignment> {
+class ModelOptimizer<D>(val model: Model, val solver: Solver, val bandit: Bandit<D>) : Iterable<Assignment> {
     companion object {
 
         /*
@@ -20,12 +20,12 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         @JvmOverloads
         fun combinatorialBandit(model: Model,
                                 config: SolverConfig = SolverConfig(maximize = true),
-                                posterior: Posterior = NormalPosterior,
+                                posterior: UnivariatePosterior = NormalPosterior,
                                 solver: Solver = ExhaustiveSolver(model.problem, config)): ModelOptimizer {
             if (model.problem.nbrVariables >= 20)
                 throw IllegalArgumentException("Multi-armed bandit algorithm will not work with excessive number of variables (>=20).")
             val bandits = solver.sequence().toList().toTypedArray()
-            val bandit = MultiArmedBandit(bandits, config, posterior)
+            val bandit = CombinatorialBandit(bandits, config, posterior)
             return ModelOptimizer(model, PresolvedSolver(bandits, config), bandit)
         }
 
@@ -33,7 +33,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         @JvmOverloads
         fun dtBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
-                     posterior: Posterior = NormalPosterior,
+                     posterior: UnivariatePosterior = NormalPosterior,
                      solver: Solver = defaultSolver(model.problem, config, BinaryPropagationGraph(model.problem))): ModelOptimizer {
             val bandit = DecisionTreeBandit(model.problem, config, solver, posterior)
             return ModelOptimizer(model, solver, bandit)
@@ -57,7 +57,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
         fun gaBandit(model: Model,
                      config: SolverConfig = SolverConfig(maximize = true),
                      propagationGraph: BinaryPropagationGraph?,
-                     posterior: Posterior? = null,
+                     posterior: UnivariatePosterior? = null,
                      solver: Solver = defaultSolver(model.problem, config, propagationGraph)): ModelOptimizer {
             TODO()
         }

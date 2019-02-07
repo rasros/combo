@@ -1,10 +1,10 @@
+@file:JvmName("IntCollections")
+
 package combo.util
 
 import combo.math.IntPermutation
 import combo.sat.Ix
-import combo.util.IntSet.Companion.LOAD_FACTOR
-import combo.util.IntSet.Companion.hash
-import combo.util.IntSet.Companion.tableSizeFor
+import kotlin.jvm.JvmName
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 import kotlin.math.max

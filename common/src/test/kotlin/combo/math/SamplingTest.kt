@@ -14,8 +14,14 @@ class RandomSequenceTest {
         val rs = RandomSequence(0L)
         val s1 = rs.next().let { r -> generateSequence { r.nextDouble(0.0, 100.0) }.take(200).toList().toDoubleArray() }
         val s2 = rs.next().let { r -> generateSequence { r.nextDouble(0.0, 100.0) }.take(200).toList().toDoubleArray() }
-        val v1 = RunningVariance().apply { acceptAll(s1) }
-        val v2 = RunningVariance().apply { acceptAll(s2) }
+        val v1 = RunningVariance().apply {
+            for (value in s1)
+                accept(value)
+        }
+        val v2 = RunningVariance().apply {
+            for (value in s2)
+                accept(value)
+        }
         val r1 = (0 until 100).map { (s1[it] - v1.mean) * (s2[it] - v2.mean) }.sum()
         val r2 = sqrt(v1.squaredDeviations * v2.squaredDeviations)
         val r = r1 / r2
@@ -29,15 +35,17 @@ class SamplingTest {
         val r1 = Random(0)
         val r2 = Random(0)
         for (i in 0..100) {
-            assertEquals(r1.nextGaussian(), r2.nextGaussian())
+            assertEquals(r1.nextNormal(), r2.nextNormal())
         }
     }
 
     @Test
-    fun gaussianStats() {
+    fun normalStats() {
         val r = Random(120)
-        val s = generateSequence { r.nextGaussian(mean = 1.0, std = sqrt(2.0)) }.take(1000).sample(RunningVariance())
-        assertEquals(2.0, s.variance, 0.2)
+        val s = generateSequence { r.nextNormal(mean = 1.0, std = sqrt(2.0)) }
+                .take(200)
+                .sample(RunningVariance())
+        assertEquals(2.0, s.variance, 0.5)
         assertEquals(1.0, s.mean, 0.2)
     }
 
@@ -45,52 +53,48 @@ class SamplingTest {
     fun gammaShapeLessThan1() {
         val r = Random(100)
         val shape = 0.1
-        val scale = 1.0
-        val s = generateSequence { r.nextGamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(shape * scale.pow(2), s.variance, 0.2)
-        assertEquals(shape * scale, s.mean, 0.1)
+        assertEquals(shape, s.variance, 0.2)
+        assertEquals(shape, s.mean, 0.1)
     }
 
     @Test
     fun gammaShapeEquals1() {
         val r = Random(2934)
         val shape = 1.0
-        val scale = 1.0
-        val s = generateSequence { r.nextGamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(shape * scale.pow(2), s.variance, 0.2)
-        assertEquals(shape * scale, s.mean, 0.1)
+        assertEquals(shape, s.variance, 0.2)
+        assertEquals(shape, s.mean, 0.1)
     }
 
     @Test
     fun gammaShapeGreaterThan1() {
         val r = Random(12934)
         val shape = 2.0
-        val scale = 6.0
-        val s = generateSequence { r.nextGamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape) }
                 .take(200000)
-                //.map { assertFalse(it <= 0, "$it"); it }
+                .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(shape * scale.pow(2), s.variance, 2.0)
-        assertEquals(shape * scale, s.mean, 1.0)
+        assertEquals(shape, s.variance, 0.2)
+        assertEquals(shape, s.mean, 0.1)
     }
 
     @Test
     fun gammaShapeHuge() {
         val r = Random(1934)
         val shape = 100.0
-        val scale = 1.0
-        val s = generateSequence { r.nextGamma(shape, scale) }
+        val s = generateSequence { r.nextGamma(shape) }
                 .take(200)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(shape * scale.pow(2), s.variance, 20.0)
-        assertEquals(shape * scale, s.mean, 10.0)
+        assertEquals(shape, s.variance, 10.0)
+        assertEquals(shape, s.mean, 5.0)
     }
 
     @Test
@@ -157,7 +161,7 @@ class SamplingTest {
     @Test
     fun poissonHuge() {
         val r = Random(68)
-        val lambda = 100.0 // will trigger gaussian approximation
+        val lambda = 100.0 // will trigger normal approximation
         val s = generateSequence { r.nextPoisson(lambda) }
                 .take(200)
                 .map { assertFalse(it < 0, "$it"); it }

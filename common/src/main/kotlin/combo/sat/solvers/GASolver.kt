@@ -6,6 +6,7 @@ import combo.sat.Literals
 import combo.sat.Problem
 import combo.util.nanos
 
+/*
 /**
  * Steady state GA ModelOptimizer.
  * See Classifier Systems

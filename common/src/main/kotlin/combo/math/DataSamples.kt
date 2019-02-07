@@ -12,28 +12,17 @@ fun <S : DataSample> Sequence<Number>.sample(s: S): S {
     return s
 }
 
-class Percentile(data: DoubleArray) {
-    val data: DoubleArray = data.sortedArray()
-    fun percentile(p: Double) = data[round((data.size - 1) * p).toInt()]
-    fun quartile(i: Int) = percentile(0.25 * i)
-    val median get() = percentile(0.5)
-}
-
 /**
  * Samples a stream of numbers.
  */
 interface DataSample {
     fun accept(value: Double)
-
-    fun acceptAll(values: DoubleArray) {
-        for (value in values)
-            accept(value)
-    }
+    fun accept(value: Double, weight: Double) = accept(value)
 
     /**
-     * Returns all data points sampled.
+     * Returns available data points or estimates.
      */
-    fun collect(): DoubleArray
+    fun toArray(): DoubleArray
 
     val nbrSamples: Long
 }
@@ -54,7 +43,7 @@ class WindowSample(size: Int) : DataSample {
         pointer = (++pointer % window.size)
     }
 
-    override fun collect(): DoubleArray {
+    override fun toArray(): DoubleArray {
         return if (nbrSamples < window.size) window.sliceArray(0 until nbrSamples.toInt())
         else with(window) { sliceArray(pointer until size) + sliceArray(0 until pointer) }
     }
@@ -78,14 +67,14 @@ class FullSample : DataSample {
     override val nbrSamples
         get() = size.toLong()
 
-    override fun collect() = data.toDoubleArray()
+    override fun toArray() = data.toDoubleArray()
 }
 
 /**
  * Aggregates data into buckets, where each bucket has a fixed size.
  */
 class BucketsSample(val samplesPerBucket: Int) : DataSample {
-    private var history = ArrayList<Estimator>(samplesPerBucket)
+    private var history = ArrayList<VarianceEstimator>(samplesPerBucket)
     override var nbrSamples = 0L
         private set
 
@@ -102,7 +91,7 @@ class BucketsSample(val samplesPerBucket: Int) : DataSample {
         nbrSamples++
     }
 
-    override fun collect(): DoubleArray {
+    override fun toArray(): DoubleArray {
         val result = ArrayList<Double>()
         history.asSequence()
                 .filter { it.nbrSamples.toInt() == samplesPerBucket }
@@ -133,7 +122,7 @@ class ReservoirSample(size: Int, private val rng: Random) : DataSample {
         }
     }
 
-    override fun collect(): DoubleArray {
+    override fun toArray(): DoubleArray {
         return if (nbrSamples < size) data.sliceArray(0 until nbrSamples.toInt())
         else data
     }
@@ -151,7 +140,7 @@ class GrowingDataSample @JvmOverloads constructor(maxSize: Int = 10) : DataSampl
         if (maxSize % 2 != 0) throw IllegalArgumentException("Max size must be even, got $maxSize.")
     }
 
-    private val data = Array(maxSize) { RunningVariance() }
+    private val data = Array(maxSize) { RunningMean() }
     var size = 0
         private set
 
@@ -167,7 +156,7 @@ class GrowingDataSample @JvmOverloads constructor(maxSize: Int = 10) : DataSampl
                 data[i / 2] = data[i].combine(data[i + 1])
             size = data.size / 2
             for (i in size until data.size)
-                data[i] = RunningVariance()
+                data[i] = RunningMean()
             samplesPerBucket *= 2
         }
 
@@ -176,6 +165,6 @@ class GrowingDataSample @JvmOverloads constructor(maxSize: Int = 10) : DataSampl
         if (nbrSamples != 0L && nbrSamples % samplesPerBucket.toLong() == 0L) size++
     }
 
-    override fun collect() = DoubleArray(size) { data[it].mean }
+    override fun toArray() = DoubleArray(size) { data[it].mean }
     fun slots() = IntArray(size) { samplesPerBucket * (it + 1) }
 }

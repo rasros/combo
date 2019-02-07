@@ -1,6 +1,6 @@
 package combo.sat.solvers
 
-import combo.math.nextGaussian
+import combo.math.nextNormal
 import combo.sat.Labeling
 import combo.sat.Problem
 import combo.util.EMPTY_INT_ARRAY
@@ -100,7 +100,7 @@ class ParallelSolverTest {
                         val assumptions = if (Random.nextBoolean()) EMPTY_INT_ARRAY
                         else intArrayOf(Random.nextInt(p.nbrVariables * 2))
                         optimizer.optimizeOrThrow(
-                                LinearObjective(true, DoubleArray(p.nbrVariables) { Random.nextGaussian() }),
+                                LinearObjective(true, DoubleArray(p.nbrVariables) { Random.nextNormal() }),
                                 assumptions)
                     })
                 val labelings = pool.invokeAll(list).map { it.get() }

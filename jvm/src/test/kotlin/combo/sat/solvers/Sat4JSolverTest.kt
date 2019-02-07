@@ -1,6 +1,6 @@
 package combo.sat.solvers
 
-import combo.math.nextGaussian
+import combo.math.nextNormal
 import combo.sat.IterationsReachedException
 import combo.sat.Problem
 import org.junit.Test
@@ -46,7 +46,7 @@ class Sat4JSolverTest : SolverTest() {
             solver.sequence().count()
         }
         assertFailsWith(IterationsReachedException::class) {
-            solver.optimizeOrThrow(LinearObjective(true, DoubleArray(p.nbrVariables) { Random.nextGaussian() }))
+            solver.optimizeOrThrow(LinearObjective(true, DoubleArray(p.nbrVariables) { Random.nextNormal() }))
         }
     }
 }

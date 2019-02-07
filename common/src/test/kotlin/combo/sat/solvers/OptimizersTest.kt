@@ -1,6 +1,6 @@
 package combo.sat.solvers
 
-import combo.math.nextGaussian
+import combo.math.nextNormal
 import combo.math.times
 import combo.sat.*
 import combo.test.assertEquals
@@ -104,7 +104,7 @@ class InteractionObjective(weights: DoubleArray) : ObjectiveFunction {
  */
 class InteractionObjectiveTest : ObjectiveFunctionTest() {
     override fun function(nbrVariables: Int) = InteractionObjective(DoubleArray(nbrVariables) {
-        Random.nextGaussian()
+        Random.nextNormal()
     })
 }
 
@@ -118,7 +118,7 @@ class SatObjectiveTest : ObjectiveFunctionTest() {
 
 class LinearObjectiveTest : ObjectiveFunctionTest() {
     override fun function(nbrVariables: Int) =
-            LinearObjective(Random.nextBoolean(), DoubleArray(nbrVariables) { Random.nextGaussian() })
+            LinearObjective(Random.nextBoolean(), DoubleArray(nbrVariables) { Random.nextNormal() })
 
     @Test
     fun valueOfOnes() {

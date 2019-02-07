@@ -2,10 +2,9 @@
 
 package combo.math
 
-import combo.sat.MutableLabeling
 import kotlin.jvm.JvmName
-import kotlin.random.Random
 
+/*
 class PopulationState(
         val population: Array<MutableLabeling>,
         val scores: DoubleArray,
@@ -129,3 +128,4 @@ class FlipMutation(val flips: Int = 1) : MutationFunction {
     }
 }
 
+*/
