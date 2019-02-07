@@ -3,10 +3,9 @@
 package combo.math
 
 import kotlin.jvm.JvmName
-import kotlin.math.pow
 import kotlin.math.sqrt
 
-interface VarianceEstimator : DataSample {
+interface MeanEstimator : DataSample {
 
     override fun accept(value: Double) = accept(value, 1.0)
 
@@ -19,14 +18,43 @@ interface VarianceEstimator : DataSample {
     override val nbrSamples: Long get() = nbrWeightedSamples.toLong()
     val nbrWeightedSamples: Double
     val mean: Double
+    val sum: Double get() = mean * nbrWeightedSamples
+
+    fun copy(): MeanEstimator
+    override fun toArray() = doubleArrayOf(mean)
+    fun combine(vs: MeanEstimator) = RunningMean(
+            (mean * nbrWeightedSamples + vs.mean * vs.nbrWeightedSamples) / (nbrWeightedSamples + vs.nbrWeightedSamples),
+            nbrWeightedSamples + vs.nbrWeightedSamples)
+}
+
+class RunningMean(mean: Double = 0.0, nbrWeightedSamples: Double = 0.0) : MeanEstimator {
+
+    override var mean = mean
+        private set
+    override var nbrWeightedSamples = nbrWeightedSamples
+        private set
+
+    override fun accept(value: Double, weight: Double) {
+        nbrWeightedSamples += weight
+        if (nbrWeightedSamples == weight) {
+            mean = value
+        } else {
+            val oldM = mean
+            mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
+        }
+    }
+
+    override fun toString() = "RunningMean(mean=$mean, nbrSamples=$nbrSamples)"
+    override fun copy() = RunningMean(mean, nbrWeightedSamples)
+}
+
+interface VarianceEstimator : MeanEstimator {
+
     val squaredDeviations: Double get() = variance * nbrWeightedSamples
     val variance: Double get() = squaredDeviations / nbrWeightedSamples
     val standardDeviation: Double get() = sqrt(variance)
-    val sum: Double get() = mean * nbrWeightedSamples
 
-    fun copy(): VarianceEstimator
-    fun combine(vs: VarianceEstimator): VarianceEstimator
-    override fun toArray() = doubleArrayOf(mean)
+    override fun copy(): VarianceEstimator
 }
 
 /**
@@ -43,14 +71,6 @@ class RunningVariance(mean: Double = 0.0,
     override var nbrWeightedSamples = nbrWeightedSamples
         private set
 
-    override fun copy(): RunningVariance {
-        val copy = RunningVariance()
-        copy.mean = mean
-        copy.squaredDeviations = squaredDeviations
-        copy.nbrWeightedSamples = nbrWeightedSamples
-        return copy
-    }
-
     override fun accept(value: Double, weight: Double) {
         nbrWeightedSamples += weight
         if (nbrWeightedSamples == weight) {
@@ -62,13 +82,8 @@ class RunningVariance(mean: Double = 0.0,
         }
     }
 
-    override fun combine(vs: VarianceEstimator) = RunningVariance().also {
-        it.mean = (this.mean + vs.mean) / 2
-        it.nbrWeightedSamples = this.nbrWeightedSamples + vs.nbrWeightedSamples
-        it.squaredDeviations = (this.mean - it.mean).pow(2) + (vs.mean - it.mean).pow(2)
-    }
-
     override fun toString() = "RunningVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
+    override fun copy() = RunningVariance(mean, squaredDeviations, nbrWeightedSamples)
 }
 
 /**
@@ -95,14 +110,6 @@ class ExponentialDecayVariance(var beta: Double = 0.02,
         require(beta < 1.0 && beta > 0.0) { "Beta (1-decay) parameter must be within 0 to 1 range, got $beta." }
     }
 
-    override fun copy(): VarianceEstimator {
-        val copy = ExponentialDecayVariance(beta)
-        copy.nbrWeightedSamples = nbrWeightedSamples
-        copy.mean = mean
-        copy.variance = variance
-        return copy
-    }
-
     override fun accept(value: Double, weight: Double) {
         nbrWeightedSamples += weight
         if (nbrWeightedSamples == weight) {
@@ -119,12 +126,7 @@ class ExponentialDecayVariance(var beta: Double = 0.02,
     }
 
     override fun toString() = "ExponentialDecayVariance(beta=$beta, mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
-
-    override fun combine(vs: VarianceEstimator) = ExponentialDecayVariance().also {
-        it.mean = (this.mean + vs.mean) / 2
-        it.nbrWeightedSamples = this.nbrWeightedSamples + vs.nbrWeightedSamples
-        it.variance = ((this.mean - it.mean).pow(2) + (vs.mean - it.mean).pow(2)) / it.nbrWeightedSamples
-    }
+    override fun copy() = ExponentialDecayVariance(beta, mean, variance, nbrWeightedSamples)
 }
 
 /**
@@ -150,10 +152,6 @@ class CountData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceE
     override val variance: Double
         get() = mean * (1 - mean)
 
-    override fun copy() = CountData(sum, nbrWeightedSamples)
-
-    override fun combine(vs: VarianceEstimator) =
-            CountData(sum + vs.sum, nbrWeightedSamples + vs.nbrWeightedSamples)
-
     override fun toString() = "CountData(sum=$sum, nbrSamples=$nbrSamples)"
+    override fun copy() = CountData(sum, nbrWeightedSamples)
 }
