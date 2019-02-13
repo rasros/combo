@@ -5,6 +5,9 @@ package combo.sat.solvers
 import combo.math.Vector
 import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 
 /**
  * A solver can generate a random [witness] that satisfy the constraints and
@@ -132,9 +135,14 @@ interface ObjectiveFunction {
  */
 open class LinearObjective(val maximize: Boolean, val weights: Vector) : ObjectiveFunction {
 
+    private val lowerBound: Double = if (maximize) -weights.sumByDouble { max(0.0, it) } else
+        weights.sumByDouble { min(0.0, it) }
+
     override fun value(labeling: Labeling) = (labeling dot weights).let {
         if (maximize) -it else it
     }
+
+    override fun lowerBound() = lowerBound
 
     private inline fun improvementLiteral(labeling: Labeling, literal: Literal) =
             if (labeling.literal(literal.toIx()) == literal) 0.0
@@ -160,3 +168,13 @@ object SatObjective : ObjectiveFunction {
     override fun penalty(violations: Int) = violations.toDouble()
 }
 
+/**
+ * Exterior penalty added to objective used by genetic algorithms.
+ */
+interface PenaltyFunction {
+    fun penalty(value: Double, violations: Int): Double
+}
+
+class SquaredPenalty : PenaltyFunction {
+    override fun penalty(value: Double, violations: Int) = violations.toDouble().pow(2)
+}
