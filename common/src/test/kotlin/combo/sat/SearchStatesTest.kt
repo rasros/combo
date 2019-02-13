@@ -44,7 +44,7 @@ abstract class SearchStateTest {
             for (z in 1..REPEAT) {
                 val l = solver.witnessOrThrow() as MutableLabeling
                 val copy = l.copy()
-                val state = f.build(l, EMPTY_INT_ARRAY)
+                val state = f.buildPreDefined(l, EMPTY_INT_ARRAY)
                 assertEquals(0, state.totalUnsatisfied)
                 assertEquals(copy, l)
             }
@@ -60,7 +60,7 @@ abstract class SearchStateTest {
                 val l = solver.witnessOrThrow() as MutableLabeling
                 val copy = l.copy()
                 val assumptions = intArrayOf(l.literal(Random.nextInt(p.nbrVariables)))
-                val state = f.build(l, assumptions)
+                val state = f.buildPreDefined(l, assumptions)
                 checkUnsatisfied(p, state)
                 assertEquals(copy, l)
             }
@@ -76,7 +76,7 @@ abstract class SearchStateTest {
                 val l = solver.witnessOrThrow() as MutableLabeling
                 val copy = l.copy()
                 val assumptions = intArrayOf(!l.literal(Random.nextInt(p.nbrVariables)))
-                val state = f.build(l, assumptions)
+                val state = f.buildPreDefined(l, assumptions)
                 checkUnsatisfied(p, state)
                 assertNotEquals(copy, l)
             }
