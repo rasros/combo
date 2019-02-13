@@ -67,6 +67,7 @@ interface MutableLabeling : Labeling {
     fun flip(ix: Ix) = set(ix, !get(ix))
     fun set(literal: Literal) = set(literal.toIx(), literal.toBoolean())
     fun setAll(literals: Literals) = literals.forEach { set(it) }
+    fun setAll(literals: Iterable<Literal>) = literals.forEach { set(it) }
     override fun copy(): MutableLabeling
     operator fun set(ix: Ix, value: Boolean)
 }
@@ -180,7 +181,23 @@ class BitFieldLabeling constructor(override val size: Int, val field: LongArray)
             field[i] = field[i] and (1L shl ix.rem(Long.SIZE_BITS)).inv()
     }
 
-    override fun equals(other: Any?) = if (other is Labeling) deepEquals(other) else false
-    override fun hashCode() = deepHashCode()
+    override fun equals(other: Any?): Boolean {
+        return if (other is BitFieldLabeling) {
+            if (size != other.size) false
+            else {
+                for (i in field.indices) if (field[i] != other.field[i]) return false
+                return true
+            }
+        } else if (other is Labeling) deepEquals(other)
+        else false
+    }
+
+    override fun hashCode(): Int {
+        var result = size
+        for (l in field)
+            result = 31 * result + l.hashCode()
+        return result
+    }
+
     override fun toString() = deepToString()
 }
