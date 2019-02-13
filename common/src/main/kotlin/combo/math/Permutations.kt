@@ -2,6 +2,9 @@ package combo.math
 
 import kotlin.random.Random
 
+/**
+ * Using format-preserving encryption
+ */
 class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random) : Iterable<Int> {
     private companion object {
         private const val INT_ROUNDS = 4
