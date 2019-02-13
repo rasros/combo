@@ -98,7 +98,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                 return state.labeling
 
 
-            for (flips in 1..maxSteps) {
+            for (step in 1..maxSteps) {
                 val n: Int
                 val ix: Int = if (pRandomWalk > rng.nextDouble()) {
                     if (state.totalUnsatisfied > 0) state.randomUnsatisfied(rng).literals.random(rng).toIx()
@@ -119,7 +119,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                     for (k in 0 until n) {
                         val ix = itr.nextInt().toIx()
                         val satScore = state.improvement(ix)
-                        val optScore = function.improvement(labeling, ix, state.changes(ix))
+                        val optScore = function.improvement(labeling, ix, state.literalPropagations(ix))
                         if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
                             bestIx = ix
                             maxSatImp = satScore
@@ -130,12 +130,12 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                 }
 
                 if (ix < 0) break
-                val improvement = function.improvement(labeling, ix, state.changes(ix))
+                val improvement = function.improvement(labeling, ix, state.literalPropagations(ix))
                 val score = prevValue - improvement
                 state.flip(ix)
                 setReturnValue(score)
 
-                if (flips.rem(1) == 0) prevValue = function.value(labeling)
+                if (step.rem(10) == 0) prevValue = function.value(labeling)
                 else prevValue -= improvement
                 if (state.totalUnsatisfied == 0) {
                     if (abs(bestValue - lowerBound) < eps) return state.labeling
