@@ -24,11 +24,11 @@ interface SearchState : MutableLabeling {
     val assumption: Conjunction
 
     fun randomUnsatisfied(rng: Random): Constraint
-    fun changes(ix: Ix): Literals = EMPTY_INT_ARRAY
 
-    override fun set(ix: Ix, value: Boolean) {
-        if (this[ix] != value) flip(ix)
-    }
+    /**
+     * Returns which literals will be also set if the [ix] variable is changed.
+     */
+    fun literalPropagations(ix: Ix): Literals = EMPTY_INT_ARRAY
 
     /**
      * Returns the improvement in flipsToSatisfy. A positive improvement leads to a state that is close to a satisfiable
@@ -173,12 +173,13 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
         return oldFlips - newFlips
     }
 
-    override fun flip(ix: Ix) {
-        labeling.flip(ix)
-        val literal = labeling.literal(ix)
+    override fun set(ix: Ix, value: Boolean) {
+        val literal = ix.toLiteral(value)
+        if (labeling.literal(literal.toIx()) == literal) return
+        labeling.set(literal)
         if (literal.toIx() in assumptionIxs)
             updateSentence(literal, assumption, matches.lastIndex)
-        for (sentId in problem.constraintsWith(ix)) {
+        for (sentId in problem.constraintsWith(literal.toIx())) {
             val sent = problem.constraints[sentId]
             updateSentence(literal, sent, sentId)
         }
@@ -187,7 +188,7 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
     private fun updateSentence(literal: Literal, sent: Constraint, sentId: Int) {
         val oldFlips = sent.flipsToSatisfy(matches[sentId])
         matches[sentId] = sent.matchesUpdate(literal, matches[sentId])
-        val newFlips = sent.flipsToSatisfy(labeling)
+        val newFlips = sent.flipsToSatisfy(matches[sentId])
         if (oldFlips > 0 && newFlips == 0) unsatisfied.remove(sentId)
         else if (newFlips > 0 && oldFlips == 0) unsatisfied.add(sentId)
         totalUnsatisfied += newFlips - oldFlips
@@ -363,10 +364,10 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
             else problem.constraints[sentId]
         }
 
-        override fun flip(ix: Ix) {
-            val literal = !labeling.literal(ix)
+        override fun set(ix: Ix, value: Boolean) {
+            val literal = ix.toLiteral(value)
             checkSentence(literal, assumption, matches.lastIndex)
-            variableSentences[ix].forEach { sentId ->
+            variableSentences[literal.toIx()].forEach { sentId ->
                 val sent = problem.constraints[sentId]
                 checkSentence(literal, sent, sentId)
             }
@@ -374,7 +375,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
             labeling.setAll(literalPropagations[literal])
         }
 
-        override fun changes(ix: Ix) = literalPropagations[!labeling.literal(ix)]
+        override fun literalPropagations(ix: Ix) = literalPropagations[!labeling.literal(ix)]
 
         private fun checkSentence(literal: Literal, sent: Constraint, sentId: Int) {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
