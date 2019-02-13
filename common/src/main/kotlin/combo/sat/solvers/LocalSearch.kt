@@ -31,7 +31,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     /**
      * Maximum number of steps for each of the [restarts].
      */
-    var maxSteps: Int = max(1, problem.nbrVariables)
+    var maxSteps: Int = max(100, problem.nbrVariables)
 
     /**
      * Chance of talking a random walk according to the WalkSAT algorithm.
