@@ -1,5 +1,3 @@
-@file:Suppress("NOTHING_TO_INLINE")
-
 package combo.sat.solvers
 
 import combo.math.Vector
@@ -144,7 +142,7 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
 
     override fun lowerBound() = lowerBound
 
-    private inline fun improvementLiteral(labeling: Labeling, literal: Literal) =
+    private fun improvementLiteral(labeling: Labeling, literal: Literal) =
             if (labeling.literal(literal.toIx()) == literal) 0.0
             else {
                 val w = weights[literal.toIx()].let { if (labeling[literal.toIx()]) it else -it }
