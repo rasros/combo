@@ -1,12 +1,14 @@
 @file:JvmName("SearchStates")
-@file:Suppress("NOTHING_TO_INLINE")
 
 package combo.sat
 
 import combo.math.IntPermutation
 import combo.sat.solvers.LinearObjective
 import combo.sat.solvers.ObjectiveFunction
-import combo.util.*
+import combo.util.EMPTY_INT_ARRAY
+import combo.util.IntSet
+import combo.util.collectionOf
+import combo.util.transformArray
 import kotlin.jvm.JvmName
 import kotlin.random.Random
 
@@ -15,13 +17,18 @@ import kotlin.random.Random
  * of [SearchState] are private, so initialize with the [SearchStateFactory]. Use either [SearchStateFactory.build]
  * method depending on whether the labeling should be initialized using a [ValueSelector] or it is pre-solved.
  */
-interface SearchState {
+interface SearchState : MutableLabeling {
+
     val labeling: MutableLabeling
     val totalUnsatisfied: Int
     val assumption: Conjunction
+
     fun randomUnsatisfied(rng: Random): Constraint
-    fun flip(ix: Ix)
     fun changes(ix: Ix): Literals = EMPTY_INT_ARRAY
+
+    override fun set(ix: Ix, value: Boolean) {
+        if (this[ix] != value) flip(ix)
+    }
 
     /**
      * Returns the improvement in flipsToSatisfy. A positive improvement leads to a state that is close to a satisfiable
@@ -37,7 +44,7 @@ interface SearchStateFactory {
     fun <O : ObjectiveFunction?> build(labeling: MutableLabeling, assumptions: Literals,
                                        valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState
 
-    fun build(labeling: MutableLabeling, assumptions: Literals): SearchState
+    fun buildPreDefined(labeling: MutableLabeling, assumptions: Literals): SearchState
 }
 
 /**
@@ -115,7 +122,7 @@ class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
         return state
     }
 
-    override fun build(labeling: MutableLabeling, assumptions: Literals): SearchState {
+    override fun buildPreDefined(labeling: MutableLabeling, assumptions: Literals): SearchState {
         val state = BasicSearchState(labeling, problem, assumptions)
         for ((sentId, sent) in problem.constraints.withIndex()) {
             state.matches[sentId] = sent.matches(labeling)
@@ -133,7 +140,7 @@ class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
 /**
  * Caches the result of sentence evaluation by keeping an int per sentence with the number of matching literals.
  */
-private class BasicSearchState(override val labeling: MutableLabeling, val problem: Problem, assumptions: Literals) : SearchState {
+private class BasicSearchState(override val labeling: MutableLabeling, val problem: Problem, assumptions: Literals) : SearchState, Labeling by labeling {
 
     override var totalUnsatisfied: Int = 0
 
@@ -159,7 +166,7 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
         }
     }
 
-    private inline fun improvementSentence(literal: Literal, sent: Constraint, sentId: Int): Int {
+    private fun improvementSentence(literal: Literal, sent: Constraint, sentId: Int): Int {
         val oldFlips = sent.flipsToSatisfy(matches[sentId])
         val newMatches = sent.matchesUpdate(literal, matches[sentId])
         val newFlips = sent.flipsToSatisfy(newMatches)
@@ -170,14 +177,14 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
         labeling.flip(ix)
         val literal = labeling.literal(ix)
         if (literal.toIx() in assumptionIxs)
-            flipSentence(literal, assumption, matches.lastIndex)
+            updateSentence(literal, assumption, matches.lastIndex)
         for (sentId in problem.constraintsWith(ix)) {
             val sent = problem.constraints[sentId]
-            flipSentence(literal, sent, sentId)
+            updateSentence(literal, sent, sentId)
         }
     }
 
-    private inline fun flipSentence(literal: Literal, sent: Constraint, sentId: Int) {
+    private fun updateSentence(literal: Literal, sent: Constraint, sentId: Int) {
         val oldFlips = sent.flipsToSatisfy(matches[sentId])
         matches[sentId] = sent.matchesUpdate(literal, matches[sentId])
         val newFlips = sent.flipsToSatisfy(labeling)
@@ -325,7 +332,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
         return state
     }
 
-    override fun build(labeling: MutableLabeling, assumptions: Literals): SearchState {
+    override fun buildPreDefined(labeling: MutableLabeling, assumptions: Literals): SearchState {
         val state = PropSearchState(labeling, problem, assumptions)
         for (sentId in complexSentences) {
             val sent = problem.constraints[sentId]
@@ -342,7 +349,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
     private inner class PropSearchState(override val labeling: MutableLabeling,
                                         val problem: Problem,
-                                        assumptions: Literals) : SearchState {
+                                        assumptions: Literals) : SearchState, Labeling by labeling {
 
         override var totalUnsatisfied: Int = 0
 
@@ -358,10 +365,10 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
         override fun flip(ix: Ix) {
             val literal = !labeling.literal(ix)
-            flipSentence(literal, assumption, matches.lastIndex)
+            checkSentence(literal, assumption, matches.lastIndex)
             variableSentences[ix].forEach { sentId ->
                 val sent = problem.constraints[sentId]
-                flipSentence(literal, sent, sentId)
+                checkSentence(literal, sent, sentId)
             }
             labeling.set(literal)
             labeling.setAll(literalPropagations[literal])
@@ -369,7 +376,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
 
         override fun changes(ix: Ix) = literalPropagations[!labeling.literal(ix)]
 
-        private inline fun flipSentence(literal: Literal, sent: Constraint, sentId: Int) {
+        private fun checkSentence(literal: Literal, sent: Constraint, sentId: Int) {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
@@ -393,7 +400,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
                     }
         }
 
-        private inline fun improvementSentence(literal: Literal, sent: Constraint, sentId: Int): Int {
+        private fun improvementSentence(literal: Literal, sent: Constraint, sentId: Int): Int {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
