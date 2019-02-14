@@ -27,7 +27,7 @@ import kotlin.random.Random
  *
  * @param problem the problem contains the [Constraint]s and the number of variables.
  * @param banditPolicy the policy that the next bandit arm is selected with.
- * @param solver the solver will be used to generate [Labeling]s that satisfy the constraints from the [Problem].
+ * @param solver the solver will be used to generate [Instance]s that satisfy the constraints from the [Problem].
  */
 @Suppress("UNCHECKED_CAST")
 class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
@@ -212,7 +212,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         return data.toTypedArray()
     }
 
-    override fun chooseOrThrow(assumptions: IntArray): Labeling {
+    override fun chooseOrThrow(assumptions: IntArray): Instance {
         val rng = randomSequence.next()
         banditPolicy.beginRound(rng)
         val node = liveNodes.maxBy {
@@ -231,10 +231,10 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         }
     }
 
-    override fun predict(labeling: Labeling) = root.findLeaf(labeling).data.mean
+    override fun predict(instance: Instance) = root.findLeaf(instance).data.mean
 
-    override fun train(labeling: Labeling, result: Double, weight: Double) {
-        root = root.update(labeling, result, weight)
+    override fun train(instance: Instance, result: Double, weight: Double) {
+        root = root.update(instance, result, weight)
     }
 
     /**
@@ -266,30 +266,30 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     }
 
     private abstract inner class Node {
-        abstract fun findLeaf(labeling: Labeling): LeafNode
-        abstract fun update(labeling: Labeling, result: Double, weight: Double): Node
+        abstract fun findLeaf(instance: Instance): LeafNode
+        abstract fun update(instance: Instance, result: Double, weight: Double): Node
     }
 
     private inner class SplitNode(val ix: Ix, var pos: Node, var neg: Node) : Node() {
 
-        override fun update(labeling: Labeling, result: Double, weight: Double): Node {
-            if (labeling[ix]) pos = pos.update(labeling, result, weight)
-            else neg = neg.update(labeling, result, weight)
+        override fun update(instance: Instance, result: Double, weight: Double): Node {
+            if (instance[ix]) pos = pos.update(instance, result, weight)
+            else neg = neg.update(instance, result, weight)
             return this
         }
 
-        override fun findLeaf(labeling: Labeling) =
-                if (labeling[ix]) pos.findLeaf(labeling)
-                else neg.findLeaf(labeling)
+        override fun findLeaf(instance: Instance) =
+                if (instance[ix]) pos.findLeaf(instance)
+                else neg.findLeaf(instance)
     }
 
     private abstract inner class LeafNode(val setLiterals: Literals,
                                           val data: E = banditPolicy.baseData()) : Node() {
-        override fun findLeaf(labeling: Labeling) = this
+        override fun findLeaf(instance: Instance) = this
     }
 
     private inner class BlockNode(setLiterals: Literals, data: E) : LeafNode(setLiterals, data) {
-        override fun update(labeling: Labeling, result: Double, weight: Double) =
+        override fun update(instance: Instance, result: Double, weight: Double) =
                 this.apply { banditPolicy.completeRound(data, result, weight) }
     }
 
@@ -310,11 +310,11 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         val dataPos: Array<VarianceEstimator> = Array(ixs.size) { banditPolicy.baseData() }
         val dataNeg: Array<VarianceEstimator> = Array(ixs.size) { banditPolicy.baseData() }
 
-        override fun update(labeling: Labeling, result: Double, weight: Double): Node {
+        override fun update(instance: Instance, result: Double, weight: Double): Node {
             banditPolicy.completeRound(data, result, weight)
             nViewed++
             for ((i, ix) in ixs.withIndex()) {
-                if (labeling[ix]) banditPolicy.updateData(dataPos[i] as E, result, weight)
+                if (instance[ix]) banditPolicy.updateData(dataPos[i] as E, result, weight)
                 else banditPolicy.updateData(dataNeg[i] as E, result, weight)
             }
 
@@ -372,7 +372,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             return this
         }
 
-        override fun findLeaf(labeling: Labeling) = this
+        override fun findLeaf(instance: Instance) = this
 
         fun variancePurity(index: Int): Double {
             val pos = dataPos[index]

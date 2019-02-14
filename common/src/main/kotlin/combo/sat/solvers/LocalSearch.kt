@@ -39,10 +39,10 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     var pRandomWalk: Double = 0.0
 
     /**
-     * Determines the [Labeling] that will be created for solving, for very sparse problems use
-     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
      */
-    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     /**
      * This contains cached information about satisfied constraints during search. [PropSearchStateFactory] is more
@@ -68,34 +68,34 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
 
     private var randomSequence = RandomSequence(nanos())
 
-    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
 
         val adjustedMaxConsideration = max(2, min(maxConsideration, problem.nbrVariables))
 
         var bestValue = Double.POSITIVE_INFINITY
-        var bestLabeling: Labeling? = null
+        var bestInstance: Instance? = null
 
         val lowerBound = function.lowerBound()
 
         for (restart in 1..restarts) {
             val rng = randomSequence.next()
 
-            val labeling = labelingFactory.create(problem.nbrVariables)
-            val state = stateFactory.build(labeling, assumptions, selector, function, rng)
+            val instance = instanceFactory.create(problem.nbrVariables)
+            val state = stateFactory.build(instance, assumptions, selector, function, rng)
 
             fun setReturnValue(value: Double) {
                 if (value < bestValue && state.totalUnsatisfied == 0) {
                     bestValue = value
-                    bestLabeling = state.labeling.copy()
+                    bestInstance = state.instance.copy()
                 }
             }
 
-            var prevValue = function.value(labeling)
+            var prevValue = function.value(instance)
             setReturnValue(prevValue)
 
             if (state.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0))
-                return state.labeling
+                return state.instance
 
 
             for (step in 1..maxSteps) {
@@ -119,7 +119,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                     for (k in 0 until n) {
                         val ix = itr.nextInt().toIx()
                         val satScore = state.improvement(ix)
-                        val optScore = function.improvement(labeling, ix, state.literalPropagations(ix))
+                        val optScore = function.improvement(instance, ix, state.literalPropagations(ix))
                         if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
                             bestIx = ix
                             maxSatImp = satScore
@@ -130,22 +130,22 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                 }
 
                 if (ix < 0) break
-                val improvement = function.improvement(labeling, ix, state.literalPropagations(ix))
+                val improvement = function.improvement(instance, ix, state.literalPropagations(ix))
                 val score = prevValue - improvement
                 state.flip(ix)
                 setReturnValue(score)
 
-                if (step.rem(10) == 0) prevValue = function.value(labeling)
+                if (step.rem(10) == 0) prevValue = function.value(instance)
                 else prevValue -= improvement
                 if (state.totalUnsatisfied == 0) {
-                    if (abs(bestValue - lowerBound) < eps) return state.labeling
+                    if (abs(bestValue - lowerBound) < eps) return state.instance
                     else if (improvement < eps) break
                 }
                 if (millis() > end) break
             }
             if (millis() > end) break
         }
-        return bestLabeling
+        return bestInstance
                 ?: (if (millis() > end) throw TimeoutException(timeout) else throw IterationsReachedException(restarts))
     }
 }

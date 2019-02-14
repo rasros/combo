@@ -57,12 +57,12 @@ abstract class BanditTest<D> {
         bandit2.randomSeed = 2L
         val rng = Random(1L)
         for (i in 1..100) {
-            val l1 = bandit1.chooseOrThrow()
-            val l2 = bandit2.chooseOrThrow()
-            assertTrue(p.satisfies(l1))
-            assertTrue(p.satisfies(l2))
-            bandit1.update(l1, BanditType.BINOMIAL.linearRewards(l1, rng), (rng.nextInt(5) + 1).toDouble())
-            bandit2.update(l2, BanditType.BINOMIAL.linearRewards(l2, rng), (rng.nextInt(5) + 1).toDouble())
+            val instance1 = bandit1.chooseOrThrow()
+            val instance2 = bandit2.chooseOrThrow()
+            assertTrue(p.satisfies(instance1))
+            assertTrue(p.satisfies(instance2))
+            bandit1.update(instance1, BanditType.BINOMIAL.linearRewards(instance1, rng), (rng.nextInt(5) + 1).toDouble())
+            bandit2.update(instance2, BanditType.BINOMIAL.linearRewards(instance2, rng), (rng.nextInt(5) + 1).toDouble())
         }
         val sum1 = bandit1.rewards.toArray().sum()
         val sum2 = bandit2.rewards.toArray().sum()
@@ -75,12 +75,12 @@ abstract class BanditTest<D> {
         val bandit = bandit(p, BanditType.POISSON)
         bandit.rewards = GrowingDataSample(4)
         for (i in 1..100) {
-            val l = if (Random.nextBoolean()) bandit.chooseOrThrow(intArrayOf(4, 12)).also {
+            val instance = if (Random.nextBoolean()) bandit.chooseOrThrow(intArrayOf(4, 12)).also {
                 assertTrue { Conjunction(collectionOf(intArrayOf(4, 12))).satisfies(it) }
             }
             else bandit.chooseOrThrow()
-            assertTrue(p.satisfies(l))
-            bandit.update(l, BanditType.POISSON.linearRewards(l, Random))
+            assertTrue(p.satisfies(instance))
+            bandit.update(instance, BanditType.POISSON.linearRewards(instance, Random))
         }
     }
 
@@ -109,45 +109,42 @@ abstract class BanditTest<D> {
         bandit2.randomSeed = 0L
         val rng1 = Random(1L)
         val rng2 = Random(1L)
-        val labelings1 = generateSequence {
+        val instances1 = generateSequence {
             bandit1.chooseOrThrow().also {
                 bandit1.update(it, BanditType.NORMAL.linearRewards(it, rng1))
             }
         }.take(10).toList()
-        val labelings2 = generateSequence {
+        val instances2 = generateSequence {
             bandit2.chooseOrThrow().also {
                 bandit2.update(it, BanditType.NORMAL.linearRewards(it, rng2))
             }
         }.take(10).toList()
         for (i in 0 until 10) {
-            assertEquals(labelings1[i], labelings2[i])
+            assertEquals(instances1[i], instances2[i])
         }
-        assertContentEquals(labelings1, labelings2)
+        assertContentEquals(instances1, instances2)
     }
 
     @Test
     fun storeLoadStore() {
-        //for ((index, p) in SMALL_PROBLEMS.withIndex()) {
-        val p = SMALL_PROBLEMS[1]
-        val bandit = bandit(p, BanditType.BINOMIAL)
-        for (i in 0 until 100) {
-            val l = bandit.chooseOrThrow()
-            bandit.update(l, BanditType.BINOMIAL.linearRewards(l, Random))
-        }
-        val list1 = bandit.exportData()
-        val bandit2 = bandit(p, BanditType.BINOMIAL)
-        bandit2.importData(list1)
+        for ((index, p) in SMALL_PROBLEMS.withIndex()) {
+            val p = SMALL_PROBLEMS[1]
+            val bandit = bandit(p, BanditType.BINOMIAL)
+            for (i in 0 until 100) {
+                val instance = bandit.chooseOrThrow()
+                bandit.update(instance, BanditType.BINOMIAL.linearRewards(instance, Random))
+            }
+            val list1 = bandit.exportData()
+            val bandit2 = bandit(p, BanditType.BINOMIAL)
+            bandit2.importData(list1)
 
-        bandit.randomSeed = 1L
-        bandit2.randomSeed = 1L
+            bandit.randomSeed = 1L
+            bandit2.randomSeed = 1L
 
-        if (bandit.chooseOrThrow() != bandit2.chooseOrThrow()) {
-            throw IllegalArgumentException()
+            assertEquals(bandit.chooseOrThrow(), bandit2.chooseOrThrow())
+            if (list1 is Array<*>)
+                assertEquals(list1.size, (bandit2.exportData() as Array<*>).size)
         }
-        assertEquals(bandit.chooseOrThrow(), bandit2.chooseOrThrow())
-        if (list1 is Array<*>)
-            assertEquals(list1.size, (bandit2.exportData() as Array<*>).size)
-        //}
     }
 }
 
@@ -162,9 +159,9 @@ enum class BanditType {
         override fun linearRewards(mean: Double, rng: Random) = rng.nextPoisson(mean).toDouble()
     };
 
-    fun linearRewards(labeling: Labeling, rng: Random): Double {
-        val sum = labeling.truthIterator().asSequence().map { if (it.toBoolean()) 1.0 else 0.0 }.sum()
-        return linearRewards(sum / labeling.size, rng)
+    fun linearRewards(instance: Instance, rng: Random): Double {
+        val sum = instance.truthIterator().asSequence().map { if (it.toBoolean()) 1.0 else 0.0 }.sum()
+        return linearRewards(sum / instance.size, rng)
     }
 
     abstract fun linearRewards(mean: Double, rng: Random): Double

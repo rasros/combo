@@ -30,8 +30,8 @@ abstract class SolverTest {
     fun emptyProblemSat() {
         val solver = solver(Problem(arrayOf(), 0))
         if (solver != null) {
-            val l = solver.witnessOrThrow()
-            assertEquals(0, l.size)
+            val instance = solver.witnessOrThrow()
+            assertEquals(0, instance.size)
         }
     }
 
@@ -111,14 +111,14 @@ abstract class SolverTest {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
-                val l = solver.witnessOrThrow()
+                val instance = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
                 val assumptions = IntList()
-                for (j in 0 until l.size) {
+                for (j in 0 until instance.size) {
                     if (rng.nextBoolean())
-                        assumptions.add(l.literal(j))
+                        assumptions.add(instance.literal(j))
                 }
-                assertTrue(p.satisfies(l))
+                assertTrue(p.satisfies(instance))
                 val restricted = solver.witnessOrThrow(assumptions.toArray())
                 assertTrue(p.satisfies(restricted),
                         "Model $i, assumptions ${assumptions.joinToString(",")}")
@@ -133,12 +133,12 @@ abstract class SolverTest {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
-                val l = solver.witnessOrThrow()
+                val instance = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
                 val assumptions = IntList()
-                for (j in 0 until l.size) {
+                for (j in 0 until instance.size) {
                     if (rng.nextBoolean())
-                        assumptions.add(l.literal(j))
+                        assumptions.add(instance.literal(j))
                 }
                 val restricted = solver.witnessOrThrow(assumptions.toArray())
                 assertTrue(p.satisfies(restricted),

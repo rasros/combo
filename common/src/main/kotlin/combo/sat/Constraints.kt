@@ -36,7 +36,7 @@ interface Constraint : Iterable<Literal> {
     /**
      * Calculate the cached result.
      */
-    fun matches(l: Labeling): Int {
+    fun matches(l: Instance): Int {
         // Not using Iterable<Int>.sumBy to avoid auto boxing
         var sum = 0
         for (it in literals.iterator()) {
@@ -48,12 +48,12 @@ interface Constraint : Iterable<Literal> {
     /**
      * Returns the number of changes necessary for the constraint to be satisfied.
      */
-    fun flipsToSatisfy(l: Labeling): Int
+    fun flipsToSatisfy(l: Instance): Int
 
     /**
-     * Returns whether the constraint satisfies the labeling.
+     * Returns whether the constraint satisfies the instance.
      */
-    fun satisfies(l: Labeling) = flipsToSatisfy(l) == 0
+    fun satisfies(l: Instance) = flipsToSatisfy(l) == 0
 
     /**
      * Change the constraint based on the value of a unit literal.
@@ -90,7 +90,7 @@ sealed class Clause(override val literals: IntCollection) : Constraint {
  */
 object Tautology : Clause(IntList(0)) {
     override fun flipsToSatisfy(matches: Int) = 0
-    override fun flipsToSatisfy(l: Labeling) = 0
+    override fun flipsToSatisfy(l: Instance) = 0
     override fun propagateUnit(unit: Literal) = this
     override fun toString() = "Tautology"
 }
@@ -102,7 +102,7 @@ class Disjunction(literals: IntCollection) : Clause(literals) {
 
     override fun flipsToSatisfy(matches: Int) = if (matches > 0 || literals.isEmpty()) 0 else 1
 
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         for (lit in literals) {
             val ix = lit.toIx()
             if (l[ix] == lit.toBoolean())
@@ -134,7 +134,7 @@ class Disjunction(literals: IntCollection) : Clause(literals) {
 class Conjunction(literals: IntCollection) : Clause(literals) {
 
     override fun flipsToSatisfy(matches: Int) = literals.size - matches
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         var unmatched = 0
         for (lit in literals)
             if (l.literal(lit.toIx()) != lit) unmatched++
@@ -166,7 +166,7 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
         add(literal)
     }
 
-    override fun matches(l: Labeling): Int {
+    override fun matches(l: Instance): Int {
         val clauseMatches = clause.matches(l)
         return clauseMatches.toLiteral(l.literal(literal.toIx()) == literal)
     }
@@ -187,7 +187,7 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
         else return if (clauseFlips == 0) 1 else 0
     }
 
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         return if (l[literal.toIx()] == literal.toBoolean()) {
             min(1, clause.flipsToSatisfy(l))
         } else {
@@ -290,7 +290,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
 
     override fun flipsToSatisfy(matches: Int) = relation.flipsToSatisfy(matches, degree)
 
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         var matches = 0
         for (lit in literals) {
             if (l.literal(lit.toIx()) == lit) matches++

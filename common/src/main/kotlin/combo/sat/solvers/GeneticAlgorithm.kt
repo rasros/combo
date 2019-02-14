@@ -31,10 +31,10 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
     var candidateSize: Int = 20
 
     /**
-     * Determines the [Labeling] that will be created for solving, for very sparse problems use
-     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
      */
-    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     /**
      * This contains cached information about satisfied constraints during search. [PropSearchStateFactory] is more
@@ -44,7 +44,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
     var stateFactory: SearchStateFactory = PropSearchStateFactory(problem)
 
     /**
-     * Variables will be initialized according to this for each labeling. The default is [RandomSelector] which
+     * Variables will be initialized according to this for each instance. The default is [RandomSelector] which
      * initializes uniform at random.
      */
     var selector: ValueSelector<O> = RandomSelector
@@ -102,7 +102,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
      */
     var penalty: PenaltyFunction = SquaredPenalty()
 
-    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         val lowerBound = function.lowerBound()
 
@@ -115,16 +115,16 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
             val rng = randomSequence.next()
 
             population = Array(candidateSize) {
-                stateFactory.build(labelingFactory.create(problem.nbrVariables), assumptions, selector, function, randomSequence.next())
+                stateFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, selector, function, randomSequence.next())
             }
             val state = let {
                 val ages = IntArray(candidateSize)
                 val scores = DoubleArray(candidateSize) {
                     val s = score(population[it])
-                    if (abs(s - lowerBound) < eps && population[it].totalUnsatisfied == 0) return population[it].labeling
+                    if (abs(s - lowerBound) < eps && population[it].totalUnsatisfied == 0) return population[it].instance
                     s
                 }
-                CandidateLabelings(population, scores, ages)
+                CandidateSolutions(population, scores, ages)
             }
 
             for (step in 1..maxSteps) {
@@ -147,7 +147,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
         }
 
         for (i in 0 until candidateSize)
-            if (population!![i].totalUnsatisfied == 0) return population[i].labeling
+            if (population!![i].totalUnsatisfied == 0) return population[i].instance
 
         if (millis() > end) throw TimeoutException(timeout)
         else throw IterationsReachedException(restarts)

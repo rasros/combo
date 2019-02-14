@@ -1,9 +1,9 @@
 package combo.model
 
-import combo.sat.Labeling
+import combo.sat.Instance
 
 // TODO tree structure, implementing Tree
-class Assignment internal constructor(val labeling: Labeling, val featureMeta: Map<Feature<*>, FeatureMeta<*>>) : Iterable<Assignment.FeatureAssignment<*>> {
+class Assignment internal constructor(val instance: Instance, val featureMeta: Map<Feature<*>, FeatureMeta<*>>) : Iterable<Assignment.FeatureAssignment<*>> {
 
     override fun iterator(): Iterator<FeatureAssignment<*>> = object : Iterator<FeatureAssignment<*>> {
         val itr: Iterator<Map.Entry<Feature<*>, FeatureMeta<*>>> = featureMeta.iterator()
@@ -24,13 +24,13 @@ class Assignment internal constructor(val labeling: Labeling, val featureMeta: M
     operator fun get(feature: Flag<Boolean>): Boolean {
         @Suppress("UNCHECKED_CAST")
         val meta: FeatureMeta<Boolean> = (featureMeta[feature] as? FeatureMeta<Boolean>) ?: return false
-        return meta.indexEntry.valueOf(labeling) ?: false
+        return meta.indexEntry.valueOf(instance) ?: false
     }
 
     operator fun <V> get(feature: Feature<V>): V? {
         @Suppress("UNCHECKED_CAST")
         val meta: FeatureMeta<V> = (featureMeta[feature] as? FeatureMeta<V>) ?: return null
-        return meta.indexEntry.valueOf(labeling)
+        return meta.indexEntry.valueOf(instance)
     }
 
     fun <V> getOrThrow(feature: Feature<V>): V = get(feature)

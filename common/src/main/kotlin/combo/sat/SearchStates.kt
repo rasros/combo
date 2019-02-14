@@ -15,11 +15,11 @@ import kotlin.random.Random
 /**
  * This contains cached information about satisfied constraints during search. The actual implementations
  * of [SearchState] are private, so initialize with the [SearchStateFactory]. Use either [SearchStateFactory.build]
- * method depending on whether the labeling should be initialized using a [ValueSelector] or it is pre-solved.
+ * method depending on whether the instance should be initialized using a [ValueSelector] or it is pre-solved.
  */
-interface SearchState : MutableLabeling {
+interface SearchState : MutableInstance {
 
-    val labeling: MutableLabeling
+    val instance: MutableInstance
     val totalUnsatisfied: Int
     val assumption: Conjunction
 
@@ -32,7 +32,7 @@ interface SearchState : MutableLabeling {
 
     /**
      * Returns the improvement in flipsToSatisfy. A positive improvement leads to a state that is close to a satisfiable
-     * labeling.
+     * instance.
      */
     fun improvement(ix: Ix): Int
 }
@@ -41,36 +41,36 @@ interface SearchState : MutableLabeling {
  * Creates search states.
  */
 interface SearchStateFactory {
-    fun <O : ObjectiveFunction?> build(labeling: MutableLabeling, assumptions: Literals,
+    fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals,
                                        valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState
 
-    fun buildPreDefined(labeling: MutableLabeling, assumptions: Literals): SearchState
+    fun buildPreDefined(instance: MutableInstance, assumptions: Literals): SearchState
 }
 
 /**
  * Initializes values during search.
  */
 interface ValueSelector<in O : ObjectiveFunction?> {
-    fun select(ix: Ix, labeling: MutableLabeling, rng: Random, function: O): Boolean
+    fun select(ix: Ix, instance: MutableInstance, rng: Random, function: O): Boolean
 }
 
 object RandomSelector : ValueSelector<ObjectiveFunction?> {
-    override fun select(ix: Ix, labeling: MutableLabeling, rng: Random, function: ObjectiveFunction?) =
+    override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: ObjectiveFunction?) =
             rng.nextBoolean()
 }
 
 object WeightSelector : ValueSelector<LinearObjective> {
-    override fun select(ix: Ix, labeling: MutableLabeling, rng: Random, function: LinearObjective): Boolean =
+    override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: LinearObjective): Boolean =
             if (function.maximize) function.weights[ix] >= 0
             else function.weights[ix] < 0
 }
 
 object FalseSelector : ValueSelector<ObjectiveFunction?> {
-    override fun select(ix: Ix, labeling: MutableLabeling, rng: Random, function: ObjectiveFunction?) = false
+    override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: ObjectiveFunction?) = false
 }
 
 object TrueSelector : ValueSelector<ObjectiveFunction?> {
-    override fun select(ix: Ix, labeling: MutableLabeling, rng: Random, function: ObjectiveFunction?) = true
+    override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: ObjectiveFunction?) = true
 }
 
 class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
@@ -78,22 +78,22 @@ class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
     private val cardinalitySentences = problem.constraints.asSequence()
             .filter { it is Cardinality }.map { it as Cardinality }.toList().toTypedArray()
 
-    override fun <O : ObjectiveFunction?> build(labeling: MutableLabeling, assumptions: Literals,
+    override fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals,
                                                 valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState {
-        val state = BasicSearchState(labeling, problem, assumptions)
+        val state = BasicSearchState(instance, problem, assumptions)
         if (valueSelector !is FalseSelector)
-            for (i in 0 until labeling.size)
-                labeling[i] = valueSelector.select(i, labeling, rng, function)
-        labeling.setAll(assumptions)
+            for (i in 0 until instance.size)
+                instance[i] = valueSelector.select(i, instance, rng, function)
+        instance.setAll(assumptions)
         for (card in cardinalitySentences) {
-            var matches = card.matches(state.labeling)
+            var matches = card.matches(state.instance)
             val perm = card.literals.permutation(rng)
             if (card.relation != Relation.GE) {
                 // relation: <= or ==
                 while (matches > card.degree) {
                     val lit = perm.nextInt()
-                    if (state.labeling[lit.toIx()]) {
-                        state.labeling.flip(lit.toIx())
+                    if (state.instance[lit.toIx()]) {
+                        state.instance.flip(lit.toIx())
                         matches--
                     }
                 }
@@ -102,37 +102,37 @@ class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
                 // relation: >= or ==
                 while (matches < card.degree) {
                     val lit = perm.nextInt()
-                    if (!state.labeling[lit.toIx()]) {
-                        state.labeling.flip(lit.toIx())
+                    if (!state.instance[lit.toIx()]) {
+                        state.instance.flip(lit.toIx())
                         matches++
                     }
                 }
             }
         }
         for ((sentId, sent) in problem.constraints.withIndex()) {
-            state.matches[sentId] = sent.matches(labeling)
+            state.matches[sentId] = sent.matches(instance)
             state.totalUnsatisfied += sent.flipsToSatisfy(state.matches[sentId]).also {
                 if (it > 0) state.unsatisfied.add(sentId)
             }
         }
-        state.matches[state.matches.lastIndex] = state.assumption.matches(labeling)
+        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
         val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
         state.totalUnsatisfied += assumptionFlips
         if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
         return state
     }
 
-    override fun buildPreDefined(labeling: MutableLabeling, assumptions: Literals): SearchState {
-        val state = BasicSearchState(labeling, problem, assumptions)
+    override fun buildPreDefined(instance: MutableInstance, assumptions: Literals): SearchState {
+        val state = BasicSearchState(instance, problem, assumptions)
         for ((sentId, sent) in problem.constraints.withIndex()) {
-            state.matches[sentId] = sent.matches(labeling)
+            state.matches[sentId] = sent.matches(instance)
             if (sent.flipsToSatisfy(state.matches[sentId]) > 0) state.unsatisfied.add(sentId)
         }
-        state.matches[state.matches.lastIndex] = state.assumption.matches(labeling)
+        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
         val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
         state.totalUnsatisfied += assumptionFlips
         if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
-        for (lit in assumptions) if (labeling.literal(lit.toIx()) != lit) state.flip(lit.toIx())
+        for (lit in assumptions) if (instance.literal(lit.toIx()) != lit) state.flip(lit.toIx())
         return state
     }
 }
@@ -140,7 +140,7 @@ class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
 /**
  * Caches the result of sentence evaluation by keeping an int per sentence with the number of matching literals.
  */
-private class BasicSearchState(override val labeling: MutableLabeling, val problem: Problem, assumptions: Literals) : SearchState, Labeling by labeling {
+private class BasicSearchState(override val instance: MutableInstance, val problem: Problem, assumptions: Literals) : SearchState, Instance by instance {
 
     override var totalUnsatisfied: Int = 0
 
@@ -156,7 +156,7 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
     }
 
     override fun improvement(ix: Ix): Int {
-        val literal = !labeling.literal(ix)
+        val literal = !instance.literal(ix)
         val assumptionImprovement =
                 if (literal.toIx() in assumptionIxs) improvementSentence(literal, assumption, matches.lastIndex)
                 else 0
@@ -175,8 +175,8 @@ private class BasicSearchState(override val labeling: MutableLabeling, val probl
 
     override fun set(ix: Ix, value: Boolean) {
         val literal = ix.toLiteral(value)
-        if (labeling.literal(literal.toIx()) == literal) return
-        labeling.set(literal)
+        if (instance.literal(literal.toIx()) == literal) return
+        instance.set(literal)
         if (literal.toIx() in assumptionIxs)
             updateSentence(literal, assumption, matches.lastIndex)
         for (sentId in problem.constraintsWith(literal.toIx())) {
@@ -282,29 +282,29 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
     }
 
 
-    override fun <O : ObjectiveFunction?> build(labeling: MutableLabeling, assumptions: Literals, valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState {
-        val state = PropSearchState(labeling, problem, assumptions)
+    override fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals, valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState {
+        val state = PropSearchState(instance, problem, assumptions)
 
-        for (ix in IntPermutation(labeling.size, rng)) {
-            val lit = ix.toLiteral(valueSelector.select(ix, labeling, rng, function))
-            labeling.set(lit)
-            labeling.setAll(literalPropagations[lit])
+        for (ix in IntPermutation(instance.size, rng)) {
+            val lit = ix.toLiteral(valueSelector.select(ix, instance, rng, function))
+            instance.set(lit)
+            instance.setAll(literalPropagations[lit])
         }
-        labeling.setAll(assumptions)
+        instance.setAll(assumptions)
         assumptions.forEach {
-            labeling.setAll(literalPropagations[it])
+            instance.setAll(literalPropagations[it])
         }
 
         for (sentId in complexSentences) {
             val sent = problem.constraints[sentId]
-            val sentMatches = sent.matches(labeling)
+            val sentMatches = sent.matches(instance)
             if (sentMatches > 0) state.matches[sentId] = sentMatches
             state.totalUnsatisfied += sent.flipsToSatisfy(sentMatches).also {
                 if (it > 0) state.unsatisfied.add(sentId)
             }
         }
 
-        state.matches[state.matches.lastIndex] = state.assumption.matches(labeling)
+        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
         val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
         state.totalUnsatisfied += assumptionFlips
         if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
@@ -316,7 +316,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
                 // relation: <= or ==
                 while (state.matches[card] > sent.degree && perm.hasNext()) {
                     val lit = perm.nextInt()
-                    if (state.labeling[lit.toIx()])
+                    if (state.instance[lit.toIx()])
                         state.flip(lit.toIx())
                 }
             }
@@ -324,7 +324,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
                 // relation: >= or ==
                 while (state.matches[card] < sent.degree && perm.hasNext()) {
                     val lit = perm.nextInt()
-                    if (!state.labeling[lit.toIx()])
+                    if (!state.instance[lit.toIx()])
                         state.flip(lit.toIx())
                 }
             }
@@ -333,24 +333,24 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
         return state
     }
 
-    override fun buildPreDefined(labeling: MutableLabeling, assumptions: Literals): SearchState {
-        val state = PropSearchState(labeling, problem, assumptions)
+    override fun buildPreDefined(instance: MutableInstance, assumptions: Literals): SearchState {
+        val state = PropSearchState(instance, problem, assumptions)
         for (sentId in complexSentences) {
             val sent = problem.constraints[sentId]
-            state.matches[sentId] = sent.matches(labeling)
+            state.matches[sentId] = sent.matches(instance)
             if (sent.flipsToSatisfy(state.matches[sentId]) > 0) state.unsatisfied.add(sentId)
         }
-        state.matches[state.matches.lastIndex] = state.assumption.matches(labeling)
+        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
         val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
         state.totalUnsatisfied += assumptionFlips
         if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
-        for (lit in assumptions) if (labeling.literal(lit.toIx()) != lit) state.flip(lit.toIx())
+        for (lit in assumptions) if (instance.literal(lit.toIx()) != lit) state.flip(lit.toIx())
         return state
     }
 
-    private inner class PropSearchState(override val labeling: MutableLabeling,
+    private inner class PropSearchState(override val instance: MutableInstance,
                                         val problem: Problem,
-                                        assumptions: Literals) : SearchState, Labeling by labeling {
+                                        assumptions: Literals) : SearchState, Instance by instance {
 
         override var totalUnsatisfied: Int = 0
 
@@ -371,17 +371,17 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
                 val sent = problem.constraints[sentId]
                 checkSentence(literal, sent, sentId)
             }
-            labeling.set(literal)
-            labeling.setAll(literalPropagations[literal])
+            instance.set(literal)
+            instance.setAll(literalPropagations[literal])
         }
 
-        override fun literalPropagations(ix: Ix) = literalPropagations[!labeling.literal(ix)]
+        override fun literalPropagations(ix: Ix) = literalPropagations[!instance.literal(ix)]
 
         private fun checkSentence(literal: Literal, sent: Constraint, sentId: Int) {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
-                if (lit != labeling.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))
+                if (lit != instance.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))
                     matchUpdate = sent.matchesUpdate(lit, matchUpdate)
             }
             val newFlips = sent.flipsToSatisfy(matchUpdate)
@@ -393,7 +393,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
         }
 
         override fun improvement(ix: Ix): Int {
-            val literal = !labeling.literal(ix)
+            val literal = !instance.literal(ix)
             return improvementSentence(literal, assumption, matches.lastIndex) +
                     variableSentences[ix].sumBy { sentId ->
                         val sent = problem.constraints[sentId]
@@ -405,7 +405,7 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
             var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
-                if (lit != labeling.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))
+                if (lit != instance.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))
                     matchUpdate = sent.matchesUpdate(lit, matchUpdate)
             }
             val newFlips = sent.flipsToSatisfy(matchUpdate)

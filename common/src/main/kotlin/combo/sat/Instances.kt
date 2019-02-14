@@ -1,4 +1,4 @@
-@file:JvmName("Labelings")
+@file:JvmName("Instances")
 
 package combo.sat
 
@@ -11,20 +11,20 @@ import kotlin.jvm.JvmName
 import kotlin.math.max
 
 /**
- * A labeling is used by the solvers to find a valid truth assignment. There are three implementations:
- * 1) [BitFieldLabeling] will suit most applications, 2) [ByteArrayLabeling] trades better CPU performance for worse
- * memory consumption, and finally 3) [IntSetLabeling] will work better for [Problem]s with very sparse solutions.
- * The [LabelingFactory] class is used to create the [Labeling]s in a generic way by eg. an
+ * An instance is used by the solvers to find a valid truth assignment. There are three implementations:
+ * 1) [BitFieldInstance] will suit most applications, 2) [ByteArrayInstance] trades better CPU performance for worse
+ * memory consumption, and finally 3) [IntSetInstance] will work better for [Problem]s with very sparse solutions.
+ * The [InstanceFactory] class is used to create the [Instance]s in a generic way by eg. an
  * [combo.sat.solvers.Optimizer].
  *
  * Equals and hashCode are defined through actual assignment values.
  */
-interface Labeling : Iterable<Int> {
+interface Instance : Iterable<Int> {
     val size: Int
     val indices: IntRange
         get() = 0 until size
 
-    fun copy(): MutableLabeling
+    fun copy(): MutableInstance
     fun literal(ix: Ix): Literal = ix.toLiteral(this[ix])
     operator fun get(ix: Ix): Boolean
 
@@ -34,24 +34,24 @@ interface Labeling : Iterable<Int> {
     override fun iterator() = object : IntIterator() {
         var i = 0
         override fun hasNext() = i < size
-        override fun nextInt() = this@Labeling.literal(i++)
+        override fun nextInt() = this@Instance.literal(i++)
     }
 
     /**
      * Iterates over all values, returning true literals only. This method has an efficient implementation for
-     * [IntSetLabeling] for sparse [Labeling]s.
+     * [IntSetInstance] for sparse [Instance]s.
      */
     fun truthIterator(): IntIterator = object : IntIterator() {
         var i = 0
 
         init {
-            while (i < size && !this@Labeling[i]) i++
+            while (i < size && !this@Instance[i]) i++
         }
 
         override fun hasNext() = i < size
-        override fun nextInt() = this@Labeling.literal(i).also {
+        override fun nextInt() = this@Instance.literal(i).also {
             i++
-            while (i < size && !this@Labeling[i]) i++
+            while (i < size && !this@Instance[i]) i++
         }
     }
 
@@ -63,23 +63,23 @@ interface Labeling : Iterable<Int> {
     } else IntArray(size) { literal(it) }
 }
 
-interface MutableLabeling : Labeling {
+interface MutableInstance : Instance {
     fun flip(ix: Ix) = set(ix, !get(ix))
     fun set(literal: Literal) = set(literal.toIx(), literal.toBoolean())
     fun setAll(literals: Literals) = literals.forEach { set(it) }
     fun setAll(literals: Iterable<Literal>) = literals.forEach { set(it) }
-    override fun copy(): MutableLabeling
+    override fun copy(): MutableInstance
     operator fun set(ix: Ix, value: Boolean)
 }
 
-internal fun Labeling.deepEquals(other: Labeling): Boolean {
+internal fun Instance.deepEquals(other: Instance): Boolean {
     if (this === other) return true
     if (size != other.size) return false
     for (i in 0 until size) if (this[i] != other[i]) return false
     return true
 }
 
-internal fun Labeling.deepHashCode(): Int {
+internal fun Instance.deepHashCode(): Int {
     var result = size
     val itr = truthIterator()
     while (itr.hasNext())
@@ -87,29 +87,29 @@ internal fun Labeling.deepHashCode(): Int {
     return result
 }
 
-internal fun Labeling.deepToString() = toIntArray().joinToString(",", "[", "]")
+internal fun Instance.deepToString() = toIntArray().joinToString(",", "[", "]")
 
-infix fun Labeling.dot(v: Vector): Double {
+infix fun Instance.dot(v: Vector): Double {
     var sum = 0.0
     val itr = truthIterator()
     while (itr.hasNext()) sum += v[itr.nextInt().toIx()]
     return sum
 }
 
-fun Labeling.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
-fun Labeling.toDoubleArray() = DoubleArray(size) { if (this[it]) 1.0 else 0.0 }
+fun Instance.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
+fun Instance.toDoubleArray() = DoubleArray(size) { if (this[it]) 1.0 else 0.0 }
 
-interface LabelingFactory {
-    fun create(size: Int): MutableLabeling
+interface InstanceFactory {
+    fun create(size: Int): MutableInstance
 }
 
-object IntSetLabelingFactory : LabelingFactory {
-    override fun create(size: Int) = IntSetLabeling(size)
+object IntSetInstanceFactory : InstanceFactory {
+    override fun create(size: Int) = IntSetInstance(size)
 }
 
-class IntSetLabeling(override val size: Int, val intSet: IntSet = IntSet(max(2, (size * 0.2).toInt()))) : MutableLabeling {
+class IntSetInstance(override val size: Int, val intSet: IntSet = IntSet(max(2, (size * 0.2).toInt()))) : MutableInstance {
     override fun get(ix: Ix) = ix.toLiteral(true) in intSet
-    override fun copy() = IntSetLabeling(size, intSet.copy())
+    override fun copy() = IntSetInstance(size, intSet.copy())
     override fun set(ix: Ix, value: Boolean) {
         if (value) intSet.add(ix.toLiteral(true))
         else intSet.remove(ix.toLiteral(true))
@@ -117,16 +117,16 @@ class IntSetLabeling(override val size: Int, val intSet: IntSet = IntSet(max(2, 
 
     override fun truthIterator() = intSet.iterator()
 
-    override fun equals(other: Any?) = if (other is Labeling) deepEquals(other) else false
+    override fun equals(other: Any?) = if (other is Instance) deepEquals(other) else false
     override fun hashCode() = deepHashCode()
     override fun toString() = deepToString()
 }
 
-object ByteArrayLabelingFactory : LabelingFactory {
-    override fun create(size: Int) = ByteArrayLabeling(size)
+object ByteArrayInstanceFactory : InstanceFactory {
+    override fun create(size: Int) = ByteArrayInstance(size)
 }
 
-class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
+class ByteArrayInstance constructor(val values: ByteArray) : MutableInstance {
 
     constructor(size: Int) : this(ByteArray(size))
 
@@ -135,7 +135,7 @@ class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
         private const val ZERO = 0.toByte()
     }
 
-    override fun copy(): ByteArrayLabeling = ByteArrayLabeling(values.copyOf())
+    override fun copy(): ByteArrayInstance = ByteArrayInstance(values.copyOf())
     override val size: Int
         get() = values.size
 
@@ -151,20 +151,20 @@ class ByteArrayLabeling constructor(val values: ByteArray) : MutableLabeling {
 
     override fun literal(ix: Ix): Literal = ix.toLiteral(this[ix])
 
-    override fun equals(other: Any?) = if (other is Labeling) deepEquals(other) else false
+    override fun equals(other: Any?) = if (other is Instance) deepEquals(other) else false
     override fun hashCode() = deepHashCode()
     override fun toString() = deepToString()
 }
 
-object BitFieldLabelingFactory : LabelingFactory {
-    override fun create(size: Int) = BitFieldLabeling(size)
+object BitFieldInstanceFactory : InstanceFactory {
+    override fun create(size: Int) = BitFieldInstance(size)
 }
 
-class BitFieldLabeling constructor(override val size: Int, val field: LongArray) : MutableLabeling {
+class BitFieldInstance constructor(override val size: Int, val field: LongArray) : MutableInstance {
 
     constructor(size: Int) : this(size, LongArray(size / Long.SIZE_BITS + if (size.rem(Long.SIZE_BITS) > 0) 1 else 0))
 
-    override fun copy(): BitFieldLabeling = BitFieldLabeling(size, field.copyOf())
+    override fun copy(): BitFieldInstance = BitFieldInstance(size, field.copyOf())
 
     override fun get(ix: Ix) = (field[ix / Long.SIZE_BITS] ushr ix.rem(Long.SIZE_BITS)) and 1L == 1L
 
@@ -182,13 +182,13 @@ class BitFieldLabeling constructor(override val size: Int, val field: LongArray)
     }
 
     override fun equals(other: Any?): Boolean {
-        return if (other is BitFieldLabeling) {
+        return if (other is BitFieldInstance) {
             if (size != other.size) false
             else {
                 for (i in field.indices) if (field[i] != other.field[i]) return false
                 return true
             }
-        } else if (other is Labeling) deepEquals(other)
+        } else if (other is Instance) deepEquals(other)
         else false
     }
 

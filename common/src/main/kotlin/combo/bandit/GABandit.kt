@@ -2,7 +2,7 @@ package combo.bandit
 
 import combo.bandit.univariate.BanditPolicy
 import combo.math.*
-import combo.sat.Labeling
+import combo.sat.Instance
 import combo.sat.Literals
 import combo.sat.Problem
 import combo.sat.solvers.LocalSearchSolver
@@ -36,25 +36,25 @@ class GABandit<E : VarianceEstimator> @JvmOverloads constructor(
     var mutationOperator: MutationOperator = FixedRateMutation()
 
     private val populationDelegate = lazy {
-        CandidateLabelings(arrayOf(), doubleArrayOf(), intArrayOf())
+        CandidateSolutions(arrayOf(), doubleArrayOf(), intArrayOf())
     }
     private val population by populationDelegate
 
-    override fun chooseOrThrow(assumptions: Literals): Labeling {
+    override fun chooseOrThrow(assumptions: Literals): Instance {
         TODO("not implemented")
     }
 
-    override fun update(labeling: Labeling, result: Double, weight: Double) {
+    override fun update(instance: Instance, result: Double, weight: Double) {
         /*
-        val ix = population.labelings.indexOfFirst { it == labeling }
+        val ix = population.instances.indexOfFirst { it == instance }
         if (ix < 0) return
         populationState.scores[ix] =
         val rng = randomSequence.next()
         val parent1 = selectionOperator.select(populationState, rng)
         val parent2 = selectionOperator.select(populationState, rng)
         val eliminated = elimination.select(populationState, rng)
-        val l1 = populationState.population[parent1].labeling.toLiterals(false)
-        val l2 = populationState.population[parent2].labeling.toLiterals(false)
+        val l1 = populationState.population[parent1].instance.toLiterals(false)
+        val l2 = populationState.population[parent2].instance.toLiterals(false)
         val assumptions = l1.intersect(IntList().apply { addAll(l2) }).toList().toTypedArray().apply { sort() }
         */
 

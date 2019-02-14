@@ -8,10 +8,10 @@ import kotlin.random.Random
 import kotlin.test.*
 
 private fun randomExhaustivePropagations(cs: Array<Constraint>) {
-    // This test thoroughly test that unit propagation does not change the truth value of a labeling.
+    // This test thoroughly test that unit propagation does not change the truth value of an instance.
     val rng = Random.Default
     for (c in cs) for (i in c.literals) require(i.toIx() <= 4)
-    for (l in LabelingPermutation(5, BitFieldLabelingFactory, rng)) {
+    for (l in InstancePermutation(5, BitFieldInstanceFactory, rng)) {
         for (c in cs) {
             try {
                 val c2 = IntPermutation(l.size, rng).iterator().asSequence().fold(c) { s: Constraint, i ->
@@ -29,38 +29,38 @@ private fun randomExhaustivePropagations(cs: Array<Constraint>) {
     }
 }
 
-private fun checkUpdateMatches(labeling: MutableLabeling, constraint: Constraint) {
-    val pre = constraint.matches(labeling)
-    assertEquals(constraint.flipsToSatisfy(labeling), constraint.flipsToSatisfy(pre), "" + pre + ": " + labeling.toString())
+private fun checkUpdateMatches(instance: MutableInstance, constraint: Constraint) {
+    val pre = constraint.matches(instance)
+    assertEquals(constraint.flipsToSatisfy(instance), constraint.flipsToSatisfy(pre), "" + pre + ": " + instance.toString())
     val lit = constraint.literals.random(Random)
-    labeling.flip(lit.toIx())
-    val updatedMatches = constraint.matchesUpdate(labeling.literal(lit.toIx()), pre)
-    val post = constraint.matches(labeling)
-    assertEquals(post, updatedMatches, labeling.toString())
+    instance.flip(lit.toIx())
+    val updatedMatches = constraint.matchesUpdate(instance.literal(lit.toIx()), pre)
+    val post = constraint.matches(instance)
+    assertEquals(post, updatedMatches, instance.toString())
 }
 
 class ConjunctionTest {
 
     @Test
     fun satisfies() {
-        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
-        assertFalse(Conjunction(IntList(intArrayOf(0))).satisfies(l))
-        assertTrue(Conjunction(IntList(intArrayOf(1))).satisfies(l))
-        assertFalse(Conjunction(IntList(intArrayOf(0, 4))).satisfies(l))
-        assertFalse(Conjunction(IntList(intArrayOf(0, 5))).satisfies(l))
-        assertFalse(Conjunction(IntList(intArrayOf(0, 7))).satisfies(l))
-        assertTrue(Conjunction(IntList(intArrayOf(1, 7))).satisfies(l))
+        val instance = BitFieldInstance(4, LongArray(1) { 0b0110 })
+        assertFalse(Conjunction(IntList(intArrayOf(0))).satisfies(instance))
+        assertTrue(Conjunction(IntList(intArrayOf(1))).satisfies(instance))
+        assertFalse(Conjunction(IntList(intArrayOf(0, 4))).satisfies(instance))
+        assertFalse(Conjunction(IntList(intArrayOf(0, 5))).satisfies(instance))
+        assertFalse(Conjunction(IntList(intArrayOf(0, 7))).satisfies(instance))
+        assertTrue(Conjunction(IntList(intArrayOf(1, 7))).satisfies(instance))
     }
 
     @Test
     fun flipsToSatisfy() {
-        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
-        assertEquals(1, Conjunction(IntList(intArrayOf(0))).flipsToSatisfy(l))
-        assertEquals(0, Conjunction(IntList(intArrayOf(1))).flipsToSatisfy(l))
-        assertEquals(1, Conjunction(IntList(intArrayOf(0, 4))).flipsToSatisfy(l))
-        assertEquals(2, Conjunction(IntList(intArrayOf(0, 5))).flipsToSatisfy(l))
-        assertEquals(1, Conjunction(IntList(intArrayOf(0, 7))).flipsToSatisfy(l))
-        assertEquals(0, Conjunction(IntList(intArrayOf(1, 7))).flipsToSatisfy(l))
+        val instance = BitFieldInstance(4, LongArray(1) { 0b0110 })
+        assertEquals(1, Conjunction(IntList(intArrayOf(0))).flipsToSatisfy(instance))
+        assertEquals(0, Conjunction(IntList(intArrayOf(1))).flipsToSatisfy(instance))
+        assertEquals(1, Conjunction(IntList(intArrayOf(0, 4))).flipsToSatisfy(instance))
+        assertEquals(2, Conjunction(IntList(intArrayOf(0, 5))).flipsToSatisfy(instance))
+        assertEquals(1, Conjunction(IntList(intArrayOf(0, 7))).flipsToSatisfy(instance))
+        assertEquals(0, Conjunction(IntList(intArrayOf(1, 7))).flipsToSatisfy(instance))
     }
 
     @Test
@@ -81,8 +81,8 @@ class ConjunctionTest {
     fun updateMatches() {
         val c = Conjunction(IntList(intArrayOf(2, 7)))
         for (k in 0 until 16) {
-            val labeling = BitFieldLabeling(4, LongArray(1) { k.toLong() })
-            checkUpdateMatches(labeling, c)
+            val instance = BitFieldInstance(4, LongArray(1) { k.toLong() })
+            checkUpdateMatches(instance, c)
         }
     }
 
@@ -128,22 +128,22 @@ class DisjunctionTest {
 
     @Test
     fun satisfies() {
-        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
-        assertFalse(Disjunction(IntList(intArrayOf(3, 5))).satisfies(l))
-        assertTrue(Disjunction(IntList(intArrayOf(3, 1))).satisfies(l))
-        assertTrue(Disjunction(IntList(intArrayOf(0, 4))).satisfies(l))
-        assertFalse(Disjunction(IntList(intArrayOf(0, 5))).satisfies(l))
-        assertTrue(Disjunction(IntList(intArrayOf(0, 7))).satisfies(l))
+        val instance = BitFieldInstance(4, LongArray(1) { 0b0110 })
+        assertFalse(Disjunction(IntList(intArrayOf(3, 5))).satisfies(instance))
+        assertTrue(Disjunction(IntList(intArrayOf(3, 1))).satisfies(instance))
+        assertTrue(Disjunction(IntList(intArrayOf(0, 4))).satisfies(instance))
+        assertFalse(Disjunction(IntList(intArrayOf(0, 5))).satisfies(instance))
+        assertTrue(Disjunction(IntList(intArrayOf(0, 7))).satisfies(instance))
     }
 
     @Test
     fun flipsToSatisfy() {
-        val l = BitFieldLabeling(4, LongArray(1) { 0b0110 })
-        assertEquals(1, Disjunction(IntList(intArrayOf(3, 5))).flipsToSatisfy(l))
-        assertEquals(0, Disjunction(IntList(intArrayOf(3, 1))).flipsToSatisfy(l))
-        assertEquals(0, Disjunction(IntList(intArrayOf(0, 4))).flipsToSatisfy(l))
-        assertEquals(1, Disjunction(IntList(intArrayOf(0, 5))).flipsToSatisfy(l))
-        assertEquals(0, Disjunction(IntList(intArrayOf(0, 7))).flipsToSatisfy(l))
+        val instance = BitFieldInstance(4, LongArray(1) { 0b0110 })
+        assertEquals(1, Disjunction(IntList(intArrayOf(3, 5))).flipsToSatisfy(instance))
+        assertEquals(0, Disjunction(IntList(intArrayOf(3, 1))).flipsToSatisfy(instance))
+        assertEquals(0, Disjunction(IntList(intArrayOf(0, 4))).flipsToSatisfy(instance))
+        assertEquals(1, Disjunction(IntList(intArrayOf(0, 5))).flipsToSatisfy(instance))
+        assertEquals(0, Disjunction(IntList(intArrayOf(0, 7))).flipsToSatisfy(instance))
     }
 
     @Test
@@ -242,22 +242,22 @@ class CardinalityTest {
 
     @Test
     fun satisfiesBlank() {
-        val l = IntSetLabeling(4)
-        assertTrue(Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE).satisfies(l))
-        assertEquals(0, Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE).flipsToSatisfy(l))
+        val instance = IntSetInstance(4)
+        assertTrue(Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE).satisfies(instance))
+        assertEquals(0, Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE).flipsToSatisfy(instance))
     }
 
     @Test
     fun satisfies() {
         val e = Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE)
-        assertTrue(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
-        assertTrue(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertTrue(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
-        assertFalse(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b011 })))
-        assertTrue(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b100 })))
-        assertFalse(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b101 })))
-        assertFalse(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertFalse(e.satisfies(BitFieldLabeling(3, LongArray(1) { 0b1110 })))
+        assertTrue(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
+        assertTrue(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertTrue(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
+        assertFalse(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b011 })))
+        assertTrue(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b100 })))
+        assertFalse(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b101 })))
+        assertFalse(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertFalse(e.satisfies(BitFieldInstance(3, LongArray(1) { 0b1110 })))
     }
 
     @Test
@@ -285,8 +285,8 @@ class CardinalityTest {
     fun updateMatches() {
         val c = Disjunction(IntList(intArrayOf(2, 7)))
         for (k in 0 until 16) {
-            val labeling = BitFieldLabeling(4, LongArray(1) { k.toLong() })
-            checkUpdateMatches(labeling, c)
+            val instance = BitFieldInstance(4, LongArray(1) { k.toLong() })
+            checkUpdateMatches(instance, c)
         }
     }
 
@@ -309,8 +309,8 @@ class CardinalityTest {
     fun unitPropagationAtMost() {
         val a = Cardinality(IntList(intArrayOf(2, 4)), 1, Relation.LE)
         val b = a.propagateUnit(2)
-        assertFalse(b.satisfies(BitFieldLabeling(3, longArrayOf(0b111))))
-        assertTrue(b.satisfies(BitFieldLabeling(3, longArrayOf(0b000))))
+        assertFalse(b.satisfies(BitFieldInstance(3, longArrayOf(0b111))))
+        assertTrue(b.satisfies(BitFieldInstance(3, longArrayOf(0b000))))
     }
 
     @Test
@@ -373,53 +373,53 @@ class ReifiedTest {
     @Test
     fun satisfiesDisjunction() {
         val d = Reified(1, Disjunction(IntList(intArrayOf(2, 5))))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b111 })))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b011 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b101 })))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b100 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b111 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b011 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b101 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b100 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
     }
 
     @Test
     fun flipsToSatisfyDisjunction() {
         val d = Reified(1, Disjunction(IntList(intArrayOf(2, 5))))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b111 })))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b011 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b101 })))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b010 })))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b100 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b111 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b011 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b101 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b010 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b100 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b000 })))
     }
 
     @Test
     fun satisfiesConjunction() {
         val d = Reified(0, Conjunction(IntList(intArrayOf(2, 5))))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b111 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b011 })))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b101 })))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertFalse(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b100 })))
-        assertTrue(d.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b111 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b011 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b101 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertFalse(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b100 })))
+        assertTrue(d.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
     }
 
     @Test
     fun flipsToSatisfyConjunction() {
         val d = Reified(0, Conjunction(IntList(intArrayOf(2, 5))))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b111 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b011 })))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b101 })))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertEquals(1, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b010 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b100 })))
-        assertEquals(0, d.flipsToSatisfy(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b111 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b011 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b101 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertEquals(1, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b010 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b100 })))
+        assertEquals(0, d.flipsToSatisfy(BitFieldInstance(3, LongArray(1) { 0b000 })))
     }
 
     @Test
@@ -427,8 +427,8 @@ class ReifiedTest {
         val c = Conjunction(IntList(intArrayOf(2, 7)))
         val r = Reified(0, c)
         for (k in 0 until 16) {
-            val labeling = BitFieldLabeling(4, LongArray(1) { k.toLong() })
-            checkUpdateMatches(labeling, r)
+            val instance = BitFieldInstance(4, LongArray(1) { k.toLong() })
+            checkUpdateMatches(instance, r)
         }
     }
 
@@ -437,8 +437,8 @@ class ReifiedTest {
         val d = Disjunction(IntList(intArrayOf(3, 6)))
         val r = Reified(1, d)
         for (k in 0 until 16) {
-            val labeling = BitFieldLabeling(4, LongArray(1) { k.toLong() })
-            checkUpdateMatches(labeling, r)
+            val instance = BitFieldInstance(4, LongArray(1) { k.toLong() })
+            checkUpdateMatches(instance, r)
         }
     }
 
@@ -468,7 +468,7 @@ class ReifiedTest {
     fun toCnfSatisfiesDisjunction() {
         val original = Reified(5, Disjunction(IntList(intArrayOf(1, 3))))
         val toCnf = original.toCnf()
-        for (l in LabelingPermutation(3, BitFieldLabelingFactory, Random.Default)) {
+        for (l in InstancePermutation(3, BitFieldInstanceFactory, Random.Default)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)
@@ -479,7 +479,7 @@ class ReifiedTest {
     fun toCnfSatisfiesConjunction() {
         val original = Reified(4, Conjunction(IntList(intArrayOf(0, 3))))
         val toCnf = original.toCnf()
-        for (l in LabelingPermutation(3, BitFieldLabelingFactory, Random.Default)) {
+        for (l in InstancePermutation(3, BitFieldInstanceFactory, Random.Default)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)

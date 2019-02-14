@@ -48,10 +48,10 @@ class Sat4JSolver @JvmOverloads constructor(
     override var timeout: Long = -1L
 
     /**
-     * Determines the [Labeling] that will be created for solving, for very sparse problems use
-     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
      */
-    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     /**
      * Solver aborts after this number of conflicts are reached.
@@ -60,7 +60,7 @@ class Sat4JSolver @JvmOverloads constructor(
 
     /**
      * Solver forgets all learned clauses after each [witness]. Setting to false might improve solving speed but
-     * introduces bias in the generated labelings.
+     * introduces bias in the generated instances.
      */
     var forgetLearnedClauses: Boolean = true
 
@@ -76,14 +76,14 @@ class Sat4JSolver @JvmOverloads constructor(
         this.solver.setup(problem, constraintHandler)
     }
 
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Instance {
         synchronized(solverLock) {
             literalSelection.rng = randomSequence.next()
             if (timeout > 0L) timeoutOrder.setTimeout(timeout)
             solver.setTimeoutOnConflicts(maxConflicts)
             val assumption = assumptions.toDimacs()
             try {
-                if (solver.isSatisfiable(assumption)) return solver.model().toLabeling(labelingFactory)
+                if (solver.isSatisfiable(assumption)) return solver.model().toInstance(instanceFactory)
                 else throw UnsatisfiableException()
             } catch (e: org.sat4j.specs.TimeoutException) {
                 throw IterationsReachedException(maxConflicts)
@@ -93,7 +93,7 @@ class Sat4JSolver @JvmOverloads constructor(
         }
     }
 
-    override fun sequence(assumptions: Literals): Sequence<Labeling> {
+    override fun sequence(assumptions: Literals): Sequence<Instance> {
         val base = SolverFactory.newMiniLearning(
                 MixedDataStructureDanielWL(),
                 VarOrderHeap(RandomLiteralSelectionStrategySeeded(randomSequence.next())))
@@ -108,14 +108,14 @@ class Sat4JSolver @JvmOverloads constructor(
             try {
                 if (millis() >= end) null
                 else if (!iterator.isSatisfiable(assumption)) null
-                else iterator.model().toLabeling(labelingFactory)
+                else iterator.model().toInstance(instanceFactory)
             } catch (e: org.sat4j.specs.TimeoutException) {
                 throw IterationsReachedException(maxConflicts)
             }
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
         val pbSolver = optimizerCreator()
         pbSolver.setTimeoutOnConflicts(maxConflicts)
         if (timeout >= 0L)
@@ -131,7 +131,7 @@ class Sat4JSolver @JvmOverloads constructor(
         try {
             if (!optimizer.isSatisfiable(assumptions.toDimacs()))
                 throw UnsatisfiableException()
-            return optimizer.model().toLabeling(labelingFactory)
+            return optimizer.model().toInstance(instanceFactory)
         } catch (e: org.sat4j.specs.TimeoutException) {
             throw IterationsReachedException(maxConflicts)
         }
@@ -203,7 +203,7 @@ class Sat4JSolver @JvmOverloads constructor(
         return VecInt(newClause)
     }
 
-    private fun IntArray.toLabeling(factory: LabelingFactory): Labeling {
+    private fun IntArray.toInstance(factory: InstanceFactory): Instance {
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0

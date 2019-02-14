@@ -138,10 +138,10 @@ class IntSet private constructor(private var table: IntArray, size: Int) : IntCo
 
     override fun random(rng: Random): Int {
         require(size > 0)
-        var k = rng.nextInt(table.size)
-        while (table[k] < 0)
-            k = (k + 1) % table.size
-        return table[k]
+        while (true) {
+            val k = rng.nextInt(table.size)
+            if (table[k] >= 0) return table[k]
+        }
     }
 
     override fun add(ix: Ix): Boolean {
@@ -244,6 +244,15 @@ class IntList private constructor(private var array: IntArray, size: Int) : IntC
             array = array.copyOf(array.size * 2)
         array[size++] = ix
         return true
+    }
+
+    fun removeAt(ix: Int): Int {
+        val v = array[ix]
+        size--
+        for (i in ix until size)
+            array[i] = array[i + 1]
+        array[size] = 0
+        return v
     }
 
     override fun remove(ix: Int): Boolean {

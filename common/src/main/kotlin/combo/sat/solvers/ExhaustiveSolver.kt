@@ -21,29 +21,29 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
     override var timeout: Long = -1L
 
     /**
-     * Determines the [Labeling] that will be created for solving, for very sparse problems use
-     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
      */
-    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     private var randomSequence = RandomSequence(nanos())
 
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Instance {
         val remap = createRemap(assumptions)
         val nbrVariables = problem.nbrVariables - assumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return LabelingPermutation(nbrVariables, labelingFactory, randomSequence.next())
+        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .map { if (millis() <= end) it else throw TimeoutException(timeout) }
                 .map { remapLabeling(assumptions, it, remap) }
                 .firstOrNull { problem.satisfies(it) } ?: throw UnsatisfiableException()
     }
 
-    override fun sequence(assumptions: Literals): Sequence<Labeling> {
+    override fun sequence(assumptions: Literals): Sequence<Instance> {
         val remap = createRemap(assumptions)
         val nbrVariables = problem.nbrVariables - assumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return LabelingPermutation(nbrVariables, labelingFactory, randomSequence.next())
+        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapLabeling(assumptions, it, remap) }
@@ -69,15 +69,15 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         } else EMPTY_INT_ARRAY
     }
 
-    private fun remapLabeling(assumptions: Literals, labeling: Labeling, remap: IntArray): Labeling {
+    private fun remapLabeling(assumptions: Literals, instance: Instance, remap: IntArray): Instance {
         return if (assumptions.isNotEmpty()) {
-            val result = this.labelingFactory.create(problem.nbrVariables)
+            val result = this.instanceFactory.create(problem.nbrVariables)
             result.setAll(assumptions)
-            for (i in labeling.indices) {
-                result[remap[i]] = labeling[i]
+            for (i in instance.indices) {
+                result[remap[i]] = instance[i]
             }
             result
-        } else labeling
+        } else instance
     }
 }
 

@@ -37,10 +37,10 @@ class JacopSolver @JvmOverloads constructor(
     override var timeout: Long = -1L
 
     /**
-     * Determines the [Labeling] that will be created for solving, for very sparse problems use
-     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
      */
-    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     private val lock = Object()
 
@@ -104,11 +104,11 @@ class JacopSolver @JvmOverloads constructor(
     }
 
 
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Instance {
         synchronized(lock) {
             try {
                 store.setLevel(store.level + 1)
-                if (optimizeVars.isEmpty()) return labelingFactory.create(0)
+                if (optimizeVars.isEmpty()) return instanceFactory.create(0)
                 if (assumptions.isNotEmpty()) {
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
                 }
@@ -121,7 +121,7 @@ class JacopSolver @JvmOverloads constructor(
                     if (search.timeOutOccured) throw TimeoutException(timeout)
                     else throw UnsatisfiableException()
                 }
-                return toLabeling(labelingFactory)
+                return toInstance(instanceFactory)
             } finally {
                 store.removeLevel(store.level)
                 store.setLevel(store.level - 1)
@@ -130,19 +130,19 @@ class JacopSolver @JvmOverloads constructor(
     }
 
     /**
-     * This method is not lazy due to limitations in jacop. Use another solver or [forEachLabeling] instead.
+     * This method is not lazy due to limitations in jacop. Use another solver or [forEachInstance] instead.
      * If timeout is not set it will only terminate once all solutions are exhausted, which is probably never.
      */
-    override fun sequence(assumptions: Literals): Sequence<Labeling> {
-        val list = ArrayList<Labeling>()
-        forEachLabeling(Integer.MAX_VALUE, assumptions) { list.add(it) }
+    override fun sequence(assumptions: Literals): Sequence<Instance> {
+        val list = ArrayList<Instance>()
+        forEachInstance(Integer.MAX_VALUE, assumptions) { list.add(it) }
         return list.asSequence()
     }
 
     /**
      * This method is the preferred way to iterate through solutions using Jacop.
      */
-    fun forEachLabeling(limit: Int, assumptions: Literals, labelingConsumer: (Labeling) -> Unit) {
+    fun forEachInstance(limit: Int, assumptions: Literals, instanceConsumer: (Instance) -> Unit) {
         synchronized(lock) {
             try {
                 store.setLevel(store.level + 1)
@@ -157,7 +157,7 @@ class JacopSolver @JvmOverloads constructor(
                 search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
                     override fun recordSolution() {
                         super.recordSolution()
-                        labelingConsumer.invoke(toLabeling(labelingFactory))
+                        instanceConsumer.invoke(toInstance(instanceFactory))
                     }
                 })
                 search.getSolutionListener().setSolutionLimit(limit)
@@ -170,11 +170,11 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
         synchronized(lock) {
             try {
                 store.setLevel(store.level + 1)
-                if (optimizeVars.isEmpty()) return labelingFactory.create(0)
+                if (optimizeVars.isEmpty()) return instanceFactory.create(0)
                 if (assumptions.isNotEmpty()) {
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
                 }
@@ -197,7 +197,7 @@ class JacopSolver @JvmOverloads constructor(
                     if (search.timeOutOccured) throw TimeoutException(timeout)
                     else throw UnsatisfiableException()
                 }
-                return toLabeling(labelingFactory)
+                return toInstance(instanceFactory)
             } finally {
                 store.removeLevel(store.level)
                 store.setLevel(store.level - 1)
@@ -205,7 +205,7 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    private fun toLabeling(factory: LabelingFactory): Labeling {
+    private fun toInstance(factory: InstanceFactory): Instance {
         val nbrPos = vars.count { it.value() == 1 }
         val lits = IntArray(nbrPos)
         var k = 0

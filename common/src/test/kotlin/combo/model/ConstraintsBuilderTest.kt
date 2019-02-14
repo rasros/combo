@@ -106,14 +106,14 @@ class ConstraintsBuilderTest {
         val c = vars[0] xor vars[2] xor vars[1]
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertTrue(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b111 })))
-        assertFalse(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b011 })))
-        assertFalse(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b101 })))
-        assertTrue(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertFalse(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertTrue(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
-        assertTrue(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b100 })))
-        assertFalse(p.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
+        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b111 })))
+        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b011 })))
+        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b101 })))
+        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
+        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b100 })))
+        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
     }
 
     @Test
@@ -121,10 +121,10 @@ class ConstraintsBuilderTest {
         val c = vars[0] xor !vars[1]
         val sents = c.toConstraints(index)
         val p = Problem(sents, 2)
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0))))
     }
 
     @Test
@@ -133,14 +133,14 @@ class ConstraintsBuilderTest {
         val c = vars[0] equivalent vars[1] equivalent vars[2]
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
     }
 
     @Test
@@ -148,10 +148,10 @@ class ConstraintsBuilderTest {
         val c = vars[0] equivalent !vars[1]
         val sents = c.toConstraints(index)
         val p = Problem(sents, 2)
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0))))
     }
 
     @Test
@@ -160,14 +160,14 @@ class ConstraintsBuilderTest {
         val c = vars[0] implies vars[1] implies vars[2]
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
     }
 
     @Test
@@ -175,10 +175,10 @@ class ConstraintsBuilderTest {
         val c = !vars[0] implies vars[1]
         val sents = c.toConstraints(index)
         val p = Problem(sents, 2)
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0))))
     }
 
     @Test
@@ -193,14 +193,14 @@ class ConstraintsBuilderTest {
         val c = excludes(vars[0], vars[2], vars[1])
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
     }
 
     @Test
@@ -208,14 +208,14 @@ class ConstraintsBuilderTest {
         val c = vars[0] reified and(vars[1], !vars[2])
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
     }
 
     @Test
@@ -223,14 +223,14 @@ class ConstraintsBuilderTest {
         val c = vars[0] reified or(vars[1], vars[2])
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
     }
 
     @Test
@@ -238,14 +238,14 @@ class ConstraintsBuilderTest {
         val c = !vars[2] reified or(vars[1], vars[0])
         val sents = c.toConstraints(index)
         val p = Problem(sents, 3)
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayLabeling(byteArrayOf(0, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
+        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
+        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
     }
 
     @Test
@@ -263,9 +263,9 @@ class ConstraintsBuilderTest {
         val c3 = vars[2] or vars[4]
         val c = !c1 or (c2 and c3)
         val sents = c.toConstraints(index)
-        val l = ByteArrayLabeling(6)
-        l[5] = true
-        assertTrue(Problem(sents, 6).satisfies(l))
+        val instance = ByteArrayInstance(6)
+        instance[5] = true
+        assertTrue(Problem(sents, 6).satisfies(instance))
     }
 
     @Test
@@ -307,12 +307,12 @@ class ConstraintsBuilderTest {
         val p = Problem(sents, 7)
 
         // Random sample
-        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111111 })))
-        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111110 })))
-        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0101111 })))
-        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0000111 })))
-        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b1110011 })))
-        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0011011 })))
+        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111111 })))
+        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111110 })))
+        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0101111 })))
+        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0000111 })))
+        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b1110011 })))
+        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0011011 })))
     }
 
     @Test
@@ -331,12 +331,12 @@ class ConstraintsBuilderTest {
         val p = Problem(sents, 7)
 
         // Random sample
-        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111111 })))
-        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b111110 })))
-        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0101111 })))
-        assertTrue(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0000111 })))
-        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b1110011 })))
-        assertFalse(p.satisfies(BitFieldLabeling(7, LongArray(1) { 0b0011011 })))
+        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111111 })))
+        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111110 })))
+        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0101111 })))
+        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0000111 })))
+        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b1110011 })))
+        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0011011 })))
     }
 }
 

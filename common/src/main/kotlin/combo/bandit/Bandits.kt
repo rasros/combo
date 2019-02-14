@@ -2,7 +2,7 @@ package combo.bandit
 
 import combo.math.DataSample
 import combo.math.VarianceEstimator
-import combo.sat.Labeling
+import combo.sat.Instance
 import combo.sat.Literals
 import combo.sat.ValidationException
 import combo.util.EMPTY_INT_ARRAY
@@ -14,7 +14,7 @@ import kotlin.math.abs
  */
 interface Bandit<D> {
 
-    fun chooseOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Labeling
+    fun chooseOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Instance
 
     fun choose(assumptions: Literals = EMPTY_INT_ARRAY) =
             try {
@@ -27,7 +27,7 @@ interface Bandit<D> {
      * Add the results of a bandit evaluation. The [weight] can be used to increase the importance of the update, for
      * binomial this is interpreted as the n-parameter.
      */
-    fun update(labeling: Labeling, result: Double, weight: Double = 1.0)
+    fun update(instance: Instance, result: Double, weight: Double = 1.0)
 
     /**
      * Add historic data to the bandit, this can be used to store and re-start the bandit. In general, any existing
@@ -73,17 +73,17 @@ interface PredictionBandit<D> : Bandit<D> {
     var testAbsError: DataSample
 
     /**
-     * Evaluate the machine learning model on a [labeling].
+     * Evaluate the machine learning model on a [instance].
      */
-    fun predict(labeling: Labeling): Double
+    fun predict(instance: Instance): Double
 
-    fun train(labeling: Labeling, result: Double, weight: Double)
+    fun train(instance: Instance, result: Double, weight: Double)
 
-    override fun update(labeling: Labeling, result: Double, weight: Double) {
+    override fun update(instance: Instance, result: Double, weight: Double) {
         rewards.accept(result, weight)
-        testAbsError.accept(abs((result - predict(labeling)) * weight))
-        train(labeling, result, weight)
-        trainAbsError.accept(abs((result - predict(labeling)) * weight))
+        testAbsError.accept(abs((result - predict(instance)) * weight))
+        train(instance, result, weight)
+        trainAbsError.accept(abs((result - predict(instance)) * weight))
     }
 }
 
@@ -94,4 +94,4 @@ interface PredictionBandit<D> : Bandit<D> {
  */
 class LiteralData<E : VarianceEstimator>(val setLiterals: Literals, val data: E)
 
-class LabelingData<E : VarianceEstimator>(val labeling: Labeling, val data: E)
+class LabelingData<E : VarianceEstimator>(val instance: Instance, val data: E)

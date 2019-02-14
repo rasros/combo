@@ -26,9 +26,9 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
      */
     fun constraintsWith(varIx: Ix) = variableConstraints[varIx]
 
-    fun satisfies(l: Labeling) = constraints.all { it.satisfies(l) }
+    fun satisfies(l: Instance) = constraints.all { it.satisfies(l) }
 
-    fun flipsToSatisfy(l: Labeling) = constraints.sumBy { it.flipsToSatisfy(l) }
+    fun flipsToSatisfy(l: Instance) = constraints.sumBy { it.flipsToSatisfy(l) }
 
     /**
      * Performs unit propagation on all constraints. Additional unit variables can be added in the [units] parameter.

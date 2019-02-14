@@ -1,17 +1,5 @@
 package combo.bandit.glm
 
-import combo.bandit.PredictionBandit
-import combo.math.*
-import combo.sat.Labeling
-import combo.sat.Problem
-import combo.sat.dot
-import combo.sat.solvers.LinearObjective
-import combo.sat.solvers.Optimizer
-import combo.sat.toIx
-import combo.util.nanos
-import kotlin.math.sqrt
-import kotlin.random.Random
-
 /*
 class GLMBandit(val problem: Problem,
                 val maximize: Boolean = true,
@@ -38,16 +26,16 @@ class GLMBandit(val problem: Problem,
         require(lambda >= 1E-6) { "Lambda prior parameter should not be too close to zero (1E-6)." }
     }
 
-    override fun predict(labeling: Labeling) = link.apply(bias + (labeling dot weights))
+    override fun predict(instance: Instance) = link.apply(bias + (instance dot weights))
 
-    override fun train(labeling: Labeling, result: Double, weight: Double) {
-        val pred = predict(labeling)
+    override fun train(instance: Instance, result: Double, weight: Double) {
+        val pred = predict(instance)
         val diff = result - pred
         val varF = family.variance(pred)
-        sampler.update(weights, labeling, rewards.nbrSamples.toDouble(), lambda, diff, varF, 1.0)
+        sampler.update(weights, instance, rewards.nbrSamples.toDouble(), lambda, diff, varF, 1.0)
     }
 
-    override fun chooseOrThrow(assumptions: IntArray): Labeling {
+    override fun chooseOrThrow(assumptions: IntArray): Instance {
         val rng = randomSequence.next()
         val sampled = sampler.sample(weights, rng)
         return optimizer.optimizeOrThrow(LinearObjective(maximize, sampled), assumptions)
@@ -74,10 +62,10 @@ sealed class RegressionModel(bias: Double,
     var nbrUpdates: Long = nbrUpdates
         protected set
 
-    fun predict(labeling: Labeling) = link.apply(bias + (labeling dot weights))
+    fun predict(instance: Instance) = link.apply(bias + (instance dot weights))
 
     abstract fun sample(rng: Random): Vector
-    abstract fun update(labeling: Labeling, result: Double, weight: Double)
+    abstract fun update(instance: Instance, result: Double, weight: Double)
 }
 
 class DiagonalModel(bias: Double,
@@ -90,13 +78,13 @@ class DiagonalModel(bias: Double,
                     val covariance: Vector)
     : RegressionModel(bias, nbrUpdates, weights, lambda, link, family, scaling) {
 
-    override fun update(labeling: Labeling, result: Double, weight: Double) {
+    override fun update(instance: Instance, result: Double, weight: Double) {
         nbrUpdates++
-        val pred = predict(labeling)
+        val pred = predict(instance)
         val diff = result - pred
         val varF = family.variance(pred)
         //     step = H_inv * (x*dlik-reg) / scaling;
-        val itr = labeling.truthIterator()
+        val itr = instance.truthIterator()
         while (itr.hasNext()) {
             val i = itr.nextInt().toIx()
             val reg = lambda * weights[i] / nbrUpdates
@@ -118,9 +106,9 @@ class FullSampler(val covariance: Matrix, val cholesky: Matrix, biasVar: Double)
     var biasVar: Double = biasVar
         private set
 
-    override fun update(weights: Vector, labeling: Labeling, t: Double, lambda: Double, diff: Double, varF: Double, scaling: Double) {
+    override fun update(weights: Vector, instance: Instance, t: Double, lambda: Double, diff: Double, varF: Double, scaling: Double) {
 
-        val v: Vector = labeling.toDoubleArray().apply { multiply(sqrt(varF)) }
+        val v: Vector = instance.toDoubleArray().apply { multiply(sqrt(varF)) }
         val u: Vector = (covariance * v)
         u.divide(sqrt(1.0 + (u dot v)))
 
@@ -129,7 +117,7 @@ class FullSampler(val covariance: Matrix, val cholesky: Matrix, biasVar: Double)
                 covariance[i][j] -= u[i] * u[j]
         cholesky.cholDowndate(u)
 
-        val x = labeling.toDoubleArray()
+        val x = instance.toDoubleArray()
         val reg: Vector = lambda * weights / t
         reg[0] = 0.0 // TODO parameter
         val step = covariance * (x.apply { multiply(diff) }.apply { sub(reg) }.apply { divide(scaling) })

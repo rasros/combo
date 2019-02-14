@@ -11,13 +11,13 @@ import kotlin.math.pow
  * A solver can generate a random [witness] that satisfy the constraints and
  * iterate over the possible solutions with [sequence].
  */
-interface Solver : Iterable<Labeling> {
+interface Solver : Iterable<Instance> {
 
     /**
      * Generates a random solution, ie. a witness.
      * @param assumptions these variables will be fixed during solving, see [Literal].
      */
-    fun witness(assumptions: Literals = EMPTY_INT_ARRAY): Labeling? {
+    fun witness(assumptions: Literals = EMPTY_INT_ARRAY): Instance? {
         return try {
             witnessOrThrow(assumptions)
         } catch (e: ValidationException) {
@@ -30,7 +30,7 @@ interface Solver : Iterable<Labeling> {
      * @throws ValidationException if there is a logical error in the problem or a solution cannot be found with the
      * allotted resources..
      */
-    fun witnessOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Labeling
+    fun witnessOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Instance
 
     /**
      * Note that the iterator cannot be used in parallel, but multiple iterators can be used in parallel from the same
@@ -43,7 +43,7 @@ interface Solver : Iterable<Labeling> {
      * solver. The method does not throw exceptions if
      * @param assumptions these variables will be fixed during solving, see [Literal].
      */
-    fun sequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Labeling> {
+    fun sequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Instance> {
         return generateSequence { witness(assumptions) }
     }
 
@@ -65,11 +65,11 @@ interface Optimizer<in O : ObjectiveFunction> {
 
     /**
      * Minimize the [function], optionally with the additional constraints in [assumptions].
-     * Returns null if no labeling can be found.
+     * Returns null if no instance can be found.
      * @param function the objective function to optimize on.
      * @param assumptions these variables will be fixed during solving, see [Literal].
      */
-    fun optimize(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Labeling? {
+    fun optimize(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Instance? {
         return try {
             optimizeOrThrow(function, assumptions)
         } catch (e: ValidationException) {
@@ -84,7 +84,7 @@ interface Optimizer<in O : ObjectiveFunction> {
      * @throws ValidationException if there is a logical error in the problem or a solution cannot be found with the
      * allotted resources.
      */
-    fun optimizeOrThrow(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Labeling
+    fun optimizeOrThrow(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Instance
 
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
@@ -99,9 +99,9 @@ interface Optimizer<in O : ObjectiveFunction> {
 
 interface ObjectiveFunction {
     /**
-     * Value to minimize evaluated on a [Labeling], which take on values between zeros and ones.
+     * Value to minimize evaluated on a [Instance], which take on values between zeros and ones.
      */
-    fun value(labeling: Labeling): Double
+    fun value(instance: Instance): Double
 
     /**
      * For information about possibilities, see:
@@ -118,11 +118,11 @@ interface ObjectiveFunction {
     /**
      * Override for efficiency reasons. New value should be previous value - improvement.
      */
-    fun improvement(labeling: Labeling, ix: Ix, propagations: Literals): Double {
-        val copy = labeling.copy()
+    fun improvement(instance: Instance, ix: Ix, propagations: Literals): Double {
+        val copy = instance.copy()
         copy.flip(ix)
         copy.setAll(propagations)
-        val v1 = value(labeling)
+        val v1 = value(instance)
         val v2 = value(copy)
         return v1 - v2
     }
@@ -136,22 +136,22 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
     private val lowerBound: Double = if (maximize) -weights.sumByDouble { max(0.0, it) } else
         weights.sumByDouble { min(0.0, it) }
 
-    override fun value(labeling: Labeling) = (labeling dot weights).let {
+    override fun value(instance: Instance) = (instance dot weights).let {
         if (maximize) -it else it
     }
 
     override fun lowerBound() = lowerBound
 
-    private fun improvementLiteral(labeling: Labeling, literal: Literal) =
-            if (labeling.literal(literal.toIx()) == literal) 0.0
+    private fun improvementLiteral(instance: Instance, literal: Literal) =
+            if (instance.literal(literal.toIx()) == literal) 0.0
             else {
-                val w = weights[literal.toIx()].let { if (labeling[literal.toIx()]) it else -it }
+                val w = weights[literal.toIx()].let { if (instance[literal.toIx()]) it else -it }
                 if (maximize) -w else w
             }
 
-    override fun improvement(labeling: Labeling, ix: Literal, propagations: Literals): Double {
-        return improvementLiteral(labeling, !labeling.literal(ix)) + propagations.sumByDouble {
-            improvementLiteral(labeling, it)
+    override fun improvement(instance: Instance, ix: Literal, propagations: Literals): Double {
+        return improvementLiteral(instance, !instance.literal(ix)) + propagations.sumByDouble {
+            improvementLiteral(instance, it)
         }
     }
 }
@@ -160,9 +160,9 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
  * Used to turn an [Optimizer] into a boolean sat [Solver].
  */
 object SatObjective : ObjectiveFunction {
-    override fun value(labeling: Labeling) = 0.0
+    override fun value(instance: Instance) = 0.0
     override fun lowerBound() = 0.0
-    override fun improvement(labeling: Labeling, ix: Literal, propagations: Literals) = 0.0
+    override fun improvement(instance: Instance, ix: Literal, propagations: Literals) = 0.0
     override fun penalty(violations: Int) = violations.toDouble()
 }
 

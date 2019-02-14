@@ -2,8 +2,8 @@
 
 package combo.math
 
-import combo.sat.Labeling
-import combo.sat.MutableLabeling
+import combo.sat.Instance
+import combo.sat.MutableInstance
 import combo.util.transformArray
 import kotlin.jvm.JvmName
 import kotlin.math.max
@@ -11,13 +11,13 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
 
-class CandidateLabelings(
-        val labelings: Array<out MutableLabeling>,
+class CandidateSolutions(
+        val instances: Array<out MutableInstance>,
         val scores: DoubleArray,
         val ages: IntArray) {
 
-    val bestLabeling: Labeling
-        get() = labelings[0]
+    val bestInstance: Instance
+        get() = instances[0]
     val minScore: Double
         get() = scores[0]
     val maxScore: Double
@@ -37,19 +37,19 @@ class CandidateLabelings(
             return oldestI
         }
     val populationSize: Int
-        get() = labelings.size
+        get() = instances.size
     val nbrVariables: Int
-        get() = labelings[0].size
+        get() = instances[0].size
 
     init {
         // Sort all arrays according to score
         val index = ArrayList<Int>()
-        index.addAll(0 until labelings.size)
+        index.addAll(0 until instances.size)
         index.sortBy {
             scores[it]
         }
 
-        for (i in 0 until labelings.size) {
+        for (i in 0 until instances.size) {
             while (index[i] != i) {
                 swap(index[index[i]], index[i])
                 val oldI = index[index[i]]
@@ -60,16 +60,16 @@ class CandidateLabelings(
     }
 
     private fun swap(ix1: Int, ix2: Int) {
-        val oldPop = labelings[ix1]
+        val oldPop = instances[ix1]
         val oldScore = scores[ix1]
         val oldAge = ages[ix1]
 
         @Suppress("UNCHECKED_CAST")
-        (labelings as Array<MutableLabeling>)[ix1] = labelings[ix2]
+        (instances as Array<MutableInstance>)[ix1] = instances[ix2]
         scores[ix1] = scores[ix2]
         ages[ix1] = ages[ix2]
 
-        labelings[ix2] = oldPop
+        instances[ix2] = oldPop
         scores[ix2] = oldScore
         ages[ix2] = oldAge
     }
@@ -91,14 +91,14 @@ class CandidateLabelings(
 }
 
 interface RecombinationOperator {
-    fun combine(parent1: Int, parent2: Int, child: Int, cl: CandidateLabelings, rng: Random)
+    fun combine(parent1: Int, parent2: Int, child: Int, cl: CandidateSolutions, rng: Random)
 }
 
 class UniformRecombination : RecombinationOperator {
-    override fun combine(parent1: Int, parent2: Int, child: Int, cl: CandidateLabelings, rng: Random) {
-        val s1 = cl.labelings[parent1]
-        val s2 = cl.labelings[parent2]
-        val s3 = cl.labelings[child]
+    override fun combine(parent1: Int, parent2: Int, child: Int, cl: CandidateSolutions, rng: Random) {
+        val s1 = cl.instances[parent1]
+        val s2 = cl.instances[parent2]
+        val s3 = cl.instances[child]
         for (i in 0 until cl.nbrVariables)
             if (rng.nextBoolean()) {
                 if (s1[i] != s3[i]) s3.flip(i)
@@ -107,10 +107,10 @@ class UniformRecombination : RecombinationOperator {
 }
 
 class KPointRecombination(val k: Int = 1) : RecombinationOperator {
-    override fun combine(parent1: Int, parent2: Int, child: Int, cl: CandidateLabelings, rng: Random) {
-        var s1 = cl.labelings[parent1]
-        var s2 = cl.labelings[parent2]
-        val s3 = cl.labelings[child]
+    override fun combine(parent1: Int, parent2: Int, child: Int, cl: CandidateSolutions, rng: Random) {
+        var s1 = cl.instances[parent1]
+        var s2 = cl.instances[parent2]
+        val s3 = cl.instances[child]
         val perm = IntPermutation(cl.nbrVariables, rng)
         val points = IntArray(min(k, cl.nbrVariables)) { perm.encode(it) }.apply { sort() }
         var prev = 0
@@ -130,15 +130,15 @@ class KPointRecombination(val k: Int = 1) : RecombinationOperator {
 }
 
 interface SelectionOperator {
-    fun select(state: CandidateLabelings, rng: Random): Int
+    fun select(state: CandidateSolutions, rng: Random): Int
 }
 
 class UniformSelection : SelectionOperator {
-    override fun select(state: CandidateLabelings, rng: Random) = rng.nextInt(state.scores.size)
+    override fun select(state: CandidateSolutions, rng: Random) = rng.nextInt(state.scores.size)
 }
 
 class StochasticAcceptanceSelection(val acceptancePenalty: Double = 0.0) : SelectionOperator {
-    override fun select(state: CandidateLabelings, rng: Random): Int {
+    override fun select(state: CandidateSolutions, rng: Random): Int {
         if (!state.minScore.isFinite() || state.minScore == state.maxScore) return rng.nextInt(state.scores.size)
         TODO()
         while (true) {
@@ -155,7 +155,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator {
         require(tournamentSize > 0)
     }
 
-    override fun select(state: CandidateLabelings, rng: Random): Int {
+    override fun select(state: CandidateSolutions, rng: Random): Int {
         var score = Double.POSITIVE_INFINITY
         var best = 0
         val perm = IntPermutation(state.populationSize, rng)
@@ -171,7 +171,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator {
 }
 
 class OldestElimination : SelectionOperator {
-    override fun select(state: CandidateLabelings, rng: Random) = state.oldest
+    override fun select(state: CandidateSolutions, rng: Random) = state.oldest
 }
 
 class TournamentElimination(val tournamentSize: Int) : SelectionOperator {
@@ -180,7 +180,7 @@ class TournamentElimination(val tournamentSize: Int) : SelectionOperator {
         require(tournamentSize > 0)
     }
 
-    override fun select(state: CandidateLabelings, rng: Random): Int {
+    override fun select(state: CandidateSolutions, rng: Random): Int {
         var score = Double.NEGATIVE_INFINITY
         var worst = 0
         val perm = IntPermutation(state.populationSize, rng)
@@ -196,14 +196,14 @@ class TournamentElimination(val tournamentSize: Int) : SelectionOperator {
 }
 
 interface MutationOperator {
-    fun mutate(target: MutableLabeling, rng: Random)
+    fun mutate(target: MutableInstance, rng: Random)
 }
 
 interface PointMutationOperator : MutationOperator {
 
     fun mutationRate(nbrVariables: Int, rng: Random): Double
 
-    override fun mutate(target: MutableLabeling, rng: Random) {
+    override fun mutate(target: MutableInstance, rng: Random) {
         val rate = mutationRate(target.size, rng)
         var index = rng.nextGeometric(rate) - 1
         while (index < target.size) {
@@ -214,7 +214,7 @@ interface PointMutationOperator : MutationOperator {
 }
 
 class FixedMutation(val nbrFlips: Int = 1) : MutationOperator {
-    override fun mutate(target: MutableLabeling, rng: Random) {
+    override fun mutate(target: MutableInstance, rng: Random) {
         val permutation = IntPermutation(target.size, rng)
         for (i in 0 until nbrFlips) {
             target.flip(permutation.encode(i))

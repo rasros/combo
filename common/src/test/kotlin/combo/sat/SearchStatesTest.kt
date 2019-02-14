@@ -16,12 +16,12 @@ abstract class SearchStateTest {
     }
 
     private fun checkUnsatisfied(p: Problem, t: SearchState) {
-        if (p.satisfies(t.labeling) && t.assumption.satisfies(t.labeling)) {
+        if (p.satisfies(t.instance) && t.assumption.satisfies(t.instance)) {
             assertEquals(0, t.totalUnsatisfied
-                    - t.assumption.flipsToSatisfy(t.labeling))
+                    - t.assumption.flipsToSatisfy(t.instance))
         } else {
-            assertEquals(p.constraints.sumBy { it.flipsToSatisfy(t.labeling) }
-                    + t.assumption.flipsToSatisfy(t.labeling), t.totalUnsatisfied)
+            assertEquals(p.constraints.sumBy { it.flipsToSatisfy(t.instance) }
+                    + t.assumption.flipsToSatisfy(t.instance), t.totalUnsatisfied)
         }
     }
 
@@ -30,9 +30,9 @@ abstract class SearchStateTest {
         val p = SolverTest.SMALL_PROBLEMS[2]
         val f = factory(p)
         for (z in 1..REPEAT) {
-            val state1 = f.build(ByteArrayLabelingFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
-            val state2 = f.build(ByteArrayLabelingFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
-            assertEquals(state1.labeling, state2.labeling)
+            val state1 = f.build(ByteArrayInstanceFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
+            val state2 = f.build(ByteArrayInstanceFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
+            assertEquals(state1.instance, state2.instance)
         }
     }
 
@@ -42,11 +42,11 @@ abstract class SearchStateTest {
             val solver = ExhaustiveSolver(p)
             val f = factory(p)
             for (z in 1..REPEAT) {
-                val l = solver.witnessOrThrow() as MutableLabeling
-                val copy = l.copy()
-                val state = f.buildPreDefined(l, EMPTY_INT_ARRAY)
+                val instance = solver.witnessOrThrow() as MutableInstance
+                val copy = instance.copy()
+                val state = f.buildPreDefined(instance, EMPTY_INT_ARRAY)
                 assertEquals(0, state.totalUnsatisfied)
-                assertEquals(copy, l)
+                assertEquals(copy, instance)
             }
         }
     }
@@ -57,12 +57,12 @@ abstract class SearchStateTest {
             val solver = ExhaustiveSolver(p)
             val f = factory(p)
             for (z in 1..REPEAT) {
-                val l = solver.witnessOrThrow() as MutableLabeling
-                val copy = l.copy()
-                val assumptions = intArrayOf(l.literal(Random.nextInt(p.nbrVariables)))
-                val state = f.buildPreDefined(l, assumptions)
+                val instance = solver.witnessOrThrow() as MutableInstance
+                val copy = instance.copy()
+                val assumptions = intArrayOf(instance.literal(Random.nextInt(p.nbrVariables)))
+                val state = f.buildPreDefined(instance, assumptions)
                 checkUnsatisfied(p, state)
-                assertEquals(copy, l)
+                assertEquals(copy, instance)
             }
         }
     }
@@ -73,28 +73,27 @@ abstract class SearchStateTest {
             val f = factory(p)
             val solver = ExhaustiveSolver(p)
             for (z in 1..REPEAT) {
-                val l = solver.witnessOrThrow() as MutableLabeling
-                val copy = l.copy()
-                val assumptions = intArrayOf(!l.literal(Random.nextInt(p.nbrVariables)))
-                val state = f.buildPreDefined(l, assumptions)
+                val instance = solver.witnessOrThrow() as MutableInstance
+                val copy = instance.copy()
+                val assumptions = intArrayOf(!instance.literal(Random.nextInt(p.nbrVariables)))
+                val state = f.buildPreDefined(instance, assumptions)
                 checkUnsatisfied(p, state)
-                assertNotEquals(copy, l)
+                assertNotEquals(copy, instance)
             }
         }
     }
 
     @Test
     fun initialize() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabeling(p.nbrVariables)
-                val state = f.build(l, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val instance = BitFieldInstance(p.nbrVariables)
+                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
                 checkUnsatisfied(p, state)
             }
         }
@@ -102,17 +101,16 @@ abstract class SearchStateTest {
 
     @Test
     fun initializeAssumptions() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabeling(p.nbrVariables)
+                val instance = BitFieldInstance(p.nbrVariables)
                 val assumptions = IntArray(Random.nextInt(p.nbrVariables)) { it.toLiteral(Random.nextBoolean()) }
-                val state = f.build(l, assumptions, RandomSelector, null, Random)
+                val state = f.build(instance, assumptions, RandomSelector, null, Random)
                 checkUnsatisfied(p, state)
             }
         }
@@ -120,38 +118,36 @@ abstract class SearchStateTest {
 
     @Test
     fun flip() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabeling(p.nbrVariables)
-                val state = f.build(l, EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
+                val instance = BitFieldInstance(p.nbrVariables)
+                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
                 checkUnsatisfied(p, state)
                 val ix = Random(0).nextInt(p.nbrVariables)
-                val lit = state.labeling.literal(ix)
+                val lit = state.instance.literal(ix)
                 state.flip(ix)
                 checkUnsatisfied(p, state)
-                assertNotEquals(lit, state.labeling.literal(ix))
+                assertNotEquals(lit, state.instance.literal(ix))
             }
         }
     }
 
     @Test
     fun flipMany() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabeling(p.nbrVariables)
-                val state = f.build(l, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val instance = BitFieldInstance(p.nbrVariables)
+                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
                 checkUnsatisfied(p, state)
                 for (lit in 1..10) {
                     state.flip(Random.nextInt(p.nbrVariables))
@@ -163,20 +159,19 @@ abstract class SearchStateTest {
 
     @Test
     fun improvementNoChange() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabelingFactory.create(p.nbrVariables)
-                val state = f.build(l, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val instance = BitFieldInstanceFactory.create(p.nbrVariables)
+                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
                 val ix = Random.nextInt(p.nbrVariables)
-                val copy = l.copy()
+                val copy = instance.copy()
                 state.improvement(ix)
-                assertEquals(copy, l)
+                assertEquals(copy, instance)
                 checkUnsatisfied(p, state)
             }
         }
@@ -184,21 +179,20 @@ abstract class SearchStateTest {
 
     @Test
     fun improvement() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabelingFactory.create(p.nbrVariables)
-                val state = f.build(l, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val instance = BitFieldInstanceFactory.create(p.nbrVariables)
+                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
                 val ix = Random.nextInt(p.nbrVariables)
                 val imp = state.improvement(ix)
-                val preFlips = p.flipsToSatisfy(l)
+                val preFlips = p.flipsToSatisfy(instance)
                 state.flip(ix)
-                val postFlips = p.flipsToSatisfy(l)
+                val postFlips = p.flipsToSatisfy(instance)
                 assertEquals(postFlips, preFlips - imp, "$postFlips = $preFlips - $imp")
                 checkUnsatisfied(p, state)
             }
@@ -210,9 +204,9 @@ abstract class SearchStateTest {
         val p = Problem(arrayOf(), 10)
         val f = factory(p)
         for (z in 1..REPEAT) {
-            val l = BitFieldLabelingFactory.create(p.nbrVariables)
-            val state = f.build(l, intArrayOf(0, 2, 4, 6), RandomSelector, null, Random)
-            if (state.labeling[0]) state.flip(0)
+            val instance = BitFieldInstanceFactory.create(p.nbrVariables)
+            val state = f.build(instance, intArrayOf(0, 2, 4, 6), RandomSelector, null, Random)
+            if (state.instance[0]) state.flip(0)
             val imp = state.improvement(0)
             assertTrue(imp > 0)
             checkUnsatisfied(p, state)
@@ -221,18 +215,17 @@ abstract class SearchStateTest {
 
     @Test
     fun randomUnsatisfied() {
-        val list = SolverTest.SMALL_UNSAT_PROBLEMS
-        for (p in list) {
+        for (p in SolverTest.SMALL_UNSAT_PROBLEMS) {
             val f = try {
                 factory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
             for (z in 1..REPEAT) {
-                val l = BitFieldLabelingFactory.create(p.nbrVariables)
-                val state = f.build(l, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val instance = BitFieldInstanceFactory.create(p.nbrVariables)
+                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
                 val sent = state.randomUnsatisfied(Random)
-                assertFalse(sent.satisfies(state.labeling))
+                assertFalse(sent.satisfies(state.instance))
             }
         }
     }
@@ -242,14 +235,14 @@ abstract class SearchStateTest {
         val p = Problem(arrayOf(), 5)
         val f = factory(p)
         for (z in 1..REPEAT) {
-            val l = BitFieldLabeling(5)
-            val state = f.build(l, intArrayOf(1, 3, 5, 7, 9), RandomSelector, null, Random)
+            val instance = BitFieldInstance(5)
+            val state = f.build(instance, intArrayOf(1, 3, 5, 7, 9), RandomSelector, null, Random)
             assertEquals(0, state.totalUnsatisfied)
-            for (i in 0 until 5) if (!state.labeling[i]) state.flip(i)
+            for (i in 0 until 5) if (!state.instance[i]) state.flip(i)
             assertEquals(5, state.totalUnsatisfied)
             val assumption = state.randomUnsatisfied(Random)
             assertTrue(assumption is Conjunction)
-            assertFalse(assumption.satisfies(state.labeling))
+            assertFalse(assumption.satisfies(state.instance))
         }
     }
 }

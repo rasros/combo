@@ -5,7 +5,7 @@ import combo.math.CountData
 import combo.math.VarianceEstimator
 import combo.math.nextNormal
 import combo.model.ModelTest
-import combo.sat.BitFieldLabeling
+import combo.sat.BitFieldInstance
 import combo.sat.Conjunction
 import combo.sat.Problem
 import combo.util.collectionOf
@@ -60,8 +60,8 @@ class DecisionTreeBanditTest : BanditTest<Array<LiteralData<VarianceEstimator>>>
         val p = ModelTest.SMALL1.problem
         val bandit = bandit(p, BanditType.POISSON)
         for (i in 1..100) {
-            val l = bandit.chooseOrThrow()
-            bandit.update(l, BanditType.POISSON.linearRewards(l, Random), abs(Random.nextNormal(1.0)))
+            val instance = bandit.chooseOrThrow()
+            bandit.update(instance, BanditType.POISSON.linearRewards(instance, Random), abs(Random.nextNormal(1.0)))
         }
         val data = bandit.exportData()
         val reduced = data.sliceArray(0 until data.size / 2)
@@ -87,13 +87,13 @@ class DecisionTreeBanditTest : BanditTest<Array<LiteralData<VarianceEstimator>>>
             maxLiveNodes = 5
         }
         for (i in 1..100) {
-            val l = bandit.chooseOrThrow()
-            bandit.update(l, BanditType.NORMAL.linearRewards(l, Random))
+            val instance = bandit.chooseOrThrow()
+            bandit.update(instance, BanditType.NORMAL.linearRewards(instance, Random))
         }
         val data = bandit.exportData()
         for (l in 0 until p.nbrVariables.toDouble().pow(2.0).toLong()) {
-            val labeling = BitFieldLabeling(p.nbrVariables, longArrayOf(l))
-            val nbrMatching = data.sumBy { if (Conjunction(collectionOf(it.setLiterals)).satisfies(labeling)) 1 else 0 }
+            val instance = BitFieldInstance(p.nbrVariables, longArrayOf(l))
+            val nbrMatching = data.sumBy { if (Conjunction(collectionOf(it.setLiterals)).satisfies(instance)) 1 else 0 }
             assertEquals(1, nbrMatching)
         }
     }

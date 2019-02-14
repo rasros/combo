@@ -76,7 +76,7 @@ class ProblemTest {
         } catch (e: UnsatisfiableException) {
             return
         }
-        LabelingPermutation(p.nbrVariables, BitFieldLabelingFactory, rng).iterator().asSequence().take(100).forEach {
+        InstancePermutation(p.nbrVariables, BitFieldInstanceFactory, rng).iterator().asSequence().take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }
@@ -85,9 +85,9 @@ class ProblemTest {
     fun satisfies() {
         val sentences = arrayOf(Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE))
         val problem = Problem(sentences, 3)
-        assertFalse(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
-        assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
+        assertFalse(problem.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertTrue(problem.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
+        assertTrue(problem.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
     }
 
 

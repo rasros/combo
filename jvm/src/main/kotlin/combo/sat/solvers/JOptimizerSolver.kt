@@ -52,10 +52,10 @@ class JOptimizerSolver @JvmOverloads constructor(
     var delta: Double = 1e-4
 
     /**
-     * Determines the [Labeling] that will be created for solving, for very sparse problems use
-     * [IntSetLabelingFactory] otherwise [BitFieldLabelingFactory].
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
      */
-    var labelingFactory: LabelingFactory = BitFieldLabelingFactory
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D
@@ -124,7 +124,7 @@ class JOptimizerSolver @JvmOverloads constructor(
      * @throws UnsatisfiableException
      * @throws IterationsReachedException by maxIterations
      */
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
         val request = BIPOptimizationRequest().apply {
             val mult = if (function.maximize) -1 else 1
             setC(IntArray(function.weights.size) { i ->
@@ -156,7 +156,7 @@ class JOptimizerSolver @JvmOverloads constructor(
                 throw IterationsReachedException(maxIterations)
             }
         }
-        return opt.bipOptimizationResponse.solution.toLabeling(labelingFactory)
+        return opt.bipOptimizationResponse.solution.toInstance(instanceFactory)
     }
 
     private fun disableLogging(obj: Any?, name: String, field: String) {
@@ -181,7 +181,7 @@ class JOptimizerSolver @JvmOverloads constructor(
         }
     }
 
-    private fun IntArray.toLabeling(factory: LabelingFactory): Labeling {
+    private fun IntArray.toInstance(factory: InstanceFactory): Instance {
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0

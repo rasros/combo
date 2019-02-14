@@ -4,7 +4,7 @@ import combo.sat.*
 
 class LocalSearchSolverTest : SolverTest() {
     override fun solver(problem: Problem) = LocalSearchSolver(problem).apply {
-        randomSeed = 0L;timeout = 5 * 1000L; stateFactory = BasicSearchStateFactory(problem)
+        randomSeed = 0L; timeout = 5 * 1000L; stateFactory = BasicSearchStateFactory(problem)
     }
 
     override fun unsatSolver(problem: Problem) = LocalSearchSolver(problem).apply {
@@ -35,21 +35,21 @@ class LocalSearchOptimizerTest : OptimizerTest() {
 
 class LocalSearchSolverPropTest : SolverTest() {
     override fun solver(problem: Problem) = LocalSearchSolver(problem).apply {
-        timeout = 5 * 1000L; stateFactory = PropSearchStateFactory(problem)
+        randomSeed = 0L; timeout = 5 * 1000L; stateFactory = PropSearchStateFactory(problem)
     }
 
     override fun unsatSolver(problem: Problem) = LocalSearchSolver(problem).apply {
-        timeout = 1L; maxSteps = 1; restarts = 1; stateFactory = PropSearchStateFactory(problem)
+        randomSeed = 0L; timeout = 1L; maxSteps = 1; restarts = 1; stateFactory = PropSearchStateFactory(problem)
     }
 }
 
 class LocalSearchLinearOptimizerPropTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(problem).apply {
-        timeout = 5 * 1000L; stateFactory = PropSearchStateFactory(problem); selector = WeightSelector
+        randomSeed = 0L; timeout = 5 * 1000L; stateFactory = PropSearchStateFactory(problem); selector = WeightSelector
     }
 
     override fun infeasibleOptimizer(problem: Problem) = LocalSearchOptimizer<LinearObjective>(problem).apply {
-        timeout = 1L; restarts = 1; maxSteps = 1; stateFactory = PropSearchStateFactory(problem)
+        randomSeed = 0L; timeout = 1L; restarts = 1; maxSteps = 1; stateFactory = PropSearchStateFactory(problem)
     }
 }
 

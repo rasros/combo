@@ -1,7 +1,7 @@
 package combo.sat.solvers
 
 import combo.math.nextNormal
-import combo.sat.Labeling
+import combo.sat.Instance
 import combo.sat.Problem
 import combo.util.EMPTY_INT_ARRAY
 import org.junit.Test
@@ -40,7 +40,7 @@ class ParallelSolverTest {
             val solver = solverCreator.invoke(p).apply { randomSeed = 0L }
             val pool = Executors.newFixedThreadPool(10)
             try {
-                val list = ArrayList<Callable<Labeling>>()
+                val list = ArrayList<Callable<Instance>>()
                 for (i in 0 until 50) {
                     list.add(Callable {
                         val assumptions = if (Random.nextBoolean()) EMPTY_INT_ARRAY
@@ -48,11 +48,11 @@ class ParallelSolverTest {
                         solver.witnessOrThrow(assumptions)
                     })
                 }
-                val labelings = pool.invokeAll(list).map { it.get() }
+                val instances = pool.invokeAll(list).map { it.get() }
                 pool.shutdown()
                 pool.awaitTermination(10L, TimeUnit.SECONDS)
-                assertEquals(50, labelings.size)
-                labelings.forEach {
+                assertEquals(50, instances.size)
+                instances.forEach {
                     assertTrue(p.satisfies(it))
                 }
             } finally {
@@ -69,16 +69,16 @@ class ParallelSolverTest {
             val solver = solverCreator.invoke(p).apply { randomSeed = 0L }
             val pool = Executors.newFixedThreadPool(5)
             try {
-                val list = ArrayList<Callable<Set<Labeling>>>()
+                val list = ArrayList<Callable<Set<Instance>>>()
                 for (i in 0 until 5)
                     list.add(Callable {
                         solver.sequence().take(10).toSet()
                     })
-                val labelings = pool.invokeAll(list).flatMap { it.get() }.toSet()
+                val instances = pool.invokeAll(list).flatMap { it.get() }.toSet()
                 pool.shutdown()
                 pool.awaitTermination(10L, TimeUnit.SECONDS)
-                assertEquals(nbrSolutions, labelings.size, solver::class.java.name)
-                labelings.forEach {
+                assertEquals(nbrSolutions, instances.size, solver::class.java.name)
+                instances.forEach {
                     assertTrue(p.satisfies(it), solver::class.java.name)
                 }
             } finally {
@@ -94,7 +94,7 @@ class ParallelSolverTest {
             val optimizer = solverCreator.invoke(p).apply { randomSeed = 0L }
             val pool = Executors.newFixedThreadPool(5)
             try {
-                val list = ArrayList<Callable<Labeling>>()
+                val list = ArrayList<Callable<Instance>>()
                 for (i in 0 until 20)
                     list.add(Callable {
                         val assumptions = if (Random.nextBoolean()) EMPTY_INT_ARRAY
@@ -103,11 +103,11 @@ class ParallelSolverTest {
                                 LinearObjective(true, DoubleArray(p.nbrVariables) { Random.nextNormal() }),
                                 assumptions)
                     })
-                val labelings = pool.invokeAll(list).map { it.get() }
+                val instances = pool.invokeAll(list).map { it.get() }
                 pool.shutdown()
                 pool.awaitTermination(10L, TimeUnit.SECONDS)
-                assertEquals(20, labelings.size, optimizer::class.java.name)
-                labelings.forEach {
+                assertEquals(20, instances.size, optimizer::class.java.name)
+                instances.forEach {
                     assertTrue(p.satisfies(it), optimizer::class.java.name)
                 }
             } finally {

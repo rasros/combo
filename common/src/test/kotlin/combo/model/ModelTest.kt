@@ -1,7 +1,7 @@
 package combo.model
 
 import combo.math.IntPermutation
-import combo.sat.BitFieldLabeling
+import combo.sat.BitFieldInstance
 import combo.sat.Relation.*
 import combo.sat.solvers.ExhaustiveSolver
 import combo.sat.solvers.LocalSearchSolver
@@ -223,9 +223,9 @@ class ModelTest {
     fun emptyModel() {
         val m = Model.builder().build()
         assertEquals(m.problem.nbrVariables, 0)
-        val l = LocalSearchSolver(m.problem).witnessOrThrow()
-        assertEquals(l.size, 0)
-        val a = m.toAssignment(l)
+        val instance = LocalSearchSolver(m.problem).witnessOrThrow()
+        assertEquals(instance.size, 0)
+        val a = m.toAssignment(instance)
         assertEquals(1, a.size)
     }
 
@@ -243,12 +243,12 @@ class ModelTest {
     fun problemCreation() {
         val p = SMALL4.problem
         assertEquals(7, p.nbrVariables)
-        val l = BitFieldLabeling(1, LongArray(1) { 0b0 })
+        val instance = BitFieldInstance(1, LongArray(1) { 0b0 })
         for (f in SMALL4.features) {
             if (f.name != "${"$"}root")
-                assertNull(SMALL4.toAssignment(l)[f])
+                assertNull(SMALL4.toAssignment(instance)[f])
         }
-        assertTrue(p.satisfies(l))
+        assertTrue(p.satisfies(instance))
     }
 
     @Test

@@ -11,7 +11,7 @@ import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
 
 /**
- * A cached solver reuses previous solutions, provided that there are previous labelings that match the assumptions.
+ * A cached solver reuses previous solutions, provided that there are previous instances that match the assumptions.
  */
 class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: Int = 50) : Solver {
 
@@ -27,14 +27,14 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
             baseSolver.timeout = value
         }
     /**
-     * Chance of generating new label regardless of whether there are any labelings matching the assumptions.
+     * Chance of generating new instance regardless of whether there are any instances matching the assumptions.
      */
     var pNew: Double = 0.0
 
-    private val cache = ConcurrentCache<Labeling>(maxSize)
+    private val cache = ConcurrentCache<Instance>(maxSize)
     private var randomSequence = RandomSequence(nanos())
 
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Instance {
         val rng = randomSequence.next()
         if (rng.nextDouble() < pNew)
             return baseSolver.witnessOrThrow(assumptions).also { cache.add(rng, it) }
@@ -44,7 +44,7 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
 }
 
 /**
- * A cached optimizer reuses previous solutions, provided that there are previous labelings that match the assumptions.
+ * A cached optimizer reuses previous solutions, provided that there are previous instances that match the assumptions.
  * @param problem
  */
 class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
@@ -63,24 +63,24 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         }
 
     /**
-     * Chance of generating new label regardless of whether there are any labelings matching the assumptions.
+     * Chance of generating new instance regardless of whether there are any instances matching the assumptions.
      */
     var pNew: Double = 0.0
 
-    private val cache = ConcurrentCache<Labeling>(maxSize)
+    private val cache = ConcurrentCache<Instance>(maxSize)
     private var randomSequence = RandomSequence(nanos())
 
     var size = 0
         private set
 
-    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
         val rng = randomSequence.next()
         if (rng.nextDouble() < pNew)
             return baseOptimizer.optimizeOrThrow(function, assumptions).also { cache.add(rng, it) }
 
         val c = Conjunction(collectionOf(assumptions))
         var minV = Double.MAX_VALUE
-        var best: Labeling? = null
+        var best: Instance? = null
         cache.forEach {
             if (c.satisfies(it)) {
                 val v = function.value(it)
@@ -112,20 +112,20 @@ class FallbackSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: 
         }
 
     private var randomSequence = RandomSequence(nanos())
-    private val cache: ConcurrentCache<Labeling> = ConcurrentCache(maxSize)
+    private val cache: ConcurrentCache<Instance> = ConcurrentCache(maxSize)
 
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
+    override fun witnessOrThrow(assumptions: Literals): Instance {
         return try {
             baseSolver.witnessOrThrow(assumptions).also {
                 cache.add(randomSequence.next(), it)
             }
         } catch (e: ValidationException) {
             val c = Conjunction(collectionOf(assumptions))
-            var l: Labeling? = null
+            var l: Instance? = null
             cache.forEach {
                 if (c.satisfies(it)) l = it
             }
-            return l ?: throw UnsatisfiableException("Failed to find matching fallback labeling", e)
+            return l ?: throw UnsatisfiableException("Failed to find matching fallback instance", e)
         }
     }
 }
@@ -149,12 +149,12 @@ class FallbackOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         }
 
     private var randomSequence = RandomSequence(nanos())
-    private val cache: ConcurrentCache<Labeling> = ConcurrentCache(maxSize)
+    private val cache: ConcurrentCache<Instance> = ConcurrentCache(maxSize)
 
-    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
         val c = Conjunction(collectionOf(assumptions))
-        val cached: Labeling? = let {
-            var best: Labeling? = null
+        val cached: Instance? = let {
+            var best: Instance? = null
             var minV = Double.MAX_VALUE
             cache.forEach {
                 if (c.satisfies(it)) {
@@ -168,14 +168,14 @@ class FallbackOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
             best
         }
         return try {
-            val labeling = baseOptimizer.optimizeOrThrow(function, assumptions)
-            if (cached == null) return labeling
-            val s1 = function.value(labeling)
+            val instance = baseOptimizer.optimizeOrThrow(function, assumptions)
+            if (cached == null) return instance
+            val s1 = function.value(instance)
             val s2 = function.value(cached)
-            if (s1 < s2) labeling.also { cache.add(randomSequence.next(), it) }
+            if (s1 < s2) instance.also { cache.add(randomSequence.next(), it) }
             else cached
         } catch (e: ValidationException) {
-            cached ?: throw UnsatisfiableException("Failed to find matching fallback labeling", e)
+            cached ?: throw UnsatisfiableException("Failed to find matching fallback instance", e)
         }
     }
 }
