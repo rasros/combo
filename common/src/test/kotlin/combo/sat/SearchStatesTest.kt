@@ -6,16 +6,16 @@ import combo.util.EMPTY_INT_ARRAY
 import kotlin.random.Random
 import kotlin.test.*
 
-abstract class SearchStateTest {
+abstract class TrackingInstanceTest {
 
-    abstract fun factory(p: Problem): SearchStateFactory
+    abstract fun factory(p: Problem): TrackingInstanceFactory
 
     private companion object {
         // Since these tests are random the numbers here can be tweaked during debugging
-        val REPEAT: Int = 3
+        const val REPEAT: Int = 3
     }
 
-    private fun checkUnsatisfied(p: Problem, t: SearchState) {
+    private fun checkUnsatisfied(p: Problem, t: TrackingInstance) {
         if (p.satisfies(t.instance) && t.assumption.satisfies(t.instance)) {
             assertEquals(0, t.totalUnsatisfied
                     - t.assumption.flipsToSatisfy(t.instance))
@@ -30,9 +30,9 @@ abstract class SearchStateTest {
         val p = SolverTest.SMALL_PROBLEMS[2]
         val f = factory(p)
         for (z in 1..REPEAT) {
-            val state1 = f.build(ByteArrayInstanceFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
-            val state2 = f.build(ByteArrayInstanceFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
-            assertEquals(state1.instance, state2.instance)
+            val tracker1 = f.build(ByteArrayInstanceFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomInitializer(), null, Random(0))
+            val tracker2 = f.build(ByteArrayInstanceFactory.create(p.nbrVariables), EMPTY_INT_ARRAY, RandomInitializer(), null, Random(0))
+            assertEquals(tracker1.instance, tracker2.instance)
         }
     }
 
@@ -44,8 +44,8 @@ abstract class SearchStateTest {
             for (z in 1..REPEAT) {
                 val instance = solver.witnessOrThrow() as MutableInstance
                 val copy = instance.copy()
-                val state = f.buildPreDefined(instance, EMPTY_INT_ARRAY)
-                assertEquals(0, state.totalUnsatisfied)
+                val tracker = f.buildPreDefined(instance, EMPTY_INT_ARRAY)
+                assertEquals(0, tracker.totalUnsatisfied)
                 assertEquals(copy, instance)
             }
         }
@@ -60,8 +60,8 @@ abstract class SearchStateTest {
                 val instance = solver.witnessOrThrow() as MutableInstance
                 val copy = instance.copy()
                 val assumptions = intArrayOf(instance.literal(Random.nextInt(p.nbrVariables)))
-                val state = f.buildPreDefined(instance, assumptions)
-                checkUnsatisfied(p, state)
+                val tracker = f.buildPreDefined(instance, assumptions)
+                checkUnsatisfied(p, tracker)
                 assertEquals(copy, instance)
             }
         }
@@ -76,8 +76,8 @@ abstract class SearchStateTest {
                 val instance = solver.witnessOrThrow() as MutableInstance
                 val copy = instance.copy()
                 val assumptions = intArrayOf(!instance.literal(Random.nextInt(p.nbrVariables)))
-                val state = f.buildPreDefined(instance, assumptions)
-                checkUnsatisfied(p, state)
+                val tracker = f.buildPreDefined(instance, assumptions)
+                checkUnsatisfied(p, tracker)
                 assertNotEquals(copy, instance)
             }
         }
@@ -93,8 +93,8 @@ abstract class SearchStateTest {
             }
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstance(p.nbrVariables)
-                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
-                checkUnsatisfied(p, state)
+                val tracker = f.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random)
+                checkUnsatisfied(p, tracker)
             }
         }
     }
@@ -110,8 +110,8 @@ abstract class SearchStateTest {
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstance(p.nbrVariables)
                 val assumptions = IntArray(Random.nextInt(p.nbrVariables)) { it.toLiteral(Random.nextBoolean()) }
-                val state = f.build(instance, assumptions, RandomSelector, null, Random)
-                checkUnsatisfied(p, state)
+                val tracker = f.build(instance, assumptions, RandomInitializer(), null, Random)
+                checkUnsatisfied(p, tracker)
             }
         }
     }
@@ -126,13 +126,13 @@ abstract class SearchStateTest {
             }
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstance(p.nbrVariables)
-                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random(0))
-                checkUnsatisfied(p, state)
+                val tracker = f.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random(0))
+                checkUnsatisfied(p, tracker)
                 val ix = Random(0).nextInt(p.nbrVariables)
-                val lit = state.instance.literal(ix)
-                state.flip(ix)
-                checkUnsatisfied(p, state)
-                assertNotEquals(lit, state.instance.literal(ix))
+                val lit = tracker.instance.literal(ix)
+                tracker.flip(ix)
+                checkUnsatisfied(p, tracker)
+                assertNotEquals(lit, tracker.instance.literal(ix))
             }
         }
     }
@@ -147,11 +147,11 @@ abstract class SearchStateTest {
             }
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstance(p.nbrVariables)
-                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
-                checkUnsatisfied(p, state)
+                val tracker = f.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random)
+                checkUnsatisfied(p, tracker)
                 for (lit in 1..10) {
-                    state.flip(Random.nextInt(p.nbrVariables))
-                    checkUnsatisfied(p, state)
+                    tracker.flip(Random.nextInt(p.nbrVariables))
+                    checkUnsatisfied(p, tracker)
                 }
             }
         }
@@ -167,12 +167,12 @@ abstract class SearchStateTest {
             }
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstanceFactory.create(p.nbrVariables)
-                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val tracker = f.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random)
                 val ix = Random.nextInt(p.nbrVariables)
                 val copy = instance.copy()
-                state.improvement(ix)
+                tracker.improvement(ix)
                 assertEquals(copy, instance)
-                checkUnsatisfied(p, state)
+                checkUnsatisfied(p, tracker)
             }
         }
     }
@@ -187,14 +187,14 @@ abstract class SearchStateTest {
             }
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstanceFactory.create(p.nbrVariables)
-                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+                val tracker = f.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random)
                 val ix = Random.nextInt(p.nbrVariables)
-                val imp = state.improvement(ix)
+                val imp = tracker.improvement(ix)
                 val preFlips = p.flipsToSatisfy(instance)
-                state.flip(ix)
+                tracker.flip(ix)
                 val postFlips = p.flipsToSatisfy(instance)
                 assertEquals(postFlips, preFlips - imp, "$postFlips = $preFlips - $imp")
-                checkUnsatisfied(p, state)
+                checkUnsatisfied(p, tracker)
             }
         }
     }
@@ -205,11 +205,11 @@ abstract class SearchStateTest {
         val f = factory(p)
         for (z in 1..REPEAT) {
             val instance = BitFieldInstanceFactory.create(p.nbrVariables)
-            val state = f.build(instance, intArrayOf(0, 2, 4, 6), RandomSelector, null, Random)
-            if (state.instance[0]) state.flip(0)
-            val imp = state.improvement(0)
+            val tracker = f.build(instance, intArrayOf(0, 2, 4, 6), RandomInitializer(), null, Random)
+            if (tracker.instance[0]) tracker.flip(0)
+            val imp = tracker.improvement(0)
             assertTrue(imp > 0)
-            checkUnsatisfied(p, state)
+            checkUnsatisfied(p, tracker)
         }
     }
 
@@ -223,9 +223,9 @@ abstract class SearchStateTest {
             }
             for (z in 1..REPEAT) {
                 val instance = BitFieldInstanceFactory.create(p.nbrVariables)
-                val state = f.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
-                val sent = state.randomUnsatisfied(Random)
-                assertFalse(sent.satisfies(state.instance))
+                val tracker = f.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random)
+                val sent = tracker.randomUnsatisfied(Random)
+                assertFalse(sent.satisfies(tracker.instance))
             }
         }
     }
@@ -236,22 +236,22 @@ abstract class SearchStateTest {
         val f = factory(p)
         for (z in 1..REPEAT) {
             val instance = BitFieldInstance(5)
-            val state = f.build(instance, intArrayOf(1, 3, 5, 7, 9), RandomSelector, null, Random)
-            assertEquals(0, state.totalUnsatisfied)
-            for (i in 0 until 5) if (!state.instance[i]) state.flip(i)
-            assertEquals(5, state.totalUnsatisfied)
-            val assumption = state.randomUnsatisfied(Random)
+            val tracker = f.build(instance, intArrayOf(1, 3, 5, 7, 9), RandomInitializer(), null, Random)
+            assertEquals(0, tracker.totalUnsatisfied)
+            for (i in 0 until 5) if (!tracker.instance[i]) tracker.flip(i)
+            assertEquals(5, tracker.totalUnsatisfied)
+            val assumption = tracker.randomUnsatisfied(Random)
             assertTrue(assumption is Conjunction)
-            assertFalse(assumption.satisfies(state.instance))
+            assertFalse(assumption.satisfies(tracker.instance))
         }
     }
 }
 
-class BasicSearchStateTest : SearchStateTest() {
-    override fun factory(p: Problem) = BasicSearchStateFactory(p)
+class BasicTrackingInstanceTest : TrackingInstanceTest() {
+    override fun factory(p: Problem) = BasicTrackingInstanceFactory(p)
 }
 
-class PropSearchStateTest : SearchStateTest() {
-    override fun factory(p: Problem) = PropSearchStateFactory(p)
+class PropTrackingInstanceTest : TrackingInstanceTest() {
+    override fun factory(p: Problem) = PropTrackingInstanceFactory(p)
 }
 

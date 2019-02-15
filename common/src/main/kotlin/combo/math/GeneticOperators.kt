@@ -16,8 +16,8 @@ class CandidateSolutions(
         val scores: DoubleArray,
         val ages: IntArray) {
 
-    val bestInstance: Instance
-        get() = instances[0]
+    var bestInstance: Instance
+        private set
     val minScore: Double
         get() = scores[0]
     val maxScore: Double
@@ -36,7 +36,7 @@ class CandidateSolutions(
             }
             return oldestI
         }
-    val populationSize: Int
+    val nbrCandidates: Int
         get() = instances.size
     val nbrVariables: Int
         get() = instances[0].size
@@ -57,6 +57,7 @@ class CandidateSolutions(
                 index[i] = oldI
             }
         }
+        bestInstance = instances[0].copy()
     }
 
     private fun swap(ix1: Int, ix2: Int) {
@@ -75,6 +76,7 @@ class CandidateSolutions(
     }
 
     fun update(ix: Int, time: Int, newScore: Double): Boolean {
+        val newBest = newScore < scores[0]
         scores[ix] = newScore
         ages[ix] = time
         var i = ix
@@ -86,7 +88,18 @@ class CandidateSolutions(
             swap(i - 1, i)
             i--
         }
-        return i == 0
+        return newBest
+    }
+
+    fun diversity(): Double {
+        var sum = 0.0
+        for (i in 0 until nbrVariables) {
+            val v = RunningVariance()
+            for (j in 0 until nbrCandidates)
+                v.accept(if (instances[j][i]) 1.0 else 0.0)
+            sum += v.squaredDeviations
+        }
+        return sum
     }
 }
 
@@ -130,40 +143,48 @@ class KPointRecombination(val k: Int = 1) : RecombinationOperator {
 }
 
 interface SelectionOperator {
-    fun select(state: CandidateSolutions, rng: Random): Int
+    fun select(candidates: CandidateSolutions, rng: Random): Int
 }
 
 class UniformSelection : SelectionOperator {
-    override fun select(state: CandidateSolutions, rng: Random) = rng.nextInt(state.scores.size)
+    override fun select(candidates: CandidateSolutions, rng: Random) = rng.nextInt(candidates.scores.size)
 }
 
-class StochasticAcceptanceSelection(val acceptancePenalty: Double = 0.0) : SelectionOperator {
-    override fun select(state: CandidateSolutions, rng: Random): Int {
-        if (!state.minScore.isFinite() || state.minScore == state.maxScore) return rng.nextInt(state.scores.size)
-        TODO()
-        while (true) {
-            val i = rng.nextInt(state.scores.size)
-            val norm = (state.scores[i] - state.minScore) / (state.maxScore - state.minScore)
-            if (rng.nextDouble() < 1 - norm) return i
+/**
+ * Stochastic acceptance is a fitness proportionate method where a random variable i is tested and accepted with
+ * probability score_min / score_i. As such it does not really work well where score_min is close to 0 or when
+ * there are large differences between the best score and all others.
+ */
+class StochasticAcceptanceSelection(val acceptanceMin: Double = 0.05) : SelectionOperator {
+    override fun select(candidates: CandidateSolutions, rng: Random): Int {
+        if (candidates.minScore == candidates.maxScore || !candidates.minScore.isFinite()) return rng.nextInt(candidates.scores.size)
+        for (k in 1..100) {
+            val i = rng.nextInt(candidates.scores.size)
+            val ratio = max(acceptanceMin, candidates.minScore / candidates.scores[i])
+            if (ratio.isNaN() || rng.nextDouble() < ratio) return i
         }
+        return rng.nextInt(candidates.scores.size)
     }
 }
 
+/**
+ * Tournament selection selects the best among a random subset of the population, determined by [tournamentSize].
+ */
 class TournamentSelection(val tournamentSize: Int) : SelectionOperator {
 
     init {
         require(tournamentSize > 0)
     }
 
-    override fun select(state: CandidateSolutions, rng: Random): Int {
+    override fun select(candidates: CandidateSolutions, rng: Random): Int {
         var score = Double.POSITIVE_INFINITY
         var best = 0
-        val perm = IntPermutation(state.populationSize, rng)
-        for (i in 0 until min(state.populationSize, tournamentSize)) {
+        val perm = IntPermutation(candidates.nbrCandidates, rng)
+        for (i in 0 until min(candidates.nbrCandidates, tournamentSize)) {
             val ix = perm.encode(i)
-            if (state.scores[ix] < score) {
+            if (candidates.scores[ix] < score) {
                 best = ix
-                score = state.scores[ix]
+                score = candidates.scores[ix]
             }
         }
         return best
@@ -171,24 +192,27 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator {
 }
 
 class OldestElimination : SelectionOperator {
-    override fun select(state: CandidateSolutions, rng: Random) = state.oldest
+    override fun select(candidates: CandidateSolutions, rng: Random) = candidates.oldest
 }
 
+/**
+ * This works like [TournamentSelection] but selects the worst instead.
+ */
 class TournamentElimination(val tournamentSize: Int) : SelectionOperator {
 
     init {
         require(tournamentSize > 0)
     }
 
-    override fun select(state: CandidateSolutions, rng: Random): Int {
+    override fun select(candidates: CandidateSolutions, rng: Random): Int {
         var score = Double.NEGATIVE_INFINITY
         var worst = 0
-        val perm = IntPermutation(state.populationSize, rng)
-        for (i in 0 until min(state.populationSize, tournamentSize)) {
+        val perm = IntPermutation(candidates.nbrCandidates, rng)
+        for (i in 0 until min(candidates.nbrCandidates, tournamentSize)) {
             val ix = perm.encode(i)
-            if (state.scores[ix] > score) {
+            if (candidates.scores[ix] > score) {
                 worst = ix
-                score = state.scores[ix]
+                score = candidates.scores[ix]
             }
         }
         return worst
@@ -223,14 +247,14 @@ class FixedMutation(val nbrFlips: Int = 1) : MutationOperator {
 }
 
 /**
- * Otherwise known as OnePlusOne when [nbrFlips] = 1.
+ * This flips exactly [nbrFlips]
  */
 class FixedRateMutation(val nbrFlips: Int = 1) : PointMutationOperator {
     override fun mutationRate(nbrVariables: Int, rng: Random) = min(1.0, nbrFlips / nbrVariables.toDouble())
 }
 
 /**
- * TODO reference
+ * See this paper for explanation https://arxiv.org/abs/1703.03334
  */
 class FastGAMutation(val nbrVariables: Int, val beta: Double = 1.5) : PointMutationOperator {
 

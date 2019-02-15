@@ -54,5 +54,5 @@ class Sat4JSolverTest : SolverTest() {
 class Sat4JLinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = Sat4JSolver(problem)
     override fun largeOptimizer(problem: Problem) = null
-    override fun timeoutOptimizer(problem: Problem) = Sat4JSolver(problem).apply { timeout = 1L }
+    override fun timeoutOptimizer(problem: Problem) = null
 }

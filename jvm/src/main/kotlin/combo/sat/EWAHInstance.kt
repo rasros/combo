@@ -4,7 +4,8 @@ import com.googlecode.javaewah.EWAHCompressedBitmap
 import combo.util.transformArray
 
 /**
- * This uses a library for compressed bitmaps. It is very space efficient but quite slow.
+ * This uses a library for compressed bitmaps. It is very space efficient but quite slow. This requires
+ * an optional dependency to EWAH like so in gradle: compile "com.googlecode.javaewah:JavaEWAH:1.1.6"
  */
 object EWAHInstanceFactory : InstanceFactory {
     override fun create(size: Int) = EWAHInstance(size)

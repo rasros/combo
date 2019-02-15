@@ -20,6 +20,7 @@ import kotlin.math.roundToInt
 /**
  * [Optimizer] of [LinearObjective] using the binary integer programming (BIP) solver of the JOptimizer library.
  * Assumptions during solving are added using the A=b matrices, allowing reuse of the constant G<=h matrices.
+ * Using this class requires an extra optional dependency, like so in gradle: compile "com.joptimizer:joptimizer:4.0.0"
  */
 class JOptimizerSolver @JvmOverloads constructor(
         val problem: Problem,

@@ -1,8 +1,9 @@
-@file:JvmName("SearchStates")
+@file:JvmName("TrackingInstances")
 
 package combo.sat
 
 import combo.math.IntPermutation
+import combo.math.nextNormal
 import combo.sat.solvers.LinearObjective
 import combo.sat.solvers.ObjectiveFunction
 import combo.util.EMPTY_INT_ARRAY
@@ -10,14 +11,15 @@ import combo.util.IntSet
 import combo.util.collectionOf
 import combo.util.transformArray
 import kotlin.jvm.JvmName
+import kotlin.jvm.JvmOverloads
 import kotlin.random.Random
 
 /**
  * This contains cached information about satisfied constraints during search. The actual implementations
- * of [SearchState] are private, so initialize with the [SearchStateFactory]. Use either [SearchStateFactory.build]
- * method depending on whether the instance should be initialized using a [ValueSelector] or it is pre-solved.
+ * of [TrackingInstance] are private, so initialize with the [TrackingInstanceFactory]. Use either [TrackingInstanceFactory.build]
+ * method depending on whether the instance should be initialized using a [ValueInitializer] or it is pre-solved.
  */
-interface SearchState : MutableInstance {
+interface TrackingInstance : MutableInstance {
 
     val instance: MutableInstance
     val totalUnsatisfied: Int
@@ -31,69 +33,69 @@ interface SearchState : MutableInstance {
     fun literalPropagations(ix: Ix): Literals = EMPTY_INT_ARRAY
 
     /**
-     * Returns the improvement in flipsToSatisfy. A positive improvement leads to a state that is close to a satisfiable
-     * instance.
+     * Returns the improvement in flipsToSatisfy. A positive improvement leads to a state that is closer to a
+     * satisfiable instance.
      */
     fun improvement(ix: Ix): Int
 }
 
 /**
- * Creates search states.
+ * Creates tracking instances.
  */
-interface SearchStateFactory {
+interface TrackingInstanceFactory {
     fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals,
-                                       valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState
+                                       initializer: ValueInitializer<O>, function: O, rng: Random): TrackingInstance
 
-    fun buildPreDefined(instance: MutableInstance, assumptions: Literals): SearchState
+    fun buildPreDefined(instance: MutableInstance, assumptions: Literals): TrackingInstance
 }
 
 /**
  * Initializes values during search.
  */
-interface ValueSelector<in O : ObjectiveFunction?> {
+interface ValueInitializer<in O : ObjectiveFunction?> {
     fun select(ix: Ix, instance: MutableInstance, rng: Random, function: O): Boolean
 }
 
-object RandomSelector : ValueSelector<ObjectiveFunction?> {
+class RandomInitializer : ValueInitializer<ObjectiveFunction?> {
     override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: ObjectiveFunction?) =
             rng.nextBoolean()
 }
 
-object WeightSelector : ValueSelector<LinearObjective> {
+class WeightInitializer @JvmOverloads constructor(val noise: Double = 0.0) : ValueInitializer<LinearObjective> {
     override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: LinearObjective): Boolean =
-            if (function.maximize) function.weights[ix] >= 0
+            if (function.maximize) function.weights[ix] + rng.nextNormal(0.0, noise) >= 0
             else function.weights[ix] < 0
 }
 
-object FalseSelector : ValueSelector<ObjectiveFunction?> {
+class FalseInitializer : ValueInitializer<ObjectiveFunction?> {
     override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: ObjectiveFunction?) = false
 }
 
-object TrueSelector : ValueSelector<ObjectiveFunction?> {
+class TrueInitializer : ValueInitializer<ObjectiveFunction?> {
     override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: ObjectiveFunction?) = true
 }
 
-class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
+class BasicTrackingInstanceFactory(val problem: Problem) : TrackingInstanceFactory {
 
     private val cardinalitySentences = problem.constraints.asSequence()
             .filter { it is Cardinality }.map { it as Cardinality }.toList().toTypedArray()
 
     override fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals,
-                                                valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState {
-        val state = BasicSearchState(instance, problem, assumptions)
-        if (valueSelector !is FalseSelector)
+                                                initializer: ValueInitializer<O>, function: O, rng: Random): TrackingInstance {
+        val trackingInstance = BasicTrackingInstance(instance, problem, assumptions)
+        if (initializer !is FalseInitializer)
             for (i in 0 until instance.size)
-                instance[i] = valueSelector.select(i, instance, rng, function)
+                instance[i] = initializer.select(i, instance, rng, function)
         instance.setAll(assumptions)
         for (card in cardinalitySentences) {
-            var matches = card.matches(state.instance)
+            var matches = card.matches(trackingInstance.instance)
             val perm = card.literals.permutation(rng)
             if (card.relation != Relation.GE) {
                 // relation: <= or ==
                 while (matches > card.degree) {
                     val lit = perm.nextInt()
-                    if (state.instance[lit.toIx()]) {
-                        state.instance.flip(lit.toIx())
+                    if (trackingInstance.instance[lit.toIx()]) {
+                        trackingInstance.instance.flip(lit.toIx())
                         matches--
                     }
                 }
@@ -102,45 +104,45 @@ class BasicSearchStateFactory(val problem: Problem) : SearchStateFactory {
                 // relation: >= or ==
                 while (matches < card.degree) {
                     val lit = perm.nextInt()
-                    if (!state.instance[lit.toIx()]) {
-                        state.instance.flip(lit.toIx())
+                    if (!trackingInstance.instance[lit.toIx()]) {
+                        trackingInstance.instance.flip(lit.toIx())
                         matches++
                     }
                 }
             }
         }
         for ((sentId, sent) in problem.constraints.withIndex()) {
-            state.matches[sentId] = sent.matches(instance)
-            state.totalUnsatisfied += sent.flipsToSatisfy(state.matches[sentId]).also {
-                if (it > 0) state.unsatisfied.add(sentId)
+            trackingInstance.matches[sentId] = sent.matches(instance)
+            trackingInstance.totalUnsatisfied += sent.flipsToSatisfy(trackingInstance.matches[sentId]).also {
+                if (it > 0) trackingInstance.unsatisfied.add(sentId)
             }
         }
-        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
-        val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
-        state.totalUnsatisfied += assumptionFlips
-        if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
-        return state
+        trackingInstance.matches[trackingInstance.matches.lastIndex] = trackingInstance.assumption.matches(instance)
+        val assumptionFlips = trackingInstance.assumption.flipsToSatisfy(trackingInstance.matches.last())
+        trackingInstance.totalUnsatisfied += assumptionFlips
+        if (assumptionFlips > 0) trackingInstance.unsatisfied.add(trackingInstance.matches.lastIndex)
+        return trackingInstance
     }
 
-    override fun buildPreDefined(instance: MutableInstance, assumptions: Literals): SearchState {
-        val state = BasicSearchState(instance, problem, assumptions)
+    override fun buildPreDefined(instance: MutableInstance, assumptions: Literals): TrackingInstance {
+        val trackingInstance = BasicTrackingInstance(instance, problem, assumptions)
         for ((sentId, sent) in problem.constraints.withIndex()) {
-            state.matches[sentId] = sent.matches(instance)
-            if (sent.flipsToSatisfy(state.matches[sentId]) > 0) state.unsatisfied.add(sentId)
+            trackingInstance.matches[sentId] = sent.matches(instance)
+            if (sent.flipsToSatisfy(trackingInstance.matches[sentId]) > 0) trackingInstance.unsatisfied.add(sentId)
         }
-        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
-        val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
-        state.totalUnsatisfied += assumptionFlips
-        if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
-        for (lit in assumptions) if (instance.literal(lit.toIx()) != lit) state.flip(lit.toIx())
-        return state
+        trackingInstance.matches[trackingInstance.matches.lastIndex] = trackingInstance.assumption.matches(instance)
+        val assumptionFlips = trackingInstance.assumption.flipsToSatisfy(trackingInstance.matches.last())
+        trackingInstance.totalUnsatisfied += assumptionFlips
+        if (assumptionFlips > 0) trackingInstance.unsatisfied.add(trackingInstance.matches.lastIndex)
+        for (lit in assumptions) if (instance.literal(lit.toIx()) != lit) trackingInstance.flip(lit.toIx())
+        return trackingInstance
     }
 }
 
 /**
  * Caches the result of sentence evaluation by keeping an int per sentence with the number of matching literals.
  */
-private class BasicSearchState(override val instance: MutableInstance, val problem: Problem, assumptions: Literals) : SearchState, Instance by instance {
+private class BasicTrackingInstance(override val instance: MutableInstance, val problem: Problem, assumptions: Literals) : TrackingInstance, Instance by instance {
 
     override var totalUnsatisfied: Int = 0
 
@@ -198,7 +200,7 @@ private class BasicSearchState(override val instance: MutableInstance, val probl
 /**
  * Uses information from a binary disjunctions propagations.
  */
-class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
+class PropTrackingInstanceFactory(val problem: Problem) : TrackingInstanceFactory {
 
     private val literalPropagations: Array<Literals>
     private val variableSentences: Array<IntArray>
@@ -282,11 +284,11 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
     }
 
 
-    override fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals, valueSelector: ValueSelector<O>, function: O, rng: Random): SearchState {
-        val state = PropSearchState(instance, problem, assumptions)
+    override fun <O : ObjectiveFunction?> build(instance: MutableInstance, assumptions: Literals, initializer: ValueInitializer<O>, function: O, rng: Random): TrackingInstance {
+        val trackingInstance = PropTrackingInstance(instance, problem, assumptions)
 
         for (ix in IntPermutation(instance.size, rng)) {
-            val lit = ix.toLiteral(valueSelector.select(ix, instance, rng, function))
+            val lit = ix.toLiteral(initializer.select(ix, instance, rng, function))
             instance.set(lit)
             instance.setAll(literalPropagations[lit])
         }
@@ -298,59 +300,59 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
         for (sentId in complexSentences) {
             val sent = problem.constraints[sentId]
             val sentMatches = sent.matches(instance)
-            if (sentMatches > 0) state.matches[sentId] = sentMatches
-            state.totalUnsatisfied += sent.flipsToSatisfy(sentMatches).also {
-                if (it > 0) state.unsatisfied.add(sentId)
+            if (sentMatches > 0) trackingInstance.matches[sentId] = sentMatches
+            trackingInstance.totalUnsatisfied += sent.flipsToSatisfy(sentMatches).also {
+                if (it > 0) trackingInstance.unsatisfied.add(sentId)
             }
         }
 
-        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
-        val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
-        state.totalUnsatisfied += assumptionFlips
-        if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
+        trackingInstance.matches[trackingInstance.matches.lastIndex] = trackingInstance.assumption.matches(instance)
+        val assumptionFlips = trackingInstance.assumption.flipsToSatisfy(trackingInstance.matches.last())
+        trackingInstance.totalUnsatisfied += assumptionFlips
+        if (assumptionFlips > 0) trackingInstance.unsatisfied.add(trackingInstance.matches.lastIndex)
 
         for (card in cardinalitySentences) {
             val sent = problem.constraints[card] as Cardinality
             val perm = sent.literals.permutation(rng)
             if (sent.relation != Relation.GE) {
                 // relation: <= or ==
-                while (state.matches[card] > sent.degree && perm.hasNext()) {
+                while (trackingInstance.matches[card] > sent.degree && perm.hasNext()) {
                     val lit = perm.nextInt()
-                    if (state.instance[lit.toIx()])
-                        state.flip(lit.toIx())
+                    if (trackingInstance.instance[lit.toIx()])
+                        trackingInstance.flip(lit.toIx())
                 }
             }
             if (sent.relation != Relation.LE) {
                 // relation: >= or ==
-                while (state.matches[card] < sent.degree && perm.hasNext()) {
+                while (trackingInstance.matches[card] < sent.degree && perm.hasNext()) {
                     val lit = perm.nextInt()
-                    if (!state.instance[lit.toIx()])
-                        state.flip(lit.toIx())
+                    if (!trackingInstance.instance[lit.toIx()])
+                        trackingInstance.flip(lit.toIx())
                 }
             }
         }
 
-        return state
+        return trackingInstance
     }
 
-    override fun buildPreDefined(instance: MutableInstance, assumptions: Literals): SearchState {
-        val state = PropSearchState(instance, problem, assumptions)
+    override fun buildPreDefined(instance: MutableInstance, assumptions: Literals): TrackingInstance {
+        val trackingInstance = PropTrackingInstance(instance, problem, assumptions)
         for (sentId in complexSentences) {
             val sent = problem.constraints[sentId]
-            state.matches[sentId] = sent.matches(instance)
-            if (sent.flipsToSatisfy(state.matches[sentId]) > 0) state.unsatisfied.add(sentId)
+            trackingInstance.matches[sentId] = sent.matches(instance)
+            if (sent.flipsToSatisfy(trackingInstance.matches[sentId]) > 0) trackingInstance.unsatisfied.add(sentId)
         }
-        state.matches[state.matches.lastIndex] = state.assumption.matches(instance)
-        val assumptionFlips = state.assumption.flipsToSatisfy(state.matches.last())
-        state.totalUnsatisfied += assumptionFlips
-        if (assumptionFlips > 0) state.unsatisfied.add(state.matches.lastIndex)
-        for (lit in assumptions) if (instance.literal(lit.toIx()) != lit) state.flip(lit.toIx())
-        return state
+        trackingInstance.matches[trackingInstance.matches.lastIndex] = trackingInstance.assumption.matches(instance)
+        val assumptionFlips = trackingInstance.assumption.flipsToSatisfy(trackingInstance.matches.last())
+        trackingInstance.totalUnsatisfied += assumptionFlips
+        if (assumptionFlips > 0) trackingInstance.unsatisfied.add(trackingInstance.matches.lastIndex)
+        for (lit in assumptions) if (instance.literal(lit.toIx()) != lit) trackingInstance.flip(lit.toIx())
+        return trackingInstance
     }
 
-    private inner class PropSearchState(override val instance: MutableInstance,
-                                        val problem: Problem,
-                                        assumptions: Literals) : SearchState, Instance by instance {
+    private inner class PropTrackingInstance(override val instance: MutableInstance,
+                                             val problem: Problem,
+                                             assumptions: Literals) : TrackingInstance, Instance by instance {
 
         override var totalUnsatisfied: Int = 0
 
@@ -378,7 +380,8 @@ class PropSearchStateFactory(val problem: Problem) : SearchStateFactory {
         override fun literalPropagations(ix: Ix) = literalPropagations[!instance.literal(ix)]
 
         private fun checkSentence(literal: Literal, sent: Constraint, sentId: Int) {
-            var matchUpdate = if (literal in sent.literals || !literal in sent.literals)
+            var matchUpdate = if (
+                    literal != instance.literal(literal.toIx()) && (literal in sent.literals || !literal in sent.literals))
                 sent.matchesUpdate(literal, matches[sentId]) else matches[sentId]
             for (lit in literalPropagations[literal]) {
                 if (lit != instance.literal(lit.toIx()) && (lit in sent.literals || !lit in sent.literals))

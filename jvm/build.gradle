@@ -14,11 +14,10 @@ dependencies {
     compileOnly("com.googlecode.javaewah:JavaEWAH:1.1.6")
     testCompile("com.googlecode.javaewah:JavaEWAH:1.1.6")
 
-    compileOnly("org.sat4j:org.sat4j.core:2.3.1")
-    testCompile("org.sat4j:org.sat4j.core:2.3.1")
-    compileOnly("org.sat4j:org.sat4j.maxsat:2.3.1")
-    testCompile("org.sat4j:org.sat4j.maxsat:2.3.1")
+    compileOnly("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
+    testCompile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
 
+    // New version is available but does not include BIP anymore
     compileOnly("com.joptimizer:joptimizer:4.0.0") {
         exclude group: "org.apache.commons", module: "commons-csv"
         exclude group: "net.sourceforge.csparsej", module: "csparsej"

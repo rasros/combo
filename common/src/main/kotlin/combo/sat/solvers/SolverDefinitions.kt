@@ -5,7 +5,6 @@ import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
 
 /**
  * A solver can generate a random [witness] that satisfy the constraints and
@@ -104,16 +103,11 @@ interface ObjectiveFunction {
     fun value(instance: Instance): Double
 
     /**
-     * For information about possibilities, see:
-     * Penalty Function Methods for Constrained Optimization with Genetic Algorithms
-     * http://dx.doi.org/10.3390/mca10010045
-     */
-    fun penalty(violations: Int) = (violations * violations).toDouble()
-
-    /**
      * Optionally implemented. Optimal bound on function, if reached during search the algorithm will terminate immediately.
      */
     fun lowerBound(): Double = Double.NEGATIVE_INFINITY
+
+    fun upperBound(): Double = Double.POSITIVE_INFINITY
 
     /**
      * Override for efficiency reasons. New value should be previous value - improvement.
@@ -135,12 +129,15 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
 
     private val lowerBound: Double = if (maximize) -weights.sumByDouble { max(0.0, it) } else
         weights.sumByDouble { min(0.0, it) }
+    private val upperBound: Double = if (maximize) -weights.sumByDouble { min(0.0, it) } else
+        weights.sumByDouble { max(0.0, it) }
 
     override fun value(instance: Instance) = (instance dot weights).let {
         if (maximize) -it else it
     }
 
     override fun lowerBound() = lowerBound
+    override fun upperBound() = upperBound
 
     private fun improvementLiteral(instance: Instance, literal: Literal) =
             if (instance.literal(literal.toIx()) == literal) 0.0
@@ -162,17 +159,31 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
 object SatObjective : ObjectiveFunction {
     override fun value(instance: Instance) = 0.0
     override fun lowerBound() = 0.0
+    override fun upperBound() = 0.0
     override fun improvement(instance: Instance, ix: Literal, propagations: Literals) = 0.0
-    override fun penalty(violations: Int) = violations.toDouble()
 }
 
 /**
  * Exterior penalty added to objective used by genetic algorithms.
+ * For information about possibilities, see:
+ * Penalty Function Methods for Constrained Optimization with Genetic Algorithms
+ * http://dx.doi.org/10.3390/mca10010045
  */
 interface PenaltyFunction {
-    fun penalty(value: Double, violations: Int): Double
+    fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double): Double
+}
+
+class LinearPenalty : PenaltyFunction {
+    override fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double): Double = violations.toDouble()
 }
 
 class SquaredPenalty : PenaltyFunction {
-    override fun penalty(value: Double, violations: Int) = violations.toDouble().pow(2)
+    override fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double) = violations.let { (it * it).toDouble() }
+}
+
+class DisjunctPenalty(private val extended: PenaltyFunction = LinearPenalty()) : PenaltyFunction {
+    override fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double): Double {
+        if (violations > 0) return upperBound - lowerBound + extended.penalty(value, violations, lowerBound, upperBound)
+        else return 0.0
+    }
 }

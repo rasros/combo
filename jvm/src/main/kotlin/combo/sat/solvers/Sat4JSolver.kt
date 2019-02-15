@@ -30,7 +30,8 @@ import org.sat4j.pb.SolverFactory as PBSolverFactory
 import org.sat4j.specs.TimeoutException as Sat4JTimeoutException
 
 /**
- * [Solver] and [Optimizer] of [LinearObjective] using the Sat4J SAT library.
+ * [Solver] and [Optimizer] of [LinearObjective] using the Sat4J SAT library. Using this requires an extra optional
+ * dependency, like so in gradle: compile "org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5"
  */
 class Sat4JSolver @JvmOverloads constructor(
         val problem: Problem,

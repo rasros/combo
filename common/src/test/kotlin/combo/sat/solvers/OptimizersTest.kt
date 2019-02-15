@@ -6,11 +6,11 @@ import combo.sat.*
 import combo.test.assertEquals
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
-import kotlin.test.Ignore
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 
@@ -23,44 +23,41 @@ abstract class OptimizerTest {
         assertTrue(p.satisfies(instance))
         val optValue = function.value(instance)
         val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrVariables).toInt()).minBy {
-            val instance = BitFieldInstance(p.nbrVariables, longArrayOf(it.toLong()))
-            if (p.satisfies(instance)) function.value(instance)
+            val instance1 = BitFieldInstance(p.nbrVariables, longArrayOf(it.toLong()))
+            if (p.satisfies(instance1)) function.value(instance1)
             else Double.POSITIVE_INFINITY
         }
         val bruteForceValue = function.value(
                 BitFieldInstance(p.nbrVariables, longArrayOf(bruteForceLabelingIx!!.toLong())))
-        assertEquals(bruteForceValue, optValue, 0.01 * p.nbrVariables, "Model $i")
+        assertEquals(bruteForceValue, optValue, max(1.0, 0.01 * p.nbrVariables), "Model $i")
     }
 
     @Test
     fun interactiveObjective() {
         for ((i, p) in SolverTest.SMALL_PROBLEMS.withIndex()) {
-            for (z in 1..100) {
             val rng = Random(i)
             val function = InteractionObjective(DoubleArray(p.nbrVariables) { rng.nextDouble() - 0.5 })
-                optimizerTest(p, function, i)
-            }
+            optimizerTest(p, function, i)
         }
     }
 
     @Test
     fun oneMaxObjective() {
         for ((i, p) in SolverTest.SMALL_PROBLEMS.withIndex()) {
-            val function = OneMaxObjective()
+            val function = OneMaxObjective(p.nbrVariables)
             optimizerTest(p, function, i)
         }
     }
 
     @Test
-    @Ignore
     fun jumpObjective() {
         for ((i, p) in SolverTest.SMALL_PROBLEMS.withIndex()) {
             val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrVariables).toInt()).minBy {
                 val instance = BitFieldInstance(p.nbrVariables, longArrayOf(it.toLong()))
-                if (p.satisfies(instance)) OneMaxObjective().value(instance)
+                if (p.satisfies(instance)) OneMaxObjective(p.nbrVariables).value(instance)
                 else Double.POSITIVE_INFINITY
             }
-            val bruteForceValue = OneMaxObjective().value(
+            val bruteForceValue = OneMaxObjective(p.nbrVariables).value(
                     BitFieldInstance(p.nbrVariables, longArrayOf(bruteForceLabelingIx!!.toLong())))
             val function = JumpObjective(-bruteForceValue.toInt())
             optimizerTest(p, function, i)
@@ -73,34 +70,16 @@ abstract class ObjectiveFunctionTest {
     abstract fun function(nbrVariables: Int): ObjectiveFunction
 
     @Test
-    fun penaltyIncreasing() {
-        val func = function(10)
-        var prevValue = Double.NEGATIVE_INFINITY
-        for (i in 0..100) {
-            val value = func.penalty(i)
-            assertTrue(value > prevValue)
-            prevValue = value
-        }
-    }
-
-    @Test
-    fun penaltyZero() {
-        val func = function(1)
-        assertEquals(0.0, func.penalty(0))
-        assertTrue(func.penalty(1) > 0)
-    }
-
-    @Test
     fun valueAndImprovement() {
         for (p in SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.SMALL_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val f = function(p.nbrVariables)
             val instance = BitFieldInstance(p.nbrVariables)
             val fac = try {
-                PropSearchStateFactory(p)
+                PropTrackingInstanceFactory(p)
             } catch (e: UnsatisfiableException) {
                 continue
             }
-            val s = fac.build(instance, EMPTY_INT_ARRAY, RandomSelector, null, Random)
+            val s = fac.build(instance, EMPTY_INT_ARRAY, RandomInitializer(), null, Random)
             val v = f.value(instance)
             val ix = Random.nextInt(p.nbrVariables)
             val imp = f.improvement(instance, ix, s.literalPropagations(ix))
@@ -110,13 +89,21 @@ abstract class ObjectiveFunctionTest {
         }
     }
 
+    @Test
+    fun upperBoundExhaustive() {
+        val func = function(5)
+        for (i in 0 until 32) {
+            val instance = BitFieldInstance(5, longArrayOf(i.toLong()))
+            assertTrue(func.value(instance) <= func.upperBound())
+        }
+    }
 
     @Test
     fun lowerBoundExhaustive() {
         val func = function(5)
         for (i in 0 until 32) {
             val instance = BitFieldInstance(5, longArrayOf(i.toLong()))
-            assertTrue(func.value(instance) >= func.lowerBound())
+            assertTrue(func.value(instance) >= func.lowerBound(), "${func.value(instance)} >= ${func.lowerBound()}")
         }
     }
 }
@@ -124,8 +111,10 @@ abstract class ObjectiveFunctionTest {
 /**
  * Simplest test function, most likely unimodal
  */
-class OneMaxObjective : ObjectiveFunction {
+class OneMaxObjective(val nbrVariables: Int) : ObjectiveFunction {
     override fun value(instance: Instance) = -instance.truthIterator().asSequence().count().toDouble()
+    override fun lowerBound() = -nbrVariables.toDouble()
+    override fun upperBound() = 0.0
 }
 
 /**
@@ -138,6 +127,9 @@ class JumpObjective(val n: Int, val m: Int = (0.8 * n).toInt()) : ObjectiveFunct
         else n - count).toDouble()
         return -jump
     }
+
+    override fun lowerBound() = -(n + m).toDouble()
+    override fun upperBound() = 0.0
 }
 
 class InteractionObjective(weights: DoubleArray) : ObjectiveFunction {
@@ -148,11 +140,29 @@ class InteractionObjective(weights: DoubleArray) : ObjectiveFunction {
     }
 
     override fun value(instance: Instance) = (instance.toDoubleArray() * weights).sum()
+
+    private val lowerBound: Double
+    private val upperBound: Double
+
+    init {
+        var lb = 0.0
+        var ub = 0.0
+        for (i in 0 until weights.size) {
+            for (j in 0 until weights.size) {
+                if (abs(i - j) <= 2) {
+                    lb += min(0.0, weights[i] * weights[j])
+                    ub += max(0.0, weights[i] * weights[j])
+                }
+            }
+        }
+        lowerBound = lb
+        upperBound = ub
+    }
+
+    override fun lowerBound() = lowerBound
+    override fun upperBound() = upperBound
 }
 
-/**
- * This tests that the default implementations work.
- */
 class InteractionObjectiveTest : ObjectiveFunctionTest() {
     override fun function(nbrVariables: Int) = InteractionObjective(DoubleArray(nbrVariables) {
         Random.nextNormal()
@@ -161,10 +171,10 @@ class InteractionObjectiveTest : ObjectiveFunctionTest() {
 
 class SatObjectiveTest : ObjectiveFunctionTest() {
     override fun function(nbrVariables: Int) = SatObjective
-    @Test
-    fun bounds() {
-        assertEquals(0.0, SatObjective.lowerBound())
-    }
+}
+
+class JumpObjectiveTest : ObjectiveFunctionTest() {
+    override fun function(nbrVariables: Int) = JumpObjective(nbrVariables)
 }
 
 class LinearObjectiveTest : ObjectiveFunctionTest() {
@@ -202,3 +212,23 @@ class LinearObjectiveTest : ObjectiveFunctionTest() {
     }
 }
 
+class DisjunctPenaltyTest {
+    @Test
+    fun outOfReach() {
+        val penalty = DisjunctPenalty(LinearPenalty())
+        val function = LinearObjective(false, doubleArrayOf(-1.0, 0.5, 2.0, 1.0))
+        var min = Double.POSITIVE_INFINITY
+        var max = Double.NEGATIVE_INFINITY
+        for (l in 0 until 2.0.pow(4).toLong()) {
+            val instance = BitFieldInstance(4, longArrayOf(l))
+            min = min(min, function.value(instance))
+            max = max(max, function.value(instance))
+        }
+        for (l in 0 until 2.0.pow(4).toLong()) {
+            val instance = BitFieldInstance(4, longArrayOf(l))
+            val v = function.value(instance)
+            val p = penalty.penalty(v, 1, function.lowerBound(), function.upperBound())
+            assertTrue(v + p > max)
+        }
+    }
+}

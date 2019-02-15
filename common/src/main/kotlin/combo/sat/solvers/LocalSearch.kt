@@ -45,16 +45,16 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
     /**
-     * This contains cached information about satisfied constraints during search. [PropSearchStateFactory] is more
-     * efficient for optimizing but uses more memory than [BasicSearchStateFactory].
+     * This contains cached information about satisfied constraints during search. [PropTrackingInstanceFactory] is more
+     * efficient for optimizing but uses more memory than [BasicTrackingInstanceFactory].
      */
-    var stateFactory: SearchStateFactory = PropSearchStateFactory(problem)
+    var trackingInstanceFactory: TrackingInstanceFactory = PropTrackingInstanceFactory(problem)
 
     /**
-     * Variables will be initialized according to this during each iteration. Use [WeightSelector] for
+     * Variables will be initialized according to this during each iteration. Use [WeightInitializer] for
      * [LinearObjective].
      */
-    var selector: ValueSelector<O> = RandomSelector
+    var initializer: ValueInitializer<O> = RandomInitializer()
 
     /**
      * Threshold of improvement to stop current iteration in the search.
@@ -82,30 +82,30 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
             val rng = randomSequence.next()
 
             val instance = instanceFactory.create(problem.nbrVariables)
-            val state = stateFactory.build(instance, assumptions, selector, function, rng)
+            val tracker = trackingInstanceFactory.build(instance, assumptions, initializer, function, rng)
 
             fun setReturnValue(value: Double) {
-                if (value < bestValue && state.totalUnsatisfied == 0) {
+                if (value < bestValue && tracker.totalUnsatisfied == 0) {
                     bestValue = value
-                    bestInstance = state.instance.copy()
+                    bestInstance = tracker.instance.copy()
                 }
             }
 
             var prevValue = function.value(instance)
             setReturnValue(prevValue)
 
-            if (state.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0))
-                return state.instance
+            if (tracker.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0))
+                return tracker.instance
 
 
             for (step in 1..maxSteps) {
                 val n: Int
                 val ix: Int = if (pRandomWalk > rng.nextDouble()) {
-                    if (state.totalUnsatisfied > 0) state.randomUnsatisfied(rng).literals.random(rng).toIx()
+                    if (tracker.totalUnsatisfied > 0) tracker.randomUnsatisfied(rng).literals.random(rng).toIx()
                     else rng.nextInt(problem.nbrVariables)
                 } else {
-                    val itr: IntIterator = if (state.totalUnsatisfied > 0) {
-                        val literals = state.randomUnsatisfied(rng).literals
+                    val itr: IntIterator = if (tracker.totalUnsatisfied > 0) {
+                        val literals = tracker.randomUnsatisfied(rng).literals
                         n = min(adjustedMaxConsideration, literals.size)
                         literals.permutation(rng)
                     } else {
@@ -118,8 +118,8 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                     var bestIx = -1
                     for (k in 0 until n) {
                         val ix = itr.nextInt().toIx()
-                        val satScore = state.improvement(ix)
-                        val optScore = function.improvement(instance, ix, state.literalPropagations(ix))
+                        val satScore = tracker.improvement(ix)
+                        val optScore = function.improvement(instance, ix, tracker.literalPropagations(ix))
                         if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
                             bestIx = ix
                             maxSatImp = satScore
@@ -130,15 +130,15 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                 }
 
                 if (ix < 0) break
-                val improvement = function.improvement(instance, ix, state.literalPropagations(ix))
+                val improvement = function.improvement(instance, ix, tracker.literalPropagations(ix))
                 val score = prevValue - improvement
-                state.flip(ix)
+                tracker.flip(ix)
                 setReturnValue(score)
 
                 if (step.rem(10) == 0) prevValue = function.value(instance)
                 else prevValue -= improvement
-                if (state.totalUnsatisfied == 0) {
-                    if (abs(bestValue - lowerBound) < eps) return state.instance
+                if (tracker.totalUnsatisfied == 0) {
+                    if (abs(bestValue - lowerBound) < eps) return tracker.instance
                     else if (improvement < eps) break
                 }
                 if (millis() > end) break

@@ -65,13 +65,13 @@ abstract class LinearOptimizerTest {
         }
         with(SolverTest.SMALL_PROBLEMS[0]) {
             testOptimize(DoubleArray(nbrVariables) { 1.0 }, this, true, 10.0)
-            testOptimize(DoubleArray(nbrVariables) { 1.0 }, this, false, 1.0)
+            testOptimize(DoubleArray(nbrVariables) { 1.0 }, this, false, 1.0, 1.0)
             testOptimize(DoubleArray(nbrVariables) { 0.0 }, this, true, 0.0)
             testOptimize(DoubleArray(nbrVariables) { 0.0 }, this, false, 0.0)
             testOptimize(DoubleArray(nbrVariables) { it.toDouble() }, this, true, 50.0)
-            testOptimize(DoubleArray(nbrVariables) { it.toDouble() }, this, false, 3.0)
+            testOptimize(DoubleArray(nbrVariables) { it.toDouble() }, this, false, 3.0, 1.0)
             testOptimize(DoubleArray(nbrVariables) { it.toDouble() * .1 }, this, true, 5.0)
-            testOptimize(DoubleArray(nbrVariables) { it.toDouble() * .1 }, this, false, 0.3)
+            testOptimize(DoubleArray(nbrVariables) { it.toDouble() * .1 }, this, false, 0.3, 0.15)
         }
 
         with(SolverTest.SMALL_PROBLEMS[1]) {
