@@ -94,7 +94,7 @@ abstract class ObjectiveFunctionTest {
         val func = function(5)
         for (i in 0 until 32) {
             val instance = BitFieldInstance(5, longArrayOf(i.toLong()))
-            assertTrue(func.value(instance) <= func.upperBound())
+            assertTrue(func.value(instance) - func.upperBound() <= 1E-6, "${func.value(instance)} <= ${func.upperBound()}")
         }
     }
 
@@ -103,7 +103,7 @@ abstract class ObjectiveFunctionTest {
         val func = function(5)
         for (i in 0 until 32) {
             val instance = BitFieldInstance(5, longArrayOf(i.toLong()))
-            assertTrue(func.value(instance) >= func.lowerBound(), "${func.value(instance)} >= ${func.lowerBound()}")
+            assertTrue(func.value(instance) - func.lowerBound() >= -1E-6, "${func.value(instance)} >= ${func.lowerBound()}")
         }
     }
 }
