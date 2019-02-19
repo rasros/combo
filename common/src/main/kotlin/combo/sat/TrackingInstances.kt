@@ -64,7 +64,7 @@ class RandomInitializer : ValueInitializer<ObjectiveFunction?> {
 class WeightInitializer @JvmOverloads constructor(val noise: Double = 0.0) : ValueInitializer<LinearObjective> {
     override fun select(ix: Ix, instance: MutableInstance, rng: Random, function: LinearObjective): Boolean =
             if (function.maximize) function.weights[ix] + rng.nextNormal(0.0, noise) >= 0
-            else function.weights[ix] < 0
+            else function.weights[ix] + rng.nextNormal(0.0, noise) < 0
 }
 
 class FalseInitializer : ValueInitializer<ObjectiveFunction?> {
