@@ -38,7 +38,7 @@ The flag function creates a feature with boolean on/off values. In this model th
             .build()
 ```
 
-Combo supports additional types of features. The previous features that were added with just a name were all instances of the Flag feature. The additional feature types are Alternative and Multiple. Alternative would be a better option to build the above model: 
+Combo supports additional types of features. The previous features that were added with just a name were all instances of the Flag feature. The additional feature types are Alternative and Multiple. Alternative encodes an excludes constraint such that at most one of the given alternatives can be selected at once. Multiple is similar but without the exclusive constraint so that muliple options can be chosen at once. Alternative would be a better option to build the above model: 
 
 ```kotlin
     val model = Model.builder()
