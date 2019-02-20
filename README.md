@@ -42,7 +42,7 @@ Combo supports additional types of features. The previous features that were add
 
 ```kotlin
     val model = Model.builder()
-            .optional(alternative("Drama", "Sci-fi", "Comedy", "Horror"))
+            .optional(alternative("Drama", "Sci-fi", "Comedy", "Horror", name = "Movies"))
             .optional("Games")
             .build()
 ```
