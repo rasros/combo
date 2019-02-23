@@ -1,10 +1,10 @@
+@file:JvmName("IntCollections")
+
 package combo.util
 
 import combo.math.IntPermutation
 import combo.sat.Ix
-import combo.util.IntSet.Companion.LOAD_FACTOR
-import combo.util.IntSet.Companion.hash
-import combo.util.IntSet.Companion.tableSizeFor
+import kotlin.jvm.JvmName
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
 import kotlin.math.max
@@ -26,9 +26,9 @@ interface IntCollection : Iterable<Ix> {
     fun map(transform: (Int) -> Int): IntCollection
 
     override fun iterator(): IntIterator
-    fun permutation(rng: Random = Random): IntIterator
+    fun permutation(rng: Random): IntIterator
 
-    fun random(rng: Random = Random.Default): Int
+    fun random(rng: Random): Int
     fun add(ix: Ix): Boolean
     fun addAll(ixs: IntArray) = ixs.fold(false) { any, it -> this.add(it) || any }
     fun addAll(ixs: Iterable<Ix>) = ixs.fold(false) { any, it -> this.add(it) || any }
@@ -138,10 +138,10 @@ class IntSet private constructor(private var table: IntArray, size: Int) : IntCo
 
     override fun random(rng: Random): Int {
         require(size > 0)
-        var k = rng.nextInt(table.size)
-        while (table[k] < 0)
-            k = (k + 1) % table.size
-        return table[k]
+        while (true) {
+            val k = rng.nextInt(table.size)
+            if (table[k] >= 0) return table[k]
+        }
     }
 
     override fun add(ix: Ix): Boolean {
@@ -244,6 +244,15 @@ class IntList private constructor(private var array: IntArray, size: Int) : IntC
             array = array.copyOf(array.size * 2)
         array[size++] = ix
         return true
+    }
+
+    fun removeAt(ix: Int): Int {
+        val v = array[ix]
+        size--
+        for (i in ix until size)
+            array[i] = array[i + 1]
+        array[size] = 0
+        return v
     }
 
     override fun remove(ix: Int): Boolean {

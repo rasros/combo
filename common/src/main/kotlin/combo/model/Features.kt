@@ -3,14 +3,14 @@
 package combo.model
 
 import combo.sat.*
-import combo.util.ConcurrentInteger
+import combo.util.AtomicInt
 import combo.util.EMPTY_INT_ARRAY
 import combo.util.Tree
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
 
 private fun defaultName() = "x_${COUNTER.getAndIncrement()}"
-private val COUNTER: ConcurrentInteger = ConcurrentInteger()
+private val COUNTER: AtomicInt = AtomicInt()
 
 const val UNIT_FALSE = -1
 const val UNIT_TRUE = -2
@@ -35,21 +35,21 @@ abstract class Feature<T>(val name: String) : Variable() {
 class FeatureTree(override val value: Feature<*>,
                   override val children: List<FeatureTree> = emptyList()) : Tree<Feature<*>, FeatureTree>
 
-internal interface IndexEntry<T> {
+interface IndexEntry<T> {
 
     /**
      * Length of array must be same as [Feature.nbrLiterals]. A negative value means the value is unit.
      */
     val indices: IntArray
 
-    fun valueOf(labeling: Labeling): T?
+    fun valueOf(instance: Instance): T?
 
     fun toLiterals(t: Any?): Literals
 
     fun isRootUnit(): Boolean = indices[0] >= 0
 }
 
-internal data class FeatureMeta<T>(val feature: Feature<T>, val indexEntry: IndexEntry<T>) {
+data class FeatureMeta<T>(val feature: Feature<T>, val indexEntry: IndexEntry<T>) {
     override fun toString() = "FeatureMeta($feature)"
 }
 
@@ -86,8 +86,8 @@ class Flag<T>(val value: T, name: String = defaultName()) : Feature<T>(name) {
             else EMPTY_INT_ARRAY
         }
 
-        override fun valueOf(labeling: Labeling) =
-                if ((indices[0] >= 0 && labeling[indices[0]]) || indices[0] == UNIT_TRUE) value
+        override fun valueOf(instance: Instance) =
+                if ((indices[0] >= 0 && instance[indices[0]]) || indices[0] == UNIT_TRUE) value
                 else null
     }
 
@@ -146,7 +146,7 @@ abstract class Select<V, T>(override val values: Array<out V>, name: String = de
 
     protected inner class NullIndexEntry<S> : IndexEntry<S> {
         override val indices = IntArray(nbrLiterals) { UNIT_FALSE }
-        override fun valueOf(labeling: Labeling): S? = null
+        override fun valueOf(instance: Instance): S? = null
         override fun toLiterals(t: Any?): IntArray {
             if (t != null) throw UnsatisfiableException("Value of ${this@Select} must always be null.")
             return EMPTY_INT_ARRAY
@@ -201,13 +201,13 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
 
         private val rootFalse = if (indices[0] >= 0) intArrayOf(indices[0].toLiteral(false)) else EMPTY_INT_ARRAY
 
-        override fun valueOf(labeling: Labeling) =
-                if (indices[0] >= 0 && !labeling[indices[0]]) null
+        override fun valueOf(instance: Instance) =
+                if (indices[0] >= 0 && !instance[indices[0]]) null
                 else LinkedHashSet<V>().apply {
                     for (i in 1 until this@MultipleIndexEntry.indices.size)
-                        if (this@MultipleIndexEntry.indices[i] >= 0 && labeling[this@MultipleIndexEntry.indices[i]] || this@MultipleIndexEntry.indices[i] == UNIT_TRUE) add(values[i - 1])
+                        if (this@MultipleIndexEntry.indices[i] >= 0 && instance[this@MultipleIndexEntry.indices[i]] || this@MultipleIndexEntry.indices[i] == UNIT_TRUE) add(values[i - 1])
                     if (this@MultipleIndexEntry.indices[0] == UNIT_TRUE && isEmpty()) throw IllegalStateException(
-                            "Inconsistent labeling, should have something set for ${this@Multiple}.")
+                            "Inconsistent instance, should have something set for ${this@Multiple}.")
                 }
 
         override fun toLiterals(t: Any?): IntArray {
@@ -219,7 +219,7 @@ class Multiple<V>(vararg values: V, name: String = defaultName()) : Select<V, Se
                     ?: throw IllegalArgumentException("Value of ${this@Multiple} must be a collection but got $t.")
             if (col.isEmpty())
                 throw UnsatisfiableException("Collection for ${this@Multiple} can not be empty.")
-            // TODO should use labeling truthIterator to loop instead
+            // TODO should use instance truthIterator to loop instead
             val arr = IntArray(col.size)
             var k = 0
             for (v in col) {
@@ -256,7 +256,7 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
             if (it == 0 || it - 1 == valueIx) UNIT_TRUE else UNIT_FALSE
         }
 
-        override fun valueOf(labeling: Labeling) = values[valueIx]
+        override fun valueOf(instance: Instance) = values[valueIx]
         override fun toLiterals(t: Any?): IntArray {
             if (t != values[valueIx]) throw UnsatisfiableException(
                     "Value of ${this@Alternative} must be \"${values[valueIx]}\", got \"$t\".")
@@ -275,12 +275,12 @@ class Alternative<V>(vararg values: V, name: String = defaultName()) : Select<V,
             else EMPTY_INT_ARRAY
         }
 
-        override fun valueOf(labeling: Labeling): V? {
-            if (indices[0] >= 0 && !labeling[indices[0]]) return null
-            // TODO should use labeling truthIterator to loop instead
+        override fun valueOf(instance: Instance): V? {
+            if (indices[0] >= 0 && !instance[indices[0]]) return null
+            // TODO should use instance truthIterator to loop instead
             for (i in 1 until indices.size)
-                if (indices[i] >= 0 && labeling[indices[i]]) return values[i - 1]
-            throw IllegalStateException("Inconsistent labeling, should have something set for ${this@Alternative}.")
+                if (indices[i] >= 0 && instance[indices[i]]) return values[i - 1]
+            throw IllegalStateException("Inconsistent instance, should have something set for ${this@Alternative}.")
         }
 
         override fun toLiterals(t: Any?): IntArray {

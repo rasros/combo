@@ -1,6 +1,6 @@
 package combo.model
 
-import combo.sat.Labeling
+import combo.sat.Instance
 import combo.sat.Problem
 import combo.sat.Tautology
 import combo.sat.toLiteral
@@ -23,7 +23,9 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
         fun builder(name: String) = builder(flag(name))
     }
 
-    fun toAssignment(labeling: Labeling) = Assignment(labeling, featureMetas)
+    fun toAssignment(instance: Instance) = Assignment(instance, featureMetas)
+
+    fun toAssignments(sequence: Sequence<Instance>) = sequence.map { toAssignment(it) }
 
     fun variableIndex(): Array<Feature<*>> {
         val list = ArrayList<Feature<*>>()
@@ -40,8 +42,6 @@ class Model private constructor(internal val featureMetas: Map<Feature<*>, Featu
             override val children: MutableList<Builder>,
             private val declarations: MutableSet<Feature<*>>? = null,
             private val constraints: MutableList<ConstraintBuilder>? = null) : Tree<Feature<*>, Builder> {
-        // TODO optimizations in building procedure
-        // TODO ideas: don't add disjunctions to root
 
         @JvmOverloads
         constructor(feature: Feature<*> = flag("root")) : this(feature, ArrayList(), HashSet(), ArrayList()) {

@@ -30,28 +30,43 @@ import org.sat4j.pb.SolverFactory as PBSolverFactory
 import org.sat4j.specs.TimeoutException as Sat4JTimeoutException
 
 /**
- * [Solver] and [Optimizer] of [LinearObjective] using the Sat4J SAT library.
+ * [Solver] and [Optimizer] of [LinearObjective] using the Sat4J SAT library. Using this requires an extra optional
+ * dependency, like so in gradle: compile "org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5"
  */
-class Sat4JSolver(val problem: Problem,
-                  val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                  val randomSeed: Long = nanos(),
-                  val timeout: Long = -1L,
-                  val maxConflicsts: Int = Int.MAX_VALUE,
-                  val forgetLearnedClauses: Boolean = true,
-                  val maxConflicts: Int = Int.MAX_VALUE,
-                  val solverCreator: () -> Sat4J<*> = { SolverFactory.newMiniLearningHeap() },
-                  var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver },
-                  val constraintHandler: (Constraint, Sat4J<*>) -> Nothing = { _, _ ->
-                      throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                  }) : Solver, Optimizer<LinearObjective> {
+class Sat4JSolver @JvmOverloads constructor(
+        val problem: Problem,
+        val solverCreator: () -> Sat4J<*> = { SolverFactory.newMiniLearningHeap() },
+        var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver },
+        val constraintHandler: (Constraint, Sat4J<*>) -> Nothing = { _, _ ->
+            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+        }) : Solver, Optimizer<LinearObjective> {
 
+    override var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
+    override var timeout: Long = -1L
 
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
+    /**
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     */
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
 
-    private val randomSequence = RandomSequence(randomSeed)
+    /**
+     * Solver aborts after this number of conflicts are reached.
+     */
+    var maxConflicts: Int = Int.MAX_VALUE
+
+    /**
+     * Solver forgets all learned clauses after each [witness]. Setting to false might improve solving speed but
+     * introduces bias in the generated instances.
+     */
+    var forgetLearnedClauses: Boolean = true
+
+    private val solverLock = Object()
+    private var randomSequence = RandomSequence(nanos())
     private val literalSelection = RandomLiteralSelectionStrategySeeded(randomSequence.next())
     private val solver: Sat4J<*> = solverCreator.invoke()
     private val timeoutOrder = TimeoutOrder(solver.order)
@@ -62,44 +77,46 @@ class Sat4JSolver(val problem: Problem,
         this.solver.setup(problem, constraintHandler)
     }
 
-    override fun witnessOrThrow(assumptions: Literals): Labeling {
-        totalEvaluated++
-        literalSelection.rng = randomSequence.next()
-        if (timeout > 0L) timeoutOrder.setTimeout(timeout)
-        solver.setTimeoutOnConflicts(maxConflicsts)
-        val assumption = assumptions.toDimacs()
-        if (solver.isSatisfiable(assumption)) {
-            val l = solver.model().toLabeling(labelingFactory)
-            if (forgetLearnedClauses) solver.clearLearntClauses()
-            totalSuccesses++
-            return l
-        } else {
-            throw UnsatisfiableException()
+    override fun witnessOrThrow(assumptions: Literals): Instance {
+        synchronized(solverLock) {
+            literalSelection.rng = randomSequence.next()
+            if (timeout > 0L) timeoutOrder.setTimeout(timeout)
+            solver.setTimeoutOnConflicts(maxConflicts)
+            val assumption = assumptions.toDimacs()
+            try {
+                if (solver.isSatisfiable(assumption)) return solver.model().toInstance(instanceFactory)
+                else throw UnsatisfiableException()
+            } catch (e: org.sat4j.specs.TimeoutException) {
+                throw IterationsReachedException(maxConflicts)
+            } finally {
+                if (forgetLearnedClauses) solver.clearLearntClauses()
+            }
         }
     }
 
-    override fun sequence(assumptions: Literals): Sequence<Labeling> {
+    override fun sequence(assumptions: Literals): Sequence<Instance> {
         val base = SolverFactory.newMiniLearning(
                 MixedDataStructureDanielWL(),
                 VarOrderHeap(RandomLiteralSelectionStrategySeeded(randomSequence.next())))
         base.setup(problem, constraintHandler)
+        base.setTimeoutOnConflicts(maxConflicts)
         val solver = ModelIterator(base)
         val iterator = ModelIterator(solver)
         val assumption = assumptions.toDimacs()
         val timeout = timeout
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         return generateSequence {
-            if (millis() >= end) null
-            else if (!iterator.isSatisfiable(assumption)) null
-            else {
-                totalEvaluated++
-                iterator.model().toLabeling(labelingFactory).also { totalSuccesses++ }
+            try {
+                if (millis() >= end) null
+                else if (!iterator.isSatisfiable(assumption)) null
+                else iterator.model().toInstance(instanceFactory)
+            } catch (e: org.sat4j.specs.TimeoutException) {
+                throw IterationsReachedException(maxConflicts)
             }
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
-        totalEvaluated++
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
         val pbSolver = optimizerCreator()
         pbSolver.setTimeoutOnConflicts(maxConflicts)
         if (timeout >= 0L)
@@ -108,14 +125,17 @@ class Sat4JSolver(val problem: Problem,
         pbSolver.setup(problem, constraintHandler)
         val intWeights = function.weights.toIntArray()
         if (function.maximize) intWeights.transformArray { -it }
+        optimizer.setTimeoutOnConflicts(maxConflicts)
         optimizer.objectiveFunction = ObjectiveFunction(
                 VecInt((1..intWeights.size).toList().toIntArray()),
                 Vec(intWeights.map { valueOf(it.toLong()) }.toTypedArray()))
-        if (!optimizer.isSatisfiable(assumptions.toDimacs())) {
-            throw UnsatisfiableException()
+        try {
+            if (!optimizer.isSatisfiable(assumptions.toDimacs()))
+                throw UnsatisfiableException()
+            return optimizer.model().toInstance(instanceFactory)
+        } catch (e: org.sat4j.specs.TimeoutException) {
+            throw IterationsReachedException(maxConflicts)
         }
-        totalSuccesses++
-        return optimizer.model().toLabeling(labelingFactory)
     }
 
     private class TimeoutOrder(val base: IOrder) : IOrder by base {
@@ -184,7 +204,7 @@ class Sat4JSolver(val problem: Problem,
         return VecInt(newClause)
     }
 
-    private fun IntArray.toLabeling(factory: LabelingFactory): Labeling {
+    private fun IntArray.toInstance(factory: InstanceFactory): Instance {
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0

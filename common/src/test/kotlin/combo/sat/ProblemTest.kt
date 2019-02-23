@@ -1,7 +1,7 @@
 package combo.sat
 
 import combo.math.IntPermutation
-import combo.math.binomial
+import combo.math.nextBinomial
 import combo.model.ModelTest
 import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
@@ -24,7 +24,7 @@ class ProblemTest {
     fun unitPropagationReduction() {
         val units = IntSet()
         val reduced = problem.unitPropagation(units)
-        assertTrue(reduced.size < problem.nbrSentences)
+        assertTrue(reduced.size < problem.nbrConstraints)
     }
 
     @Test
@@ -62,7 +62,7 @@ class ProblemTest {
         val rng = Random.Default
         val p = ModelTest.LARGE2.problem
         val perm = IntPermutation(p.nbrVariables, rng)
-        val lits = (0 until rng.binomial(0.7, p.nbrVariables)).asSequence()
+        val lits = (0 until rng.nextBinomial(0.7, p.nbrVariables)).asSequence()
                 .map { perm.encode(it) }
                 .map { it.toLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }
@@ -76,7 +76,7 @@ class ProblemTest {
         } catch (e: UnsatisfiableException) {
             return
         }
-        LabelingPermutation.sequence(p.nbrVariables, rng).take(100).forEach {
+        InstancePermutation(p.nbrVariables, BitFieldInstanceFactory, rng).iterator().asSequence().take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }
@@ -85,9 +85,9 @@ class ProblemTest {
     fun satisfies() {
         val sentences = arrayOf(Cardinality(IntList(intArrayOf(0, 2, 4)), 1, Relation.LE))
         val problem = Problem(sentences, 3)
-        assertFalse(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b110 })))
-        assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b000 })))
-        assertTrue(problem.satisfies(BitFieldLabeling(3, LongArray(1) { 0b010 })))
+        assertFalse(problem.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
+        assertTrue(problem.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
+        assertTrue(problem.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
     }
 
 
@@ -96,9 +96,9 @@ class ProblemTest {
         val problem = Problem(arrayOf(
                 Disjunction(IntList(intArrayOf(0, 2, 4))),
                 Conjunction(IntList(intArrayOf(1)))), 3)
-        assertContentEquals(intArrayOf(0, 1), problem.sentencesWith(0))
-        assertContentEquals(intArrayOf(0), problem.sentencesWith(1))
-        assertContentEquals(intArrayOf(0), problem.sentencesWith(2))
+        assertContentEquals(intArrayOf(0, 1), problem.constraintsWith(0))
+        assertContentEquals(intArrayOf(0), problem.constraintsWith(1))
+        assertContentEquals(intArrayOf(0), problem.constraintsWith(2))
     }
 }
 

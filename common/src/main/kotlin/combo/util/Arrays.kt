@@ -1,4 +1,8 @@
+@file:JvmName("Arrays")
+
 package combo.util
+
+import kotlin.jvm.JvmName
 
 inline fun DoubleArray.mapArray(transform: (Double) -> Double) =
         DoubleArray(this.size) {

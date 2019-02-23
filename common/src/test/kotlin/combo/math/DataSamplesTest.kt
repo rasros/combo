@@ -1,30 +1,31 @@
 package combo.math
 
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class DataSamplesTest {
     @Test
     fun emptyReservoirSample() {
-        assertEquals(0, ReservoirSample(10).collect().size)
+        assertEquals(0, ReservoirSample(10, Random).toArray().size)
     }
 
     @Test
     fun reservoirSampleFull() {
-        val s = ReservoirSample(10)
+        val s = ReservoirSample(10, Random)
         for (i in 1..10)
             s.accept(i.toDouble())
-        val collect = s.collect()
+        val collect = s.toArray()
         for (i in 0 until 10)
             assertEquals(i.toDouble() + 1.0, collect[i])
     }
 
     @Test
     fun reservoirSampleUnderSize() {
-        val s = ReservoirSample(100)
+        val s = ReservoirSample(100, Random)
         for (i in 1..10)
             s.accept(i.toDouble())
-        val collect = s.collect()
+        val collect = s.toArray()
         for (i in 0 until 10)
             assertEquals(i.toDouble() + 1.0, collect[i])
         assertEquals(10, collect.size)
@@ -32,16 +33,16 @@ class DataSamplesTest {
 
     @Test
     fun reservoirSampleOverSize() {
-        val s = ReservoirSample(20)
+        val s = ReservoirSample(20, Random)
         for (i in 1..100)
             s.accept(i.toDouble())
-        val collect = s.collect()
+        val collect = s.toArray()
         assertEquals(20, collect.size)
     }
 
     @Test
     fun emptyFullSample() {
-        assertEquals(0, FullSample().collect().size)
+        assertEquals(0, FullSample().toArray().size)
     }
 
     @Test
@@ -49,7 +50,7 @@ class DataSamplesTest {
         val s = FullSample()
         for (i in 1..100)
             s.accept(i.toDouble())
-        val collect = s.collect()
+        val collect = s.toArray()
         assertEquals(100, collect.size)
         for (i in 1..100)
             s.accept(i.toDouble())
@@ -60,7 +61,7 @@ class DataSamplesTest {
         val s = BucketsSample(1)
         for (i in 1..100)
             s.accept(i.toDouble())
-        val data = s.collect()
+        val data = s.toArray()
         for (i in 1..100)
             assertEquals(i.toDouble(), data[i - 1])
     }
@@ -70,7 +71,7 @@ class DataSamplesTest {
         val s = BucketsSample(10)
         for (i in 1..200)
             s.accept(i.toDouble())
-        val data = s.collect()
+        val data = s.toArray()
         assertEquals(20, data.size)
         for (i in 0 until 20)
             assertEquals(5.5 + i * 10.0, data[i])
@@ -78,7 +79,7 @@ class DataSamplesTest {
 
     @Test
     fun emptyBucketsSample() {
-        assertEquals(0, BucketsSample(10).collect().size)
+        assertEquals(0, BucketsSample(10).toArray().size)
     }
 
     @Test
@@ -86,7 +87,7 @@ class DataSamplesTest {
         val s = WindowSample(20)
         for (i in 1..20)
             s.accept(i.toDouble())
-        val data = s.collect()
+        val data = s.toArray()
         assertEquals(20, data.size)
         for (i in 1..20)
             assertEquals(i.toDouble(), data[i - 1])
@@ -97,27 +98,14 @@ class DataSamplesTest {
         val s = WindowSample(20)
         for (i in 1..94)
             s.accept(i.toDouble())
-        s.collect()
+        s.toArray()
         s.accept(1.0)
-        val data = s.collect()
+        val data = s.toArray()
         assertEquals(1.0, data[data.size - 1])
     }
 
     @Test
     fun emptyWindowSample() {
-        assertEquals(0, WindowSample(10).collect().size)
-    }
-
-    @Test
-    fun percentileTest() {
-        val data = doubleArrayOf(10.0, 20.1, 1.0, 3.0, -12.2)
-        val p = Percentile(data)
-        assertEquals(3.0, p.median)
-        assertEquals(-12.2, p.quartile(0))
-        assertEquals(1.0, p.quartile(1))
-        assertEquals(3.0, p.quartile(2))
-        assertEquals(10.0, p.quartile(3))
-        assertEquals(20.1, p.quartile(4))
-        assertEquals(-12.2, p.percentile(0.1))
+        assertEquals(0, WindowSample(10).toArray().size)
     }
 }

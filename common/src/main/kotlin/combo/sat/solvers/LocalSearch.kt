@@ -10,85 +10,107 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * TODO explain parameters
+ * This solver implements WalkSAT for sat solving and Hill climbing for optimization.
+ * @param problem the problem contains the [Constraint]s and the number of variables.
  */
-open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
-                                                          val timeout: Long = -1L,
-                                                          val randomSeed: Long = nanos(),
-                                                          val restarts: Int = 5,
-                                                          val maxSteps: Int = max(1, problem.nbrVariables),
-                                                          val pRandomWalk: Double = 0.0,
-                                                          val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                                                          val stateFactory: SearchStateFactory = PropSearchStateFactory(problem),
-                                                          val selector: ValueSelector<O> = RandomSelector,
-                                                          val eps: Double = 1E-4,
-                                                          val maxConsideration: Int = max(20, problem.nbrVariables / 5))
-    : Optimizer<O> {
+open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-    private val randomSequence = RandomSequence(randomSeed)
+    override var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
+    override var timeout: Long = -1L
 
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
-    var totalIterations: Long = 0
-        private set
+    /**
+     * The search will be restarted up to [restarts] number of time and the best value will be selected from each
+     * restart. For SAT solving restarts will be set to [Int.MAX_VALUE].
+     */
+    var restarts: Int = 5
 
-    private fun recordCompleted(satisfied: Boolean) {
-        if (satisfied) totalSuccesses++
-        totalEvaluated++
-    }
+    /**
+     * Maximum number of steps for each of the [restarts].
+     */
+    var maxSteps: Int = max(100, problem.nbrVariables)
 
-    override fun optimizeOrThrow(function: O, assumptions: Literals): Labeling {
+    /**
+     * Chance of talking a random walk according to the WalkSAT algorithm.
+     */
+    var pRandomWalk: Double = 0.0
+
+    /**
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     */
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+
+    /**
+     * This contains cached information about satisfied constraints during search. [PropTrackingInstanceFactory] is more
+     * efficient for optimizing but uses more memory than [BasicTrackingInstanceFactory].
+     */
+    var trackingInstanceFactory: TrackingInstanceFactory = PropTrackingInstanceFactory(problem)
+
+    /**
+     * Variables will be initialized according to this during each iteration. Use [WeightInitializer] for
+     * [LinearObjective].
+     */
+    var initializer: ValueInitializer<O> = RandomInitializer()
+
+    /**
+     * Threshold of improvement to stop current iteration in the search.
+     */
+    var eps: Double = 1E-4
+
+    /**
+     * Maximum number of variables to consider during each search, set to [Int.MAX_VALUE] to disable.
+     */
+    var maxConsideration: Int = max(20, problem.nbrVariables / 5)
+
+    private var randomSequence = RandomSequence(nanos())
+
+    override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
 
         val adjustedMaxConsideration = max(2, min(maxConsideration, problem.nbrVariables))
 
         var bestValue = Double.POSITIVE_INFINITY
-        var bestLabeling: Labeling? = null
+        var bestInstance: Instance? = null
 
         val lowerBound = function.lowerBound()
 
         for (restart in 1..restarts) {
-            totalIterations++
             val rng = randomSequence.next()
-            if (restart > 40 && bestLabeling == null) {
-                println()
-            }
 
-            val labeling = labelingFactory.create(problem.nbrVariables)
-            val state = stateFactory.build(labeling, assumptions, selector, function, rng)
+            val instance = instanceFactory.create(problem.nbrVariables)
+            val tracker = trackingInstanceFactory.build(instance, assumptions, initializer, function, rng)
 
             fun setReturnValue(value: Double) {
-                if (value < bestValue && state.totalUnsatisfied == 0) {
+                if (value < bestValue && tracker.totalUnsatisfied == 0) {
                     bestValue = value
-                    bestLabeling = state.labeling.copy()
+                    bestInstance = tracker.instance.copy()
                 }
             }
 
-            var prevValue = function.value(labeling)
+            var prevValue = function.value(instance)
             setReturnValue(prevValue)
 
-            if (state.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0)) {
-                recordCompleted(true)
-                return state.labeling
-            }
+            if (tracker.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0))
+                return tracker.instance
 
-            for (flips in 1..maxSteps) {
+
+            for (step in 1..maxSteps) {
                 val n: Int
                 val ix: Int = if (pRandomWalk > rng.nextDouble()) {
-                    if (state.totalUnsatisfied > 0) state.randomUnsatisfied(rng).literals.random(rng).toIx()
+                    if (tracker.totalUnsatisfied > 0) tracker.randomUnsatisfied(rng).literals.random(rng).toIx()
                     else rng.nextInt(problem.nbrVariables)
                 } else {
-                    val itr: IntIterator = if (state.totalUnsatisfied > 0) {
-                        val literals = state.randomUnsatisfied(rng).literals
+                    val itr: IntIterator = if (tracker.totalUnsatisfied > 0) {
+                        val literals = tracker.randomUnsatisfied(rng).literals
                         n = min(adjustedMaxConsideration, literals.size)
                         literals.permutation(rng)
-                        //if (literals.size > adjustedMaxConsideration) literals.permutation(rng)
-                        //else literals.iterator()
                     } else {
                         n = min(adjustedMaxConsideration, problem.nbrVariables)
-                        if (problem.nbrVariables > adjustedMaxConsideration) IntPermutation(problem.nbrVariables).iterator()
+                        if (problem.nbrVariables > adjustedMaxConsideration) IntPermutation(problem.nbrVariables, rng).iterator()
                         else (0 until problem.nbrVariables).iterator()
                     }
                     var maxSatImp = Int.MIN_VALUE
@@ -96,8 +118,8 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
                     var bestIx = -1
                     for (k in 0 until n) {
                         val ix = itr.nextInt().toIx()
-                        val satScore = state.improvement(ix)
-                        val optScore = function.improvement(labeling, ix, state.changes(ix))
+                        val satScore = tracker.improvement(ix)
+                        val optScore = function.improvement(instance, ix, tracker.literalPropagations(ix))
                         if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
                             bestIx = ix
                             maxSatImp = satScore
@@ -108,42 +130,33 @@ open class LocalSearchOptimizer<in O : ObjectiveFunction>(val problem: Problem,
                 }
 
                 if (ix < 0) break
-                val improvement = function.improvement(labeling, ix, state.changes(ix))
+                val improvement = function.improvement(instance, ix, tracker.literalPropagations(ix))
                 val score = prevValue - improvement
-                state.flip(ix)
+                tracker.flip(ix)
                 setReturnValue(score)
 
-                if (flips.rem(1) == 0) prevValue = function.value(labeling)
+                if (step.rem(10) == 0) prevValue = function.value(instance)
                 else prevValue -= improvement
-                if (state.totalUnsatisfied == 0) {
-                    if (abs(bestValue - lowerBound) < eps) {
-                        recordCompleted(true)
-                        return state.labeling
-                    } else if (improvement < eps) break
+                if (tracker.totalUnsatisfied == 0) {
+                    if (abs(bestValue - lowerBound) < eps) return tracker.instance
+                    else if (improvement < eps) break
                 }
                 if (millis() > end) break
             }
             if (millis() > end) break
         }
-        recordCompleted(bestLabeling != null)
-        return bestLabeling
+        return bestInstance
                 ?: (if (millis() > end) throw TimeoutException(timeout) else throw IterationsReachedException(restarts))
     }
 }
 
-class LocalSearchSolver(problem: Problem,
-                        timeout: Long = -1L,
-                        randomSeed: Long = nanos(),
-                        restarts: Int = Int.MAX_VALUE,
-                        maxSteps: Int = max(1, problem.nbrVariables),
-                        pRandomWalk: Double = 0.0,
-                        labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                        stateFactory: SearchStateFactory = PropSearchStateFactory(problem),
-                        selector: ValueSelector<SatObjective> = RandomSelector,
-                        eps: Double = 1E-4,
-                        maxConsideration: Int = max(20, problem.nbrVariables / 5)) : LocalSearchOptimizer<SatObjective>(
-        problem, timeout, randomSeed, restarts, maxSteps, pRandomWalk, labelingFactory, stateFactory, selector, eps, maxConsideration), Solver {
+/**
+ * This class changes the default parameters to be suitable for SAT solving.
+ */
+class LocalSearchSolver(problem: Problem) : LocalSearchOptimizer<SatObjective>(problem), Solver {
+    init {
+        restarts = Int.MAX_VALUE
+    }
 
     override fun witnessOrThrow(assumptions: Literals) = optimizeOrThrow(SatObjective, assumptions)
 }
-

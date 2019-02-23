@@ -21,17 +21,17 @@ abstract class SolverTest {
     open fun timeoutSolver(problem: Problem): Solver? = unsatSolver(problem)
 
     companion object {
-        val SMALL_PROBLEMS = ModelTest.SMALL_MODELS.map { m -> m.problem }
-        val SMALL_UNSAT_PROBLEMS = ModelTest.SMALL_UNSAT_MODELS.map { m -> m.problem }
-        val LARGE_PROBLEMS = ModelTest.LARGE_MODEL.map { m -> m.problem }
+        val SMALL_PROBLEMS: List<Problem> by lazy { ModelTest.SMALL_MODELS.map { m -> m.problem } }
+        val SMALL_UNSAT_PROBLEMS: List<Problem> by lazy { ModelTest.SMALL_UNSAT_MODELS.map { m -> m.problem } }
+        val LARGE_PROBLEMS: List<Problem>  by lazy { ModelTest.LARGE_MODEL.map { m -> m.problem } }
     }
 
     @Test
     fun emptyProblemSat() {
         val solver = solver(Problem(arrayOf(), 0))
         if (solver != null) {
-            val l = solver.witnessOrThrow()
-            assertEquals(0, l.size)
+            val instance = solver.witnessOrThrow()
+            assertEquals(0, instance.size)
         }
     }
 
@@ -99,28 +99,26 @@ abstract class SolverTest {
     fun largeSat() {
         for ((i, p) in LARGE_PROBLEMS.withIndex()) {
             val solver = largeSolver(p)
-            //for (z in 1..100) {
             if (solver != null) {
                 assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
                 assertTrue(p.satisfies(solver.witness()!!), "Model $i")
             }
-            //}
         }
     }
 
     @Test
-    fun smallSatAssumptions() {
+    fun smallSatAssumptionsAuto() {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
-                val l = solver.witnessOrThrow()
+                val instance = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
                 val assumptions = IntList()
-                for (j in 0 until l.size) {
+                for (j in 0 until instance.size) {
                     if (rng.nextBoolean())
-                        assumptions.add(l.literal(j))
+                        assumptions.add(instance.literal(j))
                 }
-                assertTrue(p.satisfies(l))
+                assertTrue(p.satisfies(instance))
                 val restricted = solver.witnessOrThrow(assumptions.toArray())
                 assertTrue(p.satisfies(restricted),
                         "Model $i, assumptions ${assumptions.joinToString(",")}")
@@ -131,16 +129,16 @@ abstract class SolverTest {
     }
 
     @Test
-    fun ssmallSatSequenceAssumptions() {
+    fun smallSatSequenceAssumptions() {
         for ((i, p) in SMALL_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
-                val l = solver.witnessOrThrow()
+                val instance = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
                 val assumptions = IntList()
-                for (j in 0 until l.size) {
+                for (j in 0 until instance.size) {
                     if (rng.nextBoolean())
-                        assumptions.add(l.literal(j))
+                        assumptions.add(instance.literal(j))
                 }
                 val restricted = solver.witnessOrThrow(assumptions.toArray())
                 assertTrue(p.satisfies(restricted),

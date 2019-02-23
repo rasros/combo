@@ -13,11 +13,6 @@ import kotlin.math.abs
 interface Loss {
     fun loss(diff: Double): Double
     fun dloss(diff: Double): Double
-    fun asTransform() = object : Transform {
-        override fun inverse(value: Double) = dloss(value)
-        override fun apply(value: Double) = throw UnsupportedOperationException()
-        override fun backtransform(stat: VarianceStatistic) = throw UnsupportedOperationException()
-    }
 }
 
 /**

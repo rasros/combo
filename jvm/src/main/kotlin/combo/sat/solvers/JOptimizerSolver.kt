@@ -20,25 +20,45 @@ import kotlin.math.roundToInt
 /**
  * [Optimizer] of [LinearObjective] using the binary integer programming (BIP) solver of the JOptimizer library.
  * Assumptions during solving are added using the A=b matrices, allowing reuse of the constant G<=h matrices.
+ * Using this class requires an extra optional dependency, like so in gradle: compile "com.joptimizer:joptimizer:4.0.0"
  */
-class JOptimizerSolver(val problem: Problem,
-                       val labelingFactory: LabelingFactory = BitFieldLabelingFactory,
-                       val randomSeed: Long = nanos(),
-                       val maxIterations: Int = Int.MAX_VALUE,
-                       val delta: Double = 1e-3,
-                       constraintHandler: (Constraint, row: Int, G: IntMatrix2D, h: IntMatrix1D) -> Int = { _, _, _, _ ->
-                           throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                       },
-                       constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
-                           throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-                       }) : Optimizer<LinearObjective> {
+class JOptimizerSolver @JvmOverloads constructor(
+        val problem: Problem,
+        constraintHandler: (Constraint, row: Int, G: IntMatrix2D, h: IntMatrix1D) -> Int = { _, _, _, _ ->
+            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+        },
+        constraintHandlerRowCounter: (Constraint) -> Int = { _ ->
+            throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
+        }) : Optimizer<LinearObjective> {
 
-    var totalSuccesses: Long = 0
-        private set
-    var totalEvaluated: Long = 0
-        private set
+    override var randomSeed: Long
+        set(value) {
+            this.randomSequence = RandomSequence(value)
+        }
+        get() = randomSequence.startingSeed
 
-    private val randomSequence = RandomSequence(randomSeed)
+    /**
+     * Timeout is not supported by JOptimizer, use maxIterations for pre-mature cancellation..
+     */
+    override var timeout: Long = -1L
+
+    /**
+     * Maximum number of iteration in the search algorithm.
+     */
+    var maxIterations: Int = Int.MAX_VALUE
+
+    /**
+     * Sensitivity of conversion of float objective function to int objective function.
+     */
+    var delta: Double = 1e-4
+
+    /**
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     */
+    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+
+    private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D
     private val h: IntMatrix1D
 
@@ -103,12 +123,9 @@ class JOptimizerSolver(val problem: Problem,
      * Does not support timeout.
      *
      * @throws UnsatisfiableException
-     * @throws IterationsReachedException by config.maxIterations
+     * @throws IterationsReachedException by maxIterations
      */
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Labeling {
-
-        totalEvaluated++
-
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
         val request = BIPOptimizationRequest().apply {
             val mult = if (function.maximize) -1 else 1
             setC(IntArray(function.weights.size) { i ->
@@ -140,9 +157,7 @@ class JOptimizerSolver(val problem: Problem,
                 throw IterationsReachedException(maxIterations)
             }
         }
-        return opt.bipOptimizationResponse.solution.toLabeling(labelingFactory).also {
-            totalSuccesses++
-        }
+        return opt.bipOptimizationResponse.solution.toInstance(instanceFactory)
     }
 
     private fun disableLogging(obj: Any?, name: String, field: String) {
@@ -167,7 +182,7 @@ class JOptimizerSolver(val problem: Problem,
         }
     }
 
-    private fun IntArray.toLabeling(factory: LabelingFactory): Labeling {
+    private fun IntArray.toInstance(factory: InstanceFactory): Instance {
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0

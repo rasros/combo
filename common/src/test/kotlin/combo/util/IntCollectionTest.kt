@@ -117,7 +117,7 @@ class IntListTest {
     fun randomOnEmpty() {
         assertFailsWith(IllegalArgumentException::class) {
             val list = IntList()
-            list.random()
+            list.random(Random)
         }
     }
 
@@ -125,7 +125,7 @@ class IntListTest {
     fun randomOnSingleton() {
         val list = IntList()
         list.add(12300)
-        assertEquals(12300, list.random())
+        assertEquals(12300, list.random(Random))
     }
 
     @Test
@@ -185,7 +185,7 @@ class IntListTest {
     fun permutation() {
         val s1 = IntList()
         s1.addAll(10..20)
-        val s2 = s1.permutation().asSequence().toSet()
+        val s2 = s1.permutation(Random).asSequence().toSet()
         assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
     }
 }
@@ -322,7 +322,7 @@ class IntSetTest {
     fun randomOnEmpty() {
         assertFailsWith(IllegalArgumentException::class) {
             val set = IntSet()
-            set.random()
+            set.random(Random)
         }
     }
 
@@ -330,7 +330,7 @@ class IntSetTest {
     fun randomOnSingleton() {
         val set = IntSet()
         set.add(12300)
-        assertEquals(12300, set.random())
+        assertEquals(12300, set.random(Random))
     }
 
     @Test
@@ -391,7 +391,7 @@ class IntSetTest {
     fun permutation() {
         val s1 = IntSet()
         s1.addAll(10..20)
-        val s2 = s1.permutation().asSequence().toSet()
+        val s2 = s1.permutation(Random).asSequence().toSet()
         assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
     }
 }

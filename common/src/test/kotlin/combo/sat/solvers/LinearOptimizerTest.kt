@@ -15,8 +15,8 @@ abstract class LinearOptimizerTest {
 
     abstract fun optimizer(problem: Problem): Optimizer<LinearObjective>?
     open fun largeOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
-    open fun unsatOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
-    open fun timeoutOptimizer(problem: Problem): Optimizer<LinearObjective>? = unsatOptimizer(problem)
+    open fun infeasibleOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
+    open fun timeoutOptimizer(problem: Problem): Optimizer<LinearObjective>? = infeasibleOptimizer(problem)
 
     @Test
     fun emptyProblemOptimize() {
@@ -32,7 +32,7 @@ abstract class LinearOptimizerTest {
     fun smallOptimizeInfeasible() {
         for ((i, p) in SolverTest.SMALL_UNSAT_PROBLEMS.withIndex()) {
             try {
-                val unsatOptimizer = unsatOptimizer(p)
+                val unsatOptimizer = infeasibleOptimizer(p)
                 if (unsatOptimizer != null) {
                     assertFailsWith(ValidationException::class, "Model $i") {
                         unsatOptimizer.optimizeOrThrow(LinearObjective(false, DoubleArray(p.nbrVariables) { 0.0 }))
@@ -65,13 +65,13 @@ abstract class LinearOptimizerTest {
         }
         with(SolverTest.SMALL_PROBLEMS[0]) {
             testOptimize(DoubleArray(nbrVariables) { 1.0 }, this, true, 10.0)
-            testOptimize(DoubleArray(nbrVariables) { 1.0 }, this, false, 1.0)
+            testOptimize(DoubleArray(nbrVariables) { 1.0 }, this, false, 1.0, 1.0)
             testOptimize(DoubleArray(nbrVariables) { 0.0 }, this, true, 0.0)
             testOptimize(DoubleArray(nbrVariables) { 0.0 }, this, false, 0.0)
             testOptimize(DoubleArray(nbrVariables) { it.toDouble() }, this, true, 50.0)
-            testOptimize(DoubleArray(nbrVariables) { it.toDouble() }, this, false, 3.0)
+            testOptimize(DoubleArray(nbrVariables) { it.toDouble() }, this, false, 3.0, 1.0)
             testOptimize(DoubleArray(nbrVariables) { it.toDouble() * .1 }, this, true, 5.0)
-            testOptimize(DoubleArray(nbrVariables) { it.toDouble() * .1 }, this, false, 0.3)
+            testOptimize(DoubleArray(nbrVariables) { it.toDouble() * .1 }, this, false, 0.3, 0.15)
         }
 
         with(SolverTest.SMALL_PROBLEMS[1]) {
@@ -94,13 +94,16 @@ abstract class LinearOptimizerTest {
         }
         with(SolverTest.LARGE_PROBLEMS[0]) {
             testOptimize(DoubleArray(nbrVariables) { -2.0 + it.toDouble() * 0.1 }, this, true, 1909.0, 10.0)
-            testOptimize(DoubleArray(nbrVariables) { -2.0 + it.toDouble() * 0.1 }, this, false, -10.6, 1.5)
+            testOptimize(DoubleArray(nbrVariables) { -2.0 + it.toDouble() * 0.1 }, this, false, -10.6, 2.0)
         }
-        // TODO add some more
+        with(SolverTest.LARGE_PROBLEMS[2]) {
+            testOptimize(DoubleArray(nbrVariables) { -2.0 + it.toDouble() * 0.1 }, this, true, 11544.0, 20.0)
+            testOptimize(DoubleArray(nbrVariables) { -2.0 + it.toDouble() * 0.1 }, this, false, -21.0, 2.0)
+        }
     }
 
     @Test
-    fun smallOptimizeContextFeasible() {
+    fun smallOptimizeAssumptionsFeasible() {
         for ((i, p) in SolverTest.SMALL_PROBLEMS.withIndex()) {
             val solver = optimizer(p)
             if (solver != null) {
@@ -121,9 +124,9 @@ abstract class LinearOptimizerTest {
     }
 
     @Test
-    fun smallOptimizeContextInfeasible() {
+    fun smallOptimizeAssumptionsInfeasible() {
         fun testUnsat(assumptions: IntArray, p: Problem) {
-            val solver = unsatOptimizer(p)
+            val solver = infeasibleOptimizer(p)
             if (solver != null) {
                 assertFailsWith(ValidationException::class) {
                     solver.optimizeOrThrow(LinearObjective(true, DoubleArray(p.nbrVariables)), assumptions)
@@ -146,7 +149,7 @@ abstract class LinearOptimizerTest {
     }
 
     @Test
-    fun smallOptimizeContext() {
+    fun smallOptimizeAssumptions() {
         fun testOptimize(assumptions: Literals, weights: Vector, p: Problem, maximize: Boolean, target: Double, delta: Double = max(target * .3, 0.01)) {
             val solver = optimizer(p)
             if (solver != null) {

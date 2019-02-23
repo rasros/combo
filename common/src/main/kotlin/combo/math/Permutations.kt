@@ -2,10 +2,13 @@ package combo.math
 
 import kotlin.random.Random
 
-private const val INT_ROUNDS = 4
-private const val LONG_ROUNDS = 7
-
-class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random) : Iterable<Int> {
+/**
+ * Using format-preserving encryption
+ */
+class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random) : Iterable<Int> {
+    private companion object {
+        private const val INT_ROUNDS = 4
+    }
 
     private val mask: Int // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
@@ -51,7 +54,11 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random = Random) : Iter
     }
 }
 
-class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random = Random.Default) : Iterable<Long> {
+class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random) : Iterable<Long> {
+    private companion object {
+        private const val LONG_ROUNDS = 7
+    }
+
     private val mask: Long // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
     private val rish: Int                 // right shift count

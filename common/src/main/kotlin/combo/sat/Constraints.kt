@@ -11,6 +11,9 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * A constraint must be satisfied during solving. See [Literal] for more information on the binary format of variables.
+ */
 interface Constraint : Iterable<Literal> {
 
     val literals: IntCollection
@@ -33,7 +36,7 @@ interface Constraint : Iterable<Literal> {
     /**
      * Calculate the cached result.
      */
-    fun matches(l: Labeling): Int {
+    fun matches(l: Instance): Int {
         // Not using Iterable<Int>.sumBy to avoid auto boxing
         var sum = 0
         for (it in literals.iterator()) {
@@ -45,12 +48,12 @@ interface Constraint : Iterable<Literal> {
     /**
      * Returns the number of changes necessary for the constraint to be satisfied.
      */
-    fun flipsToSatisfy(l: Labeling): Int
+    fun flipsToSatisfy(l: Instance): Int
 
     /**
-     * Returns whether the constraint satisfies the labeling.
+     * Returns whether the constraint satisfies the instance.
      */
-    fun satisfies(l: Labeling) = flipsToSatisfy(l) == 0
+    fun satisfies(l: Instance) = flipsToSatisfy(l) == 0
 
     /**
      * Change the constraint based on the value of a unit literal.
@@ -75,25 +78,31 @@ interface Constraint : Iterable<Literal> {
     }
 }
 
+/**
+ * A clause is a basic constraint and is one of [Disjunction] or [Conjunction] or [Tautology].
+ */
 sealed class Clause(override val literals: IntCollection) : Constraint {
     abstract override fun propagateUnit(unit: Literal): Clause
 }
 
+/**
+ * This constraint is always satisfied.
+ */
 object Tautology : Clause(IntList(0)) {
     override fun flipsToSatisfy(matches: Int) = 0
-    override fun flipsToSatisfy(l: Labeling) = 0
+    override fun flipsToSatisfy(l: Instance) = 0
     override fun propagateUnit(unit: Literal) = this
     override fun toString() = "Tautology"
 }
 
 /*
- * (a || b || c)
+ * A disjunction is an OR relation between variables:  (a || b || c)
  */
 class Disjunction(literals: IntCollection) : Clause(literals) {
 
     override fun flipsToSatisfy(matches: Int) = if (matches > 0 || literals.isEmpty()) 0 else 1
 
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         for (lit in literals) {
             val ix = lit.toIx()
             if (l[ix] == lit.toBoolean())
@@ -120,12 +129,12 @@ class Disjunction(literals: IntCollection) : Clause(literals) {
 }
 
 /**
- * a && b && c
+ * A conjunction is an AND relation between variables: a && b && c
  */
 class Conjunction(literals: IntCollection) : Clause(literals) {
 
     override fun flipsToSatisfy(matches: Int) = literals.size - matches
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         var unmatched = 0
         for (lit in literals)
             if (l.literal(lit.toIx()) != lit) unmatched++
@@ -142,7 +151,8 @@ class Conjunction(literals: IntCollection) : Clause(literals) {
 }
 
 /**
- * literal <=> clause
+ * Reified encodes the constraint [literal] <=> [clause]. That is, the constraint is satisfied when both the
+ * [clause] and [literal] is satisfied or when neither of them are.
  */
 class Reified(val literal: Literal, val clause: Clause) : Constraint {
 
@@ -156,7 +166,7 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
         add(literal)
     }
 
-    override fun matches(l: Labeling): Int {
+    override fun matches(l: Instance): Int {
         val clauseMatches = clause.matches(l)
         return clauseMatches.toLiteral(l.literal(literal.toIx()) == literal)
     }
@@ -177,7 +187,7 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
         else return if (clauseFlips == 0) 1 else 0
     }
 
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         return if (l[literal.toIx()] == literal.toBoolean()) {
             min(1, clause.flipsToSatisfy(l))
         } else {
@@ -251,6 +261,11 @@ class Reified(val literal: Literal, val clause: Clause) : Constraint {
     override fun toString() = "Reified($literal, $clause)"
 }
 
+/**
+ * Cardinality constraint encodes a linear equality [relation] with a [degree].
+ * Note that all literals must be true, because they are used as linear constraints by some solvers
+ * (e.g. x+y+z < degree). These solvers cannot handle [Relation.NE] because it cannot be expressed as a linear relation.
+ */
 class Cardinality(override val literals: IntCollection, val degree: Int, val relation: Relation) : Constraint {
 
     init {
@@ -275,7 +290,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
 
     override fun flipsToSatisfy(matches: Int) = relation.flipsToSatisfy(matches, degree)
 
-    override fun flipsToSatisfy(l: Labeling): Int {
+    override fun flipsToSatisfy(l: Instance): Int {
         var matches = 0
         for (lit in literals) {
             if (l.literal(lit.toIx()) == lit) matches++

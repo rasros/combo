@@ -19,7 +19,7 @@ interface EstimatedScaleResponse : VarianceFunction {
     override fun dispersion(mle: Double) = mle
 }
 
-object GaussianVariance : EstimatedScaleResponse {
+object NormalVariance : EstimatedScaleResponse {
     override fun variance(mean: Double) = 1.0
     override fun canonicalLink() = IdentityTransform
 }

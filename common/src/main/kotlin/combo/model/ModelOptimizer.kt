@@ -1,90 +1,70 @@
 package combo.model
 
-import combo.bandit.Bandit
-import combo.sat.solvers.Solver
+import combo.bandit.*
+import combo.bandit.glm.NormalVariance
+import combo.bandit.glm.VarianceFunction
+import combo.bandit.univariate.BanditPolicy
+import combo.math.Loss
+import combo.math.SquaredLoss
+import combo.math.Transform
+import combo.math.VarianceEstimator
+import combo.sat.solvers.*
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.jvm.JvmOverloads
+import kotlin.jvm.JvmStatic
 
-class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) : Iterable<Assignment> {
+class ModelOptimizer<D>(val model: Model, val bandit: Bandit<D>) {
+
     companion object {
-
-        /*
-        TODO
-        private fun defaultSolver(p: Problem, pt: BinaryPropagationGraph?): Solver =
-                LocalSearchSolver(p, pt, maxRestarts = Int.MAX_VALUE)
-
-        private fun defaultLinOpt(p: Problem, c: SolverConfig, pt: BinaryPropagationGraph?): Optimizer<LinearObjective> =
-                FallbackOptimizer(LocalSearchOptimizer(p, c, pt, restarts = 1))
 
         @JvmStatic
         @JvmOverloads
-        fun combinatorialBandit(model: Model,
-                                config: SolverConfig = SolverConfig(maximize = true),
-                                posterior: Posterior = NormalPosterior,
-                                solver: Solver = ExhaustiveSolver(model.problem, config)): ModelOptimizer {
-            if (model.problem.nbrVariables >= 20)
-                throw IllegalArgumentException("Multi-armed bandit algorithm will not work with excessive number of variables (>=20).")
-            val bandits = solver.sequence().toList().toTypedArray()
-            val bandit = MultiArmedBandit(bandits, config, posterior)
-            return ModelOptimizer(model, PresolvedSolver(bandits, config), bandit)
+        fun <E : VarianceEstimator> combinatorialBandit(model: Model,
+                                                        banditPolicy: BanditPolicy<E>,
+                                                        solver: Solver =
+                                                                if (model.problem.nbrVariables <= 15) ExhaustiveSolver(model.problem)
+                                                                else LocalSearchSolver(model.problem),
+                                                        limit: Int = 500): ModelOptimizer<Array<LabelingData<E>>> {
+            val bandits = solver.sequence().take(limit).toList().toTypedArray()
+            val bandit = CombinatorialBandit(bandits, banditPolicy)
+            return ModelOptimizer(model, bandit)
         }
 
         @JvmStatic
         @JvmOverloads
-        fun dtBandit(model: Model,
-                     config: SolverConfig = SolverConfig(maximize = true),
-                     posterior: Posterior = NormalPosterior,
-                     solver: Solver = defaultSolver(model.problem, config, BinaryPropagationGraph(model.problem))): ModelOptimizer {
-            val bandit = DecisionTreeBandit(model.problem, config, solver, posterior)
-            return ModelOptimizer(model, solver, bandit)
+        fun <E : VarianceEstimator> dtBandit(model: Model,
+                                             banditPolicy: BanditPolicy<E>,
+                                             solver: Solver = FallbackSolver(LocalSearchSolver(model.problem)))
+                : ModelOptimizer<Array<LiteralData<E>>> {
+            val bandit = DecisionTreeBandit(model.problem, banditPolicy)
+            return ModelOptimizer(model, bandit)
         }
 
         @JvmStatic
         @JvmOverloads
         fun glmBandit(model: Model,
-                      config: SolverConfig = SolverConfig(maximize = true),
-                      family: VarianceFunction = GaussianVariance,
+                      family: VarianceFunction = NormalVariance,
                       link: Transform = family.canonicalLink(),
                       regularization: Loss = SquaredLoss,
-                      propagationGraph: BinaryPropagationGraph? = BinaryPropagationGraph(model.problem),
-                      linearOptimizer: Optimizer<LinearObjective> = defaultLinOpt(model.problem, config, propagationGraph),
-                      solver: Solver = defaultSolver(model.problem, config, propagationGraph)): ModelOptimizer {
+                      linearOptimizer: Optimizer<LinearObjective> =
+                              FallbackOptimizer(LocalSearchOptimizer<LinearObjective>(model.problem).apply { restarts = 1 }))
+                : ModelOptimizer<DoubleArray> {
             TODO()
         }
 
         @JvmStatic
         @JvmOverloads
-        fun gaBandit(model: Model,
-                     config: SolverConfig = SolverConfig(maximize = true),
-                     propagationGraph: BinaryPropagationGraph?,
-                     posterior: Posterior? = null,
-                     solver: Solver = defaultSolver(model.problem, config, propagationGraph)): ModelOptimizer {
+        fun <E : VarianceEstimator> gaBandit(model: Model,
+                                             banditPolicy: BanditPolicy<E>,
+                                             solver: Solver = FallbackSolver(LocalSearchSolver(model.problem))): ModelOptimizer<Array<LabelingData<E>>> {
             TODO()
         }
-         */
     }
-
-    @JvmOverloads
-    fun witness(assumptions: Map<Feature<*>, Any?> = emptyMap()): Assignment? {
-        val l = solver.witness(assumptionsLiterals(assumptions))
-        if (l != null) return model.toAssignment(l)
-        return null
-    }
-
-    @JvmOverloads
-    fun witnessOrThrow(assumptions: Map<Feature<*>, Any?> = emptyMap()) =
-            model.toAssignment(solver.witnessOrThrow(assumptionsLiterals(assumptions)))
-
-    @JvmOverloads
-    fun sequence(assumptions: Map<Feature<*>, Any?> = emptyMap()) =
-            solver.sequence(assumptionsLiterals(assumptions)).map { model.toAssignment(it) }
-
-    override fun iterator(): Iterator<Assignment> = sequence().iterator()
 
     @JvmOverloads
     fun choose(assumptions: Map<Feature<*>, Any?> = emptyMap()): Assignment? {
-        val labeling = bandit.choose(assumptionsLiterals(assumptions))
-        return if (labeling != null) model.toAssignment(labeling)
+        val instance = bandit.choose(assumptionsLiterals(assumptions))
+        return if (instance != null) model.toAssignment(instance)
         else null
     }
 
@@ -94,7 +74,7 @@ class ModelOptimizer(val model: Model, val solver: Solver, val bandit: Bandit) :
 
     @JvmOverloads
     fun update(assignment: Assignment, result: Double, weight: Double = 1.0) {
-        bandit.update(assignment.labeling, result, weight)
+        bandit.update(assignment.instance, result, weight)
     }
 
     private fun assumptionsLiterals(assumptions: Map<Feature<*>, Any?>): IntArray {

@@ -4,7 +4,7 @@ import combo.sat.Problem
 
 class CachedSolverTest : SolverTest() {
     override fun solver(problem: Problem) =
-            CachedSolver(LocalSearchSolverTest().solver(problem), pNew = 0.8)
+            CachedSolver(LocalSearchSolverTest().solver(problem)).apply { pNew = 0.5 }
 
     override fun largeSolver(problem: Problem) =
             CachedSolver(LocalSearchSolverTest().largeSolver(problem)!!)
@@ -23,11 +23,11 @@ class CachedOptimizerTest : LinearOptimizerTest() {
     override fun largeOptimizer(problem: Problem) =
             CachedOptimizer(LocalSearchLinearOptimizerTest().largeOptimizer(problem))
 
-    override fun unsatOptimizer(problem: Problem) =
-            CachedOptimizer(LocalSearchLinearOptimizerTest().unsatOptimizer(problem))
+    override fun infeasibleOptimizer(problem: Problem) =
+            CachedOptimizer(LocalSearchLinearOptimizerTest().infeasibleOptimizer(problem))
 
     override fun timeoutOptimizer(problem: Problem) =
-            CachedOptimizer(LocalSearchLinearOptimizerTest().unsatOptimizer(problem))
+            CachedOptimizer(LocalSearchLinearOptimizerTest().infeasibleOptimizer(problem))
 }
 
 class FallbackSolverTest : SolverTest() {
@@ -51,9 +51,9 @@ class FallbackLinearOptimizerTest : LinearOptimizerTest() {
     override fun largeOptimizer(problem: Problem) =
             FallbackOptimizer(LocalSearchLinearOptimizerTest().largeOptimizer(problem))
 
-    override fun unsatOptimizer(problem: Problem) =
-            FallbackOptimizer(LocalSearchLinearOptimizerTest().unsatOptimizer(problem))
+    override fun infeasibleOptimizer(problem: Problem) =
+            FallbackOptimizer(LocalSearchLinearOptimizerTest().infeasibleOptimizer(problem))
 
     override fun timeoutOptimizer(problem: Problem) =
-            FallbackOptimizer(LocalSearchLinearOptimizerTest().unsatOptimizer(problem))
+            FallbackOptimizer(LocalSearchLinearOptimizerTest().infeasibleOptimizer(problem))
 }

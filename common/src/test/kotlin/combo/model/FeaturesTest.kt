@@ -11,8 +11,8 @@ class FlagTest {
     fun nullIndexEntryValueOf() {
         val f = flag()
         val ie = f.createIndexEntry(intArrayOf(UNIT_FALSE))
-        assertNull(ie.valueOf(BitFieldLabeling(0)))
-        assertNull(ie.valueOf(BitFieldLabeling(1).apply { this[0] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(0)))
+        assertNull(ie.valueOf(BitFieldInstance(1).apply { this[0] = true }))
         assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(null))
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(true)
@@ -23,8 +23,8 @@ class FlagTest {
     fun unitIndexEntry() {
         val f = flag()
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE))
-        assertEquals(true, ie.valueOf(BitFieldLabeling(0)))
-        assertEquals(true, ie.valueOf(BitFieldLabeling(1)))
+        assertEquals(true, ie.valueOf(BitFieldInstance(0)))
+        assertEquals(true, ie.valueOf(BitFieldInstance(1)))
         assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(true))
         assertFailsWith(UnsatisfiableException::class) {
             ie.toLiterals(null)
@@ -37,8 +37,8 @@ class FlagTest {
         val ie = f.createIndexEntry(intArrayOf(3))
         assertContentEquals(intArrayOf(6), ie.toLiterals(1.0))
         assertContentEquals(intArrayOf(7), ie.toLiterals(null))
-        assertNull(ie.valueOf(BitFieldLabeling(4)))
-        assertEquals(1.0, ie.valueOf(BitFieldLabeling(4).apply { this[3] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(4)))
+        assertEquals(1.0, ie.valueOf(BitFieldInstance(4).apply { this[3] = true }))
     }
 
     @Test
@@ -91,8 +91,8 @@ class AlternativeTest {
     fun nullRootIndexEntry() {
         val f = alternative(1, 2, 3)
         val ie = f.createIndexEntry(IntArray(4) { UNIT_FALSE })
-        assertNull(ie.valueOf(BitFieldLabeling(0)))
-        assertNull(ie.valueOf(BitFieldLabeling(1).apply { this[0] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(0)))
+        assertNull(ie.valueOf(BitFieldInstance(1).apply { this[0] = true }))
         for (i in 1 until 3)
             assertFailsWith(UnsatisfiableException::class) {
                 ie.toLiterals(i)
@@ -109,7 +109,7 @@ class AlternativeTest {
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, 2, 3, 4))
         for (i in 4..6) {
             assertContentEquals(intArrayOf((i - 2).toLiteral(true)), ie.toLiterals(i))
-            assertEquals(i, ie.valueOf(BitFieldLabeling(5).apply { this[i - 2] = true }))
+            assertEquals(i, ie.valueOf(BitFieldInstance(5).apply { this[i - 2] = true }))
         }
         assertFailsWith(IllegalArgumentException::class) {
             ie.toLiterals(7)
@@ -123,8 +123,8 @@ class AlternativeTest {
     fun singleOption() {
         val f = alternative(1)
         val ie = f.createIndexEntry(intArrayOf(2, 3))
-        assertEquals(1, ie.valueOf(BitFieldLabeling(4).apply { this[2] = true;this[3] = true }))
-        assertNull(ie.valueOf(BitFieldLabeling(2)))
+        assertEquals(1, ie.valueOf(BitFieldInstance(4).apply { this[2] = true;this[3] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(2)))
         assertContentEquals(intArrayOf(6), ie.toLiterals(1))
         assertContentEquals(intArrayOf(5), ie.toLiterals(null))
     }
@@ -133,8 +133,8 @@ class AlternativeTest {
     fun normalIndexEntry() {
         val f = alternative(1, 2, 3)
         val ie = f.createIndexEntry(intArrayOf(0, 1, 2, 3))
-        assertNull(ie.valueOf(BitFieldLabeling(4)))
-        assertEquals(3, ie.valueOf(BitFieldLabeling(4).apply { this[0] = true; this[3] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(4)))
+        assertEquals(3, ie.valueOf(BitFieldInstance(4).apply { this[0] = true; this[3] = true }))
         for (i in 1..3)
             assertContentEquals(intArrayOf((i).toLiteral(true)), ie.toLiterals(i))
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
@@ -156,7 +156,7 @@ class AlternativeTest {
     fun allOptionsNullIndexEntry() {
         val f = alternative("a", "d", "b")
         val ie = f.createIndexEntry(intArrayOf(0, UNIT_FALSE, UNIT_FALSE, UNIT_FALSE))
-        assertNull(ie.valueOf(BitFieldLabeling(4)))
+        assertNull(ie.valueOf(BitFieldInstance(4)))
         assertFailsWith(ValidationException::class) {
             ie.toLiterals("a")
         }
@@ -172,9 +172,9 @@ class AlternativeTest {
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
         assertContentEquals(intArrayOf(2), ie.toLiterals("b"))
         assertContentEquals(intArrayOf(4), ie.toLiterals("c"))
-        assertNull(ie.valueOf(BitFieldLabeling(3)))
-        assertEquals("b", ie.valueOf(BitFieldLabeling(3).apply { this[0] = true; this[1] = true }))
-        assertEquals("c", ie.valueOf(BitFieldLabeling(3).apply { this[0] = true; this[2] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(3)))
+        assertEquals("b", ie.valueOf(BitFieldInstance(3).apply { this[0] = true; this[1] = true }))
+        assertEquals("c", ie.valueOf(BitFieldInstance(3).apply { this[0] = true; this[2] = true }))
     }
 
     @Test
@@ -182,7 +182,7 @@ class AlternativeTest {
         val f = alternative("a", "b", "c")
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, UNIT_TRUE, UNIT_FALSE, UNIT_FALSE))
         for (id in ie.indices) assertTrue(id < 0)
-        assertEquals("a", ie.valueOf(BitFieldLabeling(0)))
+        assertEquals("a", ie.valueOf(BitFieldInstance(0)))
         assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals("a"))
         assertFailsWith(ValidationException::class) {
             assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals("b"))
@@ -196,8 +196,8 @@ class MultipleTest {
     fun nullRootIndexEntry() {
         val f = multiple(1, 2, 3)
         val ie = f.createIndexEntry(IntArray(4) { UNIT_FALSE })
-        assertNull(ie.valueOf(ByteArrayLabeling(0)))
-        assertNull(ie.valueOf(ByteArrayLabeling(1).apply { this[0] = true }))
+        assertNull(ie.valueOf(ByteArrayInstance(0)))
+        assertNull(ie.valueOf(ByteArrayInstance(1).apply { this[0] = true }))
         for (i in 1 until 3)
             assertFailsWith(ValidationException::class) {
                 ie.toLiterals(i)
@@ -208,12 +208,12 @@ class MultipleTest {
     fun unitRootIndexEntry() {
         val f = multiple(1, 2, 3)
         val ie = f.createIndexEntry(intArrayOf(UNIT_TRUE, 0, 1, 2))
-        assertEquals(setOf(1), ie.valueOf(BitFieldLabeling(3).apply { this[0] = true }))
-        assertEquals(setOf(2), ie.valueOf(BitFieldLabeling(3).apply { this[1] = true }))
-        assertEquals(setOf(3), ie.valueOf(BitFieldLabeling(3).apply { this[2] = true }))
-        assertEquals(setOf(1, 2, 3), ie.valueOf(BitFieldLabeling(3).apply { setAll(intArrayOf(0, 2, 4)) }))
-        assertEquals(setOf(1, 2), ie.valueOf(BitFieldLabeling(3).apply { setAll(intArrayOf(0, 2)) }))
-        assertEquals(setOf(2, 3), ie.valueOf(BitFieldLabeling(3).apply { setAll(intArrayOf(2, 4)) }))
+        assertEquals(setOf(1), ie.valueOf(BitFieldInstance(3).apply { this[0] = true }))
+        assertEquals(setOf(2), ie.valueOf(BitFieldInstance(3).apply { this[1] = true }))
+        assertEquals(setOf(3), ie.valueOf(BitFieldInstance(3).apply { this[2] = true }))
+        assertEquals(setOf(1, 2, 3), ie.valueOf(BitFieldInstance(3).apply { setAll(intArrayOf(0, 2, 4)) }))
+        assertEquals(setOf(1, 2), ie.valueOf(BitFieldInstance(3).apply { setAll(intArrayOf(0, 2)) }))
+        assertEquals(setOf(2, 3), ie.valueOf(BitFieldInstance(3).apply { setAll(intArrayOf(2, 4)) }))
         for (i in 1 until 3)
             assertContentEquals(intArrayOf((i - 1).toLiteral(true)), ie.toLiterals(setOf(i)))
         assertContentEquals(intArrayOf(0, 4), ie.toLiterals(setOf(1, 3)))
@@ -221,7 +221,7 @@ class MultipleTest {
             ie.toLiterals(setOf(1, 11, 3, 10))
         }
         assertFailsWith(IllegalStateException::class) {
-            ie.valueOf(BitFieldLabeling(3))
+            ie.valueOf(BitFieldInstance(3))
         }
     }
 
@@ -229,8 +229,8 @@ class MultipleTest {
     fun singleOption() {
         val f = multiple(1)
         val ie = f.createIndexEntry(intArrayOf(2, 3))
-        assertEquals(setOf(1), ie.valueOf(BitFieldLabeling(4).apply { this[2] = true;this[3] = true }))
-        assertNull(ie.valueOf(BitFieldLabeling(2)))
+        assertEquals(setOf(1), ie.valueOf(BitFieldInstance(4).apply { this[2] = true;this[3] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(2)))
         assertContentEquals(intArrayOf(6), ie.toLiterals(setOf(1)))
         assertContentEquals(intArrayOf(5), ie.toLiterals(null))
     }
@@ -239,10 +239,10 @@ class MultipleTest {
     fun normalIndexEntry() {
         val f = multiple(1, 2, 3)
         val ie = f.createIndexEntry(intArrayOf(2, 3, 4, 5))
-        assertNull(ie.valueOf(BitFieldLabeling(6)))
-        assertEquals(setOf(1, 2, 3), ie.valueOf(IntSetLabeling(6).apply { setAll(intArrayOf(4, 6, 8, 10)) }))
-        assertEquals(setOf(3), ie.valueOf(IntSetLabeling(6).apply { this[2] = true; this[5] = true }))
-        assertEquals(setOf(3), ie.valueOf(IntSetLabeling(6).apply { this[2] = true; this[5] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(6)))
+        assertEquals(setOf(1, 2, 3), ie.valueOf(IntSetInstance(6).apply { setAll(intArrayOf(4, 6, 8, 10)) }))
+        assertEquals(setOf(3), ie.valueOf(IntSetInstance(6).apply { this[2] = true; this[5] = true }))
+        assertEquals(setOf(3), ie.valueOf(IntSetInstance(6).apply { this[2] = true; this[5] = true }))
         assertContentEquals(intArrayOf(5), ie.toLiterals(null))
         assertContentEquals(intArrayOf(6, 8, 10), ie.toLiterals(setOf(1, 2, 3)))
         assertFailsWith(IllegalArgumentException::class) {
@@ -279,7 +279,7 @@ class MultipleTest {
     fun allOptionsNullIndexEntry() {
         val f = multiple("a", "d", "b")
         val ie = f.createIndexEntry(IntArray(4) { UNIT_FALSE })
-        assertNull(ie.valueOf(BitFieldLabeling(4)))
+        assertNull(ie.valueOf(BitFieldInstance(4)))
         assertFailsWith(ValidationException::class) {
             ie.toLiterals(setOf("a"))
         }
@@ -298,9 +298,9 @@ class MultipleTest {
         assertContentEquals(intArrayOf(1), ie.toLiterals(null))
         assertContentEquals(intArrayOf(2), ie.toLiterals(setOf("b")))
         assertContentEquals(intArrayOf(2, 4), ie.toLiterals(setOf("c", "b")))
-        assertNull(ie.valueOf(BitFieldLabeling(3)))
-        assertEquals(setOf("b"), ie.valueOf(BitFieldLabeling(3).apply { this[0] = true; this[1] = true }))
-        assertEquals(setOf("c"), ie.valueOf(BitFieldLabeling(3).apply { this[0] = true; this[2] = true }))
+        assertNull(ie.valueOf(BitFieldInstance(3)))
+        assertEquals(setOf("b"), ie.valueOf(BitFieldInstance(3).apply { this[0] = true; this[1] = true }))
+        assertEquals(setOf("c"), ie.valueOf(BitFieldInstance(3).apply { this[0] = true; this[2] = true }))
     }
 
     @Test
@@ -312,8 +312,8 @@ class MultipleTest {
         }
         assertContentEquals(EMPTY_INT_ARRAY, ie.toLiterals(setOf("a")))
         assertContentEquals(intArrayOf(4), ie.toLiterals(setOf("c", "a")))
-        assertEquals(setOf("a", "b", "c"), ie.valueOf(BitFieldLabeling(3, LongArray(1) { 0b111 })))
-        assertEquals(setOf("a"), ie.valueOf(BitFieldLabeling(3, LongArray(1) { 0b001 })))
-        assertEquals(setOf("a", "c"), ie.valueOf(BitFieldLabeling(3, LongArray(1) { 0b101 })))
+        assertEquals(setOf("a", "b", "c"), ie.valueOf(BitFieldInstance(3, LongArray(1) { 0b111 })))
+        assertEquals(setOf("a"), ie.valueOf(BitFieldInstance(3, LongArray(1) { 0b001 })))
+        assertEquals(setOf("a", "c"), ie.valueOf(BitFieldInstance(3, LongArray(1) { 0b101 })))
     }
 }
