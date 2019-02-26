@@ -98,7 +98,7 @@ class IntRangeSet(min: Int, max: Int) : IntCollection {
 
     private val range: IntRange = min..max
 
-    override var size: Int = (max - min)
+    override var size: Int = max(0, 1 + (max - min))
         private set
 
     override fun contains(ix: Int) = ix in range
@@ -117,15 +117,21 @@ class IntRangeSet(min: Int, max: Int) : IntCollection {
     override fun iterator() = range.iterator()
 
     override fun permutation(rng: Random): IntIterator {
-        val itr = iterator()
+        var i = 0
         val perm = IntPermutation(size, rng)
         return object : IntIterator() {
-            override fun hasNext() = itr.hasNext()
-            override fun nextInt() = range.first + perm.encode(itr.nextInt())
+            override fun hasNext() = i < size
+            override fun nextInt(): Int {
+                if (i >= size) throw NoSuchElementException()
+                return range.first + perm.encode(i++)
+            }
         }
     }
 
-    override fun random(rng: Random) = range.first + rng.nextInt(size)
+    override fun random(rng: Random): Int {
+        if (isEmpty()) throw NoSuchElementException()
+        return range.first + rng.nextInt(size)
+    }
 
     override fun copy() = IntRangeSet(range.first, range.last)
 }
@@ -136,21 +142,16 @@ class IntRangeSet(min: Int, max: Int) : IntCollection {
  */
 class IntHashSet private constructor(private var table: IntArray, size: Int, val nullValue: Int = 0) : MutableIntCollection {
 
-    init {
-        if (nullValue != 0)
-            table.forEachIndexed { i, _ -> table[i] = -1 }
-    }
-
     /**
      * @param initialSize ensure the capacity of this many items
      * @param nullValue use this to represent null values. This value cannot be added to the set.
      */
-    constructor(initialSize: Int = 4, nullValue: Int = 0) : this(IntArray(tableSizeFor(initialSize)), 0, nullValue)
+    constructor(initialSize: Int = 4, nullValue: Int = 0) : this(IntArray(tableSizeFor(initialSize)) { nullValue }, 0, nullValue)
 
     override var size: Int = size
         private set
 
-    override fun copy() = IntHashSet(table.copyOf(), size)
+    override fun copy() = IntHashSet(table.copyOf(), size, nullValue)
 
     override fun clear() {
         table = IntArray(tableSizeFor(4))
@@ -184,6 +185,7 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
             override fun hasNext() = seen < size
 
             override fun nextInt(): Int {
+                if (seen >= size) throw NoSuchElementException()
                 seen++
                 while (table[ptr] == nullValue)
                     ptr = (ptr + 1) % table.size
@@ -202,6 +204,7 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
             override fun hasNext() = seen < size
 
             override fun nextInt(): Int {
+                if (seen >= size) throw NoSuchElementException()
                 seen++
                 while (table[perm.encode(ptr)] == nullValue)
                     ptr = (ptr + 1) % table.size
@@ -303,14 +306,20 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
     override fun iterator() = object : IntIterator() {
         private var ptr = 0
         override fun hasNext() = ptr < size
-        override fun nextInt() = array[ptr++]
+        override fun nextInt(): Int {
+            if (ptr >= size) throw NoSuchElementException()
+            return array[ptr++]
+        }
     }
 
     override fun permutation(rng: Random) = object : IntIterator() {
         private var ptr = 0
         private var perm = IntPermutation(size, rng)
         override fun hasNext() = ptr < size
-        override fun nextInt() = array[perm.encode(ptr++)]
+        override fun nextInt(): Int {
+            if (ptr >= size) throw NoSuchElementException()
+            return array[perm.encode(ptr++)]
+        }
     }
 
     override fun random(rng: Random) = array[rng.nextInt(size)]
@@ -356,19 +365,12 @@ fun entry(key: Int, value: Int) = (value.toLong() shl Int.SIZE_BITS) or (key.toL
  */
 class IntHashMap private constructor(private var table: LongArray, size: Int, val nullKey: Int = 0) : Iterable<IntEntry> {
 
-    constructor(initialSize: Int = 4, nullKey: Int = 0) : this(LongArray(tableSizeFor(initialSize)), 0, nullKey)
-
-    init {
-        if (nullKey != 0) {
-            val v = entry(nullKey, 0)
-            table.forEachIndexed { i, _ -> table[i] = v }
-        }
-    }
+    constructor(initialSize: Int = 4, nullKey: Int = 0) : this(LongArray(tableSizeFor(initialSize)) { entry(nullKey, 0) }, 0, nullKey)
 
     var size: Int = size
         private set
 
-    fun copy() = IntHashMap(table.copyOf(), size)
+    fun copy() = IntHashMap(table.copyOf(), size, nullKey)
 
     fun isEmpty() = size == 0
     fun isNotEmpty() = size > 0
