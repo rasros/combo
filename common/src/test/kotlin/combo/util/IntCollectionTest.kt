@@ -190,18 +190,18 @@ class IntListTest {
     }
 }
 
-class IntSetTest {
+class IntHashSetTest {
 
     @Test
     fun createEmpty() {
-        val set = IntSet()
+        val set = IntHashSet()
         assertEquals(0, set.size)
         assertTrue { set.isEmpty() }
     }
 
     @Test
     fun add() {
-        val set = IntSet()
+        val set = IntHashSet(nullValue = -1)
         for (i in 0 until 1000) {
             assertEquals(i, set.size)
             set.add(i)
@@ -210,7 +210,7 @@ class IntSetTest {
 
     @Test
     fun addDuplicate() {
-        val set = IntSet()
+        val set = IntHashSet(nullValue = -1)
         for (i in 0 until 1000) {
             assertEquals(i, set.size)
             assertTrue(set.add(i))
@@ -219,29 +219,29 @@ class IntSetTest {
     }
 
     @Test
-    fun addNegative() {
+    fun addNullValue() {
         assertFailsWith(IllegalArgumentException::class) {
-            val set = IntSet()
-            set.add(-2)
+            val set = IntHashSet(nullValue = 0)
+            set.add(0)
         }
     }
 
     @Test
     fun containsNotEmpty() {
-        val set = IntSet()
+        val set = IntHashSet()
         assertFalse(set.contains(0))
     }
 
     @Test
     fun containsAfterAdd() {
-        val set = IntSet()
+        val set = IntHashSet()
         set.add(2)
         assertTrue(set.contains(2))
     }
 
     @Test
     fun addAllIntArray() {
-        val set = IntSet()
+        val set = IntHashSet()
         set.addAll(intArrayOf(2, 4))
         assertTrue(set.contains(2))
         assertTrue(set.contains(4))
@@ -249,7 +249,7 @@ class IntSetTest {
 
     @Test
     fun addAllIterable() {
-        val set = IntSet()
+        val set = IntHashSet()
         assertTrue(set.addAll((2..4).asIterable()))
         assertFalse(set.addAll((2..4).asIterable()))
         assertTrue(set.contains(2))
@@ -259,14 +259,14 @@ class IntSetTest {
 
     @Test
     fun removeMissingFromSet() {
-        val set = IntSet()
+        val set = IntHashSet()
         assertFalse(set.remove(1))
         assertFalse(set.remove(-1))
     }
 
     @Test
     fun removeFromSetAndAddAgain() {
-        val set = IntSet()
+        val set = IntHashSet()
         set.add(2)
         set.add(8)
         assertFalse(set.remove(3))
@@ -279,13 +279,13 @@ class IntSetTest {
 
     @Test
     fun toArrayOnEmpty() {
-        val set = IntSet()
+        val set = IntHashSet()
         assertTrue { set.toArray().isEmpty() }
     }
 
     @Test
     fun toArrayOnRemoved() {
-        val set = IntSet()
+        val set = IntHashSet(nullValue = -1)
         set.add(0)
         assertEquals(1, set.toArray().size)
         set.remove(0)
@@ -294,7 +294,7 @@ class IntSetTest {
 
     @Test
     fun clear() {
-        val set = IntSet()
+        val set = IntHashSet()
         for (i in 4..10)
             set.add(i)
         set.remove(5)
@@ -306,13 +306,13 @@ class IntSetTest {
 
     @Test
     fun emptySequence() {
-        val set = IntSet()
+        val set = IntHashSet()
         assertEquals(0, set.asSequence().count())
     }
 
     @Test
     fun smallSequence() {
-        val set = IntSet()
+        val set = IntHashSet()
         set.add(8)
         set.add(1)
         assertEquals(2, set.asSequence().count())
@@ -320,22 +320,22 @@ class IntSetTest {
 
     @Test
     fun randomOnEmpty() {
-        assertFailsWith(IllegalArgumentException::class) {
-            val set = IntSet()
+        assertFailsWith(NoSuchElementException::class) {
+            val set = IntHashSet()
             set.random(Random)
         }
     }
 
     @Test
     fun randomOnSingleton() {
-        val set = IntSet()
+        val set = IntHashSet()
         set.add(12300)
         assertEquals(12300, set.random(Random))
     }
 
     @Test
     fun multipleRehash() {
-        val set = IntSet(2)
+        val set = IntHashSet(2)
         set.addAll((1..100).asSequence().asIterable())
         set.clear()
         set.addAll((1100..1120).asSequence().asIterable())
@@ -350,7 +350,7 @@ class IntSetTest {
     fun largeRandomTest() {
         val r = Random(0)
         val all = ArrayList<Int>()
-        val set = IntSet()
+        val set = IntHashSet()
         val test = HashSet<Int>()
         for (i in 1..1_000) {
             val n = r.nextInt(Int.MAX_VALUE)
@@ -368,9 +368,9 @@ class IntSetTest {
     }
 
     @Test
-    fun iterator() {
-        val s = IntSet()
-        s.addAll(generateSequence { Random.nextInt(0, Int.MAX_VALUE / 2) }.take(10).asIterable())
+    fun iteratorReentrant() {
+        val s = IntHashSet()
+        s.addAll(IntArray(10) { it + 1 })
         assertTrue(s.iterator().hasNext())
         assertEquals(10, s.iterator().asSequence().toSet().size)
         assertEquals(10, s.iterator().asSequence().toSet().size)
@@ -378,7 +378,7 @@ class IntSetTest {
 
     @Test
     fun copySame() {
-        val s1 = IntSet()
+        val s1 = IntHashSet()
         s1.addAll(generateSequence { Random.nextInt(0, Int.MAX_VALUE / 2) }.take(10).asIterable())
         val s2 = s1.copy()
         assertEquals(s1.size, s2.size)
@@ -389,9 +389,193 @@ class IntSetTest {
 
     @Test
     fun permutation() {
-        val s1 = IntSet()
+        val s1 = IntHashSet()
         s1.addAll(10..20)
         val s2 = s1.permutation(Random).asSequence().toSet()
         assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
+    }
+}
+
+class IntEntryTest {
+
+    private fun test(key: Int, value: Int) {
+        val entry = entry(key, value)
+        assertEquals(key, entry.key(), "$key : $value")
+        assertEquals(value, entry.value(), "$key : $value")
+    }
+
+    @Test
+    fun keyValue() {
+        for (i in -10..10) {
+            test(i, i)
+            test(i, -i)
+        }
+    }
+
+    @Test
+    fun keyValueBounds() {
+        val values = intArrayOf(0, -1, Int.MAX_VALUE, Int.MIN_VALUE)
+        for (v1 in values)
+            for (v2 in values)
+                test(v1, v2)
+    }
+}
+
+class IntHashMapTest {
+
+    @Test
+    fun createEmpty() {
+        val map = IntHashMap()
+        assertEquals(0, map.size)
+        assertTrue { map.isEmpty() }
+    }
+
+    @Test
+    fun add() {
+        val map = IntHashMap(nullKey = -1)
+        entry(4, 4)
+        for (i in 0 until 1000) {
+            assertEquals(i, map.size)
+            map.add(entry(i, i))
+        }
+    }
+
+    @Test
+    fun addDuplicate() {
+        val map = IntHashMap(nullKey = -1)
+        for (i in 0 until 1000) {
+            assertEquals(i, map.size)
+            assertEquals(0, map.add(entry(i, 1)))
+            assertEquals(1, map.add(entry(i, 2)))
+        }
+    }
+
+    @Test
+    fun addNullKey() {
+        assertFailsWith(IllegalArgumentException::class) {
+            val map = IntHashMap()
+            map[0] = 1
+        }
+        assertFailsWith(IllegalArgumentException::class) {
+            val map = IntHashMap(nullKey = -1)
+            map[-1] = 1
+        }
+    }
+
+    @Test
+    fun containsNotEmpty() {
+        val map = IntHashMap()
+        assertFalse(map.containsKey(map.nullKey))
+        assertFalse(map.containsKey(10))
+    }
+
+    @Test
+    fun containsAfterAdd() {
+        val map = IntHashMap()
+        map.add(entry(2, 10))
+        assertTrue(map.containsKey(2))
+    }
+
+    @Test
+    fun removeMissing() {
+        val map = IntHashMap()
+        assertEquals(0, map.remove(1))
+        assertEquals(0, map.remove(0))
+        assertEquals(0, map.remove(-1))
+    }
+
+    @Test
+    fun removeAndAddAgain() {
+        val map = IntHashMap()
+        map[2] = 10
+        map[8] = 1
+        assertEquals(0, map.remove(3))
+        assertEquals(2, map.size)
+        assertEquals(10, map.remove(2))
+        assertEquals(1, map.size)
+        assertEquals(0, map.add(entry(2, 2)))
+        assertEquals(2, map.size)
+    }
+
+    @Test
+    fun clear() {
+        val map = IntHashMap()
+        for (i in 4..10)
+            map[i] = i
+        map.remove(5)
+        map.clear()
+        assertEquals(0, map.size)
+        map.add(4)
+        assertEquals(1, map.size)
+    }
+
+    @Test
+    fun emptySequence() {
+        val map = IntHashMap()
+        assertEquals(0, map.asSequence().count())
+    }
+
+    @Test
+    fun smallSequence() {
+        val map = IntHashMap()
+        map.add(entry(8, 1))
+        map.add(entry(1, 0))
+        assertEquals(2, map.asSequence().count())
+    }
+
+    @Test
+    fun multipleRehash() {
+        val map = IntHashMap(2)
+        (1..100).forEach { map.add(entry(it, it)) }
+        map.clear()
+        (1100..1120).forEach { map.add(entry(it, it)) }
+        map.clear()
+        (200..300).forEach { map.add(entry(it, it)) }
+        assertEquals(101, map.size)
+        assertFalse(map.containsKey(1))
+        assertTrue(map.containsKey(200))
+    }
+
+    @Test
+    fun largeRandomTest() {
+        val r = Random(0)
+        val all = ArrayList<Int>()
+        val map = IntHashMap()
+        val test = HashMap<Int, Int>()
+        for (i in 1..1_000) {
+            val n = r.nextInt(1, Int.MAX_VALUE)
+            val v = r.nextInt(1, Int.MAX_VALUE)
+            all.add(n)
+            assertEquals(test.put(n, v) ?: 0, map.set(n, v))
+            assertEquals(test.put(n, v) ?: 0, map.set(n, v))
+            if (r.nextBoolean()) {
+                val remove = all[r.nextInt(all.size)]
+                assertEquals(test.remove(remove) ?: 0, map.remove(remove))
+                assertEquals(test.remove(remove) ?: 0, map.remove(remove))
+            }
+        }
+        for (i in all)
+            assertEquals(test.remove(i) ?: 0, map.remove(i))
+    }
+
+    @Test
+    fun iteratorReentrant() {
+        val s = IntHashMap()
+        for (i in 1..10) s.add(entry(i, Random.nextInt()))
+        assertTrue(s.iterator().hasNext())
+        assertEquals(10, s.iterator().asSequence().toSet().size)
+        assertEquals(10, s.iterator().asSequence().toSet().size)
+    }
+
+    @Test
+    fun copySame() {
+        val s1 = IntHashMap(4, -1)
+        for (i in 1..10) s1.add(entry(Random.nextInt(1, Int.MAX_VALUE), Random.nextInt()))
+        val s2 = s1.copy()
+        assertEquals(s1.size, s2.size)
+        for (entry in s1) {
+            assertTrue(s1.containsKey(entry.key()))
+            assertEquals(s1[entry.key()], s2[entry.key()])
+        }
     }
 }
