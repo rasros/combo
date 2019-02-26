@@ -3,14 +3,14 @@ package combo.util
 import kotlin.random.Random
 
 expect class AtomicLong(value: Long = 0L) {
-    fun compareAndSet(expect: Long, update: Long): Boolean
-    fun getAndIncrement(): Long
+    fun inc(): Long
+    operator fun plus(value: Long): Long
     fun get(): Long
 }
 
 expect class AtomicInt(value: Int = 0) {
-    fun compareAndSet(expect: Int, update: Int): Boolean
-    fun getAndIncrement(): Int
+    fun inc(): Int
+    operator fun plus(value: Int): Int
     fun get(): Int
 }
 

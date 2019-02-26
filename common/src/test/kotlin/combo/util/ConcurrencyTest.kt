@@ -2,15 +2,13 @@ package combo.util
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
-class ConcurrencyLongTest {
+class AtomicLongTest {
     @Test
     fun getAndIncrement() {
         val l = AtomicLong(0)
-        assertEquals(0L, l.getAndIncrement())
-        assertEquals(1L, l.getAndIncrement())
+        assertEquals(0L, l.inc())
+        assertEquals(1L, l.inc())
         assertEquals(2L, l.get())
     }
 
@@ -19,28 +17,14 @@ class ConcurrencyLongTest {
         val l = AtomicLong(20)
         assertEquals(20, l.get())
     }
-
-    @Test
-    fun compareAndSetNotChanging() {
-        val l = AtomicLong(10)
-        assertFalse(l.compareAndSet(11, 12))
-        assertEquals(10, l.get())
-    }
-
-    @Test
-    fun compareAndSetChanging() {
-        val l = AtomicLong(10)
-        assertTrue(l.compareAndSet(10, 11))
-        assertEquals(11, l.get())
-    }
 }
 
-class ConcurrencyIntegerTest {
+class AtomicIntTest {
     @Test
     fun getAndIncrement() {
         val l = AtomicInt(0)
-        assertEquals(0, l.getAndIncrement())
-        assertEquals(1, l.getAndIncrement())
+        assertEquals(0, l.inc())
+        assertEquals(1, l.inc())
         assertEquals(2, l.get())
     }
 
@@ -48,19 +32,5 @@ class ConcurrencyIntegerTest {
     fun get() {
         val l = AtomicInt(20)
         assertEquals(20, l.get())
-    }
-
-    @Test
-    fun compareAndSetNotChanging() {
-        val l = AtomicInt(10)
-        assertFalse(l.compareAndSet(11, 12))
-        assertEquals(10, l.get())
-    }
-
-    @Test
-    fun compareAndSetChanging() {
-        val l = AtomicInt(10)
-        assertTrue(l.compareAndSet(10, 11))
-        assertEquals(11, l.get())
     }
 }
