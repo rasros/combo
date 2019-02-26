@@ -30,7 +30,7 @@ class EWAHInstance @JvmOverloads constructor(
         return object : IntIterator() {
             val itr = bitField.intIterator()
             override fun hasNext() = itr.hasNext()
-            override fun nextInt() = itr.next() shl 1
+            override fun nextInt() = itr.next()
         }
     }
 
