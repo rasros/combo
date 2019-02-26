@@ -28,7 +28,7 @@ class InstancePermutation constructor(private val nbrVariables: Int, val factory
 
     override fun next(): MutableInstance {
         val instance = factory.create(nbrVariables)
-        val c = count.getAndIncrement()
+        val c = count.inc()
         for ((i, perm) in permutation.withIndex()) {
             val mask = perm.encode(c)
             for (j in 0 until 64) {

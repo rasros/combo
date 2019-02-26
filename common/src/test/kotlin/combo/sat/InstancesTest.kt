@@ -1,6 +1,7 @@
 package combo.sat
 
 import combo.test.assertContentEquals
+import combo.util.IntList
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -27,7 +28,7 @@ abstract class InstanceTest {
     }
 
     @Test
-    fun get() {
+    fun setOne() {
         val instance = factory.create(4)
         instance[2] = true
         assertFalse(instance[0])
@@ -51,7 +52,7 @@ abstract class InstanceTest {
     }
 
     @Test
-    fun set() {
+    fun setMany() {
         val instance = factory.create(10)
         assertFalse(instance[4])
         instance[4] = true
@@ -66,7 +67,7 @@ abstract class InstanceTest {
 
     @Test
     fun setAll() {
-        val instance = factory.create(3).apply { setAll(intArrayOf(0, 2, 5)) }
+        val instance = factory.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
         assertTrue(instance[0])
         assertTrue(instance[1])
         assertFalse(instance[2])
@@ -74,14 +75,14 @@ abstract class InstanceTest {
 
     @Test
     fun copyEquals() {
-        val instance = factory.create(3).apply { setAll(intArrayOf(0, 2, 5)) }
+        val instance = factory.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
         assertEquals(instance, instance.copy())
         assertEquals(instance.copy(), instance)
     }
 
     @Test
     fun copy() {
-        val instance = factory.create(3).apply { setAll(intArrayOf(0, 2, 5)) }
+        val instance = factory.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
         val instance2 = instance.copy()
         instance2[0] = false
         assertNotEquals(instance, instance2)
@@ -145,7 +146,7 @@ abstract class InstanceTest {
     }
 
     @Test
-    fun hashCodeSet() {
+    fun hashCodeSetDiffers() {
         val instance1 = factory.create(20)
         val instance2 = factory.create(20)
         assertEquals(instance1.hashCode(), instance2.hashCode())
@@ -165,23 +166,32 @@ abstract class InstanceTest {
     }
 
     @Test
-    fun iterator() {
-        val instance = factory.create(10).apply { setAll((0 until 20 step 2).toList().toIntArray()) }
-        val allValues = instance.iterator().asSequence().toSet()
-        assertEquals(10, allValues.size)
-        for (lit in instance) {
-            assertTrue(lit.toBoolean())
-        }
+    fun emptyIterator() {
+        val instance = factory.create(10)
+        assertEquals(0, instance.iterator().asSequence().count())
     }
 
     @Test
-    fun truthIterator() {
-        val instance = factory.create(10).apply { setAll((0 until 20 step 4).toList().toIntArray()) }
-        val allValues = instance.truthIterator().asSequence().toList()
-        assertEquals(5, allValues.size)
-        for (lit in instance.truthIterator()) {
-            assertTrue(lit.toBoolean())
+    fun iterator() {
+        val instance = factory.create(10).apply { setAll(3..7) }
+        var k = 2
+        val itr = instance.iterator()
+        for (i in itr) {
+            assertEquals(k++, i)
         }
+        assertFalse(itr.hasNext())
+    }
+
+    @Test
+    fun iteratorLarge() {
+        val instance = factory.create(100)
+        val list = IntList()
+        for (i in instance.indices step 5) {
+            list.add(i)
+            instance[i] = true
+        }
+        val ints = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
+        assertContentEquals(list.toArray(), ints)
     }
 
     @Test
@@ -207,17 +217,46 @@ abstract class InstanceTest {
             }
         }
     }
+
+    @Test
+    fun bitsSetGetBounds() {
+        val instance = factory.create(100)
+        instance.setBits(10, 32, Int.MIN_VALUE)
+        assertEquals(Int.MIN_VALUE, instance.getBits(10, 32))
+
+        instance.setBits(42, 32, -1)
+        assertEquals(-1, instance.getBits(42, 32))
+
+        instance.setBits(20, 32, Int.MAX_VALUE)
+        assertEquals(Int.MAX_VALUE, instance.getBits(20, 32))
+    }
+
+    @Test
+    fun bitsSetGetBoundsByte() {
+        val instance = factory.create(100)
+        instance.setBits(10, 8, Byte.MIN_VALUE.toInt())
+        assertEquals(Byte.MIN_VALUE, instance.getBits(10, 8).toByte())
+
+        instance.setBits(40, 8, Byte.MAX_VALUE.toInt())
+        assertEquals(Byte.MAX_VALUE, instance.getBits(40, 8).toByte())
+    }
+
+    @Test
+    fun bitsSetGetArbitrary() {
+        val instance = factory.create(10)
+        instance.setBits(0, 5, 1)
+        assertEquals(1, instance.getBits(0, 5))
+
+        instance.setBits(5, 10, 32)
+        assertEquals(32, instance.getBits(5, 8))
+    }
 }
 
-class ByteArrayInstanceTest : InstanceTest() {
-    override val factory = ByteArrayInstanceFactory
+class SparseBitArrayTest : InstanceTest() {
+    override val factory = SparseBitArrayFactory
 }
 
-class IntSetInstanceTest : InstanceTest() {
-    override val factory = IntSetInstanceFactory
-}
-
-class BitFieldInstanceTest : InstanceTest() {
-    override val factory = BitFieldInstanceFactory
+class BitArrayTest : InstanceTest() {
+    override val factory = BitArrayFactory
 }
 

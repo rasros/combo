@@ -1,7 +1,10 @@
-package combo.sat
+package combo.model
 
 import com.googlecode.javaewah.EWAHCompressedBitmap
-import combo.util.transformArray
+import combo.sat.Instance
+import combo.sat.InstanceFactory
+import combo.sat.MutableInstance
+import combo.sat.deepEquals
 
 /**
  * This uses a library for compressed bitmaps. It is very space efficient but quite slow. This requires
@@ -15,25 +18,20 @@ class EWAHInstance @JvmOverloads constructor(
         override val size: Int,
         val bitField: EWAHCompressedBitmap = EWAHCompressedBitmap()) : MutableInstance {
 
-    override fun get(ix: Ix) = bitField.get(ix)
+    override fun get(ix: Int) = bitField.get(ix)
 
     override fun copy() = EWAHInstance(size, bitField.clone())
 
-    override fun set(ix: Ix, value: Boolean) {
+    override fun set(ix: Int, value: Boolean) {
         if (value) bitField.set(ix) else bitField.clear(ix)
     }
 
-    override fun truthIterator(): IntIterator {
+    override fun iterator(): IntIterator {
         return object : IntIterator() {
             val itr = bitField.intIterator()
             override fun hasNext() = itr.hasNext()
             override fun nextInt() = itr.next() shl 1
         }
-    }
-
-    override fun toLiterals(trueValuesOnly: Boolean): IntArray {
-        return if (trueValuesOnly) bitField.toArray().apply { transformArray { it shl 1 } }
-        else super.toLiterals(trueValuesOnly)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -43,4 +41,5 @@ class EWAHInstance @JvmOverloads constructor(
     }
 
     override fun hashCode() = size * 31 + bitField.hashCode()
+    override val sparse: Boolean get() = true
 }
