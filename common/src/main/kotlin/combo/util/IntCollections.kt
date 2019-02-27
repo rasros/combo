@@ -224,7 +224,7 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
     }
 
     override fun add(ix: Int): Boolean {
-        require(ix != nullValue)
+        assert(ix != nullValue)
         if (table[linearProbe(ix)] != nullValue)
             return false
 
@@ -418,14 +418,14 @@ class IntHashMap private constructor(private var table: LongArray, size: Int, va
     fun add(entry: IntEntry) = set(entry.key(), entry.value())
 
     operator fun get(key: Int, default: Int = 0): Int {
-        require(key != nullKey)
+        assert(key != nullKey)
         val entry = table[linearProbe(key)]
         return if (entry.key() != nullKey) entry.value()
         else default
     }
 
     operator fun set(key: Int, value: Int): Int {
-        require(key != nullKey)
+        assert(key != nullKey)
         var ix = linearProbe(key)
         val oldEntry = table[ix]
         if (oldEntry.key() == nullKey) {

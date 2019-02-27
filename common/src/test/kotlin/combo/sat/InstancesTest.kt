@@ -221,8 +221,8 @@ abstract class InstanceTest {
     @Test
     fun bitsSetGetBounds() {
         val instance = factory.create(100)
-        instance.setBits(10, 32, Int.MIN_VALUE)
-        assertEquals(Int.MIN_VALUE, instance.getBits(10, 32))
+        instance.setBits(50, 32, Int.MIN_VALUE)
+        assertEquals(Int.MIN_VALUE, instance.getBits(50, 32))
 
         instance.setBits(42, 32, -1)
         assertEquals(-1, instance.getBits(42, 32))
@@ -234,7 +234,7 @@ abstract class InstanceTest {
     @Test
     fun bitsSetGetBoundsByte() {
         val instance = factory.create(100)
-        instance.setBits(10, 8, Byte.MIN_VALUE.toInt())
+        instance.setBits(10, 8, 0b10000000)
         assertEquals(Byte.MIN_VALUE, instance.getBits(10, 8).toByte())
 
         instance.setBits(40, 8, Byte.MAX_VALUE.toInt())
@@ -243,12 +243,79 @@ abstract class InstanceTest {
 
     @Test
     fun bitsSetGetArbitrary() {
-        val instance = factory.create(10)
+        val instance = factory.create(13)
         instance.setBits(0, 5, 1)
         assertEquals(1, instance.getBits(0, 5))
 
-        instance.setBits(5, 10, 32)
-        assertEquals(32, instance.getBits(5, 8))
+        instance.setBits(5, 8, 255)
+        assertEquals(255, instance.getBits(5, 8))
+    }
+
+    @Test
+    fun setBitsTmp() {
+        val instance = factory.create(64)
+        instance.setBits(30, 4, 5)
+    }
+
+    @Test
+    fun bitsSetGetManyInts() {
+        val instance = factory.create(200)
+        for (i in 0..168) {
+            val value = Random.nextInt()
+            instance.setBits(i, 32, value)
+            assertEquals(value, instance.getBits(i, 32))
+        }
+    }
+
+    @Test
+    fun bitsSetGetManyShorts() {
+        val instance = factory.create(200)
+        val rng = Random(0)
+        for (i in 0..184) {
+            for (j in instance.indices) instance[j] = false
+            val value = rng.nextInt(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+            instance.setSignedBits(i, 16, value)
+            assertEquals(value, instance.getSignedBits(i, 16), "$i")
+        }
+    }
+
+    @Test
+    fun getSetFloat() {
+        val instance = factory.create(32)
+        for (i in 1..10) {
+            val rnd = Float.fromBits(Random.nextBits(32))
+            instance.setFloat(0, rnd)
+            assertEquals(rnd, instance.getFloat(0))
+        }
+    }
+
+    @Test
+    fun bitsIsolatedEven() {
+        val instance = factory.create(96)
+        instance.setBits(0, 32, -1)
+        instance.setBits(32, 32, 0)
+        assertEquals(-1, instance.getBits(0, 32))
+        instance.setBits(64, 32, -1)
+        assertEquals(0, instance.getBits(32, 32))
+    }
+
+    @Test
+    fun bitsIsolatedUneven() {
+        val instance = factory.create(118)
+        instance.setBits(54, 32, -1)
+        instance.setBits(22, 32, 0)
+        instance.setBits(86, 32, 0)
+        assertEquals(-1, instance.getBits(54, 32))
+        instance.setBits(54, 32, -1)
+        assertEquals(0, instance.getBits(22, 32))
+        assertEquals(0, instance.getBits(86, 32))
+
+        instance.setBits(54, 32, 0)
+        instance.setBits(22, 32, -1)
+        instance.setBits(86, 32, -1)
+        assertEquals(0, instance.getBits(54, 32))
+        assertEquals(-1, instance.getBits(22, 32))
+        assertEquals(-1, instance.getBits(86, 32))
     }
 }
 

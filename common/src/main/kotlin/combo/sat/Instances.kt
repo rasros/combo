@@ -3,10 +3,7 @@
 package combo.sat
 
 import combo.math.Vector
-import combo.util.IntHashMap
-import combo.util.IntList
-import combo.util.key
-import combo.util.value
+import combo.util.*
 import kotlin.jvm.JvmName
 
 
@@ -33,7 +30,7 @@ interface Instance : Iterable<Int> {
     operator fun get(ix: Int): Boolean
 
     fun getBits(ix: Int, nbrBits: Int): Int {
-        require(nbrBits in 1..32)
+        assert(nbrBits in 1..32 && ix + nbrBits <= size)
         var bits = 0
         for (i in 0 until nbrBits)
             if (get(ix + i)) bits = bits xor (1 shl i)
@@ -61,15 +58,39 @@ interface Instance : Iterable<Int> {
 }
 
 interface MutableInstance : Instance {
+
     fun flip(ix: Int) = set(ix, !get(ix))
-    override fun copy(): MutableInstance
     operator fun set(ix: Int, value: Boolean)
 
     fun setBits(ix: Int, nbrBits: Int, value: Int) {
-        for (i in 0 until nbrBits)
-            set(ix + i, value ushr i and 1 == 1)
+        assert(nbrBits in 1..32 && ix + nbrBits <= size)
+        var k = value
+        for (i in 0 until nbrBits) {
+            set(ix + i, k and 1 == 1)
+            k = k ushr 1
+            //set(ix + i, value ushr i and 1 == 1)
+        }
+        assert(k == 0)
     }
 }
+
+/**
+ * Gets an integer that is downcasted to variable number of bits.
+ */
+fun Instance.getSignedBits(ix: Int, nbrBits: Int): Int {
+    val raw = getBits(ix, nbrBits)
+    return if (raw and (1 shl nbrBits - 1) != 0) raw or -65536
+    else raw
+}
+
+fun MutableInstance.setSignedBits(ix: Int, nbrBits: Int, value: Int) {
+    val mask = (-1 ushr Int.SIZE_BITS - nbrBits + 1)
+    if (value > 0) setBits(ix, nbrBits, value and mask)
+    else setBits(ix, nbrBits, (1 shl nbrBits - 1) or (value and mask))
+}
+
+fun MutableInstance.setFloat(ix: Int, value: Float) = setBits(ix, 32, value.toRawBits())
+fun Instance.getFloat(ix: Int) = Float.fromBits(getBits(ix, 32))
 
 fun Instance.deepEquals(other: Instance): Boolean {
     if (this === other) return true
@@ -120,28 +141,65 @@ object SparseBitArrayFactory : InstanceFactory {
     override fun create(size: Int) = SparseBitArray(size)
 }
 
-class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(4, -1)) : MutableInstance {
+class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(1, -1)) : MutableInstance {
 
-    override operator fun get(ix: Int) = (map[ix / Int.SIZE_BITS] ushr ix.rem(Int.SIZE_BITS)) and 1 == 1
-
-    override fun getBits(ix: Int, nbrBits: Int): Int {
-        return super.getBits(ix, nbrBits)
-        //TODO()
-    }
-
-    override fun setBits(ix: Int, nbrBits: Int, value: Int) {
-        super.setBits(ix, nbrBits, value)
-        //TODO()
-    }
+    override operator fun get(ix: Int) = (map[ix shr 5] ushr ix and 0x1F) and 1 == 1
 
     override fun copy() = SparseBitArray(size, map.copy())
 
     override fun set(ix: Int, value: Boolean) {
-        val i = ix / Int.SIZE_BITS
-        val updated = if (value) map[i] or (1 shl ix.rem(Int.SIZE_BITS))
-        else map[i] and (1 shl ix.rem(Int.SIZE_BITS)).inv()
-        if (updated == 0) map.remove(i)
-        else map[i] = updated
+        val i = ix shr 5
+        val rem = ix and 0x1F
+        setOrRemove(i, if (value) map[i] or (1 shl rem)
+        else map[i] and (1 shl rem).inv())
+    }
+
+    private fun setOrRemove(i: Int, value: Int) {
+        if (value == 0) map.remove(i)
+        else map[i] = value
+    }
+
+    override fun getBits(ix: Int, nbrBits: Int): Int {
+        assert(nbrBits in 1..32 && ix + nbrBits <= size)
+        val i1 = ix shr 5
+        val i2 = (ix + nbrBits - 1) shr 5
+        val rem = ix and 0x1F
+        return if (i1 != i2) {
+            val v1 = (map[i1] ushr Int.SIZE_BITS + rem)
+            val v2 = map[i2] shl Int.SIZE_BITS - rem
+            val mask = -1 ushr Int.SIZE_BITS - nbrBits
+            (v1 or v2) and mask
+        } else {
+            val value = map[i1] ushr rem
+            val mask = -1 ushr Int.SIZE_BITS - nbrBits
+            value and mask
+        }
+    }
+
+    override fun setBits(ix: Int, nbrBits: Int, value: Int) {
+        assert(nbrBits >= 1 && nbrBits <= 32 && ix + nbrBits <= size)
+        assert(nbrBits == 32 || value and (-1 shl nbrBits) == 0)
+        val i1 = ix shr 5
+        val i2 = (ix + nbrBits - 1) shr 5
+        val rem = ix and 0x1F
+        if (i1 != i2) {
+            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem)
+            val mask2 = (-1 shl rem)
+
+            var v1 = map[i1] and mask1
+            v1 = v1 or (value shl rem and mask1.inv())
+            setOrRemove(i1, v1)
+
+            var v2 = map[i2] and mask2
+            v2 = v2 or ((value ushr (32 - rem)) and mask2.inv())
+            setOrRemove(i2, v2)
+        } else {
+            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem).inv()
+            val mask2 = (-1 shl rem).inv()
+            var v = map[i1] and (mask1 or mask2) // zero out old value
+            v = v or (value shl rem) // set value
+            setOrRemove(i1, v)
+        }
     }
 
     override fun iterator(): IntIterator {
@@ -204,43 +262,71 @@ object BitArrayFactory : InstanceFactory {
     override fun create(size: Int) = BitArray(size)
 }
 
-class BitArray constructor(override val size: Int, val field: LongArray) : MutableInstance {
+/**
+ * This uses a dense int array as backing for [Instance]. 32 bit ints are used instead of 64 bits due to JavaScript
+ * interoperability.
+ */
+class BitArray constructor(override val size: Int, val field: IntArray) : MutableInstance {
 
-    constructor(size: Int) : this(size, LongArray(size / Long.SIZE_BITS + if (size.rem(Long.SIZE_BITS) > 0) 1 else 0))
+    // Note this code uses a lot of bit shifts. The most common being masking by 0x1F and shifting right by 5.
+    //  - shifting by 5 is equivalent to dividing by 32 which gives the int to in field to access
+    //  - ix and 0x1F is equivalent to modulus by 32 which gives the bit in a specific int
+    // Hence these two operations is used in get/set
+
+    constructor(size: Int) : this(size, IntArray((size shr 5) + if (size and 0x1F > 0) 1 else 0))
 
     override fun copy(): BitArray = BitArray(size, field.copyOf())
 
-    override operator fun get(ix: Int) = (field[ix / Long.SIZE_BITS] ushr ix.rem(Long.SIZE_BITS)) and 1L == 1L
+    override operator fun get(ix: Int) = (field[ix shr 5] ushr (ix and 0x1F)) and 1 == 1
+
+    override fun flip(ix: Int) {
+        val i = ix shr 5
+        field[i] = field[i] xor (1 shl (ix and 0x1F))
+    }
+
+    override fun set(ix: Int, value: Boolean) {
+        val i = ix shr 5
+        val mask = 1 shl (ix and 0x1F)
+        field[i] = if (value) field[i] or mask
+        else field[i] and mask.inv()
+    }
 
     override fun getBits(ix: Int, nbrBits: Int): Int {
-        return super.getBits(ix, nbrBits)
-        TODO()
-        val i1 = ix / Long.SIZE_BITS
-        val i2 = (ix + nbrBits) / Long.SIZE_BITS
-        if (i1 != i2) {
-            val l1 = field[i1]
-            // TODO
-            return super.getBits(ix, nbrBits)
+        assert(nbrBits in 1..32 && ix + nbrBits <= size)
+        val i1 = ix shr 5
+        val i2 = (ix + nbrBits - 1) shr 5
+        val rem = ix and 0x1F
+        return if (i1 != i2) {
+            val v1 = (field[i1] ushr Int.SIZE_BITS + rem)
+            val v2 = field[i2] shl Int.SIZE_BITS - rem
+            val mask = -1 ushr Int.SIZE_BITS - nbrBits
+            (v1 or v2) and mask
         } else {
-            val l = field[i1] ushr (ix.rem(Long.SIZE_BITS) - nbrBits)
-            return l.toInt()
+            val value = field[i1] ushr rem
+            val mask = -1 ushr Int.SIZE_BITS - nbrBits
+            value and mask
         }
     }
 
     override fun setBits(ix: Int, nbrBits: Int, value: Int) {
-        super.setBits(ix, nbrBits, value)
-        //TODO
-    }
-
-    override fun flip(ix: Int) {
-        val i = ix / Long.SIZE_BITS
-        field[i] = field[i] xor (1L shl ix.rem(Long.SIZE_BITS))
-    }
-
-    override fun set(ix: Int, value: Boolean) {
-        val i = ix / Long.SIZE_BITS
-        if (value) field[i] = field[i] or (1L shl ix.rem(Long.SIZE_BITS))
-        else field[i] = field[i] and (1L shl ix.rem(Long.SIZE_BITS)).inv()
+        assert(nbrBits >= 1 && nbrBits <= 32 && ix + nbrBits <= size)
+        assert(nbrBits == 32 || value and (-1 shl nbrBits) == 0)
+        val i1 = ix shr 5
+        val i2 = (ix + nbrBits - 1) shr 5
+        val rem = ix and 0x1F
+        if (i1 != i2) {
+            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem)
+            val mask2 = (-1 shl rem)
+            field[i1] = field[i1] and mask1
+            field[i1] = field[i1] or (value shl rem and mask1.inv())
+            field[i2] = field[i2] and mask2
+            field[i2] = field[i2] or ((value ushr (32 - rem)) and mask2.inv())
+        } else {
+            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem).inv()
+            val mask2 = (-1 shl rem).inv()
+            field[i1] = field[i1] and (mask1 or mask2) // zero out old value
+            field[i1] = field[i1] or (value shl rem) // set value
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -257,7 +343,7 @@ class BitArray constructor(override val size: Int, val field: LongArray) : Mutab
     override fun hashCode(): Int {
         var result = size
         for (l in field)
-            result = 31 * result + l.hashCode()
+            result = 31 * result + l
         return result
     }
 
