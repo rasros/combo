@@ -283,6 +283,14 @@ class IntHashSetTest {
     }
 
     @Test
+    fun createSmallTable() {
+        val set = IntHashSet(0)
+        for (i in 1..100)
+            set.add(i)
+        assertEquals(100, set.size)
+    }
+
+    @Test
     fun toArrayOnEmpty() {
         val set = IntHashSet()
         assertTrue { set.toArray().isEmpty() }
@@ -580,6 +588,14 @@ class IntHashMapTest {
         val map = IntHashMap()
         map.add(entry(2, 10))
         assertTrue(map.containsKey(2))
+    }
+
+    @Test
+    fun createSmallTable() {
+        val map = IntHashMap(0)
+        for (i in 1..100)
+            map[i] = i
+        assertEquals(100, map.size)
     }
 
     @Test

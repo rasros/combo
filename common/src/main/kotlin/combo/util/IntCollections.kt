@@ -25,7 +25,6 @@ fun IntCollection.mutableCopy(): MutableIntCollection =
             else -> collectionOf(*this.toArray()) as MutableIntCollection
         }
 
-const val LOAD_FACTOR = 0.55
 
 private fun hash(i: Int): Int {
     var x = i
@@ -35,8 +34,9 @@ private fun hash(i: Int): Int {
     return x
 }
 
+const val LOAD_FACTOR = 0.55
 private fun tableSizeFor(size: Int): Int {
-    return max(2, msb((size.toDouble() / 0.55).toInt()) * 2)
+    return max(2, msb((size.toDouble() / LOAD_FACTOR).toInt()) * 2)
 }
 
 private fun msb(value: Int): Int {
@@ -227,21 +227,19 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
         require(ix != nullValue)
         if (table[linearProbe(ix)] != nullValue)
             return false
-        if (tableSizeFor(size + 1) > table.size)
-            rehash()
+
+        if (tableSizeFor(size + 1) > table.size) {
+            val old = table
+            table = IntArray(tableSizeFor(size + 1))
+            if (nullValue != 0)
+                table.forEachIndexed { i, _ -> table[i] = nullValue }
+            size = 0
+            for (i in old.indices)
+                if (old[i] != nullValue) add(old[i])
+        }
         size++
         table[linearProbe(ix)] = ix
         return true
-    }
-
-    private fun rehash() {
-        val old = table
-        table = IntArray(tableSizeFor((size.toDouble() / LOAD_FACTOR).toInt()))
-        if (nullValue != 0)
-            table.forEachIndexed { i, _ -> table[i] = nullValue }
-        size = 0
-        for (i in old.indices)
-            if (old[i] != nullValue) add(old[i])
     }
 
     override fun remove(ix: Int): Boolean {
@@ -432,7 +430,13 @@ class IntHashMap private constructor(private var table: LongArray, size: Int, va
         val oldEntry = table[ix]
         if (oldEntry.key() == nullKey) {
             if (tableSizeFor(size + 1) > table.size) {
-                rehash()
+                val old = table
+                table = LongArray(tableSizeFor(size + 1))
+                if (nullKey != 0)
+                    table.forEachIndexed { i, _ -> table[i] = entry(nullKey, 0) }
+                size = 0
+                for (i in old.indices)
+                    if (old[i].key() != nullKey) add(old[i])
                 ix = linearProbe(key)
             }
             size++
@@ -440,16 +444,6 @@ class IntHashMap private constructor(private var table: LongArray, size: Int, va
         }
         table[ix] = entry(key, value)
         return oldEntry.value()
-    }
-
-    private fun rehash() {
-        val old = table
-        table = LongArray(tableSizeFor((size.toDouble() / LOAD_FACTOR).toInt()))
-        if (nullKey != 0)
-            table.forEachIndexed { i, _ -> table[i] = entry(nullKey, 0) }
-        size = 0
-        for (i in old.indices)
-            if (old[i].key() != nullKey) add(old[i])
     }
 
     fun remove(ix: Int): Int {
