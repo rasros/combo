@@ -77,7 +77,7 @@ interface MutableInstance : Instance {
 /**
  * Gets an integer that is downcasted to variable number of bits.
  */
-fun Instance.getSignedBits(ix: Int, nbrBits: Int): Int {
+fun Instance.getSignedInt(ix: Int, nbrBits: Int): Int {
     val raw = getBits(ix, nbrBits)
     return if (raw and (1 shl nbrBits - 1) != 0) raw or -65536
     else raw
@@ -85,7 +85,7 @@ fun Instance.getSignedBits(ix: Int, nbrBits: Int): Int {
 
 fun MutableInstance.setSignedBits(ix: Int, nbrBits: Int, value: Int) {
     val mask = (-1 ushr Int.SIZE_BITS - nbrBits + 1)
-    if (value > 0) setBits(ix, nbrBits, value and mask)
+    if (value >= 0) setBits(ix, nbrBits, value and mask)
     else setBits(ix, nbrBits, (1 shl nbrBits - 1) or (value and mask))
 }
 
@@ -141,7 +141,7 @@ object SparseBitArrayFactory : InstanceFactory {
     override fun create(size: Int) = SparseBitArray(size)
 }
 
-class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(1, -1)) : MutableInstance {
+class SparseBitArray(override val size: Int, val map: IntIntHashMap = IntIntHashMap(1, -1)) : MutableInstance {
 
     override operator fun get(ix: Int) = (map[ix shr 5] ushr ix and 0x1F) and 1 == 1
 
