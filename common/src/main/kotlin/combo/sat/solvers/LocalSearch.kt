@@ -40,19 +40,19 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
      */
-    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+    var instanceFactory: InstanceFactory = BitArrayFactory
 
     /**
      * This contains cached information about satisfied constraints during search. [PropTrackingInstanceFactory] is more
      * efficient for optimizing but uses more memory than [BasicTrackingInstanceFactory].
      */
-    var trackingInstanceFactory: TrackingInstanceFactory = PropTrackingInstanceFactory(problem)
+    var trackingInstanceFactory: TrackingInstanceFactory = BasicTrackingInstanceFactory(problem)
 
     /**
-     * Variables will be initialized according to this during each iteration. Use [WeightInitializer] for
-     * [LinearObjective].
+     * Variables will be initialized according to this during each iteration.T he default is [RandomInitializer] which
+     * initializes uniform at random, consider switching to [combo.sat.WeightInitializer] for [LinearObjective].
      */
     var initializer: ValueInitializer<O> = RandomInitializer()
 

@@ -3,7 +3,7 @@ package combo.sat.solvers
 import combo.math.RandomSequence
 import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.IntSet
+import combo.util.IntHashSet
 import combo.util.millis
 import combo.util.nanos
 
@@ -22,9 +22,9 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
      */
-    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+    var instanceFactory: InstanceFactory = BitArrayFactory
 
     private var randomSequence = RandomSequence(nanos())
 
@@ -35,7 +35,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .map { if (millis() <= end) it else throw TimeoutException(timeout) }
-                .map { remapLabeling(assumptions, it, remap) }
+                .map { remapInstance(assumptions, it, remap) }
                 .firstOrNull { problem.satisfies(it) } ?: throw UnsatisfiableException()
     }
 
@@ -46,7 +46,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
-                .map { remapLabeling(assumptions, it, remap) }
+                .map { remapInstance(assumptions, it, remap) }
                 .filter { problem.satisfies(it) }
     }
 
@@ -59,7 +59,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         return if (assumptions.isNotEmpty()) {
             val themap = IntArray(nbrVariables)
             var ix = 0
-            val taken = IntSet(assumptions.size * 2)
+            val taken = IntHashSet(assumptions.size * 2)
             assumptions.forEach { taken.add(it.toIx()) }
             for (i in 0 until nbrVariables) {
                 while (taken.contains(ix)) ix++
@@ -69,7 +69,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         } else EMPTY_INT_ARRAY
     }
 
-    private fun remapLabeling(assumptions: Literals, instance: Instance, remap: IntArray): Instance {
+    private fun remapInstance(assumptions: Literals, instance: Instance, remap: IntArray): Instance {
         return if (assumptions.isNotEmpty()) {
             val result = this.instanceFactory.create(problem.nbrVariables)
             result.setAll(assumptions)

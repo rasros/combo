@@ -38,9 +38,9 @@ class JacopSolver @JvmOverloads constructor(
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
      */
-    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+    var instanceFactory: InstanceFactory = BitArrayFactory
 
     private val lock = Object()
 

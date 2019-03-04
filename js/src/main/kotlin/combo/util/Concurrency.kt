@@ -5,15 +5,13 @@ import kotlin.random.Random
 
 actual class AtomicLong actual constructor(private var value: Long) {
 
-    actual fun getAndIncrement(): Long {
+    actual fun inc(): Long {
         return value++
     }
 
-    actual fun compareAndSet(expect: Long, update: Long): Boolean {
-        return if (expect == value) {
-            value = update
-            true
-        } else false
+    actual operator fun plus(value: Long): Long {
+        this.value += value
+        return this.value
     }
 
     actual fun get() = value
@@ -21,15 +19,13 @@ actual class AtomicLong actual constructor(private var value: Long) {
 
 actual class AtomicInt actual constructor(private var value: Int) {
 
-    actual fun getAndIncrement(): Int {
+    actual fun inc(): Int {
         return value++
     }
 
-    actual fun compareAndSet(expect: Int, update: Int): Boolean {
-        return if (expect == value) {
-            value = update
-            true
-        } else false
+    actual operator fun plus(value: Int): Int {
+        this.value += value
+        return this.value
     }
 
     actual fun get() = value

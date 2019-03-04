@@ -112,7 +112,7 @@ interface ObjectiveFunction {
     /**
      * Override for efficiency reasons. New value should be previous value - improvement.
      */
-    fun improvement(instance: Instance, ix: Ix, propagations: Literals): Double {
+    fun improvement(instance: Instance, ix: Int, propagations: Literals): Double {
         val copy = instance.copy()
         copy.flip(ix)
         copy.setAll(propagations)

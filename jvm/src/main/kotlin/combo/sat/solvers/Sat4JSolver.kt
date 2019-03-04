@@ -23,6 +23,7 @@ import org.sat4j.pb.PseudoOptDecorator
 import org.sat4j.pb.core.PBSolver
 import org.sat4j.specs.ContradictionException
 import org.sat4j.tools.ModelIterator
+import java.math.BigInteger
 import java.math.BigInteger.valueOf
 import kotlin.random.Random
 import org.sat4j.minisat.core.Solver as Sat4J
@@ -50,9 +51,9 @@ class Sat4JSolver @JvmOverloads constructor(
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
      */
-    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+    var instanceFactory: InstanceFactory = BitArrayFactory
 
     /**
      * Solver aborts after this number of conflicts are reached.
@@ -64,6 +65,8 @@ class Sat4JSolver @JvmOverloads constructor(
      * introduces bias in the generated instances.
      */
     var forgetLearnedClauses: Boolean = true
+
+    var eps: Double = 1E-3
 
     private val solverLock = Object()
     private var randomSequence = RandomSequence(nanos())
@@ -123,12 +126,12 @@ class Sat4JSolver @JvmOverloads constructor(
             pbSolver.order = TimeoutOrder(pbSolver.order).apply { setTimeout(timeout) }
         val optimizer = OptToPBSATAdapter(PseudoOptDecorator(WeightedMaxSatDecorator(pbSolver)))
         pbSolver.setup(problem, constraintHandler)
-        val intWeights = function.weights.toIntArray()
+        val intWeights = function.weights.toIntArray(0.01)
         if (function.maximize) intWeights.transformArray { -it }
         optimizer.setTimeoutOnConflicts(maxConflicts)
-        optimizer.objectiveFunction = ObjectiveFunction(
-                VecInt((1..intWeights.size).toList().toIntArray()),
-                Vec(intWeights.map { valueOf(it.toLong()) }.toTypedArray()))
+        val indices = VecInt(IntArray(intWeights.size) { it + 1 })
+        val bigInts = Vec(Array<BigInteger>(intWeights.size) { valueOf(intWeights[it].toLong()) })
+        optimizer.objectiveFunction = ObjectiveFunction(indices, bigInts)
         try {
             if (!optimizer.isSatisfiable(assumptions.toDimacs()))
                 throw UnsatisfiableException()
@@ -153,7 +156,6 @@ class Sat4JSolver @JvmOverloads constructor(
         }
     }
 
-    // Modified to allow selection of random seed
     private class RandomLiteralSelectionStrategySeeded(var rng: Random) : IPhaseSelectionStrategy {
         override fun assignLiteral(p: Int) {}
         override fun init(nlength: Int) {}
@@ -198,17 +200,10 @@ class Sat4JSolver @JvmOverloads constructor(
     }
 
     private fun Literals.toDimacs(): VecInt {
-        val newClause = IntArray(size)
-        for (i in indices)
-            newClause[i] = this[i].toDimacs()
-        return VecInt(newClause)
+        return VecInt(this)
     }
 
     private fun IntArray.toInstance(factory: InstanceFactory): Instance {
-        val nbrPos = count { it > 0 }
-        val lits = IntArray(nbrPos)
-        var k = 0
-        forEachIndexed { i, dl -> if (dl > 0) lits[k++] = i.toLiteral(true) }
-        return factory.create(size).apply { setAll(lits) }
+        return factory.create(size).apply { setAll(this) }
     }
 }

@@ -54,9 +54,9 @@ class JOptimizerSolver @JvmOverloads constructor(
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
      */
-    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+    var instanceFactory: InstanceFactory = BitArrayFactory
 
     private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D

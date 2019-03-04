@@ -4,7 +4,7 @@ package combo.sat.solvers
 
 import combo.math.*
 import combo.sat.*
-import combo.util.IntSet
+import combo.util.IntHashSet
 import combo.util.millis
 import combo.util.nanos
 import kotlin.jvm.JvmName
@@ -34,9 +34,9 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitFieldInstanceFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
      */
-    var instanceFactory: InstanceFactory = BitFieldInstanceFactory
+    var instanceFactory: InstanceFactory = BitArrayFactory
 
     /**
      * This contains cached information about satisfied constraints during search. [PropTrackingInstanceFactory] is more
@@ -96,6 +96,8 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
      */
     var recombination: RecombinationOperator = KPointRecombination(1)
 
+    var recombinationProbability: Double = 1.0
+
     /**
      * The [mutation] operator in conjunction with the [mutationProbability] adds additional diversity to the candidate
      * solutions. The default flips one random variable with probability 1.
@@ -109,7 +111,11 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
     var mutationProbability: Double = 1.0
 
     /**
-     *
+     * In order to discourage the optimizer to converge to an infeasible candidate solution we add an external penalty
+     * to the objective function. The default penalty ensures that any infeasible candidate solution has a penalized
+     * score that is strictly greater than a feasible solution. In order for that to work the
+     * [combo.sat.solvers.ObjectiveFunction.lowerBound] and [combo.sat.solvers.ObjectiveFunction.upperBound] must be
+     * implemented and be finite. Otherwise, choose another penalty function that does not rely on bounds.
      */
     var penalty: PenaltyFunction = DisjunctPenalty()
 
@@ -120,36 +126,46 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
 
         fun score(s: TrackingInstance) = function.value(s).let { it + penalty.penalty(it, s.totalUnsatisfied, lowerBound, upperBound) }
 
-        val instances: Array<TrackingInstance> = Array(candidateSize) {
-            trackingInstanceFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, initializer, function, randomSequence.next())
-        }
+
         val candidates = let {
-            val ages = IntArray(candidateSize)
-            val scores = DoubleArray(candidateSize) {
-                val s = score(instances[it])
-                if (abs(s - lowerBound) < eps && instances[it].totalUnsatisfied == 0)
-                    return instances[it].instance
-                s
+            val instances: Array<TrackingInstance> = Array(candidateSize) {
+                trackingInstanceFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, initializer, function, randomSequence.next())
             }
-            CandidateSolutions(instances, scores, ages)
+            val scores = DoubleArray(candidateSize) {
+                score(instances[it]).also { s ->
+                    if (abs(s - lowerBound) < eps && instances[it].totalUnsatisfied == 0)
+                        return instances[it].instance
+                }
+            }
+            OptimizerCandidateSolutions(instances, IntArray(instances.size), scores)
         }
 
         for (restart in 1..restarts) {
             var stalls = 0
             val rng = randomSequence.next()
 
-            for (step in 1..maxSteps) {
+            for (step in 1L..maxSteps) {
                 val eliminated = elimination.select(candidates, rng)
-                val parent1: Int = selection.select(candidates, rng)
-                val parent2: Int = selection.select(candidates, rng)
-                recombination.combine(parent1, parent2, eliminated, candidates, rng)
-                val updatedLabeling = instances[eliminated]
-                if (rng.nextDouble() < mutationProbability || parent1 == parent2)
-                    mutation.mutate(updatedLabeling, rng)
-                val score = score(updatedLabeling)
-                if (abs(score - lowerBound) < eps && updatedLabeling.totalUnsatisfied == 0)
-                    return updatedLabeling
+                val recombined = if (rng.nextDouble() < recombinationProbability) {
+                    val parent1: Int = selection.select(candidates, rng)
+                    val parent2: Int = selection.select(candidates, rng)
+                    recombination.combine(parent1, parent2, eliminated, candidates, rng)
+                    parent1 != parent2
+                } else {
+                    // Copy selected individual to eliminated and force mutation
+                    val parent: Instance = candidates.instances[selection.select(candidates, rng)].instance
+                    val target = candidates.instances[eliminated]
+                    for (i in parent.indices) if (target[i] != parent[i]) target.flip(i)
+                    false
+                }
+                if (!recombined || rng.nextDouble() < mutationProbability)
+                    mutation.mutate(eliminated, candidates, rng)
+                val updatedInstance = candidates.instances[eliminated]
+                val score = score(updatedInstance)
+                if (abs(score - lowerBound) < eps && updatedInstance.totalUnsatisfied == 0)
+                    return updatedInstance
 
+                candidates.scores[eliminated] = score
                 if (!candidates.update(eliminated, step, score)) stalls++
                 else stalls = 0
 
@@ -158,28 +174,33 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
 
             if (restart == restarts || millis() > end) break
 
-            val keep = IntSet().apply { add(0) }
+            val keep = IntHashSet()
             var tries = 0
             while (keep.size < max(0.2, restartKeeps) * candidateSize || tries++ < candidateSize)
                 keep.add(selection.select(candidates, rng))
-            tries = 1
+            tries = 0
             while (keep.size < restartKeeps * candidateSize) keep.add(tries)
 
             for (i in 0 until candidateSize) {
                 if (i in keep) {
-                    candidates.ages[i] = 0
+                    candidates.update(i, 1, candidates.minScore)
                 } else {
-                    instances[i] = trackingInstanceFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, initializer, function, randomSequence.next())
+                    candidates.instances[i] = trackingInstanceFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, initializer, function, randomSequence.next())
                     @Suppress("UNCHECKED_CAST")
-                    (candidates.instances as Array<MutableInstance>)[i] = instances[i]
-                    candidates.update(i, 0, score(instances[i]))
+                    (candidates.instances as Array<MutableInstance>)[i] = candidates.instances[i]
+                    val newScore = score(candidates.instances[i])
+                    candidates.scores[i] = newScore
+                    candidates.update(i, 0, newScore)
                 }
             }
         }
 
-        for (i in 0 until candidateSize)
-            if (instances[i].totalUnsatisfied == 0)
-                return instances[i].instance
+        val ix = (0 until candidateSize).minBy {
+            if (candidates.instances[it].totalUnsatisfied == 0) candidates.scores[it]
+            else Double.POSITIVE_INFINITY
+        }!!
+        if (candidates.instances[ix].totalUnsatisfied == 0)
+            return candidates.instances[ix].instance
 
         if (millis() > end)
             throw TimeoutException(timeout)
@@ -193,9 +214,68 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
  */
 class GASolver(problem: Problem) : GAOptimizer<SatObjective>(problem), Solver {
     init {
-        restarts = Int.MAX_VALUE
+        restarts = 1
+        maxSteps = Int.MAX_VALUE
         penalty = LinearPenalty()
+        elimination = OldestElimination()
     }
 
     override fun witnessOrThrow(assumptions: Literals) = optimizeOrThrow(SatObjective, assumptions)
+}
+
+class OptimizerCandidateSolutions(override val instances: Array<TrackingInstance>,
+                                  val origins: IntArray,
+                                  val scores: DoubleArray) : CandidateSolutions {
+
+    override var minScore: Double = Double.POSITIVE_INFINITY
+        private set
+    override var maxScore: Double = Double.NEGATIVE_INFINITY
+        private set
+    var oldestOrigin: Int = Int.MAX_VALUE
+        private set
+    override var oldestCandidate: Int = 0
+        private set
+    override val nbrCandidates: Int
+        get() = instances.size
+    override val nbrVariables: Int
+        get() = instances[0].size
+
+    init {
+        for (i in instances.indices) {
+            val s = scores[i]
+            if (s < minScore) minScore = s
+            if (s > maxScore) {
+                maxScore = s
+                if (origins[i] <= oldestOrigin) {
+                    oldestCandidate = i
+                    oldestOrigin = origins[i]
+                }
+            }
+        }
+    }
+
+    override fun score(ix: Int) = scores[ix]
+
+    override fun update(ix: Int, step: Long, newScore: Double): Boolean {
+        origins[ix] = step.toInt()
+        if (oldestCandidate == ix || step < oldestOrigin) {
+            oldestOrigin = Int.MAX_VALUE
+            for (i in origins.indices) {
+                if (origins[i] < oldestOrigin) {
+                    oldestOrigin = origins[i]
+                    oldestCandidate = i
+                    if (oldestOrigin == 0) break
+                }
+            }
+        }
+        if (newScore > maxScore) {
+            maxScore = newScore
+            return false
+        }
+        if (newScore < minScore) {
+            minScore = newScore
+            return true
+        }
+        return false
+    }
 }
