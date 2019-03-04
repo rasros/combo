@@ -1,8 +1,4 @@
-@file:JvmName("Exceptions")
-
 package combo.sat
-
-import kotlin.jvm.JvmName
 
 /**
  * A validation exception is thrown only if there is a logical contradiction in the model or the model could not be
