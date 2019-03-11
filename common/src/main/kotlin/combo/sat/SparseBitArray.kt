@@ -84,7 +84,6 @@ class SparseBitArray(override val size: Int, val map: IntIntHashMap = IntIntHash
                     currentValue = l.value()
                     i = 0
                 }
-                // (map[ix / Int.SIZE_BITS] ushr ix.rem(Int.SIZE_BITS)) and 1 == 1
                 while (currentValue and 1 == 0) {
                     i++
                     currentValue = currentValue ushr 1

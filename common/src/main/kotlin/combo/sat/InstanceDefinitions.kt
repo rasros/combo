@@ -50,7 +50,7 @@ interface Instance : Iterable<Int> {
 
         override fun hasNext() = i < size
         override fun nextInt() = i++.also {
-            if (i >= size) throw NoSuchElementException()
+            if (i > size) throw NoSuchElementException()
             while (i < size && !this@Instance[i]) i++
         }
     }
@@ -80,11 +80,13 @@ interface MutableInstance : Instance {
  */
 fun Instance.getSignedInt(ix: Int, nbrBits: Int): Int {
     val raw = getBits(ix, nbrBits)
-    return if (raw and (1 shl nbrBits - 1) != 0) raw or -65536
+    val signBit = raw and (1 shl nbrBits - 1) != 0
+    return if (signBit)
+        raw or (-1 shl nbrBits)
     else raw
 }
 
-fun MutableInstance.setSignedBits(ix: Int, nbrBits: Int, value: Int) {
+fun MutableInstance.setSignedInt(ix: Int, nbrBits: Int, value: Int) {
     val mask = (-1 ushr Int.SIZE_BITS - nbrBits + 1)
     if (value >= 0) setBits(ix, nbrBits, value and mask)
     else setBits(ix, nbrBits, (1 shl nbrBits - 1) or (value and mask))
@@ -117,12 +119,13 @@ infix fun Instance.dot(v: Vector): Double {
     return sum
 }
 
+operator fun Instance.contains(literal: Literal): Boolean = literal(literal.toIx()) == literal
 fun Instance.literal(ix: Int) = ix.toLiteral(this[ix])
 
 fun Instance.toLiterals(): Literals {
     val list = IntList()
     val itr = iterator()
-    while (itr.hasNext()) list.add(itr.nextInt())
+    while (itr.hasNext()) list.add(itr.nextInt().toLiteral(true))
     list.toArray()
     return list.toArray()
 }

@@ -1,7 +1,6 @@
 package combo.sat
 
 import combo.test.assertContentEquals
-import combo.util.IntList
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -173,25 +172,46 @@ abstract class InstanceTest {
 
     @Test
     fun iterator() {
-        val instance = factory.create(10).apply { setAll(3..7) }
-        var k = 2
-        val itr = instance.iterator()
-        for (i in itr) {
-            assertEquals(k++, i)
-        }
-        assertFalse(itr.hasNext())
+        val instance = factory.create(10)
+        instance[2] = true
+        instance[9] = true
+        val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
+        assertContentEquals(intArrayOf(2, 9), result)
     }
 
     @Test
     fun iteratorLarge() {
         val instance = factory.create(100)
-        val list = IntList()
-        for (i in instance.indices step 5) {
-            list.add(i)
+        for (i in instance.indices step 5)
             instance[i] = true
-        }
-        val ints = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
-        assertContentEquals(list.toArray(), ints)
+        val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
+        assertContentEquals((0..95 step 5).toList().toIntArray(), result)
+    }
+
+    @Test
+    fun iteratorLargeHoled() {
+        val instance = factory.create(200)
+        instance[195] = true
+        instance[85] = true
+        val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
+        assertContentEquals(intArrayOf(85, 195), result)
+    }
+
+    @Test
+    fun iteratorLastElement() {
+        val instance = factory.create(99)
+        instance[31] = true
+        instance[98] = true
+        val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
+        assertContentEquals(intArrayOf(31, 98), result)
+    }
+
+    @Test
+    fun iteratorAllOnes() {
+        val instance = factory.create(227)
+        for (i in instance.indices) instance[i] = true
+        val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
+        assertContentEquals((0 until 227).toList().toIntArray(), result)
     }
 
     @Test
@@ -274,8 +294,8 @@ abstract class InstanceTest {
         for (i in 0..184) {
             for (j in instance.indices) instance[j] = false
             val value = rng.nextInt(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-            instance.setSignedBits(i, 16, value)
-            assertEquals(value, instance.getSignedBits(i, 16), "$i")
+            instance.setSignedInt(i, 16, value)
+            assertEquals(value, instance.getSignedInt(i, 16), "$i")
         }
     }
 
