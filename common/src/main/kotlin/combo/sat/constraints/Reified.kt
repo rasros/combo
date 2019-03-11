@@ -9,8 +9,9 @@ sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constr
 
     override val priority: Int = 1000
 
-    override fun cacheUpdate(instance: Instance, cacheResult: Int, newLit: Literal) =
-            constraint.cacheUpdate(instance, cacheResult, newLit)
+    override fun cacheUpdate(cacheResult: Int, newLit: Literal) =
+            if (newLit.toIx() == literal.toIx()) cacheResult
+            else constraint.cacheUpdate(cacheResult, newLit)
 
     override fun cache(instance: Instance) = constraint.cache(instance)
 
@@ -24,9 +25,12 @@ sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constr
 class ReifiedEquivalent(literal: Literal, override val constraint: NegatableConstraint) : ReifiedConstraint(literal, constraint), NegatableConstraint {
 
     init {
-        assert(constraint.literals.isNotEmpty()) { "Literals in clause should not be empty." }
-        if (literal in constraint.literals || !literal in constraint.literals)
-            throw IllegalArgumentException("Literal appears in clause for reified.")
+        assert(constraint.literals.isNotEmpty()) {
+            "Literals in clause should not be empty."
+        }
+        assert(literal !in constraint.literals && !literal !in constraint.literals) {
+            "Literal appears in clause for reified."
+        }
     }
 
     override val literals: IntCollection = unionCollection(constraint.literals, literal)
@@ -45,7 +49,7 @@ class ReifiedEquivalent(literal: Literal, override val constraint: NegatableCons
             literal -> constraint
             !literal -> constraint.not()
             else -> {
-                val propagated = constraint.unitPropagation(literal)
+                val propagated = constraint.unitPropagation(unit)
                 when (propagated) {
                     constraint -> this
                     is Tautology -> Conjunction(collectionOf(literal))
@@ -87,9 +91,12 @@ class ReifiedEquivalent(literal: Literal, override val constraint: NegatableCons
 class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstraint(literal, constraint) {
 
     init {
-        assert(constraint.literals.isNotEmpty()) { "Literals in clause should not be empty." }
-        if (literal in constraint.literals || !literal in constraint.literals)
-            throw IllegalArgumentException("Literal appears in clause for reified.")
+        assert(constraint.literals.isNotEmpty()) {
+            "Literals in clause should not be empty."
+        }
+        assert(literal !in constraint.literals && !literal !in constraint.literals) {
+            "Literal appears in clause for reified."
+        }
     }
 
     override val literals: IntCollection = unionCollection(constraint.literals, literal)
@@ -106,7 +113,7 @@ class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstrai
             unit == literal -> constraint
             unit.toIx() == literal.toIx() -> Tautology
             else -> {
-                val propagated = constraint.unitPropagation(literal)
+                val propagated = constraint.unitPropagation(unit)
                 when (propagated) {
                     constraint -> this
                     is Tautology -> Tautology

@@ -21,10 +21,9 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
         for (l in literals) assert(l.toBoolean()) {
             "Can only have non-negated literals in $this. Offending literal: $l"
         }
-        assert(degree >= 0) { "Degree must be >= 0 in $this." }
+        assert(degree >= 0) { "Degree must be > 0 in $this." }
         assert(literals.isNotEmpty()) { "Literals should not be empty." }
-        if (!isSatisfiable(degree, literals.size, relation))
-            throw UnsatisfiableException("$this is not satisfiable, (${literals.size} cannot be ${relation.operator}).")
+        assert(isSatisfiable(degree, literals.size, relation))
     }
 
     override operator fun not() = Cardinality(literals, degree, relation.not())
@@ -57,12 +56,36 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
             else if (copy.isEmpty()) {
                 val emptyConstraint: NegatableConstraint = if (relation.violations(0, d) == 0) Tautology
                 else Empty
-                return emptyConstraint
-            } else Cardinality(copy, d, relation)
+                emptyConstraint
+            } else {
+                val card = Cardinality(copy, d, relation)
+                if (card.isUnit()) Conjunction(collectionOf(*card.unitLiterals()))
+                else card
+            }
         } else this
     }
 
-    override fun isUnit() = false
+    override fun isUnit(): Boolean {
+        return when (relation) {
+            GT -> degree == literals.size - 1
+            GE -> degree == literals.size
+            LE -> degree == 0
+            LT -> degree == 1
+            NE -> literals.size == 1
+            EQ -> degree == 0 || degree == literals.size
+        }
+    }
+
+    override fun unitLiterals(): Literals {
+        return when (relation) {
+            GT -> literals.toArray()
+            GE -> literals.toArray()
+            LE -> literals.toArray().mapArray { !it }
+            LT -> literals.toArray().mapArray { !it }
+            NE -> if (degree == 0) literals.toArray() else literals.toArray().mapArray { !it }
+            EQ -> if (degree == 0) literals.toArray().mapArray { !it } else literals.toArray()
+        }
+    }
 
     override fun coerce(instance: MutableInstance, rng: Random) {
         val card = this

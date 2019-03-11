@@ -9,7 +9,7 @@ import kotlin.random.Random
 sealed class NumericConstraint(override val literals: IntRangeSet) : Constraint {
 
     override val priority: Int = 200
-    override fun cacheUpdate(instance: Instance, cacheResult: Int, newLit: Literal) = 0
+    override fun cacheUpdate(cacheResult: Int, newLit: Literal) = 0
     override fun cache(instance: Instance) = 0
     override fun isUnit() = false
 }

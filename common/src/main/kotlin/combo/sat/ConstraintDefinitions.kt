@@ -40,7 +40,7 @@ interface Constraint : Expression, Iterable<Literal> {
      * Update the cached result with the changing literal [lit]. This method can only be called if the literal is
      * contained in [literals].
      */
-    fun cacheUpdate(instance: Instance, cacheResult: Int, newLit: Literal) = cacheResult + if (newLit in literals) 1 else -1
+    fun cacheUpdate(cacheResult: Int, newLit: Literal) = cacheResult + if (newLit in literals) 1 else -1
 
     /**
      * Calculate the cached result of satisfy value. This will be updated with the [cacheUpdate] and used in the

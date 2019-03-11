@@ -48,7 +48,7 @@ class ConjunctionTest : ConstraintTest() {
         val c = Conjunction(IntList(intArrayOf(1, -4)))
         for (k in 0 until 16) {
             val instance = BitArray(4, IntArray(1) { k })
-            randomFlipViolations(instance, c)
+            randomCacheUpdates(instance, c)
         }
     }
 
@@ -119,7 +119,7 @@ class DisjunctionTest : ConstraintTest() {
         val c = Disjunction(IntList(intArrayOf(1, -4)))
         for (k in 0 until 16) {
             val instance = BitArray(4, IntArray(1) { k })
-            randomFlipViolations(instance, c)
+            randomCacheUpdates(instance, c)
         }
     }
 
