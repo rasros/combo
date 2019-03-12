@@ -7,7 +7,6 @@ import combo.sat.constraints.Relation.*
 import combo.test.assertContentEquals
 import combo.util.IntList
 import combo.util.collectionOf
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -90,7 +89,7 @@ class CardinalityTest : ConstraintTest() {
 
     @Test
     fun unitPropagationNone() {
-        val a = Cardinality(IntList(intArrayOf(1, 5, 6)), 1, Relation.LE)
+        val a = Cardinality(IntList(intArrayOf(1, 5, 6)), 1, LE)
         assertContentEquals(a.literals.toArray().apply { sort() }, a.unitPropagation(2).literals.toArray().apply { sort() })
         assertContentEquals(a.literals.toArray().apply { sort() }, a.unitPropagation(4).literals.toArray().apply { sort() })
         assertContentEquals(a.literals.toArray().apply { sort() }, a.unitPropagation(8).literals.toArray().apply { sort() })
@@ -99,68 +98,83 @@ class CardinalityTest : ConstraintTest() {
     @Test
     fun randomExhaustivePropagations() {
         val lits = collectionOf(1, 2, 3, 4, 5)
-        randomExhaustivePropagations(arrayOf(
-                Cardinality(lits, 1, Relation.LE),
-                Cardinality(lits, 3, Relation.LE),
-                Cardinality(lits, 1, Relation.LT),
-                Cardinality(lits, 3, Relation.LT),
-                Cardinality(lits, 1, Relation.GE),
-                Cardinality(lits, 3, Relation.GE),
-                Cardinality(lits, 1, Relation.GT),
-                Cardinality(lits, 3, Relation.GT),
-                Cardinality(lits, 1, Relation.EQ),
-                Cardinality(lits, 3, Relation.EQ),
-                Cardinality(lits, 1, Relation.NE),
-                Cardinality(lits, 3, Relation.NE)))
+        randomExhaustivePropagations(Cardinality(lits, 1, LE))
+        randomExhaustivePropagations(Cardinality(lits, 3, LE))
+        randomExhaustivePropagations(Cardinality(lits, 1, LT))
+        randomExhaustivePropagations(Cardinality(lits, 3, LT))
+        randomExhaustivePropagations(Cardinality(lits, 1, GE))
+        randomExhaustivePropagations(Cardinality(lits, 3, GE))
+        randomExhaustivePropagations(Cardinality(lits, 1, GT))
+        randomExhaustivePropagations(Cardinality(lits, 3, GT))
+        randomExhaustivePropagations(Cardinality(lits, 1, EQ))
+        randomExhaustivePropagations(Cardinality(lits, 3, EQ))
+        randomExhaustivePropagations(Cardinality(lits, 1, NE))
+        randomExhaustivePropagations(Cardinality(lits, 3, NE))
+    }
+
+    @Test
+    fun randomCoerce() {
+        randomCoerce(Cardinality(collectionOf(1, 2, 3, 4), 2, EQ))
+        randomCoerce(Cardinality(collectionOf(2, 3), 1, EQ))
+        randomCoerce(Cardinality(collectionOf(1, 2, 3, 4), 2, NE))
+        randomCoerce(Cardinality(collectionOf(2, 3), 1, NE))
+        randomCoerce(Cardinality(collectionOf(1, 2, 3, 4), 2, LE))
+        randomCoerce(Cardinality(collectionOf(2, 3), 1, LE))
+        randomCoerce(Cardinality(collectionOf(1, 2, 3, 4), 2, LT))
+        randomCoerce(Cardinality(collectionOf(2, 3), 1, LT))
+        randomCoerce(Cardinality(collectionOf(1, 2, 3, 4), 2, GE))
+        randomCoerce(Cardinality(collectionOf(2, 3), 1, GE))
+        randomCoerce(Cardinality(collectionOf(1, 2, 3, 4), 2, GT))
+        randomCoerce(Cardinality(collectionOf(2, 3), 1, GT))
     }
 }
 
 class RelationTest {
     @Test
     fun eq() {
-        assertEquals(1, Relation.EQ.violations(3, 2))
-        assertEquals(1, Relation.EQ.violations(1, 2))
-        assertEquals(0, Relation.EQ.violations(2, 2))
-        assertEquals(0, Relation.EQ.violations(0, 0))
+        assertEquals(1, EQ.violations(3, 2))
+        assertEquals(1, EQ.violations(1, 2))
+        assertEquals(0, EQ.violations(2, 2))
+        assertEquals(0, EQ.violations(0, 0))
     }
 
     @Test
     fun ne() {
-        assertEquals(0, Relation.NE.violations(3, 2))
-        assertEquals(0, Relation.NE.violations(1, 2))
-        assertEquals(0, Relation.NE.violations(0, 2))
-        assertEquals(1, Relation.NE.violations(0, 0))
+        assertEquals(0, NE.violations(3, 2))
+        assertEquals(0, NE.violations(1, 2))
+        assertEquals(0, NE.violations(0, 2))
+        assertEquals(1, NE.violations(0, 0))
     }
 
     @Test
     fun le() {
-        assertEquals(1, Relation.LE.violations(3, 2))
-        assertEquals(0, Relation.LE.violations(1, 2))
-        assertEquals(0, Relation.LE.violations(2, 2))
-        assertEquals(0, Relation.LE.violations(0, 0))
+        assertEquals(1, LE.violations(3, 2))
+        assertEquals(0, LE.violations(1, 2))
+        assertEquals(0, LE.violations(2, 2))
+        assertEquals(0, LE.violations(0, 0))
     }
 
     @Test
     fun lt() {
-        assertEquals(2, Relation.LT.violations(3, 2))
-        assertEquals(0, Relation.LT.violations(1, 2))
-        assertEquals(1, Relation.LT.violations(2, 2))
-        assertEquals(1, Relation.LT.violations(0, 0))
+        assertEquals(2, LT.violations(3, 2))
+        assertEquals(0, LT.violations(1, 2))
+        assertEquals(1, LT.violations(2, 2))
+        assertEquals(1, LT.violations(0, 0))
     }
 
     @Test
     fun ge() {
-        assertEquals(0, Relation.GE.violations(3, 2))
-        assertEquals(1, Relation.GE.violations(1, 2))
-        assertEquals(2, Relation.GE.violations(0, 2))
-        assertEquals(0, Relation.GE.violations(0, 0))
+        assertEquals(0, GE.violations(3, 2))
+        assertEquals(1, GE.violations(1, 2))
+        assertEquals(2, GE.violations(0, 2))
+        assertEquals(0, GE.violations(0, 0))
     }
 
     @Test
     fun gt() {
-        assertEquals(0, Relation.GT.violations(3, 2))
-        assertEquals(2, Relation.GT.violations(1, 2))
-        assertEquals(3, Relation.GT.violations(0, 2))
-        assertEquals(1, Relation.GT.violations(0, 0))
+        assertEquals(0, GT.violations(3, 2))
+        assertEquals(2, GT.violations(1, 2))
+        assertEquals(3, GT.violations(0, 2))
+        assertEquals(1, GT.violations(0, 0))
     }
 }

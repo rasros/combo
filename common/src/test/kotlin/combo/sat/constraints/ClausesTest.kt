@@ -12,7 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-
 class ConjunctionTest : ConstraintTest() {
 
     @Test
@@ -76,13 +75,21 @@ class ConjunctionTest : ConstraintTest() {
 
     @Test
     fun randomExhaustivePropagations() {
-        randomExhaustivePropagations(arrayOf(
-                Conjunction(collectionOf(-2)),
-                Conjunction(collectionOf(1, -2, 5)),
-                Conjunction(collectionOf(1, 2, 3, 4)),
-                Conjunction(collectionOf(2, 3, 4, 5)),
-                Conjunction(collectionOf(-1, -2, -3, -4)),
-                Conjunction(collectionOf(2, 3, -4, -5))))
+        randomExhaustivePropagations(Conjunction(collectionOf(-2)))
+        randomExhaustivePropagations(Conjunction(collectionOf(1, -2, 5)))
+        randomExhaustivePropagations(Conjunction(collectionOf(1, 2, 3, 4)))
+        randomExhaustivePropagations(Conjunction(collectionOf(2, 3, 4, 5)))
+        randomExhaustivePropagations(Conjunction(collectionOf(-1, -2, -3, -4)))
+        randomExhaustivePropagations(Conjunction(collectionOf(2, 3, -4, -5)))
+    }
+
+    @Test
+    fun randomCoerce() {
+        randomCoerce(Conjunction(collectionOf(1, 4, 5)))
+        randomCoerce(Conjunction(collectionOf(1, -4, 5)))
+        randomCoerce(Conjunction(collectionOf(1, 5)))
+        randomCoerce(Conjunction(collectionOf(1, -5)))
+        randomCoerce(Conjunction(collectionOf(-3)))
     }
 }
 
@@ -159,12 +166,20 @@ class DisjunctionTest : ConstraintTest() {
 
     @Test
     fun randomExhaustivePropagations() {
-        randomExhaustivePropagations(arrayOf(
-                Disjunction(collectionOf(-2)),
-                Disjunction(collectionOf(1, -2, 5)),
-                Disjunction(collectionOf(1, 2, 3, 4)),
-                Disjunction(collectionOf(2, 3, 4, 5)),
-                Disjunction(collectionOf(-1, -2, -3, -4)),
-                Disjunction(collectionOf(-1, 3, -4, -5))))
+        randomExhaustivePropagations(Disjunction(collectionOf(-2)))
+        randomExhaustivePropagations(Disjunction(collectionOf(1, -2, 5)))
+        randomExhaustivePropagations(Disjunction(collectionOf(1, 2, 3, 4)))
+        randomExhaustivePropagations(Disjunction(collectionOf(2, 3, 4, 5)))
+        randomExhaustivePropagations(Disjunction(collectionOf(-1, -2, -3, -4)))
+        randomExhaustivePropagations(Disjunction(collectionOf(-1, 3, -4, -5)))
+    }
+
+    @Test
+    fun randomCoerce() {
+        randomCoerce(Disjunction(collectionOf(1, 4, 5)))
+        randomCoerce(Disjunction(collectionOf(1, -4, 5)))
+        randomCoerce(Disjunction(collectionOf(1, 5)))
+        randomCoerce(Disjunction(collectionOf(1, -5)))
+        randomCoerce(Disjunction(collectionOf(-3)))
     }
 }

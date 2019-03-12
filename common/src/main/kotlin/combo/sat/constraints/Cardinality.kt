@@ -92,7 +92,8 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
         var matches = cache(instance)
         val perm = card.literals.permutation(rng)
         if (card.relation == LE || card.relation == LT || card.relation == EQ) {
-            while (matches > card.degree) {
+            val d = if (card.relation == LT) card.degree - 1 else card.degree
+            while (matches > d) {
                 val lit = perm.nextInt()
                 if (instance[lit.toIx()]) {
                     instance.flip(lit.toIx())
@@ -101,11 +102,12 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
             }
         }
         if (card.relation == GE || card.relation == GT || card.relation == EQ) {
-            while (matches < card.degree) {
+            val d = if (card.relation == GT) card.degree + 1 else card.degree
+            while (matches < d) {
                 val lit = perm.nextInt()
-                if (instance[lit.toIx()]) {
+                if (!instance[lit.toIx()]) {
                     instance.flip(lit.toIx())
-                    matches--
+                    matches++
                 }
             }
         }

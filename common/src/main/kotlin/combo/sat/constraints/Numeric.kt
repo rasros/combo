@@ -3,6 +3,7 @@ package combo.sat.constraints
 import combo.math.nextFloat
 import combo.sat.*
 import combo.util.IntRangeSet
+import combo.util.assert
 import combo.util.bitCount
 import kotlin.random.Random
 
@@ -12,6 +13,7 @@ sealed class NumericConstraint(override val literals: IntRangeSet) : Constraint 
     override fun cacheUpdate(cacheResult: Int, newLit: Literal) = 0
     override fun cache(instance: Instance) = 0
     override fun isUnit() = false
+    override fun unitPropagation(unit: Literal) = this
 }
 
 class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericConstraint(literals) {
@@ -29,19 +31,6 @@ class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericCons
         return Int.bitCount(changedBits)
     }
 
-    override fun unitPropagation(unit: Literal): Constraint {
-        val isMin = unit.toIx() == literals.min.toIx()
-        val isMax = unit.toIx() == literals.max.toIx()
-        return if (isMin || isMax) {
-            val mask = 1 shl unit.toIx() - literals.min.toIx()
-            val newMin = if (unit.toBoolean()) this.min or mask else this.min and mask.inv()
-            val newMax = if (unit.toBoolean()) this.max or mask else this.max and mask.inv()
-            if (newMin > newMax) return Empty
-            if (literals.size == 1) return Tautology
-            val newIx = literals.min.toIx() + if (isMin) 1 else 0
-            IntBounds(newIx, newMin, newMax, literals.size - 1)
-        } else this
-    }
 
     override fun offset(offset: Int) = IntBounds(literals.map { it + offset }, min, max)
 
@@ -56,7 +45,19 @@ class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericCons
 
 class FloatBounds(literals: IntRangeSet, val min: Float, val max: Float) : NumericConstraint(literals) {
 
+    init {
+        assert(min.isFinite())
+        assert(max.isFinite())
+    }
+
     constructor(ix: Int, min: Float, max: Float) : this(IntRangeSet(ix.toLiteral(true), (ix + 31).toLiteral(true)), min, max)
+
+    private fun Float.coerceIn(minimumValue: Float, maximumValue: Float): Float {
+        // We use the compareTo here rather than the '<' and '>' operators to make sure that -0.0f < 0.0f
+        if (this.compareTo(minimumValue) < 0) return minimumValue
+        if (this.compareTo(maximumValue) > 0) return maximumValue
+        return this
+    }
 
     override fun violations(instance: Instance, cacheResult: Int): Int {
         val value = instance.getFloat(literals.min.toIx())
@@ -64,10 +65,6 @@ class FloatBounds(literals: IntRangeSet, val min: Float, val max: Float) : Numer
         val valueBits = value.toRawBits()
         val changedBits = coercedBits xor valueBits
         return Int.bitCount(changedBits)
-    }
-
-    override fun unitPropagation(unit: Literal): Constraint {
-        return this
     }
 
     override fun offset(offset: Int) = FloatBounds(literals.map { it + offset }, min, max)
