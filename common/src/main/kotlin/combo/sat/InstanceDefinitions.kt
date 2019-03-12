@@ -81,7 +81,7 @@ interface MutableInstance : Instance {
 fun Instance.getSignedInt(ix: Int, nbrBits: Int): Int {
     val raw = getBits(ix, nbrBits)
     val signBit = raw and (1 shl nbrBits - 1) != 0
-    return if (signBit)
+    return if (signBit && nbrBits < 32)
         raw or (-1 shl nbrBits)
     else raw
 }

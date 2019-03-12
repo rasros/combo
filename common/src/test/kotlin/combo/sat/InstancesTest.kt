@@ -337,6 +337,31 @@ abstract class InstanceTest {
         assertEquals(-1, instance.getBits(22, 32))
         assertEquals(-1, instance.getBits(86, 32))
     }
+
+    @Test
+    fun getSetSignedBits10() {
+        val instance = factory.create(10)
+
+        instance.setSignedInt(0, 10, 8)
+        assertEquals(8, instance.getSignedInt(0, 10))
+
+        instance.setSignedInt(0, 10, -2)
+        assertEquals(-2, instance.getSignedInt(0, 10))
+    }
+
+    @Test
+    fun getSetSignedBits32() {
+        val instance = factory.create(32)
+
+        instance.setSignedInt(0, 32, Int.MIN_VALUE)
+        assertEquals(Int.MIN_VALUE, instance.getSignedInt(0, 32))
+
+        instance.setSignedInt(0, 32, Int.MIN_VALUE)
+        assertEquals(Int.MIN_VALUE, instance.getSignedInt(0, 32))
+
+        instance.setSignedInt(0, 32, -1)
+        assertEquals(-1, instance.getSignedInt(0, 32))
+    }
 }
 
 class SparseBitArrayTest : InstanceTest() {
