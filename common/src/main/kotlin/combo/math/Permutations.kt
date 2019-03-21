@@ -1,68 +1,64 @@
 package combo.math
 
+import combo.util.assert
 import kotlin.random.Random
 
 /**
  * Using format-preserving encryption
  */
 class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random) : Iterable<Int> {
-    private companion object {
-        private const val INT_ROUNDS = 4
-    }
 
     private val mask: Int // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
     private val rish: Int                 // right shift count
-    private val rk = IntArray(INT_ROUNDS)    // rk for each round
+    private val rk1 = rng.nextInt()
+    private val rk2 = rng.nextInt()
+    private val rk3 = rng.nextInt()
 
     init {
         var i = 8
         var j = 3
         while (j < 31 && i < size) {
             i += i
-            ++j
+            j++
         }
         this.mask = i - 1
         this.rish = j * 3 / 7
-
-        var r = INT_ROUNDS
-        do {
-            rk[--r] = rng.nextInt()
-        } while (r != 0)
     }
 
     fun encode(value: Int): Int {
-        require(value >= 0)
-        require(value < size)
+        assert(value in 0 until size)
         var x = value
         do {
-            var r = INT_ROUNDS
-            do {
-                x = (x * 0xADB + this.rk[--r]) and this.mask
-                x = x xor x.ushr(this.rish)
-            } while (r != 0)
+            x = (x * 0x7f4a7c15 + rk1) and mask
+            x = x xor (x ushr rish)
+            x = (x * 0x7f4a7c15 + rk2) and mask
+            x = x xor (x ushr rish)
+            x = (x * 0x7f4a7c15 + rk3) and mask
+            x = x xor (x ushr rish)
         } while (x >= this.size)
         return x
     }
 
     override fun iterator(): IntIterator {
-        val itr = IntRange(0, size - 1).iterator()
+        var i = 0
         return object : IntIterator() {
-            override fun hasNext() = itr.hasNext()
-            override fun nextInt() = encode(itr.nextInt())
+            override fun hasNext() = i < size
+            override fun nextInt() = encode(i++)
         }
     }
 }
 
 class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random) : Iterable<Long> {
-    private companion object {
-        private const val LONG_ROUNDS = 7
-    }
 
     private val mask: Long // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
     private val rish: Int                 // right shift count
-    private val rk = LongArray(LONG_ROUNDS)    // rk for each round
+    private val rk1 = rng.nextLong()
+    private val rk2 = rng.nextLong()
+    private val rk3 = rng.nextLong()
+    private val rk4 = rng.nextLong()
+    private val rk5 = rng.nextLong()
 
     init {
         var i = 8L
@@ -73,33 +69,31 @@ class LongPermutation(val size: Long = Long.MAX_VALUE, rng: Random) : Iterable<L
         }
         this.mask = i - 1L
         this.rish = j * 3 / 7
-
-        var r = LONG_ROUNDS
-        do {
-            rk[--r] = rng.nextLong()
-        } while (r != 0)
     }
 
     fun encode(value: Long): Long {
-        require(value >= 0L)
-        require(value < size)
+        assert(value in 0 until size)
         var x = value
         do {
-            var r = LONG_ROUNDS
-            do {
-                //x = (x * 0xADB + this.rk[--r]) & this.mask;
-                x = x * 0x3A8F05C5 + this.rk[--r] and this.mask
-                x = x xor x.ushr(this.rish)
-            } while (r != 0)
+            x = (x * 0x3a8f05c5 + rk1) and mask
+            x = x xor (x ushr rish)
+            x = (x * 0x3a8f05c5 + rk2) and mask
+            x = x xor (x ushr rish)
+            x = (x * 0x3a8f05c5 + rk3) and mask
+            x = x xor (x ushr rish)
+            x = (x * 0x3a8f05c5 + rk4) and mask
+            x = x xor (x ushr rish)
+            x = (x * 0x3a8f05c5 + rk5) and mask
+            x = x xor (x ushr rish)
         } while (x >= this.size)
         return x
     }
 
     override fun iterator(): LongIterator {
-        val itr = LongRange(0, size - 1).iterator()
+        var i = 0L
         return object : LongIterator() {
-            override fun hasNext() = itr.hasNext()
-            override fun nextLong() = encode(itr.nextLong())
+            override fun hasNext() = i < size
+            override fun nextLong() = encode(i++)
         }
     }
 }
