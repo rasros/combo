@@ -162,7 +162,7 @@ class IntHashSetTest {
 
     @Test
     fun largeRandomTest() {
-        val r = Random(0)
+        val r = Random
         val all = ArrayList<Int>()
         val set = IntHashSet(nullValue = -1)
         val test = HashSet<Int>()

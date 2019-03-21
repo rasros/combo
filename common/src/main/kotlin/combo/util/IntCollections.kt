@@ -4,12 +4,13 @@ package combo.util
 
 import kotlin.jvm.JvmName
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 
 interface IntCollection : Iterable<Int> {
     val size: Int
     fun copy(): IntCollection
-    operator fun contains(ix: Int): Boolean
+    operator fun contains(value: Int): Boolean
 
     fun toArray(): IntArray {
         val arr = IntArray(size)
@@ -24,19 +25,19 @@ interface IntCollection : Iterable<Int> {
 
     fun random(rng: Random): Int
 
+    @Suppress("NOTHING_TO_INLINE")
     companion object {
 
-        fun hash(i: Int): Int {
-            var x = i
-            x = ((x shr 16) xor x) * 0x45d9f3b
-            x = ((x ushr 16) xor x) * 0x45d9f3b
-            x = (x ushr 16) xor x
-            return x
-        }
+        inline fun spread(i: Int) = i * 0x7f4a7c15
 
-        const val LOAD_FACTOR = 0.55
+        const val LOAD_FACTOR = 0.85
+
         fun tableSizeFor(size: Int): Int {
             return max(2, Int.msb((size.toDouble() / LOAD_FACTOR).toInt()) * 2)
+        }
+
+        fun nextThreshold(currentSize: Int): Int {
+            return max(2, (currentSize * LOAD_FACTOR).toInt())
         }
     }
 }
@@ -45,27 +46,48 @@ interface MutableIntCollection : IntCollection {
     override fun copy(): MutableIntCollection
     fun clear()
     override fun map(transform: (Int) -> Int): MutableIntCollection
-    fun add(ix: Int): Boolean
-    fun addAll(ixs: IntArray) = ixs.fold(false) { any, it -> this.add(it) || any }
-    fun addAll(ixs: Iterable<Int>) = ixs.fold(false) { any, it -> this.add(it) || any }
-    fun remove(ix: Int): Boolean
+    fun add(value: Int): Boolean
+    fun addAll(values: IntArray) = values.fold(false) { any, it -> this.add(it) || any }
+    fun addAll(values: Iterable<Int>) = values.fold(false) { any, it -> this.add(it) || any }
+    fun remove(value: Int): Boolean
 }
 
 /**
  * Immutable collection
  */
-fun collectionOf(vararg array: Int): IntCollection =
-        when {
-            array.size > 20 -> IntHashSet().apply { addAll(array) }
-            array.isEmpty() -> EmptyCollection
-            else -> IntList(array)
+fun collectionOf(vararg array: Int): IntCollection {
+    // Check for IntRange
+    var min = Int.MAX_VALUE
+    var max = Int.MIN_VALUE
+    var doRange = true
+    for ((i, v) in array.withIndex()) {
+        min = min(v, min)
+        max = max(v, max)
+        if (max - min != i) {
+            doRange = false
+            break
         }
+    }
+    return when {
+        array.isEmpty() -> EmptyCollection
+        array.size == 1 -> IntList(intArrayOf(array[0]))
+        doRange -> IntRangeSet(min, max)
+        array.size > 20 -> IntHashSet().apply { addAll(array) }
+        else -> IntList(array)
+    }
+}
+
+fun unionCollection(a: IntCollection, value: Int): IntCollection {
+    return if (a is IntRangeSet && (value + 1 in a || value - 1 in a)) IntRangeSet(min(a.min, value), max(a.max, value))
+    else IntUnionCollection(a, IntList(intArrayOf(value)))
+}
 
 fun IntCollection.mutableCopy(): MutableIntCollection =
         when {
-            this.isEmpty() -> IntList()
             this is MutableIntCollection -> this.copy()
-            else -> collectionOf(*this.toArray()) as MutableIntCollection
+            else -> (if (this.size > 20) IntHashSet() else IntList()).apply {
+                addAll(this@mutableCopy)
+            }
         }
 
 fun IntCollection.isEmpty() = size == 0
@@ -75,7 +97,7 @@ object EmptyCollection : IntCollection {
     override val size = 0
 
     override fun copy() = IntHashSet()
-    override operator fun contains(ix: Int) = false
+    override operator fun contains(value: Int) = false
     override fun toArray() = EMPTY_INT_ARRAY
     override fun map(transform: (Int) -> Int) = this
     override fun iterator() = object : IntIterator() {

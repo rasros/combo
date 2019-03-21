@@ -17,7 +17,7 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
         size = 0
     }
 
-    override operator fun contains(ix: Int) = indexOf(ix) >= 0
+    override operator fun contains(value: Int) = indexOf(value) >= 0
 
     operator fun get(index: Int) = array[index]
 
@@ -55,10 +55,10 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
 
     override fun random(rng: Random) = array[rng.nextInt(size)]
 
-    override fun add(ix: Int): Boolean {
+    override fun add(value: Int): Boolean {
         if (array.size == size)
             array = array.copyOf(kotlin.math.max(array.size, 1) * 2)
-        array[size++] = ix
+        array[size++] = value
         return true
     }
 
@@ -71,8 +71,8 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
         return v
     }
 
-    override fun remove(ix: Int): Boolean {
-        val indexOf = indexOf(ix)
+    override fun remove(value: Int): Boolean {
+        val indexOf = indexOf(value)
         if (indexOf >= 0) {
             size--
             for (i in indexOf until size)

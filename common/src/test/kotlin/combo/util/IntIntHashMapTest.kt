@@ -119,20 +119,24 @@ class IntIntHashMapTest {
 
     @Test
     fun largeRandomTest() {
-        val r = Random(0)
+        val r = Random
         val all = ArrayList<Int>()
-        val map = IntIntHashMap()
+        val map = IntIntHashMap(nullKey = -1)
         val test = HashMap<Int, Int>()
         for (i in 1..1_000) {
-            val n = r.nextInt(1, Int.MAX_VALUE)
+            val n = r.nextInt(1, 10_000)
             val v = r.nextInt(1, Int.MAX_VALUE)
             all.add(n)
             assertEquals(test.put(n, v) ?: 0, map.set(n, v))
             assertEquals(test.put(n, v) ?: 0, map.set(n, v))
-            if (r.nextBoolean()) {
+            if (r.nextFloat() < 0.1f) {
                 val remove = all[r.nextInt(all.size)]
                 assertEquals(test.remove(remove) ?: 0, map.remove(remove))
                 assertEquals(test.remove(remove) ?: 0, map.remove(remove))
+            }
+            if (r.nextFloat() < 0.01f) {
+                map.clear()
+                test.clear()
             }
         }
         for (i in all)

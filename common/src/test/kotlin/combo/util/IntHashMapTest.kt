@@ -1,5 +1,10 @@
 package combo.util
 
+import kotlin.test.Test
+
 class IntHashMapTest {
-    // TODO
+   @Test
+   fun notImplemented() {
+       TODO()
+   }
 }

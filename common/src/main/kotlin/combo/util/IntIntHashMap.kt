@@ -1,10 +1,11 @@
 package combo.util
 
-import kotlin.math.abs
+import kotlin.jvm.Transient
 
 /**
- * Specialized open addressing hash map for storing int variables.
- * It uses linear probing (remove operation works only with linear probing).
+ * Specialized open addressing hash table for storing ints. It improves over default Java implementation a lot.
+ * It uses linear probing in order to support backshifting remove operation (so that no tombstone marker is needed).
+ * Finally, inserts use the Robin Hood Hash method to stabilize performance.
  */
 class IntIntHashMap private constructor(private var table: LongArray, size: Int, val nullKey: Int = 0) : Iterable<IntEntry> {
 
@@ -12,6 +13,12 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
 
     var size: Int = size
         private set
+
+    @Transient
+    private var threshold = IntCollection.nextThreshold(table.size)
+
+    @Transient
+    private var mask = table.size - 1
 
     fun isEmpty() = size == 0
 
@@ -24,6 +31,8 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
             table.forEachIndexed { i, _ -> table[i] = v }
         }
         size = 0
+        threshold = IntCollection.nextThreshold(table.size)
+        mask = table.size - 1
     }
 
     fun containsKey(ix: Int) = table[linearProbe(ix)].key() != nullKey
@@ -70,51 +79,84 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
 
     operator fun set(key: Int, value: Int): Int {
         assert(key != nullKey)
-        var ix = linearProbe(key)
-        val oldEntry = table[ix]
+
+        val p = linearProbe(key)
+        val oldEntry = table[p]
+
         if (oldEntry.key() == nullKey) {
-            if (IntCollection.tableSizeFor(size + 1) > table.size) {
+            // Resize if needed
+            if (size + 1 >= threshold) {
                 val old = table
                 table = LongArray(IntCollection.tableSizeFor(size + 1))
+                threshold = IntCollection.nextThreshold(table.size)
+                mask = table.size - 1
                 if (nullKey != 0)
                     table.forEachIndexed { i, _ -> table[i] = entry(nullKey, 0) }
                 size = 0
                 for (i in old.indices)
                     if (old[i].key() != nullKey) add(old[i])
-                ix = linearProbe(key)
             }
             size++
-            table[ix] = entry(key, value)
+
+            // Perform the Robin Hood hash insertion step
+            var e = entry(key, value)
+            var ix = IntCollection.spread(key) and mask
+            var dist = 0
+            while (true) {
+                if (table[ix].key() == nullKey) {
+                    table[ix] = e
+                    return 0
+                }
+
+                val currentDist = probeDistance(ix)
+                if (currentDist < dist) {
+                    dist = currentDist
+                    val tmp = table[ix]
+                    table[ix] = e
+                    e = tmp
+                }
+
+                ix = (ix + 1) and mask
+                dist++
+            }
+        } else {
+            table[p] = entry(key, value)
+            return oldEntry.value()
         }
-        table[ix] = entry(key, value)
-        return oldEntry.value()
     }
 
     fun remove(ix: Int, default: Int = 0): Int {
-        var i = linearProbe(ix)
-        if (table[i].key() == nullKey) return default
+        var p = linearProbe(ix)
+        if (table[p].key() == nullKey) return default
         size--
 
-        var j = i
-        val oldValue = table[i].value()
-        table[i] = entry(nullKey, 0)
+        var j = p
+        val oldValue = table[p].value()
+        table[p] = entry(nullKey, 0)
         while (true) {
-            j = (j + 1) % table.size
+            j = (j + 1) and mask
             if (table[j].key() == nullKey) break
-            val k = abs(IntCollection.hash(table[j].key())) % table.size
-            if ((j > i && (k <= i || k > j)) || (j < i && (k <= i && k > j))) {
-                table[i] = table[j]
-                i = j
+            val k = IntCollection.spread(table[j].key()) and mask
+            if ((j > p && (k <= p || k > j)) || (j < p && (k <= p && k > j))) {
+                table[p] = table[j]
+                p = j
             }
-            table[i] = entry(nullKey, 0)
+            table[p] = entry(nullKey, 0)
         }
         return oldValue
     }
 
-    private fun linearProbe(ix: Int): Int {
-        var j = abs(IntCollection.hash(ix)) % table.size
-        while ((table[j].key() != nullKey && table[j].key() != ix))
-            j = (j + 1) % table.size
+    private fun probeDistance(pos: Int): Int {
+        val desired = IntCollection.spread(table[pos].key()) and mask
+        val dist = pos - desired
+        return if (dist < 0) table.size + dist
+        else dist
+    }
+
+    private fun linearProbe(key: Int): Int {
+        var j = IntCollection.spread(key) and mask
+        while ((table[j].key() != nullKey && table[j].key() != key))
+            j = (j + 1) and mask
         return j
     }
 

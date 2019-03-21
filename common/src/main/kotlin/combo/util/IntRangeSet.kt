@@ -15,7 +15,7 @@ class IntRangeSet(val min: Int, val max: Int) : IntCollection {
     override var size: Int = kotlin.math.max(0, 1 + (max - min))
         private set
 
-    override fun contains(ix: Int): Boolean = ix in min..max
+    override fun contains(value: Int): Boolean = value in min..max
 
     override fun toArray(): IntArray {
         val array = IntArray(size)

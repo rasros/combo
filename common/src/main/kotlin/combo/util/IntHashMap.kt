@@ -1,10 +1,8 @@
 package combo.util
 
-import kotlin.jvm.JvmSynthetic
-
 class IntHashMap<V> constructor(
-        @PublishedApi @JvmSynthetic internal var table: IntIntHashMap,
-        @PublishedApi @JvmSynthetic internal var values: ArrayList<V>) {
+        private var table: IntIntHashMap,
+        private var values: ArrayList<V>) {
 
     constructor(initialSize: Int = 4, nullKey: Int = 0) : this(IntIntHashMap(initialSize, nullKey), ArrayList(initialSize))
 
@@ -44,7 +42,7 @@ class IntHashMap<V> constructor(
         else null
     }
 
-    inline fun <U> map(transform: (V) -> U): IntHashMap<U> = IntHashMap(table.copy(), values.mapTo(ArrayList(), transform))
+    fun <U> map(transform: (V) -> U): IntHashMap<U> = IntHashMap(table.copy(), values.mapTo(ArrayList(), transform))
 
     override fun toString() = "IntHashMap($size)"
 }
