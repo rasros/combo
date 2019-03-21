@@ -86,7 +86,7 @@ class IntIntHashMapTest {
         map.remove(5)
         map.clear()
         assertEquals(0, map.size)
-        map.add(4)
+        map.add(entry(4, 1))
         assertEquals(1, map.size)
     }
 

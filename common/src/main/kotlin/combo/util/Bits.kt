@@ -11,6 +11,17 @@ fun Int.Companion.msb(value: Int): Int {
     return x - (x shr 1)
 }
 
+fun Int.Companion.fill(i: Int): Int {
+    var x = i
+    x = x or (x shr 1)
+    x = x or (x shr 2)
+    x = x or (x shr 4)
+    x = x or (x shr 8)
+    x = x or (x shr 16)
+    x = x or (x shr 24)
+    return x
+}
+
 /**
  * This is adapted to kotlin from the JDK java.lang.Integer.bitCount method.
  */
