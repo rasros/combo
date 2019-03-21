@@ -8,6 +8,10 @@ import kotlin.random.Random
  */
 class IntRangeSet(val min: Int, val max: Int) : IntCollection {
 
+    init {
+        assert(min <= max)
+    }
+
     override var size: Int = kotlin.math.max(0, 1 + (max - min))
         private set
 
@@ -21,8 +25,12 @@ class IntRangeSet(val min: Int, val max: Int) : IntCollection {
         return array
     }
 
-    override fun map(transform: (Int) -> Int) =
-            IntRangeSet(transform.invoke(min), transform.invoke(max))
+    override fun map(transform: (Int) -> Int): IntRangeSet {
+        val min1 = transform.invoke(min)
+        val max1 = transform.invoke(max)
+        return if (min1 < max1) IntRangeSet(min1, max1)
+        else IntRangeSet(max1, min1)
+    }
 
     override fun iterator() = (min..max).iterator()
 
