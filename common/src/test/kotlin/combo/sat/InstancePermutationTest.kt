@@ -1,5 +1,8 @@
 package combo.sat
 
+import combo.math.RandomSequence
+import combo.util.IntHashSet
+import combo.util.isNotEmpty
 import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.Test
@@ -28,5 +31,19 @@ class InstancePermutationTest {
     @Test
     fun takeMany() {
         assertEquals(16, InstancePermutation(4, BitArrayFactory, Random).asSequence().take(1000).toList().size)
+    }
+
+    @Test
+    fun largePermuation() {
+        val left = IntHashSet(nullValue = -1)
+        val size = 1001
+        left.addAll(0 until size)
+        var k = 0
+        val rng = RandomSequence(0L)
+        while (left.isNotEmpty() && k++ <= 10000) {
+            val instance = InstancePermutation(size, BitArrayFactory, rng.next()).asSequence().first()
+            for (i in instance)
+                left.remove(i)
+        }
     }
 }

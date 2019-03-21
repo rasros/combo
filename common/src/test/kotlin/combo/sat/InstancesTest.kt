@@ -316,6 +316,12 @@ abstract class InstanceTest {
         instance.setBits(63, 2, 1)
         for (i in 0 until 63) assertTrue(instance[i])
         assertEquals(1, instance.getBits(63, 2))
+
+        instance.setBits(50, 15, 32767)
+        for (i in 0 until 63) assertTrue(instance[i])
+        instance.setBits(50, 15, 0)
+        for (i in 0 until 50) assertTrue(instance[i])
+        for (i in 50 until 65) assertFalse(instance[i])
     }
 
     @Test
