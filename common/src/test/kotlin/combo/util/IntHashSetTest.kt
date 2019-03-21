@@ -164,17 +164,21 @@ class IntHashSetTest {
     fun largeRandomTest() {
         val r = Random(0)
         val all = ArrayList<Int>()
-        val set = IntHashSet()
+        val set = IntHashSet(nullValue = -1)
         val test = HashSet<Int>()
         for (i in 1..1_000) {
-            val n = r.nextInt(Int.MAX_VALUE)
+            val n = r.nextInt(10_000)
             all.add(n)
             assertEquals(test.add(n), set.add(n))
             assertEquals(test.add(n), set.add(n))
-            if (r.nextBoolean()) {
+            if (r.nextFloat() < 0.1f) {
                 val remove = all[r.nextInt(all.size)]
                 assertEquals(test.remove(remove), set.remove(remove))
                 assertEquals(test.remove(remove), set.remove(remove))
+            }
+            if (r.nextFloat() < 0.01f) {
+                set.clear()
+                test.clear()
             }
         }
         for (i in all)
