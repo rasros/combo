@@ -310,6 +310,15 @@ abstract class InstanceTest {
     }
 
     @Test
+    fun bitsIsolated() {
+        val instance = factory.create(65)
+        for (i in instance.indices) instance[i] = true
+        instance.setBits(63, 2, 1)
+        for (i in 0 until 63) assertTrue(instance[i])
+        assertEquals(1, instance.getBits(63, 2))
+    }
+
+    @Test
     fun bitsIsolatedEven() {
         val instance = factory.create(96)
         instance.setBits(0, 32, -1)

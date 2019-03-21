@@ -62,12 +62,11 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
         val i2 = (ix + nbrBits - 1) shr 5
         val rem = ix and 0x1F
         if (i1 != i2) {
-            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem)
-            val mask2 = (-1 shl rem)
-            field[i1] = field[i1] and mask1
-            field[i1] = field[i1] or (value shl rem and mask1.inv())
-            field[i2] = field[i2] and mask2
-            field[i2] = field[i2] or ((value ushr (32 - rem)) and mask2.inv())
+            val mask = -1 shl rem
+            field[i1] = field[i1] and mask.inv()
+            field[i1] = field[i1] or (value shl rem and mask)
+            field[i2] = field[i2] and mask
+            field[i2] = field[i2] or ((value ushr (32 - rem)) and mask.inv())
         } else {
             val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem).inv()
             val mask2 = (-1 shl rem).inv()

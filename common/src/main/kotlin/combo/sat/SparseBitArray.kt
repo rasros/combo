@@ -51,15 +51,14 @@ class SparseBitArray(override val size: Int, val map: IntIntHashMap = IntIntHash
         val i2 = (ix + nbrBits - 1) shr 5
         val rem = ix and 0x1F
         if (i1 != i2) {
-            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem)
-            val mask2 = (-1 shl rem)
+            val mask = -1 shl rem
 
-            var v1 = map[i1] and mask1
-            v1 = v1 or (value shl rem and mask1.inv())
+            var v1 = map[i1] and mask.inv()
+            v1 = v1 or (value shl rem and mask)
             setOrRemove(i1, v1)
 
-            var v2 = map[i2] and mask2
-            v2 = v2 or ((value ushr (32 - rem)) and mask2.inv())
+            var v2 = map[i2] and mask
+            v2 = v2 or ((value ushr (32 - rem)) and mask.inv())
             setOrRemove(i2, v2)
         } else {
             val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem).inv()
