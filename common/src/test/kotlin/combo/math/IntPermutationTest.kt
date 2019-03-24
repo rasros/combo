@@ -50,50 +50,19 @@ class IntPermutationTest {
         assertEquals(4, l.size)
         assertEquals(4, l.toSet().size)
     }
+
+    @Test
+    fun permutationSize() {
+        for (i in 0..500)
+            assertEquals(i, IntPermutation(i, Random).asSequence().count())
+    }
+
+    @Test
+    fun allValuesFirst() {
+        for (i in 1..100) {
+            while (IntPermutation(i, Random).first() != i - 1) {
+            }
+        }
+    }
 }
 
-class LongPermutationTest {
-
-    @Test
-    fun emptyPermutation() {
-        assertFalse(LongPermutation(0, Random).iterator().hasNext())
-    }
-
-    @Test
-    fun sameTwice() {
-        val p = LongPermutation(100, Random)
-        for (i in 0 until 100L) {
-            assertEquals(p.encode(i), p.encode(i))
-        }
-    }
-
-    @Test
-    fun exhaustiveEvenPermutation() {
-        val p = LongPermutation(2.0.pow(4).toLong(), Random)
-        val set = HashSet<Long>()
-        for (i in 0 until 2.0.pow(4).toLong()) {
-            set.add(p.encode(i))
-        }
-        assertEquals(2.0.pow(4).toInt(), set.size)
-        for (i in 0 until 2.0.pow(4).toLong()) {
-            assertTrue(set.contains(i))
-        }
-    }
-
-    @Test
-    fun exhaustiveOddPermutation() {
-        val p = LongPermutation(1001, Random)
-        val set = HashSet<Long>()
-        for (i in 0 until 1001L) {
-            set.add(p.encode(i))
-        }
-        assertEquals(1001, set.size)
-    }
-
-    @Test
-    fun iterator() {
-        val l = LongPermutation(4, Random).iterator().asSequence().toList()
-        assertEquals(4, l.size)
-        assertEquals(4, l.toSet().size)
-    }
-}
