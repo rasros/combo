@@ -11,31 +11,31 @@ import kotlin.math.abs
  */
 
 interface Loss {
-    fun loss(diff: Double): Double
-    fun dloss(diff: Double): Double
+    fun loss(diff: Float): Float
+    fun dloss(diff: Float): Float
 }
 
 /**
  * For use with l2 regularized regression
  */
 object SquaredLoss : Loss {
-    override fun loss(diff: Double) = 0.5 * diff * diff
-    override fun dloss(diff: Double) = diff
+    override fun loss(diff: Float) = 0.5f * diff * diff
+    override fun dloss(diff: Float) = diff
 }
 
 /**
  * For use with l1 regularized regression
  */
 object AbsoluteLoss : Loss {
-    override fun loss(diff: Double) = abs(diff)
-    override fun dloss(diff: Double) = diff / abs(diff)
+    override fun loss(diff: Float) = abs(diff)
+    override fun dloss(diff: Float) = diff / abs(diff)
 }
 
 /**
  * This will optimize Huber loss for linear regression. The inverse transformation is the derivative of the huber loss
  * function divided by value. In effect, this caps the gradient step to the delta parameter.
  */
-class HuberLoss(val delta: Double) : Loss {
-    override fun loss(diff: Double) = if (diff <= delta) 0.5 * diff * diff else delta * (abs(diff) - delta / 2.0)
-    override fun dloss(diff: Double) = if (diff <= delta) diff else (diff * delta) / abs(diff)
+class HuberLoss(val delta: Float) : Loss {
+    override fun loss(diff: Float) = if (diff <= delta) 0.5f * diff * diff else delta * (abs(diff) - delta / 2.0f)
+    override fun dloss(diff: Float) = if (diff <= delta) diff else (diff * delta) / abs(diff)
 }

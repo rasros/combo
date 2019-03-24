@@ -6,7 +6,7 @@ import combo.sat.*
 import combo.sat.solvers.LocalSearchSolver
 import combo.sat.solvers.Solver
 import combo.util.EMPTY_INT_ARRAY
-import combo.util.IntSet
+import combo.util.IntHashSet
 import combo.util.nanos
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
@@ -55,13 +55,13 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
      * VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
      * than the second best (default 0.05).
      */
-    var delta: Double = 0.05
+    var delta: Float = 0.05f
 
     /**
      * VFDT parameter, this is the threshold with which the algorithm splits even if it is not proven best.
      * Set to 1.0 for never and close to 0.0 for always (default is 0.1).
      */
-    var tau: Double = 0.1
+    var tau: Float = 0.1f
 
     /**
      * Total number of nodes that are permitted to build.
@@ -82,7 +82,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     /**
      * How often we check whether a split can be performed during [update].
      */
-    var updateRate: Int = 5
+    var updatePeriod: Int = 5
 
     private var randomSequence = RandomSequence(nanos())
 
@@ -115,7 +115,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         nbrAuditNodes = 0
 
         fun createHistoricNode(setLiterals: Literals, total: E): LeafNode {
-            val propagatedLiterals = IntSet().also {
+            val propagatedLiterals = IntHashSet().also {
                 it.addAll(setLiterals)
                 problem.unitPropagation(it)
             }.toArray().apply { sort() }
@@ -217,7 +217,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         banditPolicy.beginRound(rng)
         val node = liveNodes.maxBy {
             val s = if (matches(it.setLiterals, assumptions)) banditPolicy.evaluate(it.data, rng)
-            else Double.NEGATIVE_INFINITY
+            else Float.NEGATIVE_INFINITY
             if (maximize) s else -s
         }
         return if (node == null) solver.witnessOrThrow(assumptions)
@@ -233,7 +233,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
     override fun predict(instance: Instance) = root.findLeaf(instance).data.mean
 
-    override fun train(instance: Instance, result: Double, weight: Double) {
+    override fun train(instance: Instance, result: Float, weight: Float) {
         root = root.update(instance, result, weight)
     }
 
@@ -267,12 +267,12 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
     private abstract inner class Node {
         abstract fun findLeaf(instance: Instance): LeafNode
-        abstract fun update(instance: Instance, result: Double, weight: Double): Node
+        abstract fun update(instance: Instance, result: Float, weight: Float): Node
     }
 
-    private inner class SplitNode(val ix: Ix, var pos: Node, var neg: Node) : Node() {
+    private inner class SplitNode(val ix: Int, var pos: Node, var neg: Node) : Node() {
 
-        override fun update(instance: Instance, result: Double, weight: Double): Node {
+        override fun update(instance: Instance, result: Float, weight: Float): Node {
             if (instance[ix]) pos = pos.update(instance, result, weight)
             else neg = neg.update(instance, result, weight)
             return this
@@ -289,7 +289,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     }
 
     private inner class BlockNode(setLiterals: Literals, data: E) : LeafNode(setLiterals, data) {
-        override fun update(instance: Instance, result: Double, weight: Double) =
+        override fun update(instance: Instance, result: Float, weight: Float) =
                 this.apply { banditPolicy.completeRound(data, result, weight) }
     }
 
@@ -298,7 +298,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
         var nViewed: Int = 0
 
-        val ixs = IntSet().let { set ->
+        val ixs = IntHashSet().let { set ->
             val itr = IntPermutation(problem.nbrVariables, rng).iterator()
             while (set.size < maxConsideration && itr.hasNext()) {
                 val ix = itr.nextInt()
@@ -310,7 +310,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         val dataPos: Array<VarianceEstimator> = Array(ixs.size) { banditPolicy.baseData() }
         val dataNeg: Array<VarianceEstimator> = Array(ixs.size) { banditPolicy.baseData() }
 
-        override fun update(instance: Instance, result: Double, weight: Double): Node {
+        override fun update(instance: Instance, result: Float, weight: Float): Node {
             banditPolicy.completeRound(data, result, weight)
             nViewed++
             for ((i, ix) in ixs.withIndex()) {
@@ -318,9 +318,9 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                 else banditPolicy.updateData(dataNeg[i] as E, result, weight)
             }
 
-            if (nViewed > updateRate) {
-                var ig1 = 0.0
-                var ig2 = 0.0
+            if (nViewed > updatePeriod) {
+                var ig1 = 0.0f
+                var ig2 = 0.0f
                 var bestI = -1
 
                 for (i in ixs.indices) {
@@ -334,8 +334,8 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                 }
 
                 val eps = hoeffdingBound(delta, data.nbrWeightedSamples)
-                if (bestI >= 0 && dataPos[bestI].nbrWeightedSamples > max(4.0, minSamples) &&
-                        dataNeg[bestI].nbrWeightedSamples > max(4.0, minSamples) &&
+                if (bestI >= 0 && dataPos[bestI].nbrWeightedSamples > max(4.0f, minSamples) &&
+                        dataNeg[bestI].nbrWeightedSamples > max(4.0f, minSamples) &&
                         (ig2 / ig1 < 1 - eps || eps < tau)) {
 
                     val totalPos = dataPos[bestI] as E
@@ -374,11 +374,11 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
         override fun findLeaf(instance: Instance) = this
 
-        fun variancePurity(index: Int): Double {
+        fun variancePurity(index: Int): Float {
             val pos = dataPos[index]
             val neg = dataNeg[index]
             if (pos.nbrWeightedSamples < 2 || neg.nbrWeightedSamples < 2)
-                return Double.POSITIVE_INFINITY
+                return Float.POSITIVE_INFINITY
             val nPos = pos.nbrWeightedSamples
             val nNeg = neg.nbrWeightedSamples
             val n = nPos + nNeg
@@ -387,7 +387,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     }
 
     private fun createNode(setLiterals: Literals, total: E): LeafNode {
-        val propagatedLiterals = IntSet().also {
+        val propagatedLiterals = IntHashSet().also {
             it.addAll(setLiterals)
             problem.unitPropagation(it)
         }.toArray().apply { sort() }
@@ -433,9 +433,9 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         }
     }
 
-    private fun hoeffdingBound(delta: Double, count: Double): Double {
+    private fun hoeffdingBound(delta: Float, count: Float): Float {
         // R = 1 for both binary classification and with variance ratio
-        return sqrt(/* R*R* */ ln(1.0 / delta) / (2.0 * count))
+        return sqrt(/* R*R* */ ln(1.0f / delta) / (2.0f * count))
     }
 }
 

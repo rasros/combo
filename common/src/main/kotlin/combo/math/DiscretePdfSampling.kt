@@ -1,6 +1,7 @@
 package combo.math
 
 import combo.util.IntList
+import combo.util.assert
 import kotlin.random.Random
 
 interface DiscretePdfSampler {
@@ -10,19 +11,19 @@ interface DiscretePdfSampler {
 /**
  * Implementation of Vose's Alias Method for sampling from a discrete PDF in constant time.
  */
-class AliasMethodSampler(probs: DoubleArray) : DiscretePdfSampler {
-    private val U = DoubleArray(probs.size) // Probability table
+class AliasMethodSampler(probs: FloatArray) : DiscretePdfSampler {
+    private val U = FloatArray(probs.size) // Probability table
     private val K = IntArray(probs.size) // Alias table
 
     init {
-        require(probs.isNotEmpty())
+        assert(probs.isNotEmpty())
         val n = probs.size
 
         val underfull = IntList()
         val overfull = IntList()
         for ((i, prob) in probs.withIndex()) {
             U[i] = n * prob
-            if (U[i] < 1.0) underfull.add(i)
+            if (U[i] < 1.0f) underfull.add(i)
             else overfull.add(i)
         }
 
@@ -30,8 +31,8 @@ class AliasMethodSampler(probs: DoubleArray) : DiscretePdfSampler {
             val under = underfull.removeAt(underfull.size - 1)
             val over = overfull.removeAt(overfull.size - 1)
             K[under] = over
-            U[over] = (U[over] + U[under]) - 1.0
-            if (U[over] < 1.0) underfull.add(over)
+            U[over] = (U[over] + U[under]) - 1.0f
+            if (U[over] < 1.0f) underfull.add(over)
             else overfull.add(over)
         }
         // There may be some left over elements in either list due to rounding errors, they are safely ignored

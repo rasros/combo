@@ -10,14 +10,14 @@ class LinearAlgebraTest {
     @Test
     fun transpose() {
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
 
         val expected = arrayOf(
-                doubleArrayOf(1.0, 4.0, 7.0),
-                doubleArrayOf(2.0, 5.0, 8.0),
-                doubleArrayOf(3.0, 6.0, 9.0))
+                floatArrayOf(1.0f, 4.0f, 7.0f),
+                floatArrayOf(2.0f, 5.0f, 8.0f),
+                floatArrayOf(3.0f, 6.0f, 9.0f))
         assertContentEquals(expected, A.T)
         assertContentEquals(A, A.T.T)
         A.transpose()
@@ -27,57 +27,57 @@ class LinearAlgebraTest {
     @Test
     fun sum() {
         val v = Vector(3)
-        assertEquals(3.0, (v + 1.0).sum())
+        assertEquals(3.0f, (v + 1.0f).sum())
     }
 
     @Test
     fun timesVectorWithScalar() {
-        val s = 5.0
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
-        assertContentEquals(doubleArrayOf(-5.0, 10.0, 0.0), v * s)
-        assertContentEquals(doubleArrayOf(-5.0, 10.0, 0.0), s * v)
+        val s = 5.0f
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
+        assertContentEquals(floatArrayOf(-5.0f, 10.0f, 0.0f), v * s)
+        assertContentEquals(floatArrayOf(-5.0f, 10.0f, 0.0f), s * v)
     }
 
     @Test
     fun divVectorWithScalar() {
-        val s = 5.0
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
-        assertContentEquals(doubleArrayOf(-0.2, 0.4, 0.0), v / s)
-        assertContentEquals(doubleArrayOf(-5.0, 2.5, Double.POSITIVE_INFINITY), s / v)
+        val s = 5.0f
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
+        assertContentEquals(floatArrayOf(-0.2f, 0.4f, 0.0f), v / s)
+        assertContentEquals(floatArrayOf(-5.0f, 2.5f, Float.POSITIVE_INFINITY), s / v)
     }
 
     @Test
     fun plusVectorWithScalar() {
-        val s = 5.0
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
-        assertContentEquals(doubleArrayOf(4.0, 7.0, 5.0), v + s)
-        assertContentEquals(doubleArrayOf(4.0, 7.0, 5.0), s + v)
+        val s = 5.0f
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
+        assertContentEquals(floatArrayOf(4.0f, 7.0f, 5.0f), v + s)
+        assertContentEquals(floatArrayOf(4.0f, 7.0f, 5.0f), s + v)
     }
 
     @Test
     fun minusVectorWithScalar() {
-        val s = 5.0
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
-        assertContentEquals(doubleArrayOf(-6.0, -3.0, -5.0), v - s)
-        assertContentEquals(doubleArrayOf(6.0, 3.0, 5.0), s - v)
+        val s = 5.0f
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
+        assertContentEquals(floatArrayOf(-6.0f, -3.0f, -5.0f), v - s)
+        assertContentEquals(floatArrayOf(6.0f, 3.0f, 5.0f), s - v)
     }
 
     @Test
     fun dotProduct() {
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
-        val u = doubleArrayOf(0.0, 3.0, 4.0)
-        assertEquals(6.0, u dot v)
-        assertEquals(6.0, v dot u)
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
+        val u = floatArrayOf(0.0f, 3.0f, 4.0f)
+        assertEquals(6.0f, u dot v)
+        assertEquals(6.0f, v dot u)
     }
 
     @Test
     fun outerProduct() {
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
-        val u = doubleArrayOf(0.0, 3.0, 4.0)
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
+        val u = floatArrayOf(0.0f, 3.0f, 4.0f)
         val expected1 = arrayOf(
-                doubleArrayOf(0.0, -3.0, -4.0),
-                doubleArrayOf(0.0, 6.0, 8.0),
-                doubleArrayOf(0.0, 0.0, 0.0))
+                floatArrayOf(0.0f, -3.0f, -4.0f),
+                floatArrayOf(0.0f, 6.0f, 8.0f),
+                floatArrayOf(0.0f, 0.0f, 0.0f))
         val outer1 = v outer u
         assertContentEquals(expected1, outer1)
         val expected2 = expected1.T
@@ -87,37 +87,37 @@ class LinearAlgebraTest {
 
     @Test
     fun timesLeftMatrix() {
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
         val result = v * A
-        assertContentEquals(doubleArrayOf(7.0, 8.0, 9.0), result)
+        assertContentEquals(floatArrayOf(7.0f, 8.0f, 9.0f), result)
     }
 
     @Test
     fun timesRightMatrix() {
-        val v = doubleArrayOf(-1.0, 2.0, 0.0)
+        val v = floatArrayOf(-1.0f, 2.0f, 0.0f)
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
         val result = A * v
-        assertContentEquals(doubleArrayOf(3.0, 6.0, 9.0), result)
+        assertContentEquals(floatArrayOf(3.0f, 6.0f, 9.0f), result)
     }
 
     @Test
     fun timesMatrixWithScalar() {
-        val s = 5.0
+        val s = 5.0f
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
         val expected = arrayOf(
-                doubleArrayOf(5.0, 10.0, 15.0),
-                doubleArrayOf(20.0, 25.0, 30.0),
-                doubleArrayOf(35.0, 40.0, 45.0))
+                floatArrayOf(5.0f, 10.0f, 15.0f),
+                floatArrayOf(20.0f, 25.0f, 30.0f),
+                floatArrayOf(35.0f, 40.0f, 45.0f))
         val actual1 = (s * A)
         val actual = (A * s)
         assertContentEquals(expected, actual1)
@@ -126,53 +126,53 @@ class LinearAlgebraTest {
 
     @Test
     fun plusMatrixWithScalar() {
-        val s = 5.0
+        val s = 5.0f
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
         val expected = arrayOf(
-                doubleArrayOf(6.0, 7.0, 8.0),
-                doubleArrayOf(9.0, 10.0, 11.0),
-                doubleArrayOf(12.0, 13.0, 14.0))
+                floatArrayOf(6.0f, 7.0f, 8.0f),
+                floatArrayOf(9.0f, 10.0f, 11.0f),
+                floatArrayOf(12.0f, 13.0f, 14.0f))
         assertContentEquals(expected, s + A)
         assertContentEquals(expected, A + s)
     }
 
     @Test
     fun minusMatrixWithScalar() {
-        val s = 5.0
+        val s = 5.0f
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
         val expected1 = arrayOf(
-                doubleArrayOf(4.0, 3.0, 2.0),
-                doubleArrayOf(1.0, 0.0, -1.0),
-                doubleArrayOf(-2.0, -3.0, -4.0))
+                floatArrayOf(4.0f, 3.0f, 2.0f),
+                floatArrayOf(1.0f, 0.0f, -1.0f),
+                floatArrayOf(-2.0f, -3.0f, -4.0f))
         val expected2 = arrayOf(
-                doubleArrayOf(-4.0, -3.0, -2.0),
-                doubleArrayOf(-1.0, 0.0, 1.0),
-                doubleArrayOf(2.0, 3.0, 4.0))
+                floatArrayOf(-4.0f, -3.0f, -2.0f),
+                floatArrayOf(-1.0f, 0.0f, 1.0f),
+                floatArrayOf(2.0f, 3.0f, 4.0f))
         assertContentEquals(expected1, s - A)
         assertContentEquals(expected2, A - s)
     }
 
     @Test
     fun divMatrixWithScalar() {
-        val s = 5.0
+        val s = 5.0f
         val A = arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-                doubleArrayOf(7.0, 8.0, 9.0))
+                floatArrayOf(1.0f, 2.0f, 3.0f),
+                floatArrayOf(4.0f, 5.0f, 6.0f),
+                floatArrayOf(7.0f, 8.0f, 9.0f))
         val expected1 = arrayOf(
-                doubleArrayOf(5 / 1.0, 5 / 2.0, 5 / 3.0),
-                doubleArrayOf(5 / 4.0, 5 / 5.0, 5 / 6.0),
-                doubleArrayOf(5 / 7.0, 5 / 8.0, 5 / 9.0))
+                floatArrayOf(5 / 1.0f, 5 / 2.0f, 5 / 3.0f),
+                floatArrayOf(5 / 4.0f, 5 / 5.0f, 5 / 6.0f),
+                floatArrayOf(5 / 7.0f, 5 / 8.0f, 5 / 9.0f))
         val expected2 = arrayOf(
-                doubleArrayOf(0.2, 0.4, 0.6),
-                doubleArrayOf(0.8, 1.0, 1.2),
-                doubleArrayOf(1.4, 1.6, 1.8))
+                floatArrayOf(0.2f, 0.4f, 0.6f),
+                floatArrayOf(0.8f, 1.0f, 1.2f),
+                floatArrayOf(1.4f, 1.6f, 1.8f))
         assertContentEquals(expected1, (s / A))
         assertContentEquals(expected2, (A / s))
     }
@@ -181,53 +181,53 @@ class LinearAlgebraTest {
     fun basicShermanUpdater() {
         val H = matrix(6)
         for (i in 0 until 6)
-            H[i, i] = 1.0
-        val x = DoubleArray(6) { 0.5 }
-        x[2] = 0.0
+            H[i, i] = 1.0f
+        val x = FloatArray(6) { 0.5f }
+        x[2] = 0.0f
         val inc = H.shermanUpdater(x)
-        val expectedInc = DoubleArray(6) { 1.0 / 3.0 }
-        expectedInc[2] = 0.0
+        val expectedInc = FloatArray(6) { 1.0f / 3.0f }
+        expectedInc[2] = 0.0f
         assertContentEquals(expectedInc, inc)
     }
 
     @Test
     fun fullShermanUpdater() {
         val H = arrayOf(
-                doubleArrayOf(1.0565, 0.3456, -0.4646, 1.8587),
-                doubleArrayOf(0.3456, 0.5910, -0.1395, 0.6277),
-                doubleArrayOf(-0.4646, -0.1395, 0.2371, -0.8419),
-                doubleArrayOf(1.8587, 0.6277, -0.8419, 4.2134))
-        val x = doubleArrayOf(1.0, 0.0, 1.0, 1.0) * sqrt(0.5)
+                floatArrayOf(1.0565f, 0.3456f, -0.4646f, 1.8587f),
+                floatArrayOf(0.3456f, 0.5910f, -0.1395f, 0.6277f),
+                floatArrayOf(-0.4646f, -0.1395f, 0.2371f, -0.8419f),
+                floatArrayOf(1.8587f, 0.6277f, -0.8419f, 4.2134f))
+        val x = floatArrayOf(1.0f, 0.0f, 1.0f, 1.0f) * sqrt(0.5f)
 
         val inc = H.shermanUpdater(x)
 
-        val expectedInc = doubleArrayOf(0.8351, 0.2841, -0.3644, 1.7823)
-        assertContentEquals(expectedInc, inc, 1e-3)
+        val expectedInc = floatArrayOf(0.8351f, 0.2841f, -0.3644f, 1.7823f)
+        assertContentEquals(expectedInc, inc, 1e-3f)
         H.sub(inc outer inc)
 
         val expected = arrayOf(
-                doubleArrayOf(0.3591, 0.1083, -0.1603, 0.3703),
-                doubleArrayOf(0.1083, 0.5103, -0.0360, 0.1213),
-                doubleArrayOf(-0.1603, -0.0360, 0.1042, -0.1923),
-                doubleArrayOf(0.3703, 0.1213, -0.1923, 1.0367))
+                floatArrayOf(0.3591f, 0.1083f, -0.1603f, 0.3703f),
+                floatArrayOf(0.1083f, 0.5103f, -0.0360f, 0.1213f),
+                floatArrayOf(-0.1603f, -0.0360f, 0.1042f, -0.1923f),
+                floatArrayOf(0.3703f, 0.1213f, -0.1923f, 1.0367f))
 
-        assertContentEquals(expected, H, 1e-3)
+        assertContentEquals(expected, H, 1e-3f)
     }
 
     @Test
     fun cholDowndate() {
         val H = arrayOf(
-                doubleArrayOf(1.0565, 0.3456, -0.4646, 1.8587),
-                doubleArrayOf(0.3456, 0.5910, -0.1395, 0.6277),
-                doubleArrayOf(0.4646, -0.1395, 0.2371, -0.8419),
-                doubleArrayOf(.8587, 0.6277, -0.8419, 4.2134))
+                floatArrayOf(1.0565f, 0.3456f, -0.4646f, 1.8587f),
+                floatArrayOf(0.3456f, 0.5910f, -0.1395f, 0.6277f),
+                floatArrayOf(0.4646f, -0.1395f, 0.2371f, -0.8419f),
+                floatArrayOf(.8587f, 0.6277f, -0.8419f, 4.2134f))
 
-        val x = doubleArrayOf(1.0, 0.0, 1.0, 1.0) * sqrt(0.5)
+        val x = floatArrayOf(1.0f, 0.0f, 1.0f, 1.0f) * sqrt(0.5f)
         val L = arrayOf(
-                doubleArrayOf(2.1585, 0.7060, -0.9493, 3.7975),
-                doubleArrayOf(0.0, 1.4519, 0.0378, 0.0599),
-                doubleArrayOf(0.0, 0.0, 0.3780, -0.2912),
-                doubleArrayOf(0.0, 0.0, 0.0, 2.0179))
+                floatArrayOf(2.1585f, 0.7060f, -0.9493f, 3.7975f),
+                floatArrayOf(0.0f, 1.4519f, 0.0378f, 0.0599f),
+                floatArrayOf(0.0f, 0.0f, 0.3780f, -0.2912f),
+                floatArrayOf(0.0f, 0.0f, 0.0f, 2.0179f))
 
         val inc = H.shermanUpdater(x)
 
@@ -236,12 +236,12 @@ class LinearAlgebraTest {
         // tested using matlabs cholupdate(L,inc,'-')
 
         val expected = arrayOf(
-                doubleArrayOf(1.989, 0.6459, -1.0100, 3.5109),
-                doubleArrayOf(0.0, 1.4519, 0.0349, 0.0602),
-                doubleArrayOf(0.0, 0.0, 0.1479, -0.6721),
-                doubleArrayOf(0.0, 0.0, 0.0, 1.9246))
+                floatArrayOf(1.989f, 0.6459f, -1.0100f, 3.5109f),
+                floatArrayOf(0.0f, 1.4519f, 0.0349f, 0.0602f),
+                floatArrayOf(0.0f, 0.0f, 0.1479f, -0.6721f),
+                floatArrayOf(0.0f, 0.0f, 0.0f, 1.9246f))
 
-        assertContentEquals(expected, L, 1e-4)
+        assertContentEquals(expected, L, 1e-4f)
     }
 }
 

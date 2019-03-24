@@ -51,7 +51,7 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
         }!!
     }
 
-    fun update(armIndex: Int, result: Double, weight: Double = 1.0) {
+    fun update(armIndex: Int, result: Float, weight: Float = 1.0f) {
         banditPolicy.completeRound(data[armIndex] as E, result, weight)
         rewards.accept(result, weight)
     }

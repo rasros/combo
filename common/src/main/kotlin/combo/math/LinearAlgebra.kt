@@ -2,16 +2,17 @@
 
 package combo.math
 
+import combo.util.assert
 import combo.util.mapArray
 import combo.util.transformArray
 import combo.util.transformArrayIndexed
 import kotlin.jvm.JvmName
 import kotlin.math.*
 
-typealias Vector = DoubleArray
-typealias Matrix = Array<DoubleArray>
+typealias Vector = FloatArray
+typealias Matrix = Array<FloatArray>
 
-fun matrix(size: Int) = Array(size) { DoubleArray(size) }
+fun matrix(size: Int) = Array(size) { FloatArray(size) }
 
 val Matrix.rows: Int
     get() = this.size
@@ -19,7 +20,7 @@ val Matrix.cols: Int
     get() = this[0].size
 
 operator fun Matrix.get(i: Int, j: Int) = this[i][j]
-operator fun Matrix.set(i: Int, j: Int, s: Double) {
+operator fun Matrix.set(i: Int, j: Int, s: Float) {
     this[i][j] = s
 }
 
@@ -27,7 +28,7 @@ operator fun Matrix.set(i: Int, j: Int, s: Double) {
  * must be square matrix
  */
 fun Matrix.transpose() {
-    require(rows == cols)
+    assert(rows == cols)
     for (i in 0 until rows - 1)
         for (j in (i + 1) until rows) {
             val tmp = this[i][j]
@@ -39,59 +40,59 @@ fun Matrix.transpose() {
 val Matrix.T: Matrix
     get() = Array(size) { this@T[it].copyOf() }.apply { transpose() }
 
-operator fun Double.plus(v: Vector) = v + this
-operator fun Double.plus(A: Matrix) = A + this
-operator fun Double.times(v: Vector) = v * this
-operator fun Double.times(A: Matrix) = A * this
-operator fun Double.minus(v: Vector) = v.mapArray { this - it }
-operator fun Double.minus(A: Matrix): Matrix = A.mapMatrix { this - it }
-operator fun Double.div(v: Vector) = v.mapArray { this / it }
-operator fun Double.div(A: Matrix) = A.mapMatrix { this / it }
+operator fun Float.plus(v: Vector) = v + this
+operator fun Float.plus(A: Matrix) = A + this
+operator fun Float.times(v: Vector) = v * this
+operator fun Float.times(A: Matrix) = A * this
+operator fun Float.minus(v: Vector) = v.mapArray { this - it }
+operator fun Float.minus(A: Matrix): Matrix = A.mapMatrix { this - it }
+operator fun Float.div(v: Vector) = v.mapArray { this / it }
+operator fun Float.div(A: Matrix) = A.mapMatrix { this / it }
 
 operator fun Vector.unaryMinus() = mapArray { d -> -d }
-operator fun Vector.plus(s: Double) = mapArray { d -> d + s }
-fun Vector.add(s: Double) = transformArray { d -> d + s }
-operator fun Vector.minus(s: Double) = mapArray { d -> d - s }
-fun Vector.sub(s: Double) = transformArray { d -> d - s }
-operator fun Vector.times(s: Double) = mapArray { d -> d * s }
-fun Vector.multiply(s: Double) = transformArray { d -> d * s }
-operator fun Vector.div(s: Double) = mapArray { d -> d / s }
-fun Vector.divide(s: Double) = transformArray { d -> d / s }
+operator fun Vector.plus(s: Float) = mapArray { d -> d + s }
+fun Vector.add(s: Float) = transformArray { d -> d + s }
+operator fun Vector.minus(s: Float) = mapArray { d -> d - s }
+fun Vector.sub(s: Float) = transformArray { d -> d - s }
+operator fun Vector.times(s: Float) = mapArray { d -> d * s }
+fun Vector.multiply(s: Float) = transformArray { d -> d * s }
+operator fun Vector.div(s: Float) = mapArray { d -> d / s }
+fun Vector.divide(s: Float) = transformArray { d -> d / s }
 
 fun Vector.add(v: Vector) = transformArrayIndexed { i, d -> d + v[i] }
 fun Vector.sub(v: Vector) = transformArrayIndexed { i, d -> d - v[i] }
 
-infix fun Vector.dot(v: Vector) = foldIndexed(0.0) { i, dot, d -> dot + d * v[i] }
-infix fun Vector.outer(v: Vector) = Array(size) { DoubleArray(size) }.also {
+infix fun Vector.dot(v: Vector) = foldIndexed(0.0f) { i, dot, d -> dot + d * v[i] }
+infix fun Vector.outer(v: Vector) = Array(size) { FloatArray(size) }.also {
     for (i in 0 until size)
         for (j in 0 until size)
             it[i, j] = this[i] * v[j]
 }
 
-private inline fun Matrix.mapMatrix(transform: (Double) -> Double) = Array(size) { i ->
-    DoubleArray(size) { j -> transform(this[i, j]) }
+private inline fun Matrix.mapMatrix(transform: (Float) -> Float) = Array(size) { i ->
+    FloatArray(size) { j -> transform(this[i, j]) }
 }
 
-private inline fun Matrix.mapMatrixIndexed(transform: (i: Int, j: Int, Double) -> Double) = Array(size) { i ->
-    DoubleArray(size) { j -> transform(i, j, this[i, j]) }
+private inline fun Matrix.mapMatrixIndexed(transform: (i: Int, j: Int, Float) -> Float) = Array(size) { i ->
+    FloatArray(size) { j -> transform(i, j, this[i, j]) }
 }
 
-private inline fun Matrix.transformMatrix(transform: (Double) -> Double) = forEach { it.transformArray(transform) }
-private inline fun Matrix.transformMatrixIndexed(transform: (i: Int, j: Int, Double) -> Double) =
+private inline fun Matrix.transformMatrix(transform: (Float) -> Float) = forEach { it.transformArray(transform) }
+private inline fun Matrix.transformMatrixIndexed(transform: (i: Int, j: Int, Float) -> Float) =
         forEachIndexed { i, v -> v.transformArrayIndexed { j, d -> transform(i, j, d) } }
 
 operator fun Matrix.unaryMinus() = mapMatrix { d -> -d }
-operator fun Matrix.plus(s: Double) = mapMatrix { it + s }
-fun Matrix.add(s: Double) = transformMatrix { it + s }
+operator fun Matrix.plus(s: Float) = mapMatrix { it + s }
+fun Matrix.add(s: Float) = transformMatrix { it + s }
 fun Matrix.add(a: Matrix) = transformMatrixIndexed { i, j, d -> d + a[i, j] }
-operator fun Matrix.minus(s: Double) = mapMatrix { d -> d - s }
-fun Matrix.sub(s: Double) = transformMatrix { d -> d - s }
+operator fun Matrix.minus(s: Float) = mapMatrix { d -> d - s }
+fun Matrix.sub(s: Float) = transformMatrix { d -> d - s }
 fun Matrix.sub(a: Matrix) = transformMatrixIndexed { i, j, d -> d - a[i, j] }
-operator fun Matrix.times(s: Double) = mapMatrix { d -> d * s }
-fun Matrix.multiply(s: Double) = transformMatrix { d -> d * s }
+operator fun Matrix.times(s: Float) = mapMatrix { d -> d * s }
+fun Matrix.multiply(s: Float) = transformMatrix { d -> d * s }
 fun Matrix.multiply(a: Matrix) = transformMatrixIndexed { i, j, d -> d * a[i, j] }
-operator fun Matrix.div(s: Double) = mapMatrix { d -> d / s }
-fun Matrix.divide(s: Double) = transformMatrix { d -> d / s }
+operator fun Matrix.div(s: Float) = mapMatrix { d -> d / s }
+fun Matrix.divide(s: Float) = transformMatrix { d -> d / s }
 fun Matrix.divide(a: Matrix) = transformMatrixIndexed { i, j, d -> d / a[i, j] }
 
 /**
@@ -122,15 +123,15 @@ operator fun Vector.times(A: Matrix) = Vector(A.cols).also {
  */
 fun Matrix.shermanUpdater(v: Vector): Vector {
     val t: Vector = this * v
-    return t.apply { divide(sqrt(1.0 + (t dot v))) }
+    return t.apply { divide(sqrt(1.0f + (t dot v))) }
 }
 
 fun Matrix.cholDowndate(v: Vector) {
     val L = this
     for (i in 0 until rows) {
-        val r: Double = sqrt(L[i, i] * L[i, i] - v[i] * v[i])
-        val c: Double = r / L[i][i]
-        val s: Double = v[i] / L[i][i]
+        val r: Float = sqrt(L[i, i] * L[i, i] - v[i] * v[i])
+        val c: Float = r / L[i][i]
+        val s: Float = v[i] / L[i][i]
         L[i][i] = r
         for (j in i + 1 until rows)
             L[i, j] = (L[i, j] - s * v[j]) / c
@@ -139,14 +140,14 @@ fun Matrix.cholDowndate(v: Vector) {
     }
 }
 
-fun Vector.toRoundedArray(eps: Double = 1.0 / Int.MAX_VALUE * size): DoubleArray {
-    if (size == 0) return DoubleArray(0)
-    val arr = DoubleArray(size)
+fun Vector.toRoundedArray(eps: Float = 1.0f / Int.MAX_VALUE * size): FloatArray {
+    if (size == 0) return FloatArray(0)
+    val arr = FloatArray(size)
     val sorted = sortedArray()
     val max = max(abs(sorted[size - 1]), abs(sorted[0]))
     if (max < eps) return arr
     val normalized = sorted / max
-    val minDelta: Double = normalized.minBy { abs(it) }!!.let {
+    val minDelta: Float = normalized.minBy { abs(it) }!!.let {
         var tmp = it
         for (i in 1 until size)
             tmp = min(tmp, normalized[i] - normalized[i - 1])
@@ -158,9 +159,9 @@ fun Vector.toRoundedArray(eps: Double = 1.0 / Int.MAX_VALUE * size): DoubleArray
     return arr
 }
 
-fun Vector.toIntArray(): IntArray {
+fun Vector.toIntArray(eps: Float = 1.0f / Int.MAX_VALUE * size): IntArray {
     val ints = IntArray(size)
-    for ((i, d) in toRoundedArray().withIndex())
+    for ((i, d) in toRoundedArray(eps).withIndex())
         ints[i] = d.toInt()
     return ints
 }

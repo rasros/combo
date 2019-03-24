@@ -27,7 +27,7 @@ interface Bandit<D> {
      * Add the results of a bandit evaluation. The [weight] can be used to increase the importance of the update, for
      * binomial this is interpreted as the n-parameter.
      */
-    fun update(instance: Instance, result: Double, weight: Double = 1.0)
+    fun update(instance: Instance, result: Float, weight: Float = 1.0f)
 
     /**
      * Add historic data to the bandit, this can be used to store and re-start the bandit. In general, any existing
@@ -75,11 +75,11 @@ interface PredictionBandit<D> : Bandit<D> {
     /**
      * Evaluate the machine learning model on a [instance].
      */
-    fun predict(instance: Instance): Double
+    fun predict(instance: Instance): Float
 
-    fun train(instance: Instance, result: Double, weight: Double)
+    fun train(instance: Instance, result: Float, weight: Float)
 
-    override fun update(instance: Instance, result: Double, weight: Double) {
+    override fun update(instance: Instance, result: Float, weight: Float) {
         rewards.accept(result, weight)
         testAbsError.accept(abs((result - predict(instance)) * weight))
         train(instance, result, weight)
@@ -94,4 +94,4 @@ interface PredictionBandit<D> : Bandit<D> {
  */
 class LiteralData<E : VarianceEstimator>(val setLiterals: Literals, val data: E)
 
-class LabelingData<E : VarianceEstimator>(val instance: Instance, val data: E)
+class InstanceData<E : VarianceEstimator>(val instance: Instance, val data: E)

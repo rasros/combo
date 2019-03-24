@@ -2,39 +2,40 @@
 
 package combo.math
 
+import combo.util.assert
 import kotlin.jvm.JvmName
 import kotlin.math.sqrt
 
 interface MeanEstimator : DataSample {
 
-    override fun accept(value: Double) = accept(value, 1.0)
+    override fun accept(value: Float) = accept(value, 1.0f)
 
     /**
      * @param value include value in estimate
      * @param weight frequency weight
      */
-    override fun accept(value: Double, weight: Double)
+    override fun accept(value: Float, weight: Float)
 
     override val nbrSamples: Long get() = nbrWeightedSamples.toLong()
-    val nbrWeightedSamples: Double
-    val mean: Double
-    val sum: Double get() = mean * nbrWeightedSamples
+    val nbrWeightedSamples: Float
+    val mean: Float
+    val sum: Float get() = mean * nbrWeightedSamples
 
     fun copy(): MeanEstimator
-    override fun toArray() = doubleArrayOf(mean)
+    override fun toArray() = floatArrayOf(mean)
     fun combine(vs: MeanEstimator) = RunningMean(
             (mean * nbrWeightedSamples + vs.mean * vs.nbrWeightedSamples) / (nbrWeightedSamples + vs.nbrWeightedSamples),
             nbrWeightedSamples + vs.nbrWeightedSamples)
 }
 
-class RunningMean(mean: Double = 0.0, nbrWeightedSamples: Double = 0.0) : MeanEstimator {
+class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEstimator {
 
     override var mean = mean
         private set
     override var nbrWeightedSamples = nbrWeightedSamples
         private set
 
-    override fun accept(value: Double, weight: Double) {
+    override fun accept(value: Float, weight: Float) {
         nbrWeightedSamples += weight
         if (nbrWeightedSamples == weight) {
             mean = value
@@ -50,9 +51,9 @@ class RunningMean(mean: Double = 0.0, nbrWeightedSamples: Double = 0.0) : MeanEs
 
 interface VarianceEstimator : MeanEstimator {
 
-    val squaredDeviations: Double get() = variance * nbrWeightedSamples
-    val variance: Double get() = squaredDeviations / nbrWeightedSamples
-    val standardDeviation: Double get() = sqrt(variance)
+    val squaredDeviations: Float get() = variance * nbrWeightedSamples
+    val variance: Float get() = squaredDeviations / nbrWeightedSamples
+    val standardDeviation: Float get() = sqrt(variance)
 
     override fun copy(): VarianceEstimator
 }
@@ -60,9 +61,9 @@ interface VarianceEstimator : MeanEstimator {
 /**
  * Calculates incremental mean and variance according to the Welford's online algorithm.
  */
-class RunningVariance(mean: Double = 0.0,
-                      squaredDeviations: Double = 0.0,
-                      nbrWeightedSamples: Double = 0.0) : VarianceEstimator {
+class RunningVariance(mean: Float = 0.0f,
+                      squaredDeviations: Float = 0.0f,
+                      nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
 
     override var mean = mean
         private set
@@ -71,7 +72,7 @@ class RunningVariance(mean: Double = 0.0,
     override var nbrWeightedSamples = nbrWeightedSamples
         private set
 
-    override fun accept(value: Double, weight: Double) {
+    override fun accept(value: Float, weight: Float) {
         nbrWeightedSamples += weight
         if (nbrWeightedSamples == weight) {
             mean = value
@@ -92,12 +93,12 @@ class RunningVariance(mean: Double = 0.0,
  * @param beta strength of the update. For finite samples n the optimal parameter can be set to: beta = 2/n+1.
  * Default n is 99
  */
-class ExponentialDecayVariance(var beta: Double = 0.02,
-                               mean: Double = 0.0,
-                               variance: Double = 0.0,
-                               nbrWeightedSamples: Double = 0.0) : VarianceEstimator {
+class ExponentialDecayVariance(var beta: Float = 0.02f,
+                               mean: Float = 0.0f,
+                               variance: Float = 0.0f,
+                               nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
 
-    constructor(window: Int) : this(2.0 / (window + 1.0))
+    constructor(window: Int) : this(2.0f / (window + 1.0f))
 
     override var mean = mean
         private set
@@ -107,15 +108,15 @@ class ExponentialDecayVariance(var beta: Double = 0.02,
         private set
 
     init {
-        require(beta < 1.0 && beta > 0.0) { "Beta (1-decay) parameter must be within 0 to 1 range, got $beta." }
+        assert(beta < 1.0f && beta > 0.0f) { "Beta (1-decay) parameter must be within 0 to 1 range, got $beta." }
     }
 
-    override fun accept(value: Double, weight: Double) {
+    override fun accept(value: Float, weight: Float) {
         nbrWeightedSamples += weight
         if (nbrWeightedSamples == weight) {
             mean = value
         } else {
-            val adjustedBeta = if (weight == 1.0) beta
+            val adjustedBeta = if (weight == 1.0f) beta
             else weight * beta / (1 - beta + weight * beta)
             val diff = value - mean
             val inc = adjustedBeta * diff
@@ -132,10 +133,10 @@ class ExponentialDecayVariance(var beta: Double = 0.02,
 /**
  * This estimator is only used with binomial count data, hence the variance depends on the mean.
  */
-class CountData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceEstimator {
+class CountData(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
 
-    override fun accept(value: Double, weight: Double) {
-        require(value in 0.0..weight) { "CountData can only be used with Binomial data." }
+    override fun accept(value: Float, weight: Float) {
+        assert(value in 0.0f..weight) { "CountData can only be used with Binomial data." }
         sum += value
         nbrWeightedSamples += weight
     }
@@ -143,13 +144,13 @@ class CountData(sum: Double = 0.0, nbrWeightedSamples: Double = 0.0) : VarianceE
     override var sum = sum
         private set
 
-    override var nbrWeightedSamples: Double = nbrWeightedSamples
+    override var nbrWeightedSamples: Float = nbrWeightedSamples
         private set
 
-    override val mean: Double
+    override val mean: Float
         get() = sum / nbrWeightedSamples
 
-    override val variance: Double
+    override val variance: Float
         get() = mean * (1 - mean)
 
     override fun toString() = "CountData(sum=$sum, nbrSamples=$nbrSamples)"

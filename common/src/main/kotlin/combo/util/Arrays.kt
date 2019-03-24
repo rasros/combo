@@ -4,8 +4,24 @@ package combo.util
 
 import kotlin.jvm.JvmName
 
-inline fun DoubleArray.mapArray(transform: (Double) -> Double) =
-        DoubleArray(this.size) {
+inline fun IntArray.sumByFloat(selector: (Int) -> Float): Float {
+    var sum = 0.0f
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+inline fun FloatArray.sumByFloat(selector: (Float) -> Float): Float {
+    var sum = 0.0f
+    for (element in this) {
+        sum += selector(element)
+    }
+    return sum
+}
+
+inline fun FloatArray.mapArray(transform: (Float) -> Float) =
+        FloatArray(this.size) {
             transform(this[it])
         }
 
@@ -14,12 +30,12 @@ inline fun IntArray.mapArray(transform: (Int) -> Int) =
             transform(this[it])
         }
 
-inline fun DoubleArray.mapArrayIndexed(transform: (Int, Double) -> Double) =
-        DoubleArray(this.size) {
+inline fun FloatArray.mapArrayIndexed(transform: (Int, Float) -> Float) =
+        FloatArray(this.size) {
             transform(it, this[it])
         }
 
-inline fun DoubleArray.transformArrayIndexed(transform: (Int, Double) -> Double) {
+inline fun FloatArray.transformArrayIndexed(transform: (Int, Float) -> Float) {
     for (i in indices)
         this[i] = transform(i, this[i])
 }
@@ -29,7 +45,7 @@ inline fun IntArray.transformArrayIndexed(transform: (Int, Int) -> Int) {
         this[i] = transform(i, this[i])
 }
 
-inline fun DoubleArray.transformArray(transform: (Double) -> Double) {
+inline fun FloatArray.transformArray(transform: (Float) -> Float) {
     for (i in indices)
         this[i] = transform(this[i])
 }

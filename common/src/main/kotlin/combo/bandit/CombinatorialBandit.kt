@@ -1,14 +1,15 @@
 package combo.bandit
 
 import combo.bandit.univariate.BanditPolicy
-import combo.math.*
-import combo.sat.Conjunction
+import combo.math.DataSample
+import combo.math.GrowingDataSample
+import combo.math.RandomSequence
+import combo.math.VarianceEstimator
 import combo.sat.Instance
 import combo.sat.UnsatisfiableException
+import combo.sat.constraints.Conjunction
 import combo.util.collectionOf
 import combo.util.nanos
-import kotlin.collections.component1
-import kotlin.collections.component2
 import kotlin.collections.set
 
 /**
@@ -19,7 +20,7 @@ import kotlin.collections.set
  * @param banditPolicy the policy that the next bandit arm is selected with.
  */
 class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
-                                                 val banditPolicy: BanditPolicy<E>) : Bandit<Array<LabelingData<E>>> {
+                                                 val banditPolicy: BanditPolicy<E>) : Bandit<Array<InstanceData<E>>> {
 
     private val instanceData = LinkedHashMap<Instance, E>().apply {
         instances.associateTo(this) {
@@ -37,7 +38,7 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
 
     private var randomSequence = RandomSequence(nanos())
 
-    override fun importData(historicData: Array<LabelingData<E>>) {
+    override fun importData(historicData: Array<InstanceData<E>>) {
         for (data in historicData) {
             if (data.instance in instanceData) {
                 banditPolicy.removeArm(instanceData[data.instance]!!)
@@ -47,15 +48,15 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
         }
     }
 
-    override fun exportData(): Array<LabelingData<E>> {
+    override fun exportData(): Array<InstanceData<E>> {
         val itr = instanceData.iterator()
         return Array(instanceData.size) {
             val (l, t) = itr.next()
-            LabelingData(l, t)
+            InstanceData(l, t)
         }
     }
 
-    override fun update(instance: Instance, result: Double, weight: Double) {
+    override fun update(instance: Instance, result: Float, weight: Float) {
         rewards.accept(result, weight)
         banditPolicy.completeRound(instanceData[instance]!!, result, weight)
     }
@@ -63,10 +64,10 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
     override fun chooseOrThrow(assumptions: IntArray): Instance {
         val rng = randomSequence.next()
         banditPolicy.beginRound(rng)
-        val con = Conjunction(collectionOf(assumptions))
+        val con = Conjunction(collectionOf(*assumptions))
         val instance = instanceData.maxBy {
             val s = if (con.satisfies(it.key)) banditPolicy.evaluate(it.value, rng)
-            else Double.NEGATIVE_INFINITY
+            else Float.NEGATIVE_INFINITY
             if (maximize) s else -s
         }?.key
         if (instance == null || !con.satisfies(instance))

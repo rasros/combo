@@ -17,13 +17,13 @@ class ArraysTest {
     }
 
     @Test
-    fun arrayTransformToEmptyDoubleArray() {
-        assertTrue { doubleArrayOf().apply { transformArray { it / 0.0 } }.isEmpty() }
+    fun arrayTransformToEmptyFloatArray() {
+        assertTrue { floatArrayOf().apply { transformArray { it / 0.0f } }.isEmpty() }
     }
 
     @Test
-    fun arrayTransformToDoubleArray() {
-        assertTrue { doubleArrayOf(1.0, 2.0, 3.0).contentEquals(doubleArrayOf(2.0, 4.0, 6.0).apply { transformArray { it / 2.0 } }) }
+    fun arrayTransformToFloatArray() {
+        assertTrue { floatArrayOf(1.0f, 2.0f, 3.0f).contentEquals(floatArrayOf(2.0f, 4.0f, 6.0f).apply { transformArray { it / 2.0f } }) }
     }
 
     @Test

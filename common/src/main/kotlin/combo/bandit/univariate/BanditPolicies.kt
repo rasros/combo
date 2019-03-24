@@ -15,10 +15,10 @@ import kotlin.random.Random
 interface BanditPolicy<E : VarianceEstimator> {
 
     fun beginRound(rng: Random) {}
-    fun evaluate(data: E, rng: Random): Double
-    fun completeRound(data: E, value: Double, weight: Double) = updateData(data, value, weight)
+    fun evaluate(data: E, rng: Random): Float
+    fun completeRound(data: E, value: Float, weight: Float) = updateData(data, value, weight)
 
-    fun updateData(data: E, value: Double, weight: Double) = data.accept(value, weight)
+    fun updateData(data: E, value: Float, weight: Float) = data.accept(value, weight)
 
     /**
      * This will be called when a bandit is initialized, it is often called multiple times during initialization.
@@ -47,11 +47,11 @@ class ThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
 
     override fun evaluate(data: E, rng: Random) = posterior.sample(data, pool, rng)
 
-    override fun updateData(data: E, value: Double, weight: Double) {
+    override fun updateData(data: E, value: Float, weight: Float) {
         posterior.update(data, value, weight)
     }
 
-    override fun completeRound(data: E, value: Double, weight: Double) {
+    override fun completeRound(data: E, value: Float, weight: Float) {
         posterior.update(data, value, weight)
         pool?.recalculate()
     }
@@ -76,17 +76,17 @@ class ThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1 @JvmOverloads constructor(val alpha: Double = 1.0) : BanditPolicy<VarianceEstimator> {
+class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolicy<VarianceEstimator> {
 
     private var totalSamples = 0.0
 
     override fun evaluate(data: VarianceEstimator, rng: Random) =
-            if (data.nbrWeightedSamples <= 1.0) Double.POSITIVE_INFINITY
-            else data.mean + alpha * sqrt(2 * ln(totalSamples) / data.nbrWeightedSamples)
+            if (data.nbrWeightedSamples <= 1.0) Float.POSITIVE_INFINITY
+            else (data.mean + alpha * sqrt(2 * ln(totalSamples) / data.nbrWeightedSamples)).toFloat()
 
     override fun baseData() = RunningVariance()
 
-    override fun completeRound(data: VarianceEstimator, value: Double, weight: Double) {
+    override fun completeRound(data: VarianceEstimator, value: Float, weight: Float) {
         data.accept(value, weight)
         totalSamples += weight
     }
@@ -105,16 +105,16 @@ class UCB1 @JvmOverloads constructor(val alpha: Double = 1.0) : BanditPolicy<Var
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1Normal @JvmOverloads constructor(val alpha: Double = 1.0) : BanditPolicy<SquaredEstimator> {
+class UCB1Normal @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolicy<SquaredEstimator> {
 
     private var nbrArms = 0
 
     override fun evaluate(data: SquaredEstimator, rng: Random) =
-            if (data.nbrWeightedSamples < 8 * ln(nbrArms.toDouble()) || nbrArms <= 1) Double.POSITIVE_INFINITY
+            if (data.nbrWeightedSamples < 8 * ln(nbrArms.toFloat()) || nbrArms <= 1) Float.POSITIVE_INFINITY
             else {
                 val nj = data.nbrWeightedSamples
                 val p1 = (data.meanOfSquares - nj * data.mean * data.mean) / (nj - 1)
-                data.mean + alpha * sqrt(16 * p1 * (ln(nbrArms - 1.0) / nj))
+                data.mean + alpha * sqrt(16 * p1 * (ln(nbrArms - 1.0f) / nj))
             }
 
     override fun baseData() = SquaredEstimator()
@@ -133,19 +133,19 @@ class UCB1Normal @JvmOverloads constructor(val alpha: Double = 1.0) : BanditPoli
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1Tuned @JvmOverloads constructor(val alpha: Double = 1.0) : BanditPolicy<SquaredEstimator> {
-    private var totalSamples = 0.0
+class UCB1Tuned @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolicy<SquaredEstimator> {
+    private var totalSamples = 0.0f
     override fun evaluate(data: SquaredEstimator, rng: Random) =
-            if (data.nbrWeightedSamples <= 1.0) Double.POSITIVE_INFINITY
+            if (data.nbrWeightedSamples <= 1.0f) Float.POSITIVE_INFINITY
             else {
                 val padding = ln(totalSamples) / data.nbrWeightedSamples
-                val V = data.meanOfSquares - data.mean * data.mean + sqrt(2 * padding)
-                data.mean + alpha * sqrt(padding * min(0.25, V))
+                val V = data.meanOfSquares - data.mean * data.mean + sqrt(2f * padding)
+                data.mean + alpha * sqrt(padding * min(0.25f, V))
             }
 
     override fun baseData() = SquaredEstimator()
 
-    override fun completeRound(data: SquaredEstimator, value: Double, weight: Double) {
+    override fun completeRound(data: SquaredEstimator, value: Float, weight: Float) {
         data.accept(value, weight)
         totalSamples += weight
     }
@@ -159,16 +159,16 @@ class UCB1Tuned @JvmOverloads constructor(val alpha: Double = 1.0) : BanditPolic
     }
 }
 
-class SquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Double) : VarianceEstimator by base {
-    constructor(mean: Double = 0.0,
-                meanOfSquares: Double = 0.0,
-                squaredDeviations: Double = 0.0,
-                nbrWeightedSamples: Double = 0.0) : this(RunningVariance(mean, squaredDeviations, nbrWeightedSamples), meanOfSquares)
+class SquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Float) : VarianceEstimator by base {
+    constructor(mean: Float = 0.0f,
+                meanOfSquares: Float = 0.0f,
+                squaredDeviations: Float = 0.0f,
+                nbrWeightedSamples: Float = 0.0f) : this(RunningVariance(mean, squaredDeviations, nbrWeightedSamples), meanOfSquares)
 
-    var meanOfSquares: Double = meanOfSquares
+    var meanOfSquares: Float = meanOfSquares
         private set
 
-    override fun accept(value: Double, weight: Double) {
+    override fun accept(value: Float, weight: Float) {
         base.accept(value, weight)
         if (weight == nbrWeightedSamples)
             meanOfSquares = value * value
@@ -187,23 +187,23 @@ class SquaredEstimator private constructor(private val base: RunningVariance, me
  * the best alternative is used.
  */
 class EpsilonGreedy @JvmOverloads constructor(
-        val epsilon: Double = 0.1) : BanditPolicy<VarianceEstimator> {
+        val epsilon: Float = 0.1f) : BanditPolicy<VarianceEstimator> {
 
     init {
         require(epsilon in 0.0..1.0) { "Epsilon parameter must be within 0-1, got $epsilon" }
     }
 
-    private var nextP = 0.0
+    private var nextP = 0.0f
 
-    override fun evaluate(data: VarianceEstimator, rng: Random): Double {
+    override fun evaluate(data: VarianceEstimator, rng: Random): Float {
         return if (nextP < epsilon)
-            rng.nextDouble()
+            rng.nextFloat()
         else data.mean
     }
 
     override fun baseData() = RunningVariance()
     override fun beginRound(rng: Random) {
-        nextP = rng.nextDouble()
+        nextP = rng.nextFloat()
     }
 }
 
@@ -212,29 +212,29 @@ class EpsilonGreedy @JvmOverloads constructor(
  * version, [epsilon] can be greater than 1.
  */
 class EpsilonDecreasing @JvmOverloads constructor(
-        val epsilon: Double = 2.0, val decay: Double = 0.5) : BanditPolicy<VarianceEstimator> {
+        val epsilon: Float = 2.0f, val decay: Float = 0.5f) : BanditPolicy<VarianceEstimator> {
 
-    private var totalSamples = 0.0
-    private var nextP = 0.0
+    private var totalSamples = 0.0f
+    private var nextP = 0.0f
 
     init {
         require(epsilon > 0.0) { "Epsilon parameter must be within 0-1, got $epsilon" }
     }
 
-    override fun evaluate(data: VarianceEstimator, rng: Random): Double {
-        val eps = min(1.0, epsilon / totalSamples.pow(decay))
+    override fun evaluate(data: VarianceEstimator, rng: Random): Float {
+        val eps = min(1.0f, epsilon / totalSamples.pow(decay))
         return if (nextP < eps)
-            rng.nextDouble()
+            rng.nextFloat()
         else data.mean
     }
 
     override fun baseData() = RunningVariance()
 
     override fun beginRound(rng: Random) {
-        nextP = rng.nextDouble()
+        nextP = rng.nextFloat()
     }
 
-    override fun completeRound(data: VarianceEstimator, value: Double, weight: Double) {
+    override fun completeRound(data: VarianceEstimator, value: Float, weight: Float) {
         data.accept(value, weight)
         totalSamples += weight
     }
