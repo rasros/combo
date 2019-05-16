@@ -7,7 +7,7 @@ import kotlin.random.Random
 
 sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constraint) : Constraint {
 
-    override val priority: Int = 1000
+    override val priority: Int get() = 1000
 
     override fun cacheUpdate(cacheResult: Int, newLit: Literal) =
             if (newLit.toIx() == literal.toIx()) cacheResult
@@ -22,15 +22,11 @@ sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constr
  * ReifiedEquivalent encodes the constraint [literal] <=> [constraint]. That is, the constraint is satisfied when both the
  * [constraint] and [literal] is satisfied or when neither of them are.
  */
-class ReifiedEquivalent(literal: Literal, override val constraint: NegatableConstraint) : ReifiedConstraint(literal, constraint), NegatableConstraint {
+class ReifiedEquivalent(literal: Literal, override val constraint: PropositionalConstraint) : ReifiedConstraint(literal, constraint), PropositionalConstraint {
 
     init {
-        assert(constraint.literals.isNotEmpty()) {
-            "Literals in clause should not be empty."
-        }
-        assert(literal !in constraint.literals && !literal !in constraint.literals) {
-            "Literal appears in clause for reified."
-        }
+        assert(constraint.literals.isNotEmpty())
+        assert(literal !in constraint.literals && !literal !in constraint.literals)
     }
 
     override val literals: IntCollection = unionCollection(constraint.literals, literal)
@@ -38,13 +34,17 @@ class ReifiedEquivalent(literal: Literal, override val constraint: NegatableCons
     override operator fun not() = ReifiedEquivalent(!literal, constraint)
     override fun offset(offset: Int) = ReifiedEquivalent(literal.offset(offset), constraint.offset(offset))
 
+    override fun remap(from: Int, to: Int) =
+            if (literal.toIx() == from) ReifiedEquivalent(to.toLiteral(literal.toBoolean()), constraint)
+            else ReifiedEquivalent(literal, constraint.remap(from, to))
+
     override fun violations(instance: Instance, cacheResult: Int): Int {
         val constraintViolations = constraint.violations(instance, cacheResult)
         return if (literal in instance) min(1, constraintViolations)
         else return if (constraintViolations == 0) 1 else 0
     }
 
-    override fun unitPropagation(unit: Literal): NegatableConstraint {
+    override fun unitPropagation(unit: Literal): PropositionalConstraint {
         return when (unit) {
             literal -> constraint
             !literal -> constraint.not()
@@ -68,12 +68,12 @@ class ReifiedEquivalent(literal: Literal, override val constraint: NegatableCons
     fun toCnf(): Sequence<Disjunction> {
         return when (constraint) {
             is Disjunction -> {
-                val c1 = constraint.literals.asSequence().map { Disjunction(IntList(intArrayOf(literal, !it))) }
+                val c1 = constraint.literals.asSequence().map { Disjunction(collectionOf(literal, !it)) }
                 val c2 = sequenceOf(Disjunction(constraint.literals.mutableCopy().apply { add(!literal) }))
                 c1 + c2
             }
             is Conjunction -> {
-                val c1 = constraint.literals.asSequence().map { Disjunction(IntList(intArrayOf(!literal, it))) }
+                val c1 = constraint.literals.asSequence().map { Disjunction(collectionOf(!literal, it)) }
                 val c2 = sequenceOf(Disjunction((constraint.literals.mutableCopy().map { !it }.apply { add(literal) })))
                 c1 + c2
             }
@@ -91,17 +91,17 @@ class ReifiedEquivalent(literal: Literal, override val constraint: NegatableCons
 class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstraint(literal, constraint) {
 
     init {
-        assert(constraint.literals.isNotEmpty()) {
-            "Literals in clause should not be empty."
-        }
-        assert(literal !in constraint.literals && !literal !in constraint.literals) {
-            "Literal appears in clause for reified."
-        }
+        assert(constraint.literals.isNotEmpty())
+        assert(literal !in constraint.literals && !literal !in constraint.literals)
     }
 
     override val literals: IntCollection = unionCollection(constraint.literals, literal)
 
     override fun offset(offset: Int) = ReifiedImplies(literal.offset(offset), constraint.offset(offset))
+
+    override fun remap(from: Int, to: Int) =
+            if (literal.toIx() == from) ReifiedImplies(to.toLiteral(literal.toBoolean()), constraint)
+            else ReifiedImplies(literal, constraint.remap(from, to))
 
     override fun violations(instance: Instance, cacheResult: Int): Int {
         return if (literal in instance) min(1, constraint.violations(instance, cacheResult))
@@ -126,6 +126,14 @@ class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstrai
 
     override fun coerce(instance: MutableInstance, rng: Random) {
         if (literal in instance) constraint.coerce(instance, rng)
+    }
+
+    fun toCnf(): Sequence<Disjunction> {
+        return when (constraint) {
+            is Disjunction -> sequenceOf(Disjunction(IntUnionCollection(collectionOf(!literal), constraint.literals)))
+            is Conjunction -> constraint.literals.asSequence().map { Disjunction(collectionOf(!literal, it)) }
+            else -> throw IllegalArgumentException("Cannot convert arbitrary constraint to CNF.")
+        }
     }
 
     override fun toString() = "ReifiedImplies($literal => $constraint)"

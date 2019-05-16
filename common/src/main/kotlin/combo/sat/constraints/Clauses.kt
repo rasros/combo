@@ -1,17 +1,21 @@
 package combo.sat.constraints
 
-import combo.model.BasicExpression
+import combo.model.Proposition
 import combo.sat.*
 import combo.util.*
-import kotlin.math.sign
+import kotlin.math.min
 import kotlin.random.Random
 
 /*
  * A disjunction is an OR relation between variables:  (a || b || c)
  */
-class Disjunction(override val literals: IntCollection) : NegatableConstraint, BasicExpression {
+class Disjunction(override val literals: IntCollection) : PropositionalConstraint, Proposition {
 
-    override val priority: Int = 1000
+    init {
+        assert(literals.isNotEmpty())
+    }
+
+    override val priority: Int get() = 1000
 
     override operator fun not() = Conjunction(literals.map { !it })
 
@@ -19,14 +23,21 @@ class Disjunction(override val literals: IntCollection) : NegatableConstraint, B
 
     override fun offset(offset: Int) = Disjunction(literals.map { it.offset(offset) })
 
-    override fun unitPropagation(unit: Literal): NegatableConstraint {
+    override fun remap(from: Int, to: Int) =
+            Disjunction(collectionOf(*literals.mutableCopy().apply {
+                val truth = from.toLiteral(true) in literals
+                remove(from.toLiteral(truth))
+                add(to.toLiteral(truth))
+            }.toArray()))
+
+    override fun unitPropagation(unit: Literal): PropositionalConstraint {
         return if (unit in literals) Tautology
         else if (!unit in literals) {
             if (literals.size == 1) {
                 Empty
             } else {
                 val reducedLiterals = collectionOf(*literals.mutableCopy().apply { remove(!unit) }.toArray())
-                val reducedConstraint: NegatableConstraint =
+                val reducedConstraint: PropositionalConstraint =
                         if (reducedLiterals.size == 1) Conjunction(reducedLiterals)
                         else Disjunction(reducedLiterals)
                 reducedConstraint
@@ -45,9 +56,13 @@ class Disjunction(override val literals: IntCollection) : NegatableConstraint, B
 /**
  * A conjunction is an AND relation between variables: a && b && c
  */
-class Conjunction(override val literals: IntCollection) : NegatableConstraint, BasicExpression {
+class Conjunction(override val literals: IntCollection) : PropositionalConstraint, Proposition {
 
-    override val priority: Int = 100
+    init {
+        assert(literals.isNotEmpty())
+    }
+
+    override val priority: Int get() = 100
 
     override operator fun not() = Disjunction(literals.map { !it })
 
@@ -55,7 +70,14 @@ class Conjunction(override val literals: IntCollection) : NegatableConstraint, B
 
     override fun offset(offset: Int) = Conjunction(literals.map { it.offset(offset) })
 
-    override fun unitPropagation(unit: Literal): NegatableConstraint {
+    override fun remap(from: Int, to: Int) =
+            Conjunction(collectionOf(*literals.mutableCopy().apply {
+                val truth = from.toLiteral(true) in literals
+                remove(from.toLiteral(truth))
+                add(to.toLiteral(truth))
+            }.toArray()))
+
+    override fun unitPropagation(unit: Literal): PropositionalConstraint {
         if (!unit in literals) return Empty
         return if (unit in literals) {
             if (literals.size == 1) Tautology
@@ -66,15 +88,18 @@ class Conjunction(override val literals: IntCollection) : NegatableConstraint, B
     override fun isUnit() = true
 
     override fun coerce(instance: MutableInstance, rng: Random) {
-        if (literals is IntRangeSet && (literals.min.sign == literals.max.sign)) {
-            val ix = literals.min.toIx()
+        if (literals is IntRangeSet) {
+            var ix = min(literals.min.toIx(), literals.max.toIx())
             val ints = (literals.size shr 5) + if (size and 0x1F > 0) 1 else 0
             val value = if (literals.min > 0) -1 else 0
             for (i in 0 until ints) {
-                if (i == ints - 1) instance.setBits(ix, size and 0x1F, value and (-1 shl (size and 0x1F)).inv())
+                val nbrBits = if (i == ints - 1) ((size - 1) and 0x1F) + 1
+                else 32
+                if (nbrBits < 32) instance.setBits(ix, nbrBits, value and (-1 shl (size and 0x1F)).inv())
                 else instance.setBits(ix, 32, value)
+                ix += nbrBits
             }
-        } else for (lit in this) instance.set(lit)
+        } else for (lit in literals) instance.set(lit)
     }
 
     override fun toString() = literals.joinToString(", ", "Conjunction(", ")") { it.toString() }

@@ -9,11 +9,12 @@ import kotlin.random.Random
 
 sealed class NumericConstraint(override val literals: IntRangeSet) : Constraint {
 
-    override val priority: Int = 200
+    override val priority: Int get() = 200
     override fun cacheUpdate(cacheResult: Int, newLit: Literal) = 0
     override fun cache(instance: Instance) = 0
     override fun isUnit() = false
     override fun unitPropagation(unit: Literal) = this
+    override fun remap(from: Int, to: Int) = throw UnsupportedOperationException()
 }
 
 class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericConstraint(literals) {
@@ -35,7 +36,7 @@ class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericCons
     override fun offset(offset: Int) = IntBounds(literals.map { it + offset }, min, max)
 
     override fun coerce(instance: MutableInstance, rng: Random) {
-        val coerced = rng.nextInt(min, max + 1)
+        val coerced = rng.nextInt(min, if (max == Int.MAX_VALUE) max else max + 1)
         if (isSigned()) instance.setSignedInt(literals.min.toIx(), literals.size, coerced)
         else instance.setBits(literals.min.toIx(), literals.size, coerced)
     }
@@ -48,6 +49,7 @@ class FloatBounds(literals: IntRangeSet, val min: Float, val max: Float) : Numer
     init {
         assert(min.isFinite())
         assert(max.isFinite())
+        assert(max > min)
     }
 
     constructor(ix: Int, min: Float, max: Float) : this(IntRangeSet(ix.toLiteral(true), (ix + 31).toLiteral(true)), min, max)
