@@ -12,21 +12,36 @@ Using it requires three steps:
 A feature model is a tree that describes the variables in the optimization problem. Lets start of with a simple example, which is intended to be used to display a top-list of the most important categories on a web site.
 
 ```kotlin
-import combo.model.Model
-import combo.model.flag
+fun main() {
 
-fun main(args: Array<String>) {
-    val movies = flag("Movies")
-    val moviesDrama = flag("Drama")
-    val moviesSciFi = flag("Sci-fi")
-    val games = flag("Games")
+    val myModel = Model.root {
 
-    val model = Model.builder()
-            .optional(Model.builder(movies)
-                    .optional(moviesDrama)
-                    .optional(moviesSciFi))
-            .optional(games)
-            .build()
+        // Context variables
+        mandatoryInt("DisplayWidth", 640, 1920)
+        val customerType = mandatoryAlternative("CustomerType", "Child", "Company", "Person")
+
+        val categories = mandatoryModel("Categories") {
+
+            model("Movies") {
+                val horror = multiple("Horror", "Slasher", "Splatter", "Zombie")
+                multiple("Action", "Thriller", "Martial arts", "Crime")
+                multiple("Sci-fi", "Supernatural", "Super heroes", "Fantasy")
+
+                val child = customerType.option("Child")
+                constraint { child equivalent !horror }
+            }
+
+            multiple("Games", "Shooter", "Platform", "Sports", "Action", "Adventure", "Strategy")
+            // ...
+        }
+        val categoryLeaves = categories.index.allFeatures
+                .mapNotNull { it as? Multiple<*> }
+                .flatMap { it.options().asSequence() }
+                .toList().toTypedArray()
+
+        constraint { atLeast(2, *categoryLeaves) }
+        constraint { atMost(5, *categoryLeaves) }
+    }
 }
 ```
 
