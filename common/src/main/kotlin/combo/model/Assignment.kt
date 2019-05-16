@@ -2,55 +2,72 @@ package combo.model
 
 import combo.sat.Instance
 
-// TODO tree structure, implementing Tree
-class Assignment internal constructor(val instance: Instance, val featureMeta: Map<Feature<*>, FeatureMeta<*>>) : Iterable<Assignment.FeatureAssignment<*>> {
+/**
+ * This class represents an easy to use way of extracting typed variable values out of an [Instance]. This does not use
+ * much additional memory unless it is converted to a [Map] through [toMap]. The tree structure of the [Model] can be
+ * used utilized through the [subAssignment] so that sub-models can be properly isolated.
+ */
+class Assignment constructor(val instance: Instance, val index: VariableIndex) : Iterable<Assignment.VariableAssignment<*>> {
 
-    override fun iterator(): Iterator<FeatureAssignment<*>> = object : Iterator<FeatureAssignment<*>> {
-        val itr: Iterator<Map.Entry<Feature<*>, FeatureMeta<*>>> = featureMeta.iterator()
-        override fun hasNext(): Boolean = itr.hasNext()
-        override fun next(): FeatureAssignment<*> {
-            val f: Feature<*> = itr.next().key
-            @Suppress("UNCHECKED_CAST")
-            return FeatureAssignment(f as Feature<Any>, get(f))
+    fun asSequence(): Sequence<VariableAssignment<*>> = index.asSequence().mapNotNull {
+        val v = it.valueOf(instance, index)
+        if (v == null) null
+        else VariableAssignment(it, v)
+    }
+
+    override fun iterator() = asSequence().iterator()
+
+    fun getString(name: String): String = getOrDefault(name, "")
+    fun getChar(name: String): Char = getOrDefault(name, '\u0000')
+    fun getBoolean(name: String): Boolean = getOrDefault(name, false)
+    fun getLong(name: String): Long = getOrDefault(name, 0L)
+    fun getInt(name: String): Int = getOrDefault(name, 0)
+    fun getShort(name: String): Short = getOrDefault(name, 0.toShort())
+    fun getByte(name: String): Byte = getOrDefault(name, 0.toByte())
+    fun getDouble(name: String): Double = getOrDefault(name, 0.0)
+    fun getFloat(name: String): Float = getOrDefault(name, 0.0f)
+
+    fun getString(variable: Variable<String>): String = getOrDefault(variable, "")
+    fun getChar(variable: Variable<Char>): Char = getOrDefault(variable, '\u0000')
+    fun getBoolean(variable: Variable<Boolean>): Boolean = getOrDefault(variable, false)
+    fun getLong(variable: Variable<Long>): Long = getOrDefault(variable, 0L)
+    fun getInt(variable: Variable<Int>): Int = getOrDefault(variable, 0)
+    fun getShort(variable: Variable<Short>): Short = getOrDefault(variable, 0.toShort())
+    fun getByte(variable: Variable<Byte>): Byte = getOrDefault(variable, 0.toByte())
+    fun getDouble(variable: Variable<Double>): Double = getOrDefault(variable, 0.0)
+    fun getFloat(variable: Variable<Float>): Float = getOrDefault(variable, 0.0f)
+
+    operator fun contains(name: String) = index.find<Variable<*>>(name)?.valueOf(instance, index) != null
+    operator fun contains(variable: Variable<*>) = variable.valueOf(instance, index) != null
+
+    operator fun <V> get(variable: Variable<V>): V? = variable.valueOf(instance, index)
+    operator fun <V> get(name: String): V? = index.find<Variable<V>>(name)?.valueOf(instance, index)
+
+    fun <V> getOrThrow(variable: Variable<V>): V = get(variable)
+            ?: throw NoSuchElementException("Variable $variable not found in assignment.")
+
+    fun <V> getOrThrow(name: String): V = get<V>(name)
+            ?: throw NoSuchElementException("Variable $name not found in assignment.")
+
+    fun <V> getOrDefault(variable: Variable<V>, default: V): V = get(variable) ?: default
+    fun <V> getOrDefault(name: String, default: V): V = get(name) ?: default
+
+    fun subAssignment(scopeName: String) = Assignment(instance, index.getChildScope(scopeName))
+
+    fun toMap(): Map<Variable<*>, Any?> {
+        val ret = HashMap<Variable<*>, Any?>()
+        for (f in index.asSequence()) {
+            val v = get(f)
+            if (v != null) ret[f] = v
         }
+        return ret
     }
 
-    val map: Map<Feature<*>, Any?> by lazy {
-        LinkedHashMap<Feature<*>, Any?>().apply {
-            for ((f, v) in this@Assignment) this[f] = v
-        }
+    override fun toString() = asSequence().joinToString(prefix = "{", postfix = "}")
+
+    data class VariableAssignment<V>(val variable: Variable<V>, val value: V) {
+        override fun toString() = "${variable.name}=$value"
     }
-
-    operator fun get(feature: Flag<Boolean>): Boolean {
-        @Suppress("UNCHECKED_CAST")
-        val meta: FeatureMeta<Boolean> = (featureMeta[feature] as? FeatureMeta<Boolean>) ?: return false
-        return meta.indexEntry.valueOf(instance) ?: false
-    }
-
-    operator fun <V> get(feature: Feature<V>): V? {
-        @Suppress("UNCHECKED_CAST")
-        val meta: FeatureMeta<V> = (featureMeta[feature] as? FeatureMeta<V>) ?: return null
-        return meta.indexEntry.valueOf(instance)
-    }
-
-    fun <V> getOrThrow(feature: Feature<V>): V = get(feature)
-            ?: throw NoSuchElementException("Feature $feature not found.")
-
-    fun <V> getOrDefault(feature: Feature<V>, default: V): V = get(feature)
-            ?: default
-
-    fun containsKey(feature: Feature<*>): Boolean = featureMeta.containsKey(feature)
-    fun containsValue(value: Any): Boolean {
-        for (a in this) if (a.value == value) return true
-        return false
-    }
-
-    val size get() = featureMeta.size
-    val keys get() = map.keys
-    val values get() = map.values
-    val entries get() = map.entries
-
-    data class FeatureAssignment<V>(val feature: Feature<V>, val value: V?)
 }
 
 

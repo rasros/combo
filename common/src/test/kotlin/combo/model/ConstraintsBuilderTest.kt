@@ -1,395 +1,492 @@
 package combo.model
 
-import combo.sat.*
+import combo.sat.BitArray
+import combo.sat.Empty
+import combo.sat.Problem
+import combo.sat.Tautology
+import combo.sat.constraints.Conjunction
+import combo.sat.constraints.Disjunction
 import combo.test.assertContentEquals
 import kotlin.test.*
 
 class ConstraintsBuilderTest {
 
-    private val vars = Array(6) { flag() }
-    private val index = ReferenceIndex(vars)
+    private val vars = Array(6) { Flag("$it", true) }
+    private val index = VariableIndex("Root")
 
-    @Test
-    fun conjunctionBuilder() {
-        val cb = vars[0] and vars[1] and vars[3]
-        val c = cb.toClause(index)
-        assertTrue(c is Conjunction)
-        assertContentEquals(intArrayOf(0, 2, 6), c.literals.toArray().apply { sort() })
+    init {
+        vars.forEach { index.add(it) }
     }
 
     @Test
-    fun notConjunction() {
-        val c = vars[2] and !vars[3] and vars[4]
-        val d = (!c).toClause(index)
-        assertTrue(d is Disjunction)
-        assertContentEquals(intArrayOf(5, 6, 9), d.literals.toArray().apply { sort() })
+    fun conjunctionEmpty() {
+        with(ConstraintBuilder(index)) {
+            assertTrue(conjunction() is Tautology)
+        }
     }
 
     @Test
-    fun disjunctionBuilder() {
-        val db = vars[1] or vars[4] or vars[5]
-        val d = db.toClause(index)
-        assertTrue(d is Disjunction)
-        assertContentEquals(intArrayOf(2, 8, 10), d.literals.toArray().apply { sort() })
+    fun conjunction() {
+        with(ConstraintBuilder(index)) {
+            val con = conjunction(vars[0], vars[1], !vars[3]) as Conjunction
+            assertContentEquals(intArrayOf(-4, 1, 2), con.literals.toArray().apply { sort() })
+        }
     }
 
     @Test
-    fun notDisjunction() {
-        val d = vars[4] and !vars[5]
-        val c = d.toClause(index)
-        assertTrue(c is Conjunction)
-        assertContentEquals(intArrayOf(8, 11), c.literals.toArray().apply { sort() })
+    fun conjunctionNegated() {
+        with(ConstraintBuilder(index)) {
+            val con = conjunction(!vars[3], vars[2], vars[4]).not() as Disjunction
+            assertContentEquals(intArrayOf(-5, -3, 4), con.literals.toArray().apply { sort() })
+        }
     }
 
     @Test
-    fun notDoubleConjunction() {
-        val c1 = vars[0] and vars[1]
-        val c2 = vars[2] and vars[3]
-        val neg = !(c1 and c2)
-        val sents = neg.toConstraints(index)
-        assertEquals(1, sents.size)
-        val d = sents[0] as Disjunction
-        assertContentEquals(intArrayOf(1, 3, 5, 7), d.literals.toArray().apply { sort() })
+    fun disjunction() {
+        with(ConstraintBuilder(index)) {
+            val dis = disjunction(vars[0], vars[1], !vars[3])
+            assertContentEquals(intArrayOf(-4, 1, 2), dis.literals.toArray().apply { sort() })
+        }
     }
 
     @Test
-    fun notDoubleDisjunction() {
-        val c1 = vars[0] or vars[1]
-        val c2 = vars[2] or vars[3]
-        val neg = !(c1 and c2)
-        val sents = neg.toConstraints(index)
-        assertEquals(4, sents.size)
-        for (sent in sents) assertTrue(sent is Disjunction)
-        assertContentEquals(intArrayOf(1, 5), sents[0].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(1, 7), sents[1].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(3, 5), sents[2].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(3, 7), sents[3].literals.toArray().apply { sort() })
+    fun disjunctionEmpty() {
+        with(ConstraintBuilder(index)) {
+            assertTrue(disjunction() is Empty)
+        }
     }
 
     @Test
-    fun notDisjunctionAndConjunction() {
-        val c1 = vars[0] or vars[1]
-        val c2 = vars[2] and vars[3]
-        val neg = !(c1 and c2)
-        val sents = neg.toConstraints(index)
-        assertEquals(2, sents.size)
-        for (sent in sents) assertTrue(sent is Disjunction)
-        assertContentEquals(intArrayOf(1, 5, 7), sents[0].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(3, 5, 7), sents[1].literals.toArray().apply { sort() })
-    }
-
-    @Test
-    fun notDoubleOrConjunction() {
-        val c1 = vars[0] and vars[1]
-        val c2 = vars[2] and vars[3]
-        val neg = !(c1 or c2)
-        val sents = neg.toConstraints(index)
-        assertEquals(16, sents.size)
-    }
-
-    @Test
-    fun disjunctionTautology() {
-        val db = vars[0] or !vars[0]
-        val d = db.toClause(index)
-        assertSame(d, Tautology)
+    fun disjunctionNegated() {
+        with(ConstraintBuilder(index)) {
+            val dis = disjunction(!vars[3], vars[2], vars[4]).not()
+            assertContentEquals(intArrayOf(-5, -3, 4), dis.literals.toArray().apply { sort() })
+        }
     }
 
     @Test
     fun disjunctionDuplicationHandled() {
-        val db = vars[0] or vars[0]
-        val d = db.toClause(index)
-        assertEquals(1, d.literals.size)
+        with(ConstraintBuilder(index)) {
+            val c = (vars[0] or vars[0]) as Disjunction
+            assertEquals(1, c.literals.size)
+        }
+    }
+
+    @Test
+    fun and1() {
+        with(ConstraintBuilder(index)) {
+            val con = (vars[0] and vars[2] and !vars[3]) as Conjunction
+            assertContentEquals(intArrayOf(-4, 1, 3), con.literals.toArray().apply { sort() })
+        }
+    }
+
+    @Test
+    fun and2() {
+        with(ConstraintBuilder(index)) {
+            val con1 = ("1" and "2") as Conjunction
+            assertContentEquals(intArrayOf(2, 3), con1.literals.toArray().apply { sort() })
+            val con2 = (vars[1] and "2") as Conjunction
+            assertContentEquals(intArrayOf(2, 3), con2.literals.toArray().apply { sort() })
+            val con3 = ("2" and !vars[0]) as Conjunction
+            assertContentEquals(intArrayOf(-1, 3), con3.literals.toArray().apply { sort() })
+            val con4 = (vars[1] and !vars[0]) as Conjunction
+            assertContentEquals(intArrayOf(-1, 2), con4.literals.toArray().apply { sort() })
+        }
+    }
+
+    @Test
+    fun or1() {
+        with(ConstraintBuilder(index)) {
+            val dis = (vars[0] or vars[1] or !vars[3]) as Disjunction
+            assertContentEquals(intArrayOf(-4, 1, 2), dis.literals.toArray().apply { sort() })
+        }
+    }
+
+    @Test
+    fun or2() {
+        with(ConstraintBuilder(index)) {
+            val dis1 = ("1" or "2") as Disjunction
+            assertContentEquals(intArrayOf(2, 3), dis1.literals.toArray().apply { sort() })
+            val dis2 = (vars[1] or "2") as Disjunction
+            assertContentEquals(intArrayOf(2, 3), dis2.literals.toArray().apply { sort() })
+            val dis3 = ("2" or !vars[0]) as Disjunction
+            assertContentEquals(intArrayOf(-1, 3), dis3.literals.toArray().apply { sort() })
+            val dis4 = (vars[1] or !vars[0]) as Disjunction
+            assertContentEquals(intArrayOf(-1, 2), dis4.literals.toArray().apply { sort() })
+        }
     }
 
     @Test
     fun xor1() {
-        val c = vars[0] xor vars[2] xor vars[1]
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b111 })))
-        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b011 })))
-        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b101 })))
-        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b001 })))
-        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b110 })))
-        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b010 })))
-        assertTrue(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b100 })))
-        assertFalse(p.satisfies(BitFieldInstance(3, LongArray(1) { 0b000 })))
+        with(ConstraintBuilder(index)) {
+            val c = (vars[0] xor vars[2] xor vars[1]) as CNF
+            val p = Problem(c.disjunctions.toTypedArray(), 3)
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b011 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b101 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b001 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b110 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b010 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b100 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b000 })))
+        }
     }
+
 
     @Test
     fun xor2() {
-        val c = vars[0] xor !vars[1]
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 2)
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0))))
-    }
-
-    @Test
-    fun equivalent1() {
-        // ((a equivalent b) equivalent c)
-        val c = vars[0] equivalent vars[1] equivalent vars[2]
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
-    }
-
-    @Test
-    fun equivalent2() {
-        val c = vars[0] equivalent !vars[1]
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 2)
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0))))
+        with(ConstraintBuilder(index)) {
+            val c1 = (vars[0] xor !vars[1]) as CNF
+            assertContentEquals(intArrayOf(-2, 1), c1.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-1, 2), c1.disjunctions[1].literals.toArray().apply { sort() })
+            val c2 = ("2" xor !vars[1]) as CNF
+            assertContentEquals(intArrayOf(-2, 3), c2.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-3, 2), c2.disjunctions[1].literals.toArray().apply { sort() })
+            val c3 = (vars[3] xor "1") as CNF
+            assertContentEquals(intArrayOf(2, 4), c3.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-4, -2), c3.disjunctions[1].literals.toArray().apply { sort() })
+            val c4 = ("3" xor "1") as CNF
+            assertContentEquals(intArrayOf(2, 4), c4.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-4, -2), c4.disjunctions[1].literals.toArray().apply { sort() })
+        }
     }
 
     @Test
     fun implies1() {
         // ((a implies b) implies c)
-        val c = vars[0] implies vars[1] implies vars[2]
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
+        with(ConstraintBuilder(index)) {
+            val c = (vars[0] implies vars[1] implies vars[2]) as CNF
+            val p = Problem(c.disjunctions.toTypedArray(), 3)
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b011 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b101 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b001 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b100 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b010 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b100 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b000 })))
+        }
     }
 
     @Test
     fun implies2() {
-        val c = !vars[0] implies vars[1]
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 2)
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0))))
-    }
-
-    @Test
-    fun excludesNegated() {
-        assertFailsWith(IllegalArgumentException::class) {
-            excludes(!vars[0], vars[1], vars[2]).toConstraints(index)
+        with(ConstraintBuilder(index)) {
+            val c1 = (vars[0] implies !vars[1]) as Disjunction
+            assertContentEquals(intArrayOf(-2, -1), c1.literals.toArray().apply { sort() })
+            val c2 = ("3" implies vars[1]) as Disjunction
+            assertContentEquals(intArrayOf(-4, 2), c2.literals.toArray().apply { sort() })
+            val c3 = ("3" implies "4") as Disjunction
+            assertContentEquals(intArrayOf(-4, 5), c3.literals.toArray().apply { sort() })
+            val c4 = (!vars[3] implies "4") as Disjunction
+            assertContentEquals(intArrayOf(4, 5), c4.literals.toArray().apply { sort() })
         }
     }
 
     @Test
-    fun excludes1() {
-        val c = excludes(vars[0], vars[2], vars[1])
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
-    }
-
-    @Test
-    fun reifiedConjunction() {
-        val c = vars[0] reified and(vars[1], !vars[2])
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
-    }
-
-    @Test
-    fun reifiedDisjunction() {
-        val c = vars[0] reified or(vars[1], vars[2])
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
-    }
-
-    @Test
-    fun reifiedNegated() {
-        val c = !vars[2] reified or(vars[1], vars[0])
-        val sents = c.toConstraints(index)
-        val p = Problem(sents, 3)
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 1, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(1, 0, 0))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 1))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 1, 0))))
-        assertTrue(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 1))))
-        assertFalse(p.satisfies(ByteArrayInstance(byteArrayOf(0, 0, 0))))
-    }
-
-    @Test
-    fun reifiedWithItself() {
-        assertFailsWith(IllegalArgumentException::class) {
-            (vars[0] reified or(!vars[0], vars[1])).toConstraints(index)
+    fun equivalent1() {
+        // ((a equivalent b) equivalent c)
+        with(ConstraintBuilder(index)) {
+            val c = (vars[0] equivalent vars[1] equivalent vars[2]) as CNF
+            val p = Problem(c.disjunctions.toTypedArray(), 3)
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b011 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b101 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b001 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b110 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b010 })))
+            assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b100 })))
+            assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b000 })))
         }
     }
 
     @Test
-    fun cnf1() {
-        //0=f, 1=e, 2=d, 3=c, 4=b, 5=a
-        val c1 = vars[0] or vars[2] or vars[3] or vars[4] or !vars[5]
-        val c2 = vars[0] or vars[2]
-        val c3 = vars[2] or vars[4]
-        val c = !c1 or (c2 and c3)
-        val sents = c.toConstraints(index)
-        val instance = ByteArrayInstance(6)
-        instance[5] = true
-        assertTrue(Problem(sents, 6).satisfies(instance))
+    fun equivalent2() {
+        with(ConstraintBuilder(index)) {
+            val c1 = (vars[0] equivalent !vars[1]) as CNF
+            assertContentEquals(intArrayOf(-2, -1), c1.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(1, 2), c1.disjunctions[1].literals.toArray().apply { sort() })
+            val c2 = ("3" equivalent vars[1]) as CNF
+            assertContentEquals(intArrayOf(-4, 2), c2.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-2, 4), c2.disjunctions[1].literals.toArray().apply { sort() })
+            val c3 = ("3" equivalent "4") as CNF
+            assertContentEquals(intArrayOf(-4, 5), c3.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-5, 4), c3.disjunctions[1].literals.toArray().apply { sort() })
+            val c4 = (!vars[3] equivalent "4") as CNF
+            assertContentEquals(intArrayOf(4, 5), c4.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-5, -4), c4.disjunctions[1].literals.toArray().apply { sort() })
+        }
     }
 
     @Test
-    fun alternativeSimpleTest() {
-        val a = alternative(1, 2, 3.0, name = "a")
-        val b = flag("b")
-        val c = a and b
-        val index = ReferenceIndex(arrayOf(a, b))
-        val sents = c.toConstraints(index)
-        assertEquals(1, sents.size)
-        assertTrue(sents[0] is Conjunction)
-        assertContentEquals(intArrayOf(0, 8), sents[0].literals.toArray().apply { sort() })
+    fun excludes() {
+        with(ConstraintBuilder(index)) {
+            val c = excludes(vars[0], !vars[1])
+            val p = Problem(arrayOf(c), 2)
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b11))))
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b01))))
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b10))))
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b00))))
+        }
     }
 
     @Test
-    fun orSimpleTest() {
-        val a = multiple(1, 2, 3.0, name = "a")
-        val b = flag("b")
-        val c = a and b
-        val index = ReferenceIndex(arrayOf(a, b))
-        val sents = c.toConstraints(index)
-        assertEquals(1, sents.size)
-        assertTrue(sents[0] is Conjunction)
-        assertContentEquals(intArrayOf(0, 8), sents[0].literals.toArray().apply { sort() })
+    fun exactly() {
+        with(ConstraintBuilder(index)) {
+            val c = exactly(2, arrayOf(vars[0], !vars[1]))
+            val p = Problem(arrayOf(c), 2)
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b11))))
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b01))))
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b10))))
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b00))))
+        }
     }
 
     @Test
-    fun largeCnf() {
-        val a = flag("a")
-        val b = flag("b")
-        val c = flag("c")
-        val d = flag("d")
-        val e = flag("e")
-        val f = flag("f")
-        val g = flag("g")
-        val con = (f and g) or ((a or b or !c) and d and e)
-        val index = ReferenceIndex(arrayOf(a, b, c, d, e, f, g))
-        val sents = con.toConstraints(index)
-        val p = Problem(sents, 7)
-
-        // Random sample
-        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111111 })))
-        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111110 })))
-        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0101111 })))
-        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0000111 })))
-        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b1110011 })))
-        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0011011 })))
+    fun atMost() {
+        with(ConstraintBuilder(index)) {
+            val c = atMost(1, arrayOf(!vars[1], vars[0]))
+            val p = Problem(arrayOf(c), 2)
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b11))))
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b01))))
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b10))))
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b00))))
+        }
     }
 
     @Test
-    fun negatedLargeCnf() {
-        val a = flag("a")
-        val b = flag("b")
-        val c = flag("c")
-        val d = flag("d")
-        val e = flag("e")
-        val f = flag("f")
-        val g = flag("g")
-        val con = (f and g) or ((a or b or !c) and d and e)
-        val neg = !con
-        val index = ReferenceIndex(arrayOf(a, b, c, d, e, f, g))
-        val sents = neg.toConstraints(index)
-        val p = Problem(sents, 7)
-
-        // Random sample
-        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111111 })))
-        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b111110 })))
-        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0101111 })))
-        assertTrue(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0000111 })))
-        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b1110011 })))
-        assertFalse(p.satisfies(BitFieldInstance(7, LongArray(1) { 0b0011011 })))
-    }
-}
-
-class CnfBuilderTest {
-
-    private val vars = Array(6) { flag() }
-    private val index = ReferenceIndex(vars)
-
-    @Test
-    fun pullIn() {
-        // (a or b) and (c or d)
-        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
-        val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(vars[4], vars[5])))
-        val sents1 = cnf1.toConstraints(index)
-        val sents2 = cnf2.toConstraints(index)
-        assertEquals(2, sents1.size)
-        assertEquals(2, sents2.size)
-        assertContentEquals(intArrayOf(0, 2), sents1[0].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(4, 6), sents1[1].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(0, 2, 8, 10), sents2[0].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(4, 6, 8, 10), sents2[1].literals.toArray().apply { sort() })
+    fun atLeast() {
+        with(ConstraintBuilder(index)) {
+            val c = atLeast(2, arrayOf(vars[0], !vars[1]))
+            val p = Problem(arrayOf(c), 2)
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b11))))
+            assertTrue(p.satisfies(BitArray(2, intArrayOf(0b01))))
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b10))))
+            assertFalse(p.satisfies(BitArray(2, intArrayOf(0b00))))
+        }
     }
 
     @Test
-    fun pullInDuplication() {
-        // (a or b) and (c or d)
-        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
-        val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(vars[0], vars[2])))
-        val sents = cnf2.toConstraints(index)
-        assertEquals(2, sents.size)
-        assertContentEquals(intArrayOf(0, 2, 4), sents[0].literals.toArray().apply { sort() })
-        assertContentEquals(intArrayOf(0, 4, 6), sents[1].literals.toArray().apply { sort() })
+    fun reifiedEquivalent1() {
+        with(ConstraintBuilder(index)) {
+            val c = vars[0] reifiedEquivalent conjunction(vars[1], !vars[2])
+            val p = Problem(arrayOf(c), 3)
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b101))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b001))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b110))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b010))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b100))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b000))))
+        }
     }
 
     @Test
-    fun pullInTautology() {
-        // (a or b) and (c or d)
-        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
-        val cnf2 = cnf1.pullIn(DisjunctionBuilder(arrayOf(!vars[0])))
-        val sents = cnf2.toConstraints(index)
-        assertEquals(1, sents.size)
-        assertContentEquals(intArrayOf(1, 4, 6), sents[0].literals.toArray().apply { sort() })
+    fun reifiedEquivalent2() {
+        with(ConstraintBuilder(index)) {
+            val c = "0" reifiedEquivalent disjunction(vars[1], vars[2])
+            val p = Problem(arrayOf(c), 3)
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b101))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b001))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b110))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b010))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b100))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b000))))
+        }
     }
 
     @Test
-    fun distribute() {
-        val cnf1 = CnfBuilder(arrayOf(DisjunctionBuilder(arrayOf(vars[0], vars[1])), DisjunctionBuilder(arrayOf(vars[2], vars[3]))))
-        val cnf2 = CnfBuilder(arrayOf(
-                DisjunctionBuilder(arrayOf(!vars[0], vars[4], vars[5])),
-                DisjunctionBuilder(arrayOf(!vars[1], vars[3], vars[5]))))
-        val cnf3 = cnf1.distribute(cnf2)
-        assertEquals(4, cnf3.disjunctions.size)
-        val sents = cnf3.toConstraints(index)
-        assertEquals(2, sents.size)
+    fun reifiedEquivalent3() {
+        with(ConstraintBuilder(index)) {
+            val c = !vars[2] reifiedEquivalent disjunction(vars[1], vars[0])
+            val p = Problem(arrayOf(c), 3)
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b101))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b001))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b110))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b010))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b100))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b000))))
+        }
     }
+
+    @Test
+    fun reifiedImplies1() {
+        with(ConstraintBuilder(index)) {
+            val c = vars[0] reifiedImplies conjunction(vars[1], !vars[2])
+            val p = Problem(arrayOf(c), 3)
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b101))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b001))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b110))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b010))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b100))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b000))))
+        }
+    }
+
+    @Test
+    fun reifiedImplies2() {
+        with(ConstraintBuilder(index)) {
+            val c = "0" reifiedImplies disjunction(vars[1], vars[2])
+            val p = Problem(arrayOf(c), 3)
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b101))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b001))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b110))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b010))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b100))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b000))))
+        }
+    }
+
+    @Test
+    fun reifiedImplies3() {
+        with(ConstraintBuilder(index)) {
+            val c = !vars[2] reifiedImplies disjunction(vars[1], vars[0])
+            val p = Problem(arrayOf(c), 3)
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b101))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b001))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b110))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b010))))
+            assertTrue(p.satisfies(BitArray(3, intArrayOf(0b100))))
+            assertFalse(p.satisfies(BitArray(3, intArrayOf(0b000))))
+        }
+    }
+
+    @Test
+    fun cnf() {
+        with(ConstraintBuilder(index)) {
+            val c1 = vars[0] or vars[2] or vars[3] or vars[4] or !vars[5]
+            val c2 = vars[0] or vars[2]
+            val c3 = vars[2] or vars[4]
+            val c = (!c1 or (c2 and c3)) as CNF
+            val instance = BitArray(6)
+            instance[5] = true
+            assertTrue(Problem(c.disjunctions.toTypedArray(), 6).satisfies(instance))
+        }
+    }
+
+    @Test
+    fun cnfToConjunction() {
+        with(ConstraintBuilder(index)) {
+            val c1 = vars[1] and vars[0]
+            val c2 = vars[2] and vars[3]
+            val c = c1 and c2
+            assertTrue(c is Conjunction)
+            assertContentEquals(c.literals.toArray().apply { sort() }, intArrayOf(1, 2, 3, 4))
+        }
+    }
+
+    @Test
+    fun cnfConjunctionDisjunction() {
+        with(ConstraintBuilder(index)) {
+            val c1 = vars[0] and vars[1]
+            val c2 = vars[2] or vars[3]
+            val c3 = (c1 and c2) as CNF
+            assertEquals(3, c3.disjunctions.size)
+            assertContentEquals(intArrayOf(1), c3.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(2), c3.disjunctions[1].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(3, 4), c3.disjunctions[2].literals.toArray().apply { sort() })
+        }
+    }
+
+    @Test
+    fun cnfNegatedConjunctionDisjunction() {
+        with(ConstraintBuilder(index)) {
+            val c1 = vars[0] and vars[1]
+            val c2 = vars[2] or vars[3]
+            val c3 = c1 and c2
+            val neg = !(c3) as CNF
+            assertEquals(2, neg.disjunctions.size)
+            assertContentEquals(intArrayOf(-4, -2, -1), neg.disjunctions[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-3, -2, -1), neg.disjunctions[1].literals.toArray().apply { sort() })
+        }
+    }
+
+    @Test
+    fun cnfNegatedDisjunctions() {
+        with(ConstraintBuilder(index)) {
+            val c1 = vars[0] or vars[1]
+            val c2 = vars[2] or vars[3]
+            val neg = !(c1 and c2) as CNF
+            assertEquals(4, neg.disjunctions.size)
+            val sents = neg.disjunctions
+            assertContentEquals(intArrayOf(-4, -2), sents[0].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-3, -2), sents[1].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-4, -1), sents[2].literals.toArray().apply { sort() })
+            assertContentEquals(intArrayOf(-3, -1), sents[3].literals.toArray().apply { sort() })
+        }
+    }
+
+    @Test
+    fun cnfNegatedOredConjunctions() {
+        with(ConstraintBuilder(index)) {
+            val c1 = vars[0] and vars[1]
+            val c2 = vars[2] and vars[3]
+            val neg = !(c1 or c2) as CNF
+            assertEquals(16, neg.disjunctions.size)
+        }
+    }
+
+    @Test
+    fun cnfLarge() {
+        val a = Flag("a", true)
+        val b = Flag("b", true)
+        val c = Flag("c", true)
+        val d = Flag("d", true)
+        val e = Flag("e", true)
+        val f = Flag("f", true)
+        val g = Flag("g", true)
+        val index = VariableIndex("").apply {
+            add(a); add(b); add(c); add(d); add(e); add(f); add(g)
+        }
+        with(ConstraintBuilder(index)) {
+            val con = ((f and g) or ((a or b or !c) and d and e)) as CNF
+            val p = Problem(con.disjunctions.toTypedArray(), 7)
+
+            // Random sample
+            assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b111111 })))
+            assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b111110 })))
+            assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b0101111 })))
+            assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b0000111 })))
+            assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b1110011 })))
+            assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b0011011 })))
+        }
+    }
+
+    @Test
+    fun cnfLargeNegated() {
+        val a = Flag("a", true)
+        val b = Flag("b", true)
+        val c = Flag("c", true)
+        val d = Flag("d", true)
+        val e = Flag("e", true)
+        val f = Flag("f", true)
+        val g = Flag("g", true)
+        val index = VariableIndex("").apply {
+            add(a); add(b); add(c); add(d); add(e); add(f); add(g)
+        }
+        with(ConstraintBuilder(index)) {
+            val con = (f and g) or ((a or b or !c) and d and e)
+            val neg = (!con) as CNF
+            val p = Problem(neg.disjunctions.toTypedArray(), 7)
+
+            // Random sample
+            assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b111111 })))
+            assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b111110 })))
+            assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b0101111 })))
+            assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b0000111 })))
+            assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b1110011 })))
+            assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b0011011 })))
+        }
+    }
+
 }
