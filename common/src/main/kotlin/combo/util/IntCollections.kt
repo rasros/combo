@@ -28,12 +28,12 @@ interface IntCollection : Iterable<Int> {
     @Suppress("NOTHING_TO_INLINE")
     companion object {
 
-        inline fun spread(i: Int) = i * 0x7f4a7c15
+        inline fun spread(i: Int) = i * 0x7F4A7C15
 
-        const val LOAD_FACTOR = 0.85
+        const val LOAD_FACTOR = 0.85f
 
         fun tableSizeFor(size: Int): Int {
-            return max(2, Int.msb((size.toDouble() / LOAD_FACTOR).toInt()) * 2)
+            return max(2, Int.power2((size.toFloat() / LOAD_FACTOR).toInt()))
         }
 
         fun nextThreshold(currentSize: Int): Int {

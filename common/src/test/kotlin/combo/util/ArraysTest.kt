@@ -34,22 +34,22 @@ class ArraysTest {
 
     @Test
     fun removeOne() {
-        assertTrue(intArrayOf(1).remove(0).isEmpty())
+        assertTrue(intArrayOf(1).removeAt(0).isEmpty())
     }
 
     @Test
     fun removeLast() {
-        assertContentEquals(intArrayOf(1, 2, 3), intArrayOf(1, 2, 3, 4).remove(3))
+        assertContentEquals(intArrayOf(1, 2, 3), intArrayOf(1, 2, 3, 4).removeAt(3))
     }
 
     @Test
     fun removeMiddle() {
-        assertContentEquals(intArrayOf(1, 3, 4), intArrayOf(1, 2, 3, 4).remove(1))
-        assertContentEquals(intArrayOf(1, 2, 4), intArrayOf(1, 2, 3, 4).remove(2))
+        assertContentEquals(intArrayOf(1, 3, 4), intArrayOf(1, 2, 3, 4).removeAt(1))
+        assertContentEquals(intArrayOf(1, 2, 4), intArrayOf(1, 2, 3, 4).removeAt(2))
     }
 
     @Test
     fun removeFirst() {
-        assertContentEquals(intArrayOf(2, 3, 4), intArrayOf(1, 2, 3, 4).remove(0))
+        assertContentEquals(intArrayOf(2, 3, 4), intArrayOf(1, 2, 3, 4).removeAt(0))
     }
 }

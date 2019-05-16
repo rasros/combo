@@ -14,8 +14,9 @@ expect class AtomicInt(value: Int = 0) {
     fun get(): Int
 }
 
-expect class ConcurrentCache<E>(maxSize: Int) {
+expect class RandomConcurrentBuffer<E>(maxSize: Int) {
     fun get(rng: Random, filter: (E) -> Boolean, create: () -> E): E
     fun add(rng: Random, e: E)
+    fun find(predicate: (E) -> Boolean): E?
     fun forEach(action: (E) -> Unit)
 }

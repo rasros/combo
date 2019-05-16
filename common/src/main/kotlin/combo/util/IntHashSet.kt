@@ -100,7 +100,7 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
         // Resize if needed
         if (size + 1 >= threshold) {
             val old = table
-            table = IntArray(IntCollection.tableSizeFor(size + 1))
+            table = IntArray(IntCollection.tableSizeFor(size + 1) * 2)
             threshold = IntCollection.nextThreshold(table.size)
             mask = table.size - 1
             if (nullValue != 0)

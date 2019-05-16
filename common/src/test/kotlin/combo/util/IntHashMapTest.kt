@@ -6,18 +6,18 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class IntIntHashMapTest {
+class IntHashMapTest {
 
     @Test
     fun createEmpty() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         assertEquals(0, map.size)
         assertTrue { map.isEmpty() }
     }
 
     @Test
     fun add() {
-        val map = IntIntHashMap(nullKey = -1)
+        val map = IntHashMap(nullKey = -1)
         entry(4, 4)
         for (i in 0 until 1000) {
             assertEquals(i, map.size)
@@ -27,7 +27,7 @@ class IntIntHashMapTest {
 
     @Test
     fun addDuplicate() {
-        val map = IntIntHashMap(nullKey = -1)
+        val map = IntHashMap(nullKey = -1)
         for (i in 0 until 1000) {
             assertEquals(i, map.size)
             assertEquals(0, map.add(entry(i, 1)))
@@ -37,21 +37,21 @@ class IntIntHashMapTest {
 
     @Test
     fun containsNotEmpty() {
-        val map = IntIntHashMap()
-        assertFalse(map.containsKey(map.nullKey))
-        assertFalse(map.containsKey(10))
+        val map = IntHashMap()
+        assertFalse(map.contains(map.nullKey))
+        assertFalse(map.contains(10))
     }
 
     @Test
     fun containsAfterAdd() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         map.add(entry(2, 10))
-        assertTrue(map.containsKey(2))
+        assertTrue(map.contains(2))
     }
 
     @Test
     fun createSmallTable() {
-        val map = IntIntHashMap(0)
+        val map = IntHashMap(0)
         for (i in 1..100)
             map[i] = i
         assertEquals(100, map.size)
@@ -59,7 +59,7 @@ class IntIntHashMapTest {
 
     @Test
     fun removeMissing() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         assertEquals(0, map.remove(1))
         assertEquals(0, map.remove(0))
         assertEquals(0, map.remove(-1))
@@ -67,7 +67,7 @@ class IntIntHashMapTest {
 
     @Test
     fun removeAndAddAgain() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         map[2] = 10
         map[8] = 1
         assertEquals(0, map.remove(3))
@@ -80,7 +80,7 @@ class IntIntHashMapTest {
 
     @Test
     fun clear() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         for (i in 4..10)
             map[i] = i
         map.remove(5)
@@ -92,13 +92,13 @@ class IntIntHashMapTest {
 
     @Test
     fun emptySequence() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         assertEquals(0, map.asSequence().count())
     }
 
     @Test
     fun smallSequence() {
-        val map = IntIntHashMap()
+        val map = IntHashMap()
         map.add(entry(8, 1))
         map.add(entry(1, 0))
         assertEquals(2, map.asSequence().count())
@@ -106,22 +106,22 @@ class IntIntHashMapTest {
 
     @Test
     fun multipleRehash() {
-        val map = IntIntHashMap(2)
+        val map = IntHashMap(2)
         (1..100).forEach { map.add(entry(it, it)) }
         map.clear()
         (1100..1120).forEach { map.add(entry(it, it)) }
         map.clear()
         (200..300).forEach { map.add(entry(it, it)) }
         assertEquals(101, map.size)
-        assertFalse(map.containsKey(1))
-        assertTrue(map.containsKey(200))
+        assertFalse(map.contains(1))
+        assertTrue(map.contains(200))
     }
 
     @Test
     fun largeRandomTest() {
         val r = Random
         val all = ArrayList<Int>()
-        val map = IntIntHashMap(nullKey = -1)
+        val map = IntHashMap(nullKey = -1)
         val test = HashMap<Int, Int>()
         for (i in 1..1_000) {
             val n = r.nextInt(1, 10_000)
@@ -145,7 +145,7 @@ class IntIntHashMapTest {
 
     @Test
     fun iteratorReentrant() {
-        val s = IntIntHashMap()
+        val s = IntHashMap()
         for (i in 1..10) s.add(entry(i, Random.nextInt()))
         assertTrue(s.iterator().hasNext())
         assertEquals(10, s.iterator().asSequence().toSet().size)
@@ -154,12 +154,12 @@ class IntIntHashMapTest {
 
     @Test
     fun copySame() {
-        val s1 = IntIntHashMap(4, -1)
+        val s1 = IntHashMap(4, -1)
         for (i in 1..10) s1.add(entry(Random.nextInt(1, Int.MAX_VALUE), Random.nextInt()))
         val s2 = s1.copy()
         assertEquals(s1.size, s2.size)
-        for (entry in s1) {
-            assertTrue(s1.containsKey(entry.key()))
+        for (entry in s1.entryIterator()) {
+            assertTrue(s1.contains(entry.key()))
             assertEquals(s1[entry.key()], s2[entry.key()])
         }
     }

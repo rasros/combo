@@ -1,17 +1,20 @@
 package combo.util
 
+import combo.math.IntPermutation
 import kotlin.jvm.Transient
+import kotlin.random.Random
 
 /**
  * Specialized open addressing hash table for storing ints. It improves over default Java implementation a lot.
  * It uses linear probing in order to support backshifting remove operation (so that no tombstone marker is needed).
  * Finally, inserts use the Robin Hood Hash method to stabilize performance.
+ * This is also an [IntCollection] over the keys of the table.
  */
-class IntIntHashMap private constructor(private var table: LongArray, size: Int, val nullKey: Int = 0) : Iterable<IntEntry> {
+class IntHashMap private constructor(private var table: LongArray, size: Int, val nullKey: Int = 0) : IntCollection {
 
     constructor(initialSize: Int = 4, nullKey: Int = 0) : this(LongArray(IntCollection.tableSizeFor(initialSize)) { entry(nullKey, 0) }, 0, nullKey)
 
-    var size: Int = size
+    override var size: Int = size
         private set
 
     @Transient
@@ -22,7 +25,7 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
 
     fun isEmpty() = size == 0
 
-    fun copy() = IntIntHashMap(table.copyOf(), size, nullKey)
+    override fun copy() = IntHashMap(table.copyOf(), size, nullKey)
 
     fun clear() {
         table = LongArray(IntCollection.tableSizeFor(4))
@@ -35,15 +38,7 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
         mask = table.size - 1
     }
 
-    fun containsKey(ix: Int) = table[linearProbe(ix)].key() != nullKey
-
-    fun keys(): IntArray {
-        val result = IntArray(size)
-        var ix = 0
-        for (i in table.indices)
-            if (table[i].key() != nullKey) result[ix++] = table[i].key()
-        return result
-    }
+    override fun contains(value: Int) = table[linearProbe(value)].key() != nullKey
 
     fun values(): IntArray {
         val result = IntArray(size)
@@ -53,7 +48,66 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
         return result
     }
 
-    override fun iterator(): LongIterator {
+    /**
+     * Map keys in the hashmap.
+     */
+    override fun map(transform: (Int) -> Int): IntHashMap {
+        val mapped = IntHashMap(size)
+        for (i in table) {
+            if (i.key() != nullKey) mapped.add(entry(transform(i.key()), i.value()))
+        }
+        return mapped
+    }
+
+    override fun permutation(rng: Random): IntIterator {
+        return object : IntIterator() {
+            private var perm = IntPermutation(table.size, rng)
+            private var seen = 0
+            private var ptr = 0
+            override fun hasNext() = seen < size
+
+            override fun nextInt(): Int {
+                if (seen >= size) throw NoSuchElementException()
+                seen++
+                while (table[perm.encode(ptr)].key() == nullKey)
+                    ptr = (ptr + 1) and mask
+                return table[perm.encode(ptr)].key().also {
+                    ptr = (ptr + 1) and mask
+                }
+            }
+        }
+    }
+
+    override fun random(rng: Random): Int {
+        if (isEmpty()) throw NoSuchElementException()
+        while (true) {
+            val k = rng.nextInt(table.size)
+            if (table[k].key() != nullKey) return table[k].key()
+        }
+    }
+
+    /**
+     * Iterate over the keys in the map.
+     */
+    override fun iterator(): IntIterator {
+        return object : IntIterator() {
+            private var seen = 0
+            private var ptr = 0
+            override fun hasNext() = seen < size
+
+            override fun nextInt(): Int {
+                while (table[ptr].key() == nullKey)
+                    ptr++
+                seen++
+                return table[ptr++].key()
+            }
+        }
+    }
+
+    /**
+     * Iterate over the key/value entries in the map. Use [value] and [key] to extract the key/value from the longs.
+     */
+    fun entryIterator(): LongIterator {
         return object : LongIterator() {
             private var seen = 0
             private var ptr = 0
@@ -87,7 +141,7 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
             // Resize if needed
             if (size + 1 >= threshold) {
                 val old = table
-                table = LongArray(IntCollection.tableSizeFor(size + 1))
+                table = LongArray(IntCollection.tableSizeFor(size + 1) * 2)
                 threshold = IntCollection.nextThreshold(table.size)
                 mask = table.size - 1
                 if (nullKey != 0)
@@ -160,5 +214,5 @@ class IntIntHashMap private constructor(private var table: LongArray, size: Int,
         return j
     }
 
-    override fun toString() = "IntIntHashMap($size)"
+    override fun toString() = "IntHashMap($size)"
 }

@@ -7,16 +7,6 @@ import kotlin.test.*
 class IntRangeSetTest {
 
     @Test
-    fun createEmpty() {
-        val set = IntRangeSet(0, -1)
-        assertEquals(0, set.size)
-        assertFalse(set.contains(-1))
-        assertFalse(set.contains(0))
-        assertFalse(set.contains(1))
-        assertTrue(set.isEmpty())
-    }
-
-    @Test
     fun createPointSet() {
         val set = IntRangeSet(0, 0)
         assertEquals(1, set.size)
@@ -32,35 +22,15 @@ class IntRangeSetTest {
     }
 
     @Test
-    fun toArrayOnEmpty() {
-        val set = IntRangeSet(0, -1)
-        assertTrue(set.toArray().isEmpty())
-    }
-
-    @Test
     fun toArray() {
         val set = IntRangeSet(10, 19)
         assertContentEquals((10..19).toList().toIntArray(), set.toArray())
     }
 
     @Test
-    fun emptySequence() {
-        val set = IntRangeSet(-2, -3)
-        assertEquals(0, set.asSequence().count())
-    }
-
-    @Test
     fun smallSequence() {
         val set = IntRangeSet(2, 3)
         assertEquals(2, set.asSequence().count())
-    }
-
-    @Test
-    fun randomOnEmpty() {
-        assertFailsWith(NoSuchElementException::class) {
-            val set = IntRangeSet(5, 4)
-            set.random(Random)
-        }
     }
 
     @Test
@@ -92,10 +62,5 @@ class IntRangeSetTest {
         val s1 = IntRangeSet(10, 20)
         val s2 = s1.permutation(Random).asSequence().toSet()
         assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
-    }
-
-    @Test
-    fun emptyPermutation() {
-        assertEquals(0, IntRangeSet(0, -1).permutation(Random).asSequence().count())
     }
 }

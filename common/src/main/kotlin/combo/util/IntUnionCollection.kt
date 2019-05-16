@@ -6,7 +6,7 @@ import kotlin.random.Random
 class IntUnionCollection(val a: IntCollection, val b: IntCollection) : IntCollection {
     override val size = a.size + b.size
     override fun copy() = IntUnionCollection(a.copy(), b.copy())
-    override fun contains(ix: Int) = a.contains(ix) || b.contains(ix)
+    override fun contains(value: Int) = a.contains(value) || b.contains(value)
 
     override fun map(transform: (Int) -> Int) = IntUnionCollection(a.map(transform), b.map(transform))
 
