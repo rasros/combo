@@ -9,15 +9,21 @@ import com.joptimizer.exception.IterationsLimitException
 import com.joptimizer.optimizers.BIPLokbaTableMethod
 import com.joptimizer.optimizers.BIPOptimizationRequest
 import combo.math.RandomSequence
+import combo.math.toIntArray
 import combo.sat.*
-import combo.sat.Relation.*
+import combo.sat.constraints.Cardinality
+import combo.sat.constraints.Conjunction
+import combo.sat.constraints.Disjunction
+import combo.sat.constraints.ReifiedEquivalent
+import combo.sat.constraints.Relation.*
 import combo.util.IntCollection
 import combo.util.IntList
 import combo.util.nanos
+import combo.util.transformArray
 import org.apache.commons.logging.impl.NoOpLog
-import kotlin.math.roundToInt
 
 /**
+ * TODO support linear, cardinality with negated literals, reifiedeq, reifiedimp
  * [Optimizer] of [LinearObjective] using the binary integer programming (BIP) solver of the JOptimizer library.
  * Assumptions during solving are added using the A=b matrices, allowing reuse of the constant G<=h matrices.
  * Using this class requires an extra optional dependency, like so in gradle: compile "com.joptimizer:joptimizer:4.0.0"
@@ -50,13 +56,13 @@ class JOptimizerSolver @JvmOverloads constructor(
     /**
      * Sensitivity of conversion of float objective function to int objective function.
      */
-    var delta: Double = 1e-4
+    var delta: Float = 1e-4f
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
+     * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
      */
-    var instanceFactory: InstanceFactory = BitArrayFactory
+    var instanceFactory: InstanceBuilder = BitArrayBuilder
 
     private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D
@@ -74,7 +80,7 @@ class JOptimizerSolver @JvmOverloads constructor(
                 if (c.relation === EQ) nbrConstraints++
                 if (c.relation === NE)
                     throw UnsupportedOperationException("Relation != cannot be expressed as a linear program.")
-            } else if (c is Reified) {
+            } else if (c is ReifiedEquivalent) {
                 nbrConstraints += 1 + c.literals.size
             } else nbrConstraints += constraintHandlerRowCounter.invoke(c)
         }
@@ -111,7 +117,7 @@ class JOptimizerSolver @JvmOverloads constructor(
                 for (lit in c.literals) addDisjunction(IntList(intArrayOf(lit)))
             else if (c is Disjunction)
                 addDisjunction(c.literals)
-            else if (c is Reified)
+            else if (c is ReifiedEquivalent)
                 for (d in c.toCnf()) addDisjunction(d.literals)
             else {
                 row += constraintHandler.invoke(c, row, G, h)
@@ -128,9 +134,8 @@ class JOptimizerSolver @JvmOverloads constructor(
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
         val request = BIPOptimizationRequest().apply {
             val mult = if (function.maximize) -1 else 1
-            setC(IntArray(function.weights.size) { i ->
-                (function.weights[i] / delta).roundToInt() * mult
-            })
+            setC(function.weights.toIntArray(delta)
+                    .apply { if (function.maximize) this.transformArray { it * mult } })
             setG(this@JOptimizerSolver.G)
             setH(this@JOptimizerSolver.h)
             if (assumptions.isNotEmpty()) {
@@ -182,7 +187,7 @@ class JOptimizerSolver @JvmOverloads constructor(
         }
     }
 
-    private fun IntArray.toInstance(factory: InstanceFactory): Instance {
+    private fun IntArray.toInstance(factory: InstanceBuilder): Instance {
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0

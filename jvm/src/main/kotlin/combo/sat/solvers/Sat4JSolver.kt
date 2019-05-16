@@ -3,7 +3,8 @@ package combo.sat.solvers
 import combo.math.RandomSequence
 import combo.math.toIntArray
 import combo.sat.*
-import combo.sat.Relation.*
+import combo.sat.constraints.*
+import combo.sat.constraints.Relation.*
 import combo.util.millis
 import combo.util.nanos
 import combo.util.transformArray
@@ -11,15 +12,10 @@ import org.sat4j.core.LiteralsUtils.negLit
 import org.sat4j.core.LiteralsUtils.posLit
 import org.sat4j.core.Vec
 import org.sat4j.core.VecInt
-import org.sat4j.maxsat.WeightedMaxSatDecorator
 import org.sat4j.minisat.SolverFactory
-import org.sat4j.minisat.constraints.MixedDataStructureDanielWL
 import org.sat4j.minisat.core.IOrder
 import org.sat4j.minisat.core.IPhaseSelectionStrategy
-import org.sat4j.minisat.orders.VarOrderHeap
 import org.sat4j.pb.ObjectiveFunction
-import org.sat4j.pb.OptToPBSATAdapter
-import org.sat4j.pb.PseudoOptDecorator
 import org.sat4j.pb.core.PBSolver
 import org.sat4j.specs.ContradictionException
 import org.sat4j.tools.ModelIterator
@@ -36,8 +32,6 @@ import org.sat4j.specs.TimeoutException as Sat4JTimeoutException
  */
 class Sat4JSolver @JvmOverloads constructor(
         val problem: Problem,
-        val solverCreator: () -> Sat4J<*> = { SolverFactory.newMiniLearningHeap() },
-        var optimizerCreator: () -> PBSolver = { PBSolverFactory.newLight() as PBSolver },
         val constraintHandler: (Constraint, Sat4J<*>) -> Nothing = { _, _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
@@ -51,14 +45,18 @@ class Sat4JSolver @JvmOverloads constructor(
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
+     * [IntSetInstanceFactory] otherwise [BitArrayBuilder].
      */
-    var instanceFactory: InstanceFactory = BitArrayFactory
+    var instanceFactory: InstanceBuilder = BitArrayBuilder
 
     /**
      * Solver aborts after this number of conflicts are reached.
      */
-    var maxConflicts: Int = Int.MAX_VALUE
+    var maxConflicts: Int = 0
+        set(value) {
+            solver.setTimeoutOnConflicts(value)
+            field = value
+        }
 
     /**
      * Solver forgets all learned clauses after each [witness]. Setting to false might improve solving speed but
@@ -66,26 +64,89 @@ class Sat4JSolver @JvmOverloads constructor(
      */
     var forgetLearnedClauses: Boolean = true
 
-    var eps: Double = 1E-3
+    /**
+     * Precision with which to convert floating point constraint and objective function into integer constraints.
+     * See [toIntArray]
+     */
+    var delta: Float = 0.1f
 
     private val solverLock = Object()
     private var randomSequence = RandomSequence(nanos())
     private val literalSelection = RandomLiteralSelectionStrategySeeded(randomSequence.next())
-    private val solver: Sat4J<*> = solverCreator.invoke()
-    private val timeoutOrder = TimeoutOrder(solver.order)
+    private val timeoutOrder: TimeoutOrder
+    private val solver: Sat4J<*> = createSolver(false).also {
+        timeoutOrder = TimeoutOrder(it.order)
+        it.order = timeoutOrder
+        it.order.phaseSelectionStrategy = literalSelection
+    }
 
-    init {
-        this.solver.order = timeoutOrder
-        this.solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
-        this.solver.setup(problem, constraintHandler)
+    private fun createSolver(optimizer: Boolean): Sat4J<*> {
+        val solver = if (optimizer || problem.constraints.any { it is Linear }) PBSolverFactory.newLight() as PBSolver
+        else SolverFactory.newMiniLearningHeap()
+
+        solver.newVar(problem.nbrVariables)
+
+        try {
+            for (c in problem.constraints)
+                when (c) {
+                    is Disjunction -> solver.addClause(c.literals.toArray().apply { sort() }.toSat4JVec())
+                    is Conjunction -> c.literals.forEach {
+                        solver.addClause(intArrayOf(it).toSat4JVec())
+                    }
+                    is Cardinality -> {
+                        val cardLits = c.literals.toArray().apply { sort() }.toSat4JVec()
+                        when (c.relation) {
+                            GE -> solver.addAtLeast(cardLits, c.degree)
+                            LE -> solver.addAtMost(cardLits, c.degree)
+                            EQ -> solver.addExactly(cardLits, c.degree)
+                            GT -> solver.addAtLeast(cardLits, c.degree + 1)
+                            LT -> solver.addAtMost(cardLits, c.degree - 1)
+                            NE ->
+                                throw UnsupportedOperationException("Relation != cannot be expressed as a linear inequality.")
+                        }
+                    }
+                    /*
+                is Linear -> {
+                            val pbSolver = this as PBSolver
+                            val cardLits = c.literals.toArray().apply { sort() }.toSat4JVec()
+                            val weights = c.weights.toIntArray()
+                            when (c.relation) {
+                                GE -> addAtLeast(cardLits, c.degree)
+                                LE -> addAtMost(cardLits, c.degree)
+                                EQ -> addExactly(cardLits, c.degree)
+                                GT -> addAtLeast(cardLits, c.degree + 1)
+                                LT -> addAtMost(cardLits, c.degree - 1)
+                                NE ->
+                                    throw UnsupportedOperationException("Relation != cannot be expressed as a linear inequality.")
+                            }
+                            pbSolver.addPseudoBoolean(cardLits, )
+                    TODO("")
+                }
+                            */
+                    is ReifiedEquivalent -> c.toCnf().forEach { solver.addClause(it.literals.toArray().apply { sort() }.toSat4JVec()) }
+                    is ReifiedImplies -> c.toCnf().forEach { solver.addClause(it.literals.toArray().apply { sort() }.toSat4JVec()) }
+                    is Tautology -> Unit
+                    is Empty -> throw UnsatisfiableException("Empty constraint in problem.")
+                    else -> constraintHandler.invoke(c, solver)
+                }
+        } catch (e: ContradictionException) {
+            throw UnsatisfiableException("Failed to construct Sat4J problem.", cause = e)
+        }
+
+        if (maxConflicts > 0) solver.setTimeoutOnConflicts(maxConflicts)
+        else solver.setTimeoutOnConflicts(Int.MAX_VALUE) // This disables Sat4j millisecond timeouts
+
+        for (i in 1..problem.nbrVariables)
+            solver.registerLiteral(i)
+
+        return solver
     }
 
     override fun witnessOrThrow(assumptions: Literals): Instance {
         synchronized(solverLock) {
             literalSelection.rng = randomSequence.next()
             if (timeout > 0L) timeoutOrder.setTimeout(timeout)
-            solver.setTimeoutOnConflicts(maxConflicts)
-            val assumption = assumptions.toDimacs()
+            val assumption = assumptions.toSat4JVec()
             try {
                 if (solver.isSatisfiable(assumption)) return solver.model().toInstance(instanceFactory)
                 else throw UnsatisfiableException()
@@ -97,15 +158,12 @@ class Sat4JSolver @JvmOverloads constructor(
         }
     }
 
-    override fun sequence(assumptions: Literals): Sequence<Instance> {
-        val base = SolverFactory.newMiniLearning(
-                MixedDataStructureDanielWL(),
-                VarOrderHeap(RandomLiteralSelectionStrategySeeded(randomSequence.next())))
-        base.setup(problem, constraintHandler)
-        base.setTimeoutOnConflicts(maxConflicts)
-        val solver = ModelIterator(base)
+    override fun asSequence(assumptions: Literals): Sequence<Instance> {
+        val solver = createSolver(false)
+        solver.order = TimeoutOrder(solver.order)
+        solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
         val iterator = ModelIterator(solver)
-        val assumption = assumptions.toDimacs()
+        val assumption = assumptions.toSat4JVec()
         val timeout = timeout
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         return generateSequence {
@@ -120,22 +178,19 @@ class Sat4JSolver @JvmOverloads constructor(
     }
 
     override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
-        val pbSolver = optimizerCreator()
-        pbSolver.setTimeoutOnConflicts(maxConflicts)
-        if (timeout >= 0L)
+        val pbSolver = createSolver(true) as PBSolver
+        if (timeout > 0L)
             pbSolver.order = TimeoutOrder(pbSolver.order).apply { setTimeout(timeout) }
-        val optimizer = OptToPBSATAdapter(PseudoOptDecorator(WeightedMaxSatDecorator(pbSolver)))
-        pbSolver.setup(problem, constraintHandler)
-        val intWeights = function.weights.toIntArray(0.01)
+
+        val intWeights = function.weights.toIntArray(delta)
         if (function.maximize) intWeights.transformArray { -it }
-        optimizer.setTimeoutOnConflicts(maxConflicts)
         val indices = VecInt(IntArray(intWeights.size) { it + 1 })
         val bigInts = Vec(Array<BigInteger>(intWeights.size) { valueOf(intWeights[it].toLong()) })
-        optimizer.objectiveFunction = ObjectiveFunction(indices, bigInts)
+        pbSolver.objectiveFunction = ObjectiveFunction(indices, bigInts)
         try {
-            if (!optimizer.isSatisfiable(assumptions.toDimacs()))
+            if (!pbSolver.isSatisfiable(assumptions.toSat4JVec()))
                 throw UnsatisfiableException()
-            return optimizer.model().toInstance(instanceFactory)
+            return pbSolver.model().toInstance(instanceFactory)
         } catch (e: org.sat4j.specs.TimeoutException) {
             throw IterationsReachedException(maxConflicts)
         }
@@ -165,45 +220,13 @@ class Sat4JSolver @JvmOverloads constructor(
         override fun select(v: Int) = if (rng.nextBoolean()) posLit(v) else negLit(v)
     }
 
-    private fun Sat4J<*>.setup(problem: Problem, constraintHandler: (Constraint, org.sat4j.minisat.core.Solver<*>) -> Nothing) {
-        setTimeoutOnConflicts(Int.MAX_VALUE)
-        // This was the only way to disable the broken timeout handling in sat4j (otherwise it spawns lots of threads)
-        newVar(problem.nbrVariables)
-        try {
-            for (c in problem.constraints)
-                when (c) {
-                    is Disjunction -> addClause(c.literals.toArray().apply { sort() }.toDimacs())
-                    is Conjunction -> c.literals.forEach {
-                        addClause(intArrayOf(it).toDimacs())
-                    }
-                    is Cardinality -> {
-                        val cardLits = c.literals.toArray().apply { sort() }.toDimacs()
-                        when (c.relation) {
-                            GE -> addAtLeast(cardLits, c.degree)
-                            LE -> addAtMost(cardLits, c.degree)
-                            EQ -> addExactly(cardLits, c.degree)
-                            GT -> addAtLeast(cardLits, c.degree + 1)
-                            LT -> addAtMost(cardLits, c.degree - 1)
-                            NE ->
-                                throw UnsupportedOperationException("Relation != cannot be expressed as a linear inequality.")
-                        }
-                    }
-                    is Reified -> c.toCnf().forEach { addClause(it.literals.toArray().apply { sort() }.toDimacs()) }
-                    is Tautology -> Unit
-                    else -> constraintHandler.invoke(c, this)
-                }
-        } catch (e: ContradictionException) {
-            throw UnsatisfiableException("Failed to construct Sat4J problem.", cause = e)
-        }
-        for (i in 1..problem.nbrVariables)
-            registerLiteral(i)
-    }
-
-    private fun Literals.toDimacs(): VecInt {
+    private fun Literals.toSat4JVec(): VecInt {
         return VecInt(this)
     }
 
-    private fun IntArray.toInstance(factory: InstanceFactory): Instance {
-        return factory.create(size).apply { setAll(this) }
+    private fun IntArray.toInstance(factory: InstanceBuilder): Instance {
+        val create = factory.create(size)
+        create.setAll(this)
+        return create
     }
 }

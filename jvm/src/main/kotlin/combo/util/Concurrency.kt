@@ -20,7 +20,7 @@ actual class AtomicInt actual constructor(value: Int) {
     actual fun get() = value.get()
 }
 
-actual class ConcurrentCache<E> actual constructor(private val maxSize: Int) {
+actual class RandomConcurrentBuffer<E> actual constructor(private val maxSize: Int) {
 
     private val readWriteLock = ReentrantReadWriteLock()
     private val readLock = readWriteLock.readLock()
@@ -50,10 +50,19 @@ actual class ConcurrentCache<E> actual constructor(private val maxSize: Int) {
         }
     }
 
-    actual fun forEach(action: (E) -> Unit) {
+    actual fun forEach(action: (E) -> Unit)  {
         readLock.lock()
         try {
             list.forEach(action)
+        } finally {
+            readLock.unlock()
+        }
+    }
+
+    actual fun find(predicate: (E) -> Boolean): E? {
+        readLock.lock()
+        try {
+            return list.find(predicate)
         } finally {
             readLock.unlock()
         }
