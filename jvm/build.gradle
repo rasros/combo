@@ -11,9 +11,6 @@ dependencies {
     compile libraries.kotlin_stdlib_jdk
     testCompile libraries.kotlin_test_junit
 
-    compileOnly("com.googlecode.javaewah:JavaEWAH:1.1.6")
-    testCompile("com.googlecode.javaewah:JavaEWAH:1.1.6")
-
     compileOnly("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
     testCompile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
 
