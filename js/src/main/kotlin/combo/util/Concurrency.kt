@@ -31,7 +31,7 @@ actual class AtomicInt actual constructor(private var value: Int) {
     actual fun get() = value
 }
 
-actual class ConcurrentCache<E> actual constructor(private val maxSize: Int) {
+actual class RandomConcurrentBuffer<E> actual constructor(private val maxSize: Int) {
 
     private val list = ArrayList<E>()
 
@@ -48,7 +48,6 @@ actual class ConcurrentCache<E> actual constructor(private val maxSize: Int) {
         else list[rng.nextInt(list.size)] = e
     }
 
-    actual fun forEach(action: (E) -> Unit) {
-        list.forEach(action)
-    }
+    actual fun find(predicate: (E) -> Boolean) = list.find(predicate)
+    actual fun forEach(action: (E) -> Unit) = list.forEach(action)
 }

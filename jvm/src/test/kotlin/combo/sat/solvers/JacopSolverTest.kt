@@ -4,7 +4,9 @@ import combo.sat.Problem
 
 class JacopSolverTest : SolverTest() {
     override fun solver(problem: Problem) = JacopSolver(problem)
-    override fun timeoutSolver(problem: Problem) = null //JacopSolver(problem, timeout = 1L)
+    override fun numericSolver(problem: Problem) = null
+    override fun timeoutSolver(problem: Problem) = null
+    override fun largeSolver(problem: Problem) = null
 }
 
 class JacopLinearOptimizerTest : LinearOptimizerTest() {
