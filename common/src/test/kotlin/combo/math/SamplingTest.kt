@@ -33,7 +33,7 @@ class SamplingTest {
         val r = Random(100)
         val shape = 0.1f
         val s = generateSequence { r.nextGamma(shape) }
-                .take(200)
+                .take(300)
                 .map { assertFalse(it <= 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(shape, s.variance, 0.2f)
@@ -130,7 +130,7 @@ class SamplingTest {
         val r = Random(1546)
         val lambda = 2.0f
         val s = generateSequence { r.nextPoisson(lambda) }
-                .take(200)
+                .take(300)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
         assertEquals(lambda, s.variance, 0.5f)
@@ -142,11 +142,11 @@ class SamplingTest {
         val r = Random(68)
         val lambda = 100.0f // will trigger normal approximation
         val s = generateSequence { r.nextPoisson(lambda) }
-                .take(200)
+                .take(300)
                 .map { assertFalse(it < 0, "$it"); it }
                 .sample(RunningVariance())
-        assertEquals(lambda, s.variance, 10.0f)
-        assertEquals(lambda, s.mean, 0.5f)
+        assertEquals(lambda, s.variance, 25.0f)
+        assertEquals(lambda, s.mean, 1.0f)
     }
 
     @Test

@@ -2,7 +2,6 @@
 
 package combo.math
 
-import combo.util.assert
 import kotlin.jvm.JvmName
 import kotlin.math.sqrt
 
@@ -108,7 +107,7 @@ class ExponentialDecayVariance(var beta: Float = 0.02f,
         private set
 
     init {
-        assert(beta < 1.0f && beta > 0.0f) { "Beta (1-decay) parameter must be within 0 to 1 range, got $beta." }
+        require(beta < 1.0f && beta > 0.0f) { "Beta (1-decay) parameter must be within 0 to 1 range, got $beta." }
     }
 
     override fun accept(value: Float, weight: Float) {
@@ -136,7 +135,7 @@ class ExponentialDecayVariance(var beta: Float = 0.02f,
 class CountData(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
 
     override fun accept(value: Float, weight: Float) {
-        assert(value in 0.0f..weight) { "CountData can only be used with Binomial data." }
+        require(value in 0.0f..weight) { "CountData can only be used with Binomial data." }
         sum += value
         nbrWeightedSamples += weight
     }

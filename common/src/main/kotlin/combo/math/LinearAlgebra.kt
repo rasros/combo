@@ -7,7 +7,8 @@ import combo.util.mapArray
 import combo.util.transformArray
 import combo.util.transformArrayIndexed
 import kotlin.jvm.JvmName
-import kotlin.math.*
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 typealias Vector = FloatArray
 typealias Matrix = Array<FloatArray>
@@ -140,28 +141,6 @@ fun Matrix.cholDowndate(v: Vector) {
     }
 }
 
-fun Vector.toRoundedArray(eps: Float = 1.0f / Int.MAX_VALUE * size): FloatArray {
-    if (size == 0) return FloatArray(0)
-    val arr = FloatArray(size)
-    val sorted = sortedArray()
-    val max = max(abs(sorted[size - 1]), abs(sorted[0]))
-    if (max < eps) return arr
-    val normalized = sorted / max
-    val minDelta: Float = normalized.minBy { abs(it) }!!.let {
-        var tmp = it
-        for (i in 1 until size)
-            tmp = min(tmp, normalized[i] - normalized[i - 1])
-        max(eps, tmp)
-    }
-    val scale = 1 / minDelta
-    for (i in 0 until size)
-        arr[i] = round(this[i] * scale)
-    return arr
-}
-
-fun Vector.toIntArray(eps: Float = 1.0f / Int.MAX_VALUE * size): IntArray {
-    val ints = IntArray(size)
-    for ((i, d) in toRoundedArray(eps).withIndex())
-        ints[i] = d.toInt()
-    return ints
+fun Vector.toIntArray(delta: Float) = IntArray(size) {
+    (this[it] / delta).roundToInt()
 }

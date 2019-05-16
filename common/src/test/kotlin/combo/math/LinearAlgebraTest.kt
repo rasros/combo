@@ -1,9 +1,13 @@
 package combo.math
 
 import combo.test.assertContentEquals
+import kotlin.math.absoluteValue
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class LinearAlgebraTest {
 
@@ -242,6 +246,18 @@ class LinearAlgebraTest {
                 floatArrayOf(0.0f, 0.0f, 0.0f, 1.9246f))
 
         assertContentEquals(expected, L, 1e-4f)
+    }
+
+    @Test
+    fun toIntArray() {
+        val rng = Random
+        val vector = Vector(100) { rng.nextNormal() }
+        val rounded = vector.toIntArray(1.0f)
+        for (i in rounded.indices)
+            assertEquals(rounded[i], vector[i].roundToInt())
+        val larger = vector.toIntArray(1e-4f)
+        for (i in rounded.indices)
+            assertTrue(larger[i].absoluteValue > rounded[i].absoluteValue)
     }
 }
 

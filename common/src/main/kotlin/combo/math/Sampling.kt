@@ -3,6 +3,7 @@
 package combo.math
 
 import combo.util.AtomicInt
+import combo.util.MIN_VALUE32
 import combo.util.assert
 import kotlin.jvm.JvmName
 import kotlin.math.*
@@ -18,6 +19,9 @@ class RandomSequence(val startingSeed: Long) {
     }
 }
 
+/**
+ * Generate number in binary32 between from (inclusive) and until (inclusive).
+ */
 fun Random.nextFloat(from: Float, until: Float): Float {
     require(until > from)
     val size = until - from
@@ -25,13 +29,13 @@ fun Random.nextFloat(from: Float, until: Float): Float {
         val r1 = nextFloat() * (until / 2 - from / 2)
         from + r1 + r1
     } else from + nextFloat() * size
-    return if (r >= until) until.nextDown() else r
+    return if (r > until) until.nextDown() else r
 }
 
 private fun Float.nextDown(): Float {
     return if (isNaN() || this == Float.NEGATIVE_INFINITY) this
     else {
-        if (this == 0.0f) -Float.MIN_VALUE
+        if (this == 0.0f) -MIN_VALUE32
         else Float.fromBits(toRawBits() + (if (this > 0.0f) -1 else +1))
     }
 }

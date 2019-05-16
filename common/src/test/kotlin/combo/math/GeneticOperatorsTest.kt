@@ -1,19 +1,21 @@
 package combo.math
 
-import combo.sat.*
+import combo.sat.BitArrayBuilder
+import combo.sat.FastRandomSet
+import combo.sat.Problem
+import combo.sat.Validator
 import combo.sat.solvers.OptimizerCandidateSolutions
 import combo.util.EMPTY_INT_ARRAY
 import kotlin.random.Random
 
 data class ExpandedCandidates(val candidates: CandidateSolutions,
-                              val instances: Array<TrackingInstance>,
+                              val instances: Array<Validator>,
                               val scores: FloatArray)
 
 fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCandidates {
-    val factory = BasicTrackingInstanceFactory(problem)
-    val instanceFactory = BitArrayFactory
+    val instanceFactory = BitArrayBuilder
     val instances = Array(nbrStates) {
-        factory.build(instanceFactory.create(problem.nbrVariables), EMPTY_INT_ARRAY, RandomInitializer(), null, rng)
+        Validator.build(problem, FastRandomSet(), instanceFactory.create(problem.nbrVariables), null, EMPTY_INT_ARRAY, rng)
     }
     val scores = FloatArray(nbrStates) { instances[it].totalUnsatisfied.toFloat() }
     val candidates = OptimizerCandidateSolutions(instances, IntArray(nbrStates), scores)
@@ -25,7 +27,7 @@ class CandidateSolutionsTest {
 
     @Test
     fun createOne() {
-        val (candidates, _, scores) = createCandidates(SolverTest.SMALL_PROBLEMS[0], 1, Random)
+        val (candidates, _, scores) = createCandidates(SolverTest.PROBLEMS[0], 1, Random)
         assertEquals(0, candidates.oldestCandidate)
         assertEquals(scores[0], candidates.maxScore)
         assertEquals(scores[0], candidates.minScore)
@@ -33,7 +35,7 @@ class CandidateSolutionsTest {
 
     @Test
     fun minMaxScore() {
-        val (candidates, instances, _) = createCandidates(SolverTest.SMALL_PROBLEMS[2], 20, Random)
+        val (candidates, instances, _) = createCandidates(SolverTest.PROBLEMS[2], 20, Random)
         val min = instances.map { it.totalUnsatisfied.toDouble() }.min()!!
         val max = instances.map { it.totalUnsatisfied.toDouble() }.max()!!
         assertEquals(min, candidates.minScore)
@@ -89,7 +91,7 @@ abstract class RecombinationOperatorTest {
 
     @Test
     fun crossoverSelf() {
-        val p = SolverTest.SMALL_PROBLEMS[4]
+        val p = SolverTest.PROBLEMS[4]
         val (candidates, trackers) = createCandidates(p, 10, Random)
         val crossoverOperator = crossoverOperator()
         val instance1 = candidates.instances[0].copy()
@@ -100,7 +102,7 @@ abstract class RecombinationOperatorTest {
 
     @Test
     fun testDifference() {
-        for (p in SolverTest.SMALL_PROBLEMS + SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
+        for (p in SolverTest.PROBLEMS + SolverTest.UNSAT_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val rng = Random
             val popSize = 10
             val (candidates, _) = createCandidates(p, popSize, rng)
@@ -141,7 +143,7 @@ abstract class SelectionOperatorTest {
 
     @Test
     fun totalSpread() {
-        for (p in SolverTest.SMALL_PROBLEMS + SolverTest.SMALL_UNSAT_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
+        for (p in SolverTest.PROBLEMS + SolverTest.UNSAT_PROBLEMS + SolverTest.LARGE_PROBLEMS) {
             val rng = Random(1)
             val n = 10
             val (candidates, _) = createCandidates(p, n, rng)
@@ -168,7 +170,7 @@ class TournamentSelectionTest : SelectionOperatorTest() {
 class OldestEliminationTest {
     @Test
     fun selectOldest() {
-        val (candidates, _) = createCandidates(SolverTest.SMALL_PROBLEMS[0], 10, Random)
+        val (candidates, _) = createCandidates(SolverTest.PROBLEMS[0], 10, Random)
         for (i in 0 until 8) {
             candidates.update(i, i, candidates.scores[i])
         }

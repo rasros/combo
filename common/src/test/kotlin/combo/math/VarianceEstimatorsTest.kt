@@ -29,8 +29,8 @@ class RunningVarianceTest {
         val r = Random(100)
         val s = generateSequence { r.nextNormal(3.0f, sqrt(4.0f)) }.take(200).sample(RunningVariance())
         assertEquals(3.0f, s.mean, 0.2f)
-        assertEquals(4.0f, s.variance, 0.2f)
-        assertEquals(2.0f, s.standardDeviation, 0.2f)
+        assertEquals(4.0f, s.variance, 0.5f)
+        assertEquals(2.0f, s.standardDeviation, 0.25f)
     }
 
     @Test
