@@ -5,6 +5,7 @@ import combo.sat.Problem
 class ExhaustiveSolverTest : SolverTest() {
     override fun solver(problem: Problem) = ExhaustiveSolver(problem)
     override fun largeSolver(problem: Problem): ExhaustiveSolver? = null
+    override fun numericSolver(problem: Problem): ExhaustiveSolver? = null
     override fun unsatSolver(problem: Problem) = ExhaustiveSolver(problem).apply { timeout = 1L }
 }
 

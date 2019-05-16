@@ -3,12 +3,13 @@ package combo.sat.solvers
 import combo.math.Vector
 import combo.sat.*
 import combo.util.EMPTY_INT_ARRAY
+import combo.util.sumByFloat
 import kotlin.math.max
 import kotlin.math.min
 
 /**
  * A solver can generate a random [witness] that satisfy the constraints and
- * iterate over the possible solutions with [sequence].
+ * iterate over the possible solutions with [asSequence].
  */
 interface Solver : Iterable<Instance> {
 
@@ -35,14 +36,14 @@ interface Solver : Iterable<Instance> {
      * Note that the iterator cannot be used in parallel, but multiple iterators can be used in parallel from the same
      * solver.
      */
-    override fun iterator() = sequence().iterator()
+    override fun iterator() = asSequence().iterator()
 
     /**
      * Note that the sequence cannot be used in parallel, but multiple sequences can be used in parallel from the same
      * solver. The method does not throw exceptions if
      * @param assumptions these variables will be fixed during solving, see [Literal].
      */
-    fun sequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Instance> {
+    fun asSequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Instance> {
         return generateSequence { witness(assumptions) }
     }
 
@@ -100,24 +101,23 @@ interface ObjectiveFunction {
     /**
      * Value to minimize evaluated on a [Instance], which take on values between zeros and ones.
      */
-    fun value(instance: Instance): Double
+    fun value(instance: Instance): Float
 
     /**
      * Optionally implemented. Optimal bound on function, if reached during search the algorithm will terminate immediately.
      */
-    fun lowerBound(): Double = Double.NEGATIVE_INFINITY
+    fun lowerBound(): Float = Float.NEGATIVE_INFINITY
 
-    fun upperBound(): Double = Double.POSITIVE_INFINITY
+    fun upperBound(): Float = Float.POSITIVE_INFINITY
 
     /**
      * Override for efficiency reasons. New value should be previous value - improvement.
      */
-    fun improvement(instance: Instance, ix: Int, propagations: Literals): Double {
-        val copy = instance.copy()
-        copy.flip(ix)
-        copy.setAll(propagations)
+    fun improvement(instance: MutableInstance, ix: Int): Float {
         val v1 = value(instance)
-        val v2 = value(copy)
+        instance.flip(ix)
+        val v2 = value(instance)
+        instance.flip(ix)
         return v1 - v2
     }
 }
@@ -127,10 +127,10 @@ interface ObjectiveFunction {
  */
 open class LinearObjective(val maximize: Boolean, val weights: Vector) : ObjectiveFunction {
 
-    private val lowerBound: Double = if (maximize) -weights.sumByDouble { max(0.0, it) } else
-        weights.sumByDouble { min(0.0, it) }
-    private val upperBound: Double = if (maximize) -weights.sumByDouble { min(0.0, it) } else
-        weights.sumByDouble { max(0.0, it) }
+    private val lowerBound: Float = if (maximize) -weights.sumByFloat { max(0.0f, it) } else
+        weights.sumByFloat { min(0.0f, it) }
+    private val upperBound: Float = if (maximize) -weights.sumByFloat { min(0.0f, it) } else
+        weights.sumByFloat { max(0.0f, it) }
 
     override fun value(instance: Instance) = (instance dot weights).let {
         if (maximize) -it else it
@@ -139,16 +139,12 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
     override fun lowerBound() = lowerBound
     override fun upperBound() = upperBound
 
-    private fun improvementLiteral(instance: Instance, literal: Literal) =
-            if (instance.literal(literal.toIx()) == literal) 0.0
-            else {
-                val w = weights[literal.toIx()].let { if (instance[literal.toIx()]) it else -it }
-                if (maximize) -w else w
-            }
-
-    override fun improvement(instance: Instance, ix: Literal, propagations: Literals): Double {
-        return improvementLiteral(instance, !instance.literal(ix)) + propagations.sumByDouble {
-            improvementLiteral(instance, it)
+    override fun improvement(instance: MutableInstance, ix: Literal): Float {
+        val literal = !instance.literal(ix)
+        return if (literal in instance) 0.0f
+        else {
+            val w = weights[literal.toIx()].let { if (instance[literal.toIx()]) it else -it }
+            if (maximize) -w else w
         }
     }
 }
@@ -157,10 +153,10 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
  * Used to turn an [Optimizer] into a boolean sat [Solver].
  */
 object SatObjective : ObjectiveFunction {
-    override fun value(instance: Instance) = 0.0
-    override fun lowerBound() = 0.0
-    override fun upperBound() = 0.0
-    override fun improvement(instance: Instance, ix: Literal, propagations: Literals) = 0.0
+    override fun value(instance: Instance) = 0.0f
+    override fun lowerBound() = 0.0f
+    override fun upperBound() = 0.0f
+    override fun improvement(instance: MutableInstance, ix: Literal) = 0.0f
 }
 
 /**
@@ -170,20 +166,20 @@ object SatObjective : ObjectiveFunction {
  * http://dx.doi.org/10.3390/mca10010045
  */
 interface PenaltyFunction {
-    fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double): Double
+    fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float): Float
 }
 
 class LinearPenalty : PenaltyFunction {
-    override fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double): Double = violations.toDouble()
+    override fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float): Float = violations.toFloat()
 }
 
 class SquaredPenalty : PenaltyFunction {
-    override fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double) = violations.let { (it * it).toDouble() }
+    override fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float) = violations.let { (it * it).toFloat() }
 }
 
 class DisjunctPenalty(private val extended: PenaltyFunction = LinearPenalty()) : PenaltyFunction {
-    override fun penalty(value: Double, violations: Int, lowerBound: Double, upperBound: Double): Double {
+    override fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float): Float {
         if (violations > 0) return upperBound - lowerBound + extended.penalty(value, violations, lowerBound, upperBound)
-        else return 0.0
+        else return 0.0f
     }
 }

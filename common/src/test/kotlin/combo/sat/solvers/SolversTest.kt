@@ -1,30 +1,29 @@
 package combo.sat.solvers
 
-import combo.model.ModelTest
-import combo.sat.Conjunction
+import combo.model.TestModels.CSP_PROBLEMS
+import combo.model.TestModels.LARGE_PROBLEMS
+import combo.model.TestModels.NUMERIC_PROBLEMS
+import combo.model.TestModels.PROBLEMS
+import combo.model.TestModels.TINY_PROBLEMS
+import combo.model.TestModels.UNSAT_PROBLEMS
 import combo.sat.Problem
 import combo.sat.UnsatisfiableException
 import combo.sat.ValidationException
+import combo.sat.constraints.Conjunction
+import combo.sat.literal
 import combo.util.IntList
 import kotlin.math.pow
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 abstract class SolverTest {
 
     abstract fun solver(problem: Problem): Solver?
+    open fun cspSolver(problem: Problem): Solver? = solver(problem)
+    open fun numericSolver(problem: Problem): Solver? = solver(problem)
     open fun largeSolver(problem: Problem): Solver? = solver(problem)
     open fun unsatSolver(problem: Problem): Solver? = solver(problem)
     open fun timeoutSolver(problem: Problem): Solver? = unsatSolver(problem)
-
-    companion object {
-        val SMALL_PROBLEMS: List<Problem> by lazy { ModelTest.SMALL_MODELS.map { m -> m.problem } }
-        val SMALL_UNSAT_PROBLEMS: List<Problem> by lazy { ModelTest.SMALL_UNSAT_MODELS.map { m -> m.problem } }
-        val LARGE_PROBLEMS: List<Problem>  by lazy { ModelTest.LARGE_MODEL.map { m -> m.problem } }
-    }
 
     @Test
     fun emptyProblemSat() {
@@ -37,7 +36,7 @@ abstract class SolverTest {
 
     @Test
     fun smallUnsat() {
-        for ((i, p) in SMALL_UNSAT_PROBLEMS.withIndex()) {
+        for ((i, p) in UNSAT_PROBLEMS.withIndex()) {
             assertFailsWith(ValidationException::class, "Model $i") {
                 val unsatSolver = unsatSolver(p)
                 if (unsatSolver != null) unsatSolver.witnessOrThrow()
@@ -48,11 +47,11 @@ abstract class SolverTest {
 
     @Test
     fun smallUnsatSequence() {
-        for ((i, p) in SMALL_UNSAT_PROBLEMS.withIndex()) {
+        for ((i, p) in UNSAT_PROBLEMS.withIndex()) {
             try {
                 val unsatSolver = unsatSolver(p)
                 if (unsatSolver != null) {
-                    assertEquals(0, unsatSolver.sequence().count(), "Model $i")
+                    assertEquals(0, unsatSolver.asSequence().count(), "Model $i")
                 }
             } catch (e: UnsatisfiableException) {
             }
@@ -61,7 +60,7 @@ abstract class SolverTest {
 
     @Test
     fun smallSat() {
-        for ((i, p) in SMALL_PROBLEMS.withIndex()) {
+        for ((i, p) in PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
                 assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
@@ -71,26 +70,35 @@ abstract class SolverTest {
     }
 
     @Test
-    fun smallSatSequence() {
-        for ((i, p) in SMALL_PROBLEMS.withIndex()) {
-            try {
-                val solver = solver(p)
-                if (solver != null) {
-                    assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
-                }
-            } catch (e: UnsatisfiableException) {
+    fun numericSat() {
+        for ((i, p) in NUMERIC_PROBLEMS.withIndex()) {
+            val solver = numericSolver(p)
+            if (solver != null) {
+                assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
+                assertTrue(p.satisfies(solver.witness()!!), "Model $i")
             }
         }
     }
 
     @Test
-    fun smallSatAfterSequence() {
-        for ((i, p) in SMALL_PROBLEMS.withIndex()) {
+    fun cspSat() {
+        for ((i, p) in CSP_PROBLEMS.withIndex()) {
+            val solver = cspSolver(p)
+            if (solver != null) {
+                assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
+                assertTrue(p.satisfies(solver.witness()!!), "Model $i")
+            }
+        }
+    }
+
+    @Test
+    fun smallSatSequence() {
+        for ((i, p) in TINY_PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
-                assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
+                assertTrue(p.satisfies(solver.asSequence().first()), "Model $i")
                 assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
-                assertTrue(p.satisfies(solver.sequence().first()), "Model $i")
+                assertTrue(p.satisfies(solver.asSequence().first()), "Model $i")
             }
         }
     }
@@ -108,7 +116,7 @@ abstract class SolverTest {
 
     @Test
     fun smallSatAssumptionsAuto() {
-        for ((i, p) in SMALL_PROBLEMS.withIndex()) {
+        for ((i, p) in PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
                 val instance = solver.witnessOrThrow()
@@ -130,7 +138,7 @@ abstract class SolverTest {
 
     @Test
     fun smallSatSequenceAssumptions() {
-        for ((i, p) in SMALL_PROBLEMS.withIndex()) {
+        for ((i, p) in PROBLEMS.withIndex()) {
             val solver = solver(p)
             if (solver != null) {
                 val instance = solver.witnessOrThrow()
@@ -158,13 +166,13 @@ abstract class SolverTest {
                 else throw UnsatisfiableException()
             }
         }
-        testUnsat(intArrayOf(20, 22), SMALL_PROBLEMS[0])
-        testUnsat(intArrayOf(10, 13, 15), SMALL_PROBLEMS[0])
-        testUnsat(intArrayOf(4, 9), SMALL_PROBLEMS[0])
-        testUnsat(intArrayOf(1, 6), SMALL_PROBLEMS[2])
-        testUnsat(intArrayOf(6, 8, 10), SMALL_PROBLEMS[2])
-        testUnsat(intArrayOf(12, 15, 17, 19), SMALL_PROBLEMS[2])
-        testUnsat(intArrayOf(7, 8, 10), SMALL_PROBLEMS[3])
+        testUnsat(intArrayOf(11, 12), PROBLEMS[0])
+        testUnsat(intArrayOf(6, -7, -8), PROBLEMS[0])
+        testUnsat(intArrayOf(-2, 4), PROBLEMS[0])
+        testUnsat(intArrayOf(1, 6), PROBLEMS[2])
+        testUnsat(intArrayOf(3, 4, 5), PROBLEMS[3])
+        testUnsat(intArrayOf(-10, -11, -12), PROBLEMS[3])
+        testUnsat(intArrayOf(-4, 5), PROBLEMS[4])
     }
 
     @Test
@@ -172,16 +180,16 @@ abstract class SolverTest {
         fun testUnsat(assumptions: IntArray, p: Problem) {
             val solver = unsatSolver(p)
             if (solver != null) {
-                assertEquals(0, solver.sequence(assumptions).count())
+                assertEquals(0, solver.asSequence(assumptions).count())
             }
         }
-        testUnsat(intArrayOf(20, 22), SMALL_PROBLEMS[0])
-        testUnsat(intArrayOf(10, 13, 15), SMALL_PROBLEMS[0])
-        testUnsat(intArrayOf(4, 9), SMALL_PROBLEMS[0])
-        testUnsat(intArrayOf(1, 6), SMALL_PROBLEMS[2])
-        testUnsat(intArrayOf(6, 8, 10), SMALL_PROBLEMS[2])
-        testUnsat(intArrayOf(12, 15, 17, 19), SMALL_PROBLEMS[2])
-        testUnsat(intArrayOf(7, 8, 10), SMALL_PROBLEMS[3])
+        testUnsat(intArrayOf(11, 12), PROBLEMS[0])
+        testUnsat(intArrayOf(6, -7, -8), PROBLEMS[0])
+        testUnsat(intArrayOf(-2, 4), PROBLEMS[0])
+        testUnsat(intArrayOf(1, 6), PROBLEMS[2])
+        testUnsat(intArrayOf(3, 4, 5), PROBLEMS[3])
+        testUnsat(intArrayOf(-10, -11, -12), PROBLEMS[3])
+        testUnsat(intArrayOf(-4, 5), PROBLEMS[4])
     }
 
     @Test
@@ -189,7 +197,7 @@ abstract class SolverTest {
         val p = Problem(arrayOf(), 4)
         val solver = solver(p)
         if (solver != null) {
-            val toSet = solver.sequence().take(200).toSet()
+            val toSet = solver.asSequence().take(200).toSet()
             assertEquals(2.0.pow(4).toInt(), toSet.size)
         }
     }
@@ -208,7 +216,7 @@ abstract class SolverTest {
     fun timeoutSequence() {
         val solver = timeoutSolver(LARGE_PROBLEMS[1])
         if (solver != null) {
-            solver.sequence().count()
+            solver.asSequence().count()
         }
     }
 }

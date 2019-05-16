@@ -9,7 +9,7 @@ import kotlin.random.Random
  * This class iterates over an instance in a random order without repetitions.
  */
 class InstancePermutation constructor(
-        private val nbrVariables: Int, val factory: InstanceFactory, rng: Random) : Iterator<MutableInstance> {
+        private val nbrVariables: Int, val factory: InstanceBuilder, rng: Random) : Iterator<MutableInstance> {
 
     private val permutation: Array<IntPermutation>
     private var count: AtomicInt = AtomicInt(0)
@@ -23,7 +23,7 @@ class InstancePermutation constructor(
         }
     }
 
-    private val limit = max(1, 2 shl nbrVariables - 1)
+    private val limit = if (nbrVariables > 30) Int.MAX_VALUE else max(1, 2 shl nbrVariables - 1)
 
     override fun hasNext() = count.get() < limit
 
@@ -32,7 +32,7 @@ class InstancePermutation constructor(
         val c = count.inc()
         var ix = 0
         for (perm in permutation) {
-            val value = perm.encode(c)
+            val value = perm.encode(c and perm.size - 1)
             if (perm.size == Int.MAX_VALUE) instance.setBits(ix, 31, value)
             else instance.setBits(ix, lastBits, value)
             ix += 31

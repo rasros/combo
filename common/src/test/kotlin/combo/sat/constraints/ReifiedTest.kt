@@ -40,7 +40,7 @@ class ReifiedEquivalentTest : ConstraintTest() {
 
     @Test
     fun updateCache() {
-        fun testUpdateCache(c: NegatableConstraint) {
+        fun testUpdateCache(c: PropositionalConstraint) {
             val r = ReifiedEquivalent(-1, c)
             for (k in 0 until 16) {
                 val instance = BitArray(4, IntArray(1) { k })
@@ -63,8 +63,8 @@ class ReifiedEquivalentTest : ConstraintTest() {
         val e = ReifiedEquivalent(-1, Conjunction(IntList(intArrayOf(2, 3))))
         val c = e.toCnf().toList<Constraint>().toTypedArray()
         assertEquals(3, c.size)
-        val s1 = ExhaustiveSolver(Problem(arrayOf(e), 3)).sequence().toSet()
-        val s2 = ExhaustiveSolver(Problem(c, 3)).sequence().toSet()
+        val s1 = ExhaustiveSolver(Problem(arrayOf(e), 3)).asSequence().toSet()
+        val s2 = ExhaustiveSolver(Problem(c, 3)).asSequence().toSet()
         assertEquals(s1.size, s2.size)
         for (l in s1) assertTrue(s2.contains(l))
     }
@@ -74,8 +74,8 @@ class ReifiedEquivalentTest : ConstraintTest() {
         val e = ReifiedEquivalent(2, Disjunction(IntList(intArrayOf(1, -3))))
         val c = e.toCnf().toList<Constraint>().toTypedArray()
         assertEquals(3, c.size)
-        val s1 = ExhaustiveSolver(Problem(arrayOf(e), 3)).sequence().toList()
-        val s2 = ExhaustiveSolver(Problem(c, 3)).sequence().toList()
+        val s1 = ExhaustiveSolver(Problem(arrayOf(e), 3)).asSequence().toList()
+        val s2 = ExhaustiveSolver(Problem(c, 3)).asSequence().toList()
         assertEquals(s1.size, s2.size)
         for (l in s1) assertTrue(s2.contains(l))
     }
@@ -84,7 +84,7 @@ class ReifiedEquivalentTest : ConstraintTest() {
     fun toCnfSatisfiesDisjunction() {
         val original = ReifiedEquivalent(-3, Disjunction(IntList(intArrayOf(-1, -2))))
         val toCnf = original.toCnf()
-        for (l in InstancePermutation(3, BitArrayFactory, Random)) {
+        for (l in InstancePermutation(3, BitArrayBuilder, Random)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)
@@ -95,7 +95,7 @@ class ReifiedEquivalentTest : ConstraintTest() {
     fun toCnfSatisfiesConjunction() {
         val original = ReifiedEquivalent(3, Conjunction(IntList(intArrayOf(1, -2))))
         val toCnf = original.toCnf()
-        for (l in InstancePermutation(3, BitArrayFactory, Random)) {
+        for (l in InstancePermutation(3, BitArrayBuilder, Random)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)

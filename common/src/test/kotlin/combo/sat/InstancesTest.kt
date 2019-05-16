@@ -1,12 +1,14 @@
 package combo.sat
 
 import combo.test.assertContentEquals
+import combo.util.key
+import combo.util.value
 import kotlin.random.Random
 import kotlin.test.*
 
 abstract class InstanceTest {
 
-    abstract val factory: InstanceFactory
+    abstract val factory: InstanceBuilder
 
     @Test
     fun indices() {
@@ -377,13 +379,80 @@ abstract class InstanceTest {
         instance.setSignedInt(0, 32, -1)
         assertEquals(-1, instance.getSignedInt(0, 32))
     }
+
+    @Test
+    fun wordSize() {
+        assertEquals(2, factory.create(60).wordSize)
+        assertEquals(1, factory.create(32).wordSize)
+        assertEquals(0, factory.create(0).wordSize)
+        assertEquals(2, factory.create(64).wordSize)
+        assertEquals(3, factory.create(65).wordSize)
+    }
+
+    @Test
+    fun wordIterator() {
+        val instance1 = factory.create(100)
+        instance1[10] = true
+        instance1[50] = true
+        val list = instance1.wordIterator().asSequence().toList().sortedBy { it.key() }
+        assertEquals(1024 /*2^10*/, list[0].value())
+        assertEquals(262144 /*2^18=2^(50-32)*/, list[1].value())
+        assertEquals(0, list[0].key())
+        assertEquals(1, list[1].key())
+    }
+
+    @Test
+    fun orInstance() {
+        val inst1 = factory.create(60)
+        val inst2 = factory.create(60)
+        inst1[10] = true
+        inst1[30] = true
+        inst2[20] = true
+        val inst3 = inst1.copy().apply { or(inst2) }
+        val inst4 = inst2.copy().apply { or(inst1) }
+        assertEquals(inst3, inst4)
+
+        assertTrue(inst3[10])
+        assertTrue(inst3[20])
+        assertTrue(inst3[30])
+
+        assertTrue(inst4[10])
+        assertTrue(inst4[20])
+        assertTrue(inst4[30])
+        assertEquals(3, inst4.iterator().asSequence().count())
+    }
+
+    @Test
+    fun andInstance() {
+        val inst1 = factory.create(60)
+        val inst2 = factory.create(60)
+        inst1[10] = true
+        inst1[30] = true
+        inst1[40] = true
+        inst1[60] = true
+        inst2[10] = true
+        inst2[20] = true
+        inst2[30] = true
+        val inst3 = inst1.copy().apply { and(inst2) }
+        val inst4 = inst2.copy().apply { and(inst1) }
+
+        assertEquals(inst3, inst4)
+
+        assertTrue(inst3[10])
+        assertFalse(inst3[20])
+        assertTrue(inst3[30])
+        assertFalse(inst3[40])
+        assertFalse(inst3[60])
+
+        assertEquals(2, inst4.iterator().asSequence().count())
+    }
 }
 
 class SparseBitArrayTest : InstanceTest() {
-    override val factory = SparseBitArrayFactory
+    override val factory = SparseBitArrayBuilder
 }
 
 class BitArrayTest : InstanceTest() {
-    override val factory = BitArrayFactory
+    override val factory = BitArrayBuilder
 }
 

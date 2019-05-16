@@ -1,18 +1,17 @@
 package combo.sat.constraints
 
-import combo.model.BitsVar
-import combo.model.FeatureIndex
-import combo.model.FloatVar
-import combo.model.IntVar
+import combo.model.*
 import combo.sat.*
+import combo.test.assertEquals
+import combo.util.MAX_VALUE32
+import combo.util.MIN_VALUE32
 import kotlin.math.absoluteValue
-import kotlin.math.max
 import kotlin.random.Random
 import kotlin.test.*
 
 class IntBoundsTest : ConstraintTest() {
 
-    private fun nbrLiterals(min: Int, max: Int) = IntVar("", true, min, max).nbrLiterals
+    private fun nbrLiterals(min: Int, max: Int) = IntVar("", true, Root(""), min, max).nbrLiterals
 
     private fun violations(min: Int, max: Int, value: Int): Int {
         val nbrLiterals = nbrLiterals(min, max)
@@ -62,15 +61,37 @@ class IntBoundsTest : ConstraintTest() {
     }
 
     @Test
+    fun coerce() {
+        BitArray(100).also {
+            val nbrLiterals = nbrLiterals(-9, 4)
+            val c = IntBounds(0, -9, 4, nbrLiterals)
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            for (i in it.indices) it[i] = true
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+        }
+        BitArray(100).also {
+            val nbrLiterals = nbrLiterals(Int.MIN_VALUE, 0)
+            val c = IntBounds(32, Int.MIN_VALUE, 0, nbrLiterals)
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            for (i in it.indices) it[i] = true
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+        }
+    }
+
+    @Test
     fun randomCoerce() {
         fun testBounds(ix: Int, min: Int, max: Int) {
             for (i in 1..1000) {
                 val coercedInstances = randomCoerce(IntBounds(ix, min, max, nbrLiterals(min, max)))
-                val feature = IntVar(mandatory = true, min = min, max = max)
-                val index = FeatureIndex("")
-                if (ix > 0) index.add(BitsVar(mandatory = true, nbrBits = ix))
-                index.add(feature)
-                val values = coercedInstances.map { feature.valueOf(it, index)!! }
+                val variable = IntVar("", mandatory = true, parent = Root(""), min = min, max = max)
+                val index = VariableIndex("")
+                if (ix > 0) index.add(BitsVar("b", mandatory = true, parent = Root(""), nbrBits = ix))
+                index.add(variable)
+                val values = coercedInstances.map { variable.valueOf(it, index)!! }
                 if (min in values && max in values) return
                 assertTrue(values.max()!! <= max)
                 assertTrue(values.min()!! >= min)
@@ -107,39 +128,50 @@ class FloatBoundsTest : ConstraintTest() {
 
     @Test
     fun satisfiesNonFinite() {
-        assertTrue(satisfies(-Float.MAX_VALUE, Float.MAX_VALUE, 0.0F))
-        assertFalse(satisfies(-Float.MAX_VALUE, Float.MAX_VALUE, Float.NaN))
-        assertFalse(satisfies(-Float.MAX_VALUE, Float.MAX_VALUE, Float.POSITIVE_INFINITY))
-        assertFalse(satisfies(-Float.MAX_VALUE, Float.MAX_VALUE, Float.NEGATIVE_INFINITY))
+        assertTrue(satisfies(-MAX_VALUE32, MAX_VALUE32, 0.0F))
+        assertFalse(satisfies(-MAX_VALUE32, MAX_VALUE32, Float.NaN))
+        assertFalse(satisfies(-MAX_VALUE32, MAX_VALUE32, Float.POSITIVE_INFINITY))
+        assertFalse(satisfies(-MAX_VALUE32, MAX_VALUE32, Float.NEGATIVE_INFINITY))
+    }
+
+    @Test
+    fun coerce() {
+        BitArray(100).also {
+            val c = FloatBounds(0, -9.1F, 4.0F)
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            for (i in it.indices) it[i] = true
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+        }
+        BitArray(100).also {
+            val c = FloatBounds(32, -MAX_VALUE32, 0.0F)
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            for (i in it.indices) it[i] = true
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+        }
     }
 
     @Test
     fun randomCoerce() {
         fun testBounds(min: Float, max: Float) {
-            for (i in 1..1000) {
-                val bounds = FloatBounds(0, min, max)
-                val coercedInstances = InstancePermutation(32, BitArrayFactory, Random).asSequence().take(1000).map {
-                    bounds.coerce(it, Random)
-                    it
-                }
-                val feature = FloatVar(mandatory = true, min = min, max = max)
-                val index = FeatureIndex("")
-                index.add(feature)
-                val values = coercedInstances.map { feature.valueOf(it, index)!! }.toList()
-                for (v in values) {
-                    assertTrue(v <= max)
-                    assertTrue(v >= min)
-                }
-                val range = max(1.0F, max - min)
-                if ((values.max()!! - max).absoluteValue <= range * 1E-3 &&
-                        (values.min()!! - min).absoluteValue <= range * 1E-3) return
-            }
-            fail("Float bounds not found in coerced instances.")
+            val bounds = FloatBounds(0, min, max)
+            val rng = Random(0)
+            val index = VariableIndex("")
+            val variable = FloatVar("", mandatory = true, min = min, max = max, parent = Root(""))
+            index.add(variable)
+            val values = InstancePermutation(32, BitArrayBuilder, rng).asSequence().take(100).map {
+                bounds.coerce(it, rng)
+                variable.valueOf(it, index)!!
+            }.toList().toFloatArray()
+            assertEquals(min, values.min()!!, 0.01f * (max - min).absoluteValue)
         }
         testBounds(1.0F, 2.0F)
         testBounds(-10.0F, 20.0F)
         testBounds(0.102F, 0.103F)
-        testBounds(-Float.MAX_VALUE, Float.MAX_VALUE)
-        testBounds(0.0F, Float.MIN_VALUE)
+        testBounds(-MAX_VALUE32, MAX_VALUE32)
+        testBounds(0.0F, MIN_VALUE32)
     }
 }

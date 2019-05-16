@@ -1,9 +1,8 @@
 package combo.sat
 
-import combo.util.assert
-import combo.util.bitCount
+import combo.util.entry
 
-object BitArrayFactory : InstanceFactory {
+object BitArrayBuilder : InstanceBuilder {
     override fun create(size: Int) = BitArray(size)
 }
 
@@ -20,7 +19,6 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
 
     constructor(size: Int) : this(size, IntArray((size shr 5) + if (size and 0x1F > 0) 1 else 0))
 
-    val cardinality: Int get() = this.field.sumBy { Int.bitCount(it) }
 
     override fun copy(): BitArray = BitArray(size, field.copyOf())
 
@@ -38,47 +36,16 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
         else field[i] and mask.inv()
     }
 
-    override fun getBits(ix: Int, nbrBits: Int): Int {
-        assert(nbrBits in 1..32 && ix + nbrBits <= size)
-        val i1 = ix shr 5
-        val i2 = (ix + nbrBits - 1) shr 5
-        val rem = ix and 0x1F
-        return if (i1 != i2) {
-            val v1 = (field[i1] ushr Int.SIZE_BITS + rem)
-            val v2 = field[i2] shl Int.SIZE_BITS - rem
-            val mask = -1 ushr Int.SIZE_BITS - nbrBits
-            (v1 or v2) and mask
-        } else {
-            val value = field[i1] ushr rem
-            val mask = -1 ushr Int.SIZE_BITS - nbrBits
-            value and mask
-        }
-    }
+    override fun getWord(wordIx: Int) = field[wordIx]
 
-    override fun setBits(ix: Int, nbrBits: Int, value: Int) {
-        assert(nbrBits >= 1 && nbrBits <= 32 && ix + nbrBits <= size)
-        assert(nbrBits == 32 || value and (-1 shl nbrBits) == 0)
-        val i1 = ix shr 5
-        val i2 = (ix + nbrBits - 1) shr 5
-        val rem = ix and 0x1F
-        if (i1 != i2) {
-            val mask = -1 shl rem
-            field[i1] = field[i1] and mask.inv()
-            field[i1] = field[i1] or (value shl rem and mask)
-            field[i2] = field[i2] and mask
-            field[i2] = field[i2] or ((value ushr (32 - rem)) and mask.inv())
-        } else {
-            val mask1 = (-1 ushr Int.SIZE_BITS - nbrBits - rem).inv()
-            val mask2 = (-1 shl rem).inv()
-            field[i1] = field[i1] and (mask1 or mask2) // zero out old value
-            field[i1] = field[i1] or (value shl rem) // set value
-        }
+    override fun setWord(wordIx: Int, value: Int) {
+        field[wordIx] = value
     }
 
     override fun iterator(): IntIterator {
         return object : IntIterator() {
             var fieldI: Int = 0
-            var fieldValue: Int = field[fieldI]
+            var fieldValue: Int = if (field.isEmpty()) 0 else field[fieldI]
             var i = 0
 
             private fun advance() {
@@ -109,6 +76,12 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
                 return ret
             }
         }
+    }
+
+    override fun wordIterator() = object : LongIterator() {
+        var i = 0
+        override fun hasNext() = i < field.size
+        override fun nextLong() = entry(i, field[i++])
     }
 
     override fun equals(other: Any?): Boolean {

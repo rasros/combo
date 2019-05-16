@@ -1,25 +1,22 @@
 package combo.sat
 
-import combo.model.BasicExpression
+import combo.model.Proposition
 import combo.util.EmptyCollection
 import combo.util.IntCollection
 import combo.util.IntRangeSet
 import combo.util.bitCount
 import kotlin.math.min
-import kotlin.math.sign
 import kotlin.random.Random
 
 interface Expression
 
-
 /**
  * A constraint must be satisfied during solving. See [Literal] for more information on the binary format of variables.
  */
-interface Constraint : Expression, Iterable<Literal> {
+interface Constraint : Expression {
 
     val literals: IntCollection
     val size get() = literals.size
-    override fun iterator(): IntIterator = literals.iterator()
 
     val priority: Int
 
@@ -27,6 +24,11 @@ interface Constraint : Expression, Iterable<Literal> {
      * Offsets all the variable indices used by the literals in the constraint to the new ones given by [offset].
      */
     fun offset(offset: Int): Constraint
+
+    /**
+     * Change the index of [from] to the specified vaule [to].
+     */
+    fun remap(from: Int, to: Int): Constraint
 
     fun isUnit(): Boolean = size == 1
     fun unitLiterals(): Literals = literals.toArray()
@@ -37,7 +39,7 @@ interface Constraint : Expression, Iterable<Literal> {
     fun violations(instance: Instance, cacheResult: Int): Int
 
     /**
-     * Update the cached result with the changing literal [lit]. This method can only be called if the literal is
+     * Update the cached result with the changing literal [newLit]. This method can only be called if the literal is
      * contained in [literals].
      */
     fun cacheUpdate(cacheResult: Int, newLit: Literal) = cacheResult + if (newLit in literals) 1 else -1
@@ -50,19 +52,19 @@ interface Constraint : Expression, Iterable<Literal> {
         var sum = 0
         if (literals is IntRangeSet) {
             val lits = literals as IntRangeSet
-            if (lits.min.sign == lits.max.sign) {
-                val ix = min(lits.min.toIx(), lits.max.toIx())
-                val ints = (size shr 5) + if (size and 0x1F > 0) 1 else 0
-                for (i in 0 until ints) {
-                    val nbrBits = if (i == ints - 1) size and 0x1F else 32
-                    val value = instance.getBits(ix, nbrBits)
-                    sum += if (lits.min < 0) nbrBits - Int.bitCount(value) else Int.bitCount(value)
-                }
-                return sum
+            var ix = min(lits.min.toIx(), lits.max.toIx())
+            val ints = (size shr 5) + if (size and 0x1F > 0) 1 else 0
+            for (i in 0 until ints) {
+                val nbrBits = if (i == ints - 1) ((size - 1) and 0x1F) + 1 else 32
+                val value = instance.getBits(ix, nbrBits)
+                sum += if (lits.min < 0) nbrBits - Int.bitCount(value) else Int.bitCount(value)
+                ix += nbrBits
             }
+            return sum
         }
-        for (it in literals.iterator())
-            sum += if (instance.literal(it.toIx()) == it) 1 else 0
+        for (lit in literals.iterator()) {
+            if (instance.contains(lit)) sum++
+        }
         return sum
     }
 
@@ -88,20 +90,22 @@ interface Constraint : Expression, Iterable<Literal> {
 /**
  * A logic constraint can be negated "for free" without increasing the cost solving.
  */
-interface NegatableConstraint : Constraint {
-    override fun offset(offset: Int): NegatableConstraint
-    override fun unitPropagation(unit: Literal): NegatableConstraint
-    fun not(): NegatableConstraint
+interface PropositionalConstraint : Constraint {
+    override fun offset(offset: Int): PropositionalConstraint
+    override fun remap(from: Int, to: Int): PropositionalConstraint
+    override fun unitPropagation(unit: Literal): PropositionalConstraint
+    fun not(): PropositionalConstraint
 }
 
 /**
  * This constraint is never satisfied.
  */
-object Empty : NegatableConstraint, BasicExpression {
+object Empty : PropositionalConstraint, Proposition {
     override val priority: Int get() = 0
     override val literals get() = EmptyCollection
     override fun violations(instance: Instance, cacheResult: Int) = Int.MAX_VALUE
     override fun offset(offset: Int) = this
+    override fun remap(from: Int, to: Int) = this
     override operator fun not() = Tautology
     override fun unitPropagation(unit: Literal) = this
     override fun coerce(instance: MutableInstance, rng: Random) {}
@@ -111,11 +115,12 @@ object Empty : NegatableConstraint, BasicExpression {
 /**
  * This constraint is always satisfied.
  */
-object Tautology : NegatableConstraint, BasicExpression {
+object Tautology : PropositionalConstraint, Proposition {
     override val priority: Int get() = 0
     override val literals get() = EmptyCollection
     override fun violations(instance: Instance, cacheResult: Int) = 0
     override fun offset(offset: Int) = this
+    override fun remap(from: Int, to: Int) = this
     override operator fun not() = Empty
     override fun unitPropagation(unit: Literal) = this
     override fun coerce(instance: MutableInstance, rng: Random) {}

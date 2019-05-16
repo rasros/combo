@@ -1,5 +1,3 @@
-@file:JvmName("GeneticAlgorithm")
-
 package combo.sat.solvers
 
 import combo.math.*
@@ -7,7 +5,6 @@ import combo.sat.*
 import combo.util.IntHashSet
 import combo.util.millis
 import combo.util.nanos
-import kotlin.jvm.JvmName
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -34,22 +31,16 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
+     * [BitArrayBuilder] otherwise [BitArrayBuilder].
      */
-    var instanceFactory: InstanceFactory = BitArrayFactory
+    var instanceBuilder: InstanceBuilder = BitArrayBuilder
 
     /**
-     * This contains cached information about satisfied constraints during search. [PropTrackingInstanceFactory] is more
-     * efficient for optimizing but uses more memory than [BasicTrackingInstanceFactory]. The default for genetic algorithms
-     * is [BasicTrackingInstanceFactory].
+     * This determines how instances are given their starting values. This has a huge effect on the quality and
+     * efficiency of solutions. Use [ConstraintCoercer] or [ImplicationConstraintCoercer] for a heuristic initial
+     * solution or either [FastRandomSet] or [RandomSet] for a totally random initial guess.
      */
-    var trackingInstanceFactory: TrackingInstanceFactory = PropTrackingInstanceFactory(problem)
-
-    /**
-     * Variables will be initialized according to this for each instance. The default is [RandomInitializer] which
-     * initializes uniform at random, consider switching to [combo.sat.WeightInitializer] for [LinearObjective].
-     */
-    var initializer: ValueInitializer<O> = RandomInitializer()
+    var initializer: InstanceInitializer<O> = ConstraintCoercer(problem, FastRandomSet())
 
     /**
      * The search will be restarted up to [restarts] number of time and the best value will be selected from each
@@ -61,7 +52,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
      * Percentage of candidate solutions that will be kept using [selection] method in the case of a restart. The
      * other will be randomly generated new candidates.
      */
-    var restartKeeps: Double = 0.2
+    var restartKeeps: Float = 0.2f
 
     /**
      * Maximum number of steps for each of the [restarts].
@@ -71,7 +62,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
     /**
      * Threshold of improvement to stop current iteration in the search.
      */
-    var eps: Double = 1E-4
+    var eps: Float = 1E-4f
 
     /**
      * This is the maximum number of steps that can be performed with no improvement on the [O] objective function.
@@ -96,7 +87,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
      */
     var recombination: RecombinationOperator = KPointRecombination(1)
 
-    var recombinationProbability: Double = 1.0
+    var recombinationProbability: Float = 1.0f
 
     /**
      * The [mutation] operator in conjunction with the [mutationProbability] adds additional diversity to the candidate
@@ -108,7 +99,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
      * The [mutation] operator in conjunction with the [mutationProbability] adds additional diversity to the candidate
      * solutions. The default flips one random variable with probability 1.
      */
-    var mutationProbability: Double = 1.0
+    var mutationProbability: Float = 1.0f
 
     /**
      * In order to discourage the optimizer to converge to an infeasible candidate solution we add an external penalty
@@ -119,25 +110,27 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
      */
     var penalty: PenaltyFunction = DisjunctPenalty()
 
+    var scoreSample: DataSample? = null
+    var minScoreSample: DataSample? = null
+
     override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         val lowerBound = function.lowerBound()
         val upperBound = function.upperBound()
 
-        fun score(s: TrackingInstance) = function.value(s).let { it + penalty.penalty(it, s.totalUnsatisfied, lowerBound, upperBound) }
-
+        fun score(s: Validator) = function.value(s).let { it + penalty.penalty(it, s.totalUnsatisfied, lowerBound, upperBound) }
 
         val candidates = let {
-            val instances: Array<TrackingInstance> = Array(candidateSize) {
-                trackingInstanceFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, initializer, function, randomSequence.next())
+            val validators: Array<Validator> = Array(candidateSize) {
+                Validator.build(problem, initializer, instanceBuilder.create(problem.nbrVariables), function, assumptions, randomSequence.next())
             }
-            val scores = DoubleArray(candidateSize) {
-                score(instances[it]).also { s ->
-                    if (abs(s - lowerBound) < eps && instances[it].totalUnsatisfied == 0)
-                        return instances[it].instance
+            val scores = FloatArray(candidateSize) {
+                score(validators[it]).also { s ->
+                    if (abs(s - lowerBound) < eps && validators[it].totalUnsatisfied == 0)
+                        return validators[it].instance
                 }
             }
-            OptimizerCandidateSolutions(instances, IntArray(instances.size), scores)
+            OptimizerCandidateSolutions(validators, IntArray(validators.size), scores)
         }
 
         for (restart in 1..restarts) {
@@ -146,7 +139,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
 
             for (step in 1L..maxSteps) {
                 val eliminated = elimination.select(candidates, rng)
-                val recombined = if (rng.nextDouble() < recombinationProbability) {
+                val recombined = if (rng.nextFloat() < recombinationProbability) {
                     val parent1: Int = selection.select(candidates, rng)
                     val parent2: Int = selection.select(candidates, rng)
                     recombination.combine(parent1, parent2, eliminated, candidates, rng)
@@ -158,7 +151,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
                     for (i in parent.indices) if (target[i] != parent[i]) target.flip(i)
                     false
                 }
-                if (!recombined || rng.nextDouble() < mutationProbability)
+                if (!recombined || rng.nextFloat() < mutationProbability)
                     mutation.mutate(eliminated, candidates, rng)
                 val updatedInstance = candidates.instances[eliminated]
                 val score = score(updatedInstance)
@@ -169,14 +162,18 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
                 if (!candidates.update(eliminated, step, score)) stalls++
                 else stalls = 0
 
-                if (millis() > end || (stalls >= stallSteps && restart < restarts) || candidates.minScore == candidates.maxScore) break
+                scoreSample?.run { accept(score) }
+                minScoreSample?.run { accept(candidates.minScore) }
+
+                if (millis() > end || (stalls >= stallSteps && restart < restarts) || candidates.minScore == candidates.maxScore)
+                    break
             }
 
             if (restart == restarts || millis() > end) break
 
-            val keep = IntHashSet()
+            val keep = IntHashSet(nullValue = -1)
             var tries = 0
-            while (keep.size < max(0.2, restartKeeps) * candidateSize || tries++ < candidateSize)
+            while (keep.size < max(0.2f, restartKeeps) * candidateSize || tries++ < candidateSize)
                 keep.add(selection.select(candidates, rng))
             tries = 0
             while (keep.size < restartKeeps * candidateSize) keep.add(tries)
@@ -185,7 +182,7 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
                 if (i in keep) {
                     candidates.update(i, 1, candidates.minScore)
                 } else {
-                    candidates.instances[i] = trackingInstanceFactory.build(instanceFactory.create(problem.nbrVariables), assumptions, initializer, function, randomSequence.next())
+                    candidates.instances[i] = Validator.build(problem, initializer, instanceBuilder.create(problem.nbrVariables), function, assumptions, randomSequence.next())
                     @Suppress("UNCHECKED_CAST")
                     (candidates.instances as Array<MutableInstance>)[i] = candidates.instances[i]
                     val newScore = score(candidates.instances[i])
@@ -197,14 +194,15 @@ open class GAOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<
 
         val ix = (0 until candidateSize).minBy {
             if (candidates.instances[it].totalUnsatisfied == 0) candidates.scores[it]
-            else Double.POSITIVE_INFINITY
+            else Float.POSITIVE_INFINITY
         }!!
         if (candidates.instances[ix].totalUnsatisfied == 0)
             return candidates.instances[ix].instance
 
         if (millis() > end)
             throw TimeoutException(timeout)
-        else throw IterationsReachedException(restarts)
+        else
+            throw IterationsReachedException(restarts)
     }
 }
 
@@ -223,13 +221,13 @@ class GASolver(problem: Problem) : GAOptimizer<SatObjective>(problem), Solver {
     override fun witnessOrThrow(assumptions: Literals) = optimizeOrThrow(SatObjective, assumptions)
 }
 
-class OptimizerCandidateSolutions(override val instances: Array<TrackingInstance>,
+class OptimizerCandidateSolutions(override val instances: Array<Validator>,
                                   val origins: IntArray,
-                                  val scores: DoubleArray) : CandidateSolutions {
+                                  val scores: FloatArray) : CandidateSolutions {
 
-    override var minScore: Double = Double.POSITIVE_INFINITY
+    override var minScore: Float = Float.POSITIVE_INFINITY
         private set
-    override var maxScore: Double = Double.NEGATIVE_INFINITY
+    override var maxScore: Float = Float.NEGATIVE_INFINITY
         private set
     var oldestOrigin: Int = Int.MAX_VALUE
         private set
@@ -256,7 +254,7 @@ class OptimizerCandidateSolutions(override val instances: Array<TrackingInstance
 
     override fun score(ix: Int) = scores[ix]
 
-    override fun update(ix: Int, step: Long, newScore: Double): Boolean {
+    override fun update(ix: Int, step: Long, newScore: Float): Boolean {
         origins[ix] = step.toInt()
         if (oldestCandidate == ix || step < oldestOrigin) {
             oldestOrigin = Int.MAX_VALUE

@@ -1,12 +1,12 @@
 package combo.sat.constraints
 
-import combo.sat.BitArray
-import combo.sat.ConstraintTest
-import combo.sat.Empty
-import combo.sat.Tautology
+import combo.sat.*
 import combo.test.assertContentEquals
 import combo.util.IntList
+import combo.util.IntRangeSet
+import combo.util.bitCount
 import combo.util.collectionOf
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -34,12 +34,6 @@ class ConjunctionTest : ConstraintTest() {
         assertEquals(2, Conjunction(IntList(intArrayOf(1, -3))).violations(instance))
         assertEquals(1, Conjunction(IntList(intArrayOf(1, -4))).violations(instance))
         assertEquals(0, Conjunction(IntList(intArrayOf(2, -4))).violations(instance))
-    }
-
-    @Test
-    fun violationsEmpty() {
-        val c = Conjunction(IntList(intArrayOf()))
-        assertEquals(0, c.violations(BitArray(0), 0))
     }
 
     @Test
@@ -84,6 +78,63 @@ class ConjunctionTest : ConstraintTest() {
     }
 
     @Test
+    fun coerce() {
+        BitArray(100).also {
+            val c = Conjunction(collectionOf(1, 7, 5))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertTrue(it[0] && it[6] && it[4])
+            assertEquals(3, it.iterator().asSequence().count())
+        }
+        BitArray(100).also {
+            val c = Conjunction(collectionOf(-70, -78))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(0, it.iterator().asSequence().count())
+            it[69] = true
+            it[77] = true
+            assertEquals(2, it.iterator().asSequence().count())
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(0, it.iterator().asSequence().count())
+        }
+    }
+
+    @Test
+    fun coerceIntRange() {
+        BitArray(100).also {
+            val c = Conjunction(IntRangeSet(39, 56))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(0x3FFFF, it.getBits(38, 18))
+            assertEquals(18, it.iterator().asSequence().count())
+        }
+
+        BitArray(100).also {
+            val c = Conjunction(IntRangeSet(1, 100))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(-1, it.getBits(0, 32))
+            assertEquals(-1, it.getBits(32, 32))
+            assertEquals(-1, it.getBits(64, 32))
+            assertEquals(15, it.getBits(96, 4))
+            assertEquals(100, it.iterator().asSequence().count())
+        }
+
+        BitArray(199).also {
+            val c = Conjunction(IntRangeSet(-10, -1))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(0, it.getBits(0, 10))
+            for (i in 0 until 10)
+                it[i] = true
+            assertEquals(10, Int.bitCount(it.getBits(0, 10)))
+            Conjunction(IntRangeSet(-10, -1)).coerce(it, Random)
+            assertEquals(0, Int.bitCount(it.getBits(0, 10)))
+        }
+    }
+
+    @Test
     fun randomCoerce() {
         randomCoerce(Conjunction(collectionOf(1, 4, 5)))
         randomCoerce(Conjunction(collectionOf(1, -4, 5)))
@@ -113,12 +164,6 @@ class DisjunctionTest : ConstraintTest() {
         assertEquals(0, Disjunction(IntList(intArrayOf(1, 3))).violations(instance))
         assertEquals(1, Disjunction(IntList(intArrayOf(1, -3))).violations(instance))
         assertEquals(0, Disjunction(IntList(intArrayOf(1, -4))).violations(instance))
-    }
-
-    @Test
-    fun violationsEmpty() {
-        val c = Disjunction(IntList(intArrayOf()))
-        assertEquals(0, c.violations(BitArray(0), 0))
     }
 
     @Test
@@ -172,6 +217,60 @@ class DisjunctionTest : ConstraintTest() {
         randomExhaustivePropagations(Disjunction(collectionOf(2, 3, 4, 5)))
         randomExhaustivePropagations(Disjunction(collectionOf(-1, -2, -3, -4)))
         randomExhaustivePropagations(Disjunction(collectionOf(-1, 3, -4, -5)))
+    }
+
+    @Test
+    fun coerce() {
+        BitArray(100).also {
+            val c = Disjunction(collectionOf(1, 7, 5))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertTrue(it[0] || it[6] || it[4])
+            assertEquals(1, it.iterator().asSequence().count())
+        }
+        BitArray(100).also {
+            val c = Disjunction(collectionOf(-70, -78))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(0, it.iterator().asSequence().count())
+            it[69] = true
+            it[77] = true
+            assertEquals(2, it.iterator().asSequence().count())
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(1, it.iterator().asSequence().count())
+        }
+    }
+
+    @Test
+    fun coerceIntRange() {
+        BitArray(100).also {
+            val c = Disjunction(IntRangeSet(39, 56))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertTrue(it.getBits(38, 18) != 0)
+            assertEquals(1, it.iterator().asSequence().count())
+        }
+
+        BitArray(100).also {
+            val c = Disjunction(IntRangeSet(1, 100))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertTrue(it.getBits(0, 32) != 0 || it.getBits(32, 32) != 0 || it.getBits(64, 32) != 0 || it.getBits(96, 4) != 0)
+            assertEquals(1, it.iterator().asSequence().count())
+        }
+
+        BitArray(199).also {
+            val c = Disjunction(IntRangeSet(-10, -1))
+            c.coerce(it, Random)
+            assertTrue(c.satisfies(it))
+            assertEquals(0, it.getBits(0, 10))
+            for (i in 0 until 10)
+                it[i] = true
+            assertEquals(10, Int.bitCount(it.getBits(0, 10)))
+            Disjunction(IntRangeSet(-10, -1)).coerce(it, Random)
+            assertEquals(9, Int.bitCount(it.getBits(0, 10)))
+        }
     }
 
     @Test

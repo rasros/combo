@@ -21,52 +21,74 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
     override var timeout: Long = -1L
 
     /**
-     * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [IntSetInstanceFactory] otherwise [BitArrayFactory].
+     * If true then perform unit propagation before solving when assumptions are used.
      */
-    var instanceFactory: InstanceFactory = BitArrayFactory
+    var propagateAssumptions: Boolean = true
+
+    /**
+     * Determines the [Instance] that will be created for solving, for very sparse problems use
+     * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
+     */
+    var instanceFactory: InstanceBuilder = BitArrayBuilder
 
     private var randomSequence = RandomSequence(nanos())
 
     override fun witnessOrThrow(assumptions: Literals): Instance {
-        val remap = createRemap(assumptions)
-        val nbrVariables = problem.nbrVariables - assumptions.size
-        val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
-                .asSequence()
-                .map { if (millis() <= end) it else throw TimeoutException(timeout) }
-                .map { remapInstance(assumptions, it, remap) }
-                .firstOrNull { problem.satisfies(it) } ?: throw UnsatisfiableException()
-    }
-
-    override fun sequence(assumptions: Literals): Sequence<Instance> {
-        val remap = createRemap(assumptions)
-        val nbrVariables = problem.nbrVariables - assumptions.size
+        val propAssumptions = propAssumptions(assumptions)
+        val remap = createRemap(propAssumptions)
+        val nbrVariables = problem.nbrVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
         return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
-                .map { remapInstance(assumptions, it, remap) }
+                .map { remapInstance(propAssumptions, it, remap) }
+                .filter { problem.satisfies(it) }
+                .firstOrNull() ?: throw if (millis() > end) TimeoutException(timeout) else UnsatisfiableException()
+    }
+
+    override fun asSequence(assumptions: Literals): Sequence<Instance> {
+        val propAssumptions = try {
+            propAssumptions(assumptions)
+        } catch (e: UnsatisfiableException) {
+            return emptySequence()
+        }
+        val remap = createRemap(propAssumptions)
+        val nbrVariables = problem.nbrVariables - propAssumptions.size
+        val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
+        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
+                .asSequence()
+                .takeWhile { millis() <= end }
+                .map { remapInstance(propAssumptions, it, remap) }
                 .filter { problem.satisfies(it) }
     }
 
-    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: Literals) = sequence(assumptions).minBy {
+    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: Literals) = asSequence(assumptions).minBy {
         function.value(it)
     } ?: throw UnsatisfiableException()
 
+    private fun propAssumptions(assumptions: Literals): Literals {
+        return if (propagateAssumptions && assumptions.isNotEmpty()) {
+            val units = IntHashSet()
+            units.addAll(assumptions)
+            problem.unitPropagation(units)
+            units.toArray()
+        } else {
+            assumptions
+        }
+    }
+
     private fun createRemap(assumptions: Literals): IntArray {
+        if (assumptions.isEmpty()) return EMPTY_INT_ARRAY
         val nbrVariables = problem.nbrVariables - assumptions.size
-        return if (assumptions.isNotEmpty()) {
-            val themap = IntArray(nbrVariables)
-            var ix = 0
-            val taken = IntHashSet(assumptions.size * 2)
-            assumptions.forEach { taken.add(it.toIx()) }
-            for (i in 0 until nbrVariables) {
-                while (taken.contains(ix)) ix++
-                themap[i] = ix++
-            }
-            themap
-        } else EMPTY_INT_ARRAY
+        val themap = IntArray(nbrVariables)
+        var ix = 0
+        val taken = IntHashSet(assumptions.size * 2, nullValue = -1)
+        assumptions.forEach { taken.add(it.toIx()) }
+        for (i in 0 until nbrVariables) {
+            while (taken.contains(ix)) ix++
+            themap[i] = ix++
+        }
+        return themap
     }
 
     private fun remapInstance(assumptions: Literals, instance: Instance, remap: IntArray): Instance {

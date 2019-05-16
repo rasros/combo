@@ -1,5 +1,6 @@
 package combo.sat
 
+import combo.sat.constraints.Conjunction
 import combo.util.*
 
 /**
@@ -10,17 +11,18 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
 
     val nbrConstraints get() = constraints.size
 
-    private val variableConstraints: IntHashMap<IntArray> = let {
-        val map = IntHashMap<IntList>(nullKey = -1)
+    private val variableConstraints: Map<Int, IntArray> = let {
+        val map = HashMap<Int, IntList>()
         for ((i, cons) in constraints.withIndex()) {
-            for (lit in cons) {
+            for (lit in cons.literals) {
                 val ix = lit.toIx()
                 assert(ix < nbrVariables)
                 if (!map.containsKey(ix)) map[ix] = IntList()
                 map[ix]!!.add(i)
             }
         }
-        map.map { it.toArray() }
+        // TODO makes linkedhashmap unnecessarily
+        map.mapValues { it.value.toArray() }
     }
 
     /**
@@ -28,9 +30,9 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
      */
     fun constraintsWith(varIx: Int) = variableConstraints[varIx] ?: EMPTY_INT_ARRAY
 
-    fun satisfies(l: Instance) = constraints.all { it.satisfies(l) }
+    fun satisfies(instance: Instance) = constraints.all { it.satisfies(instance) }
 
-    fun flipsToSatisfy(l: Instance) = constraints.sumBy { it.flipsToSatisfy(l) }
+    fun violations(instance: Instance) = constraints.sumBy { it.violations(instance) }
 
     /**
      * Performs unit propagation on all constraints. Additional unit variables can be added in the [units] parameter.
@@ -48,26 +50,28 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
         if (units.isNotEmpty())
             unitsIx.add(constraints.size + 1)
 
-        val initial = Conjunction(units.copy())
+        val initial: Constraint = if (units.isEmpty()) Empty else Conjunction(units.copy())
         for (i in constraints.indices)
             if (constraints[i].isUnit()) {
                 unitsIx.add(i)
-                for (l in constraints[i]) addUnit(units, l)
+                for (l in constraints[i].unitLiterals()) addUnit(units, l)
             }
 
         val copy = Array<Constraint?>(constraints.size) { null }
 
         while (!unitsIx.isEmpty()) {
-            val clauseId = unitsIx.removeAt(0)
-            val clause = if (clauseId >= constraints.size) initial else copy[clauseId] ?: constraints[clauseId]
-            for (unitLit in clause.literals) {
+            val constraintId = unitsIx.removeAt(0)
+            val constraint = if (constraintId >= constraints.size) initial else copy[constraintId]
+                    ?: constraints[constraintId]
+            for (unitLit in constraint.unitLiterals()) {
                 val unitId = unitLit.toIx()
                 val matching = constraintsWith(unitId)
                 for (i in matching.indices) {
                     val reduced = (copy[matching[i]] ?: constraints[matching[i]]).unitPropagation(unitLit)
+                    if (reduced is Empty) throw UnsatisfiableException("Unsatisfiable by unit propagation.")
                     copy[matching[i]] = reduced
                     if (reduced.isUnit())
-                        if (reduced.literals.any { l -> addUnit(units, l) }) unitsIx.add(matching[i])
+                        if (reduced.unitLiterals().any { l -> addUnit(units, l) }) unitsIx.add(matching[i])
                 }
             }
         }
@@ -75,7 +79,7 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
             copy.asSequence()
                     .mapIndexed { i, it -> it ?: constraints[i] }
                     .filter { !it.isUnit() && it != Tautology }
-                    .toMutableList().apply { add(Conjunction(collectionOf(*units.toArray()))) }
+                    .toList()
                     .toTypedArray()
         } else emptyArray()
     }
