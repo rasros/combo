@@ -163,7 +163,7 @@ object SatObjective : ObjectiveFunction {
  * Exterior penalty added to objective used by genetic algorithms.
  * For information about possibilities, see:
  * Penalty Function Methods for Constrained Optimization with Genetic Algorithms
- * http://dx.doi.org/10.3390/mca10010045
+ * https://doi.org/10.3390/mca10010045
  */
 interface PenaltyFunction {
     fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float): Float
