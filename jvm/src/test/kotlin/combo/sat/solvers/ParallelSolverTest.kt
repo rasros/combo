@@ -5,7 +5,8 @@ import combo.model.TestModels
 import combo.sat.Instance
 import combo.sat.Problem
 import combo.sat.toLiteral
-import combo.util.EMPTY_INT_ARRAY
+import combo.util.EmptyCollection
+import combo.util.collectionOf
 import org.junit.Test
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -21,7 +22,8 @@ class ParallelSolverTest {
             { p: Problem -> ExhaustiveSolver(p) },
             { p: Problem -> CachedSolver(LocalSearchSolver(p)) },
             { p: Problem -> JacopSolver(p) },
-            { p: Problem -> Sat4JSolver(p) })
+            { p: Problem -> Sat4JSolver(p) }
+    )
 
 
     private val optimizers = arrayOf<(Problem) -> Optimizer<LinearObjective>>(
@@ -34,7 +36,7 @@ class ParallelSolverTest {
 
     @Test
     fun parallelSolve() {
-        val p = TestModels.PROBLEMS[0]
+        val p = TestModels.SAT_PROBLEMS[0]
         for (solverCreator in solvers) {
             val solver = solverCreator.invoke(p).apply { randomSeed = 0L }
             val pool = Executors.newFixedThreadPool(10)
@@ -42,8 +44,8 @@ class ParallelSolverTest {
                 val list = ArrayList<Callable<Instance>>()
                 for (i in 0 until 50) {
                     list.add(Callable {
-                        val assumptions = if (Random.nextBoolean()) EMPTY_INT_ARRAY
-                        else intArrayOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
+                        val assumptions = if (Random.nextBoolean()) EmptyCollection
+                        else collectionOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
                         solver.witnessOrThrow(assumptions)
                     })
                 }
@@ -62,7 +64,7 @@ class ParallelSolverTest {
 
     @Test
     fun parallelSequence() {
-        val p = TestModels.PROBLEMS[1]
+        val p = TestModels.SAT_PROBLEMS[1]
         val nbrSolutions = ExhaustiveSolver(p).asSequence().count()
         for (solverCreator in solvers) {
             val solver = solverCreator.invoke(p).apply { randomSeed = 0L }
@@ -88,7 +90,7 @@ class ParallelSolverTest {
 
     @Test
     fun parallelOptimize() {
-        val p = TestModels.PROBLEMS[3]
+        val p = TestModels.SAT_PROBLEMS[3]
         for (solverCreator in optimizers) {
             val optimizer = solverCreator.invoke(p).apply { randomSeed = 0L }
             val pool = Executors.newFixedThreadPool(5)
@@ -96,8 +98,8 @@ class ParallelSolverTest {
                 val list = ArrayList<Callable<Instance>>()
                 for (i in 0 until 20)
                     list.add(Callable {
-                        val assumptions = if (Random.nextBoolean()) EMPTY_INT_ARRAY
-                        else intArrayOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
+                        val assumptions = if (Random.nextBoolean()) EmptyCollection
+                        else collectionOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
                         optimizer.optimizeOrThrow(
                                 LinearObjective(true, FloatArray(p.nbrVariables) { Random.nextNormal() }),
                                 assumptions)

@@ -6,9 +6,7 @@ import combo.sat.*
 import combo.sat.Constraint
 import combo.sat.constraints.*
 import combo.sat.constraints.Linear
-import combo.util.mapArray
-import combo.util.millis
-import combo.util.nanos
+import combo.util.*
 import org.jacop.constraints.*
 import org.jacop.core.BooleanVar
 import org.jacop.core.IntVar
@@ -25,8 +23,8 @@ import kotlin.random.Random
  * [Solver] and [Optimizer] of [LinearObjective] using the JaCoP constraint satisfactory problem (CSP) library.
  */
 class JacopSolver @JvmOverloads constructor(
-        problem: Problem,
-        constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Unit = { _, _, _ ->
+        val problem: Problem,
+        val constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Unit = { _, _, _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
 
@@ -41,117 +39,127 @@ class JacopSolver @JvmOverloads constructor(
      * Determines the [Instance] that will be created for solving, for very sparse problems use
      * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
      */
-    var instanceFactory: InstanceBuilder = BitArrayBuilder
+    var instanceBuilder: InstanceBuilder = BitArrayBuilder
 
-    private val lock = Object()
+    /**
+     * Precision with which to convert objective function into integer constraints.
+     * See [toIntArray]
+     */
+    var delta: Float = 0.1f
 
-    private var randomSequence = RandomSequence(nanos())
-    private val store = Store()
-    private val vars = Array(problem.nbrVariables) { i ->
-        BooleanVar(store, "x$i")
-    }
-    private val optimizeVars = Array(problem.nbrVariables) { i ->
-        FloatVar(store, "xf$i", 0.0, 1.0)
-    }
+    private inner class ConstraintEncoder {
+        val store = Store()
+        val vars = Array(problem.nbrVariables) { i ->
+            BooleanVar(store, "x$i")
+        }
+        val optimizeVars = Array(problem.nbrVariables) { i ->
+            FloatVar(store, "xf$i", 0.0, 1.0)
+        }
 
-    init {
-        for (i in vars.indices) store.imposeWithConsistency(XeqP(vars[i], optimizeVars[i]))
-        val translation = SatTranslation(store)
-        for (c in problem.constraints) {
-            when (c) {
+        init {
+            for (i in vars.indices) store.imposeWithConsistency(XeqP(vars[i], optimizeVars[i]))
+            val translation = SatTranslation(store)
+            for (c in problem.constraints) {
+                when (c) {
+                    is Disjunction -> {
+                        val pos = c.literals.asSequence().filter { it.toBoolean() }
+                                .map { vars[it.toIx()] }.toList().toTypedArray()
+                        val neg = c.literals.asSequence().filter { !it.toBoolean() }
+                                .map { vars[it.toIx()] }.toList().toTypedArray()
+                        translation.generate_clause(pos, neg)
+                    }
+                    is Conjunction ->
+                        for (l in c.literals) {
+                            val value = if (l.toBoolean()) 1 else 0
+                            store.imposeWithConsistency(XeqC(vars[l.toIx()], value))
+                        }
+                    else -> {
+                        val converted = convertConstraint(c)
+                        if (converted == null) constraintHandler.invoke(c, store, vars)
+                        else store.impose(converted)
+                    }
+                }
+            }
+            translation.impose()
+        }
+
+        private fun convertConstraint(c: Constraint): PrimitiveConstraint? {
+            return when (c) {
                 is Disjunction -> {
-                    val pos = c.literals.asSequence().filter { it.toBoolean() }
-                            .map { vars[it.toIx()] }.toList().toTypedArray()
-                    val neg = c.literals.asSequence().filter { !it.toBoolean() }
-                            .map { vars[it.toIx()] }.toList().toTypedArray()
-                    translation.generate_clause(pos, neg)
+                    Or(c.literals.asSequence().map { XeqC(vars[it.toIx()], if (it.toBoolean()) 1 else 0) }.toList())
                 }
                 is Conjunction ->
-                    for (l in c.literals) {
-                        val value = if (l.toBoolean()) 1 else 0
-                        store.imposeWithConsistency(XeqC(vars[l.toIx()], value))
+                    And(c.literals.asSequence().map { XeqC(vars[it.toIx()], if (it.toBoolean()) 1 else 0) }.toList())
+                is Cardinality -> {
+                    val pos = c.literals.asSequence().filter { it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
+                    val neg = c.literals.asSequence().filter { !it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
+                    val degree = IntVar(store, c.degree, c.degree)
+                    if (neg.isEmpty()) {
+                        SumBool(pos, c.relation.operator, degree)
+                    } else {
+                        val posSum = IntVar(store, 0, pos.size)
+                        val negSum = IntVar(store, 0, neg.size)
+                        store.impose(SumBool(pos, "=", posSum))
+                        store.impose(SumBool(neg, "=", negSum))
+                        LinearInt(arrayOf(posSum, negSum), intArrayOf(1, -1), c.relation.operator, c.degree - neg.size)
                     }
-                else -> {
-                    val converted = convertConstraint(c)
-                    if (converted == null) constraintHandler.invoke(c, store, vars)
-                    else store.impose(converted)
                 }
-            }
-        }
-        translation.impose()
-    }
-
-    private fun convertConstraint(c: Constraint): PrimitiveConstraint? {
-        return when (c) {
-            is Disjunction -> {
-                Or(c.literals.asSequence().map { XeqC(vars[it.toIx()], if (it.toBoolean()) 1 else 0) }.toList())
-            }
-            is Conjunction ->
-                And(c.literals.asSequence().map { XeqC(vars[it.toIx()], if (it.toBoolean()) 1 else 0) }.toList())
-            is Cardinality -> {
-                val pos = c.literals.asSequence().filter { it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
-                val neg = c.literals.asSequence().filter { !it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
-                val degree = IntVar(store, c.degree, c.degree)
-                if (neg.isEmpty()) {
-                    SumBool(pos, c.relation.operator, degree)
-                } else {
-                    val posSum = IntVar(store, 0, pos.size)
-                    val negSum = IntVar(store, 0, neg.size)
-                    store.impose(SumBool(pos, "=", posSum))
-                    store.impose(SumBool(neg, "=", negSum))
-                    LinearInt(arrayOf(posSum, negSum), intArrayOf(1, -1), c.relation.operator, c.degree - neg.size)
-                }
-            }
-            is Linear -> {
-                val pos = c.literals.asSequence().filter { it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
-                val neg = c.literals.asSequence().filter { !it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
-                val degree = IntVar(store, c.degree, c.degree)
-                if (neg.isEmpty()) {
-                    var k = 0
-                    val weights = IntArray(pos.size)
-                    for (lit in c.literals.iterator())
-                        weights[k++] = c.weights[lit.toIx()]
-                    LinearInt(pos, weights, c.relation.operator, degree)
-                } else {
-                    val posSum = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
-                    val negSum = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
-                    val posWeights = IntArray(pos.size)
-                    val negWeights = IntArray(neg.size)
-                    var kPos = 0
-                    var kNeg = 0
-                    for (lit in c.literals.iterator()) {
-                        if (lit.toBoolean()) posWeights[kPos++] = c.weights[lit.toIx()]
-                        else negWeights[kNeg++] = c.weights[lit.toIx()]
+                is Linear -> {
+                    val pos = c.literals.asSequence().filter { it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
+                    val neg = c.literals.asSequence().filter { !it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()
+                    val degree = IntVar(store, c.degree, c.degree)
+                    if (neg.isEmpty()) {
+                        var k = 0
+                        val weights = IntArray(pos.size)
+                        for (lit in c.literals.iterator())
+                            weights[k++] = c.weights[lit.toIx()]
+                        LinearInt(pos, weights, c.relation.operator, degree)
+                    } else {
+                        val posSum = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
+                        val negSum = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
+                        val posWeights = IntArray(pos.size)
+                        val negWeights = IntArray(neg.size)
+                        var kPos = 0
+                        var kNeg = 0
+                        for (lit in c.literals.iterator()) {
+                            if (lit.toBoolean()) posWeights[kPos++] = c.weights[lit.toIx()]
+                            else negWeights[kNeg++] = c.weights[lit.toIx()]
+                        }
+                        store.impose(LinearInt(pos, posWeights, "=", posSum))
+                        store.impose(LinearInt(neg, negWeights, "=", negSum))
+                        LinearInt(arrayOf(posSum, negSum), intArrayOf(1, -1), c.relation.operator, c.degree - negWeights.sum())
                     }
-                    store.impose(LinearInt(pos, posWeights, "=", posSum))
-                    store.impose(LinearInt(neg, negWeights, "=", negSum))
-                    LinearInt(arrayOf(posSum, negSum), intArrayOf(1, -1), c.relation.operator, c.degree - negWeights.sum())
                 }
+                is ReifiedImplies -> {
+                    IfThen(XeqC(vars[c.literal.toIx()], if (c.literal.toBoolean()) 1 else 0),
+                            convertConstraint(c.constraint) ?: throw UnsupportedOperationException(
+                                    "Only built in constraints can be used with ReifiedImplies."))
+                }
+                is ReifiedEquivalent -> {
+                    val wrapped = (convertConstraint(c.constraint) ?: throw UnsupportedOperationException(
+                            "Only built in constraints can be used with ReifiedEquivalent."))
+                    if (c.literal.toBoolean()) Reified(wrapped, vars[c.literal.toIx()])
+                    else Eq(XeqC(vars[c.literal.toIx()], 0), wrapped)
+                }
+                is NumericConstraint -> {
+                    throw UnsupportedOperationException(
+                            "Numeric constraints not supported.")
+                }
+                else -> null
             }
-            is ReifiedImplies -> {
-                IfThen(XeqC(vars[c.literal.toIx()], if (c.literal.toBoolean()) 1 else 0),
-                        convertConstraint(c.constraint) ?: throw UnsupportedOperationException(
-                                "Only built in constraints can be used with ReifiedImplies."))
-            }
-            is ReifiedEquivalent -> {
-                val wrapped = (convertConstraint(c.constraint) ?: throw UnsupportedOperationException(
-                        "Only built in constraints can be used with ReifiedEquivalent."))
-                if (c.literal.toBoolean()) Reified(wrapped, vars[c.literal.toIx()])
-                else Eq(XeqC(vars[c.literal.toIx()], 0), wrapped)
-            }
-            is NumericConstraint -> {
-                throw UnsupportedOperationException(
-                        "Numeric constraints not supported.")
-            }
-            else -> null
         }
     }
 
-    override fun witnessOrThrow(assumptions: Literals): Instance {
-        synchronized(lock) {
+    private var randomSequence = RandomSequence(nanos())
+
+    private val encoderTL = ThreadLocal.withInitial { ConstraintEncoder() }
+
+
+    override fun witnessOrThrow(assumptions: IntCollection): Instance {
+        with(encoderTL.get()) {
             try {
                 store.setLevel(store.level + 1)
-                if (vars.isEmpty()) return instanceFactory.create(0)
+                if (vars.isEmpty()) return instanceBuilder.create(0)
                 if (assumptions.isNotEmpty()) {
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
                 }
@@ -165,7 +173,7 @@ class JacopSolver @JvmOverloads constructor(
                     if (search.timeOutOccured) throw TimeoutException(timeout)
                     else throw UnsatisfiableException()
                 }
-                return toInstance(instanceFactory, rng)
+                return toInstance(this, rng)
             } finally {
                 store.removeLevel(store.level)
                 store.setLevel(store.level - 1)
@@ -177,7 +185,7 @@ class JacopSolver @JvmOverloads constructor(
      * This method is not lazy due to limitations in jacop. Use another solver or [forEachInstance] instead.
      * If timeout is not set it will only terminate once all solutions are exhausted, which is probably never.
      */
-    override fun asSequence(assumptions: Literals): kotlin.sequences.Sequence<Instance> {
+    override fun asSequence(assumptions: IntCollection): kotlin.sequences.Sequence<Instance> {
         val list = ArrayList<Instance>()
         forEachInstance(Integer.MAX_VALUE, assumptions) { list.add(it) }
         return list.asSequence()
@@ -186,8 +194,8 @@ class JacopSolver @JvmOverloads constructor(
     /**
      * This method is the preferred way to iterate through solutions using Jacop.
      */
-    fun forEachInstance(limit: Int, assumptions: Literals, instanceConsumer: (Instance) -> Unit) {
-        synchronized(lock) {
+    fun forEachInstance(limit: Int, assumptions: IntCollection, instanceConsumer: (Instance) -> Unit) {
+        with(encoderTL.get()) {
             try {
                 store.setLevel(store.level + 1)
                 if (assumptions.isNotEmpty())
@@ -202,7 +210,7 @@ class JacopSolver @JvmOverloads constructor(
                 search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
                     override fun recordSolution() {
                         super.recordSolution()
-                        instanceConsumer.invoke(toInstance(instanceFactory, rng))
+                        instanceConsumer.invoke(toInstance(this@with, rng))
                     }
                 })
                 search.getSolutionListener().setSolutionLimit(limit)
@@ -215,16 +223,16 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
-        synchronized(lock) {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection): Instance {
+        with(encoderTL.get()) {
             try {
                 store.setLevel(store.level + 1)
-                if (optimizeVars.isEmpty()) return instanceFactory.create(0)
+                if (optimizeVars.isEmpty()) return instanceBuilder.create(0)
                 if (assumptions.isNotEmpty())
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
                 val cost = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
-                val lin = LinearInt(vars, function.weights.toIntArray(0.1f).mapArray {
+                val lin = LinearInt(vars, function.weights.toIntArray(delta).mapArray {
                     if (function.maximize) -it else it
                 }, "=", cost)
                 store.impose(lin)
@@ -242,7 +250,7 @@ class JacopSolver @JvmOverloads constructor(
                     else throw UnsatisfiableException()
                 }
 
-                return toInstance(instanceFactory, randomSequence.next())
+                return toInstance(this, randomSequence.next())
             } finally {
                 store.removeLevel(store.level)
                 store.setLevel(store.level - 1)
@@ -250,9 +258,9 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    private fun toInstance(factory: InstanceBuilder, rng: Random): Instance {
-        val instance = factory.create(vars.size)
-        vars.forEachIndexed { i, v ->
+    private fun toInstance(encoder: ConstraintEncoder, rng: Random): Instance {
+        val instance = instanceBuilder.create(encoder.vars.size)
+        encoder.vars.forEachIndexed { i, v ->
             if ((v.dom().singleton() && v.value() == 1) || (!v.dom().singleton() && rng.nextBoolean()))
                 instance[i] = true
         }

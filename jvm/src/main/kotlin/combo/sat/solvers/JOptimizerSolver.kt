@@ -16,10 +16,7 @@ import combo.sat.constraints.Conjunction
 import combo.sat.constraints.Disjunction
 import combo.sat.constraints.ReifiedEquivalent
 import combo.sat.constraints.Relation.*
-import combo.util.IntCollection
-import combo.util.IntList
-import combo.util.nanos
-import combo.util.transformArray
+import combo.util.*
 import org.apache.commons.logging.impl.NoOpLog
 
 /**
@@ -62,7 +59,7 @@ class JOptimizerSolver @JvmOverloads constructor(
      * Determines the [Instance] that will be created for solving, for very sparse problems use
      * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
      */
-    var instanceFactory: InstanceBuilder = BitArrayBuilder
+    var instanceBuilder: InstanceBuilder = BitArrayBuilder
 
     private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D
@@ -131,7 +128,7 @@ class JOptimizerSolver @JvmOverloads constructor(
      * @throws UnsatisfiableException
      * @throws IterationsReachedException by maxIterations
      */
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: Literals): Instance {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection): Instance {
         val request = BIPOptimizationRequest().apply {
             val mult = if (function.maximize) -1 else 1
             setC(function.weights.toIntArray(delta)
@@ -162,7 +159,7 @@ class JOptimizerSolver @JvmOverloads constructor(
                 throw IterationsReachedException(maxIterations)
             }
         }
-        return opt.bipOptimizationResponse.solution.toInstance(instanceFactory)
+        return opt.bipOptimizationResponse.solution.toInstance(instanceBuilder)
     }
 
     private fun disableLogging(obj: Any?, name: String, field: String) {
@@ -187,11 +184,11 @@ class JOptimizerSolver @JvmOverloads constructor(
         }
     }
 
-    private fun IntArray.toInstance(factory: InstanceBuilder): Instance {
+    private fun IntArray.toInstance(builder: InstanceBuilder): Instance {
         val nbrPos = count { it > 0 }
         val lits = IntArray(nbrPos)
         var k = 0
         forEachIndexed { i, dl -> if (dl == 1) lits[k++] = i.toLiteral(true) }
-        return factory.create(size).apply { setAll(lits) }
+        return builder.create(size).apply { setAll(lits) }
     }
 }
