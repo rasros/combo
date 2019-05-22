@@ -1,95 +1,29 @@
-@file:JvmName("GeneticOperators")
+package combo.ga
 
-package combo.math
-
-import combo.sat.Instance
-import combo.sat.MutableInstance
+import combo.math.AliasMethodSampler
+import combo.math.DiscretePdfSampler
+import combo.math.IntPermutation
+import combo.math.nextGeometric
 import combo.util.assert
 import combo.util.transformArray
-import kotlin.jvm.JvmName
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.random.Random
 
-interface CandidateSolutions {
-
-    val minScore: Float
-    val maxScore: Float
-    val oldestCandidate: Int
-    val nbrCandidates: Int
-        get() = instances.size
-    val instances: Array<out MutableInstance>
-    val nbrVariables: Int
-        get() = instances[0].size
-
-    fun score(ix: Int): Float
-
-    /**
-     * @return true if the update results in a new optimal solution
-     */
-    fun update(ix: Int, step: Long, newScore: Float): Boolean
+/**
+ * The recombination (or crossover) takes two parents and produces an offspring. The offspring is produced inline
+ * in the [combo.sat.Instance] indicated by the index into the [Candidates.instances] array.
+ */
+interface RecombinationOperator<in C : Candidates> {
+    fun combine(parent1: Int, parent2: Int, child: Int, candidates: Candidates, rng: Random)
 }
 
-fun Array<out Instance>.diversity(): Float {
-    var sum = 0.0f
-    for (i in 0 until get(0).size) {
-        val v = RunningVariance()
-        for (j in 0 until size)
-            v.accept(if (this[j][i]) 1.0f else 0.0f)
-        sum += v.squaredDeviations
-    }
-    return sum
-}
-
-fun Array<out Instance>.diversity2(): Float {
-    val n = size
-    val m = get(0).size
-    var sum = 0.0f
-    for (i in 0 until n) {
-        val i1 = get(i)
-        for (j in 0 until n) {
-            if (i == j) continue
-            val i2 = get(j)
-            var overlap = 0
-            for (k in 0 until m) if (i1[k] == i2[k]) overlap++
-            sum += overlap / m.toFloat()
-        }
-    }
-    return sum
-}
-
-fun Array<out Instance>.diversity3(): Float {
-    val total = RunningVariance()
-    for (i in 0 until get(0).size) {
-        val v = RunningVariance()
-        for (j in 0 until size)
-            v.accept(if (this[j][i]) 1.0f else 0.0f)
-        total.accept(4 * v.mean * (1 - v.mean))
-    }
-    return total.sum
-}
-
-fun Array<out Instance>.singularColumns(): Int {
-    var singular = 0
-    for (i in 0 until get(0).size) {
-        var hasZero = false
-        var hasOne = false
-        for (j in 0 until size) {
-            if (!this[j][i]) hasZero = true
-            else hasOne = true
-        }
-        if (!hasOne && !hasZero) singular++
-    }
-    return singular
-}
-
-interface RecombinationOperator {
-    fun combine(parent1: Int, parent2: Int, child: Int, candidates: CandidateSolutions, rng: Random)
-}
-
-class UniformRecombination : RecombinationOperator {
-    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: CandidateSolutions, rng: Random) {
+/**
+ * Choose each variable uniformly at random from each parent.
+ */
+class UniformRecombination : RecombinationOperator<Candidates> {
+    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: Candidates, rng: Random) {
         val s1 = candidates.instances[parent1]
         val s2 = candidates.instances[parent2]
         val s3 = candidates.instances[child]
@@ -100,8 +34,12 @@ class UniformRecombination : RecombinationOperator {
     }
 }
 
-class KPointRecombination(val k: Int = 1) : RecombinationOperator {
-    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: CandidateSolutions, rng: Random) {
+/**
+ * [k]-points are selected randomly (plus end points) and the intervals between the points are selected from each
+ * parent interwoven.
+ */
+class KPointRecombination(val k: Int = 1) : RecombinationOperator<Candidates> {
+    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: Candidates, rng: Random) {
         var s1 = candidates.instances[parent1]
         var s2 = candidates.instances[parent2]
         val s3 = candidates.instances[child]
@@ -123,21 +61,25 @@ class KPointRecombination(val k: Int = 1) : RecombinationOperator {
     }
 }
 
-interface SelectionOperator {
-    fun select(candidates: CandidateSolutions, rng: Random): Int
+/**
+ * The selection is used to select a candidate index from [Candidates.instances]. When this is used for selecting
+ * the maximum they are called XSelection, when they are used for selecting minimum they are callsed XElimination.
+ */
+interface SelectionOperator<in C : Candidates> {
+    fun select(candidates: C, rng: Random): Int
 }
 
-class UniformSelection : SelectionOperator {
-    override fun select(candidates: CandidateSolutions, rng: Random) = rng.nextInt(candidates.nbrCandidates)
+class UniformSelection : SelectionOperator<Candidates> {
+    override fun select(candidates: Candidates, rng: Random) = rng.nextInt(candidates.nbrCandidates)
 }
 
 /**
  * Stochastic acceptance is a fitness proportionate method where a random variable i is tested and accepted with
  * probability score_min / score_i. As such it does not really work well where score_min is close to 0 or when
- * there are large differences between the best score and all others.
+ * there are large differences between the best score and all others. When it does work it can be the best option.
  */
-class StochasticAcceptanceSelection(val acceptanceMin: Float = 0.05f) : SelectionOperator {
-    override fun select(candidates: CandidateSolutions, rng: Random): Int {
+class StochasticAcceptanceSelection(val acceptanceMin: Float = 0.05f) : SelectionOperator<Candidates> {
+    override fun select(candidates: Candidates, rng: Random): Int {
         if (!candidates.minScore.isFinite()) return rng.nextInt(candidates.nbrCandidates)
         for (k in 1..100) {
             val i = rng.nextInt(candidates.nbrCandidates)
@@ -149,15 +91,15 @@ class StochasticAcceptanceSelection(val acceptanceMin: Float = 0.05f) : Selectio
 }
 
 /**
- * Tournament selection selects the best among a random subset of the population, determined by [tournamentSize].
+ * Tournament selection selects the maximum among a random subset of the population, determined by [tournamentSize].
  */
-class TournamentSelection(val tournamentSize: Int) : SelectionOperator {
+class TournamentSelection(val tournamentSize: Int) : SelectionOperator<Candidates> {
 
     init {
         assert(tournamentSize > 0)
     }
 
-    override fun select(candidates: CandidateSolutions, rng: Random): Int {
+    override fun select(candidates: Candidates, rng: Random): Int {
         var bestScore = Float.POSITIVE_INFINITY
         var best = 0
         val perm = IntPermutation(candidates.nbrCandidates, rng)
@@ -177,20 +119,20 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator {
  * Always eliminate oldest candidate. For non-stationary ([combo.sat.solvers.ObjectiveFunction] changes over time)
  * problems this can be a good strategy.
  */
-class OldestElimination : SelectionOperator {
-    override fun select(candidates: CandidateSolutions, rng: Random) = candidates.oldestCandidate
+class OldestElimination : SelectionOperator<Candidates> {
+    override fun select(candidates: Candidates, rng: Random) = candidates.oldestCandidate
 }
 
 /**
- * This works like [TournamentSelection] but selects the worst instead.
+ * This works like [TournamentSelection] but selects the minimum score instead.
  */
-class TournamentElimination(val tournamentSize: Int) : SelectionOperator {
+class TournamentElimination(val tournamentSize: Int) : SelectionOperator<Candidates> {
 
     init {
         assert(tournamentSize > 0)
     }
 
-    override fun select(candidates: CandidateSolutions, rng: Random): Int {
+    override fun select(candidates: Candidates, rng: Random): Int {
         var worstScore = Float.NEGATIVE_INFINITY
         var worst = 0
         val perm = IntPermutation(candidates.nbrCandidates, rng)
@@ -206,15 +148,21 @@ class TournamentElimination(val tournamentSize: Int) : SelectionOperator {
     }
 }
 
-interface MutationOperator {
-    fun mutate(target: Int, candidates: CandidateSolutions, rng: Random)
+/**
+ * The mutation operator performs random flips on a target instance.
+ */
+interface MutationOperator<in C : Candidates> {
+    fun mutate(target: Int, candidates: C, rng: Random)
 }
 
-interface RateMutationOperator : MutationOperator {
+/**
+ * This flips each variable with a uniform probability rate.
+ */
+interface RateMutationOperator : MutationOperator<Candidates> {
 
     fun mutationRate(nbrVariables: Int, rng: Random): Float
 
-    override fun mutate(target: Int, candidates: CandidateSolutions, rng: Random) {
+    override fun mutate(target: Int, candidates: Candidates, rng: Random) {
         val instance = candidates.instances[target]
         val rate = mutationRate(instance.size, rng)
         var index = rng.nextGeometric(rate) - 1
@@ -225,8 +173,15 @@ interface RateMutationOperator : MutationOperator {
     }
 }
 
-class FixedMutation(val nbrFlips: Int = 1) : MutationOperator {
-    override fun mutate(target: Int, candidates: CandidateSolutions, rng: Random) {
+/**
+ * This flips exactly [nbrFlips].
+ */
+class FixedMutation(val nbrFlips: Int = 1) : MutationOperator<Candidates> {
+    init {
+        assert(nbrFlips > 0)
+    }
+
+    override fun mutate(target: Int, candidates: Candidates, rng: Random) {
         val instance = candidates.instances[target]
         val permutation = IntPermutation(instance.size, rng)
         for (i in 0 until nbrFlips) {
@@ -236,7 +191,7 @@ class FixedMutation(val nbrFlips: Int = 1) : MutationOperator {
 }
 
 /**
- * This flips exactly [nbrFlips]
+ * This flips with rate [nbrFlips] / N.
  */
 class FixedRateMutation(val nbrFlips: Int = 1) : RateMutationOperator {
     override fun mutationRate(nbrVariables: Int, rng: Random) = min(1.0f, nbrFlips / nbrVariables.toFloat())
