@@ -66,14 +66,14 @@ abstract class LinearOptimizerTest {
 
     @Test
     fun guessReuse() {
-        for (p in TestModels.SAT_PROBLEMS) {
+        for ((i, p) in TestModels.SAT_PROBLEMS.withIndex()) {
             val optimizer = optimizer(p)
             if (optimizer != null) {
                 val weights = FloatArray(p.nbrVariables) { Random.nextNormal() }
                 val obj = LinearObjective(false, weights)
                 val initial = optimizer.optimizeOrThrow(obj)
                 val actual = optimizer.optimizeOrThrow(obj, guess = initial.copy())
-                assertTrue(initial dot weights >= actual dot weights)
+                assertTrue(initial dot weights >= actual dot weights, "$i")
             }
         }
     }
