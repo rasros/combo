@@ -5,7 +5,8 @@ import combo.math.VarianceEstimator
 import combo.sat.Instance
 import combo.sat.Literals
 import combo.sat.ValidationException
-import combo.util.EMPTY_INT_ARRAY
+import combo.util.EmptyCollection
+import combo.util.IntCollection
 import kotlin.math.abs
 
 /**
@@ -14,9 +15,9 @@ import kotlin.math.abs
  */
 interface Bandit<D> {
 
-    fun chooseOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Instance
+    fun chooseOrThrow(assumptions: IntCollection = EmptyCollection): Instance
 
-    fun choose(assumptions: Literals = EMPTY_INT_ARRAY) =
+    fun choose(assumptions: IntCollection = EmptyCollection) =
             try {
                 chooseOrThrow(assumptions)
             } catch (e: ValidationException) {
@@ -49,7 +50,7 @@ interface Bandit<D> {
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
-    var randomSeed: Long
+    var randomSeed: Int
 
     /**
      * Whether the bandit should maximize or minimize the total rewards.

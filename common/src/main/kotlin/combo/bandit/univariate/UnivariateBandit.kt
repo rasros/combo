@@ -2,9 +2,9 @@ package combo.bandit.univariate
 
 import combo.math.DataSample
 import combo.math.GrowingDataSample
-import combo.math.RandomSequence
 import combo.math.VarianceEstimator
 import combo.util.nanos
+import kotlin.random.Random
 
 /**
  * A bandit optimizes an online binary decision problem. These bandits are uni-variate,
@@ -20,11 +20,12 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
-    var randomSeed: Long
+    var randomSeed: Int = nanos().toInt()
         set(value) {
-            this.randomSequence = RandomSequence(value)
+            field = value
+            this.rng = Random(value)
         }
-        get() = randomSequence.startingSeed
+    private var rng = Random(randomSeed)
 
     /**
      * Whether the bandit should maximize or minimize the total rewards.
@@ -35,7 +36,6 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
      * A sample of the total rewards obtained, for use in analysis and debugging.
      */
     var rewards: DataSample = GrowingDataSample()
-    private var randomSequence = RandomSequence(nanos())
 
     private val data: Array<VarianceEstimator> = Array(nbrArms) { banditPolicy.baseData().also { banditPolicy.addArm(it) } }
 
@@ -43,16 +43,12 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
      * Select the next bandit to use. Indexed from 0 to [nbrArms].
      */
     fun choose(): Int {
-        val rng = randomSequence.next()
-        banditPolicy.beginRound(rng)
-        return (0 until nbrArms).maxBy {
-            val score = banditPolicy.evaluate(data[it] as E, rng)
-            if (maximize) score else -score
-        }!!
+        banditPolicy.round(rng)
+        return (nbrArms - 1 downTo 0).maxBy { banditPolicy.evaluate(data[it] as E, maximize, rng) }!!
     }
 
     fun update(armIndex: Int, result: Float, weight: Float = 1.0f) {
-        banditPolicy.completeRound(data[armIndex] as E, result, weight)
+        banditPolicy.update(data[armIndex] as E, result, weight)
         rewards.accept(result, weight)
     }
 
@@ -60,7 +56,7 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
      * Add historic data to the bandit, this can be used to stop and re-start the bandit. The array must be the same
      * length as [nbrArms].
      */
-    fun importData(historicData: Array<E>) {
+    fun importData(historicData: List<E>) {
         require(historicData.size == nbrArms)
         @Suppress("UNCHECKED_CAST")
         for (i in 0 until nbrArms) {
@@ -74,6 +70,6 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
      * Exports all data to use for external storage. They can be used in a new [UnivariateBandit] instance that
      * continues optimizing through the [importData] function. The order of the returned array must be maintained.
      */
-    fun exportData(): Array<E> = data.copyOf() as Array<E>
+    fun exportData(): List<E> = ArrayList<E>(data.size).apply { data.forEach { add(it as E) } }
 }
 

@@ -3,14 +3,17 @@ package combo.bandit
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
 import combo.math.GrowingDataSample
-import combo.math.RandomSequence
 import combo.math.VarianceEstimator
+import combo.sat.Constraint
 import combo.sat.Instance
+import combo.sat.Tautology
 import combo.sat.UnsatisfiableException
 import combo.sat.constraints.Conjunction
-import combo.util.collectionOf
+import combo.util.IntCollection
+import combo.util.isNotEmpty
 import combo.util.nanos
 import kotlin.collections.set
+import kotlin.random.Random
 
 /**
  * This bandit uses an independent univariate bandit policy for each of a pre-defined [Instance].
@@ -28,15 +31,15 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
         }
     }
 
-    override var randomSeed: Long
+    override var randomSeed: Int = nanos().toInt()
         set(value) {
-            this.randomSequence = RandomSequence(value)
+            this.rng = Random(value)
+            field = value
         }
-        get() = randomSequence.startingSeed
+    private var rng = Random(randomSeed)
+
     override var maximize: Boolean = true
     override var rewards: DataSample = GrowingDataSample()
-
-    private var randomSequence = RandomSequence(nanos())
 
     override fun importData(historicData: Array<InstanceData<E>>) {
         for (data in historicData) {
@@ -58,17 +61,16 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
 
     override fun update(instance: Instance, result: Float, weight: Float) {
         rewards.accept(result, weight)
-        banditPolicy.completeRound(instanceData[instance]!!, result, weight)
+        val d = instanceData[instance]
+        if (d != null) banditPolicy.update(d, result, weight)
     }
 
-    override fun chooseOrThrow(assumptions: IntArray): Instance {
-        val rng = randomSequence.next()
-        banditPolicy.beginRound(rng)
-        val con = Conjunction(collectionOf(*assumptions))
+    override fun chooseOrThrow(assumptions: IntCollection): Instance {
+        banditPolicy.round(rng)
+        val con: Constraint = if (assumptions.isNotEmpty()) Conjunction(assumptions) else Tautology
         val instance = instanceData.maxBy {
-            val s = if (con.satisfies(it.key)) banditPolicy.evaluate(it.value, rng)
+            if (con.satisfies(it.key)) banditPolicy.evaluate(it.value, maximize, rng)
             else Float.NEGATIVE_INFINITY
-            if (maximize) s else -s
         }?.key
         if (instance == null || !con.satisfies(instance))
             throw UnsatisfiableException("No instance matching assumption literals.")

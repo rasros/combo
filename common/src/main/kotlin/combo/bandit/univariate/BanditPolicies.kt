@@ -1,5 +1,6 @@
 package combo.bandit.univariate
 
+import combo.math.CountData
 import combo.math.RunningVariance
 import combo.math.VarianceEstimator
 import kotlin.jvm.JvmOverloads
@@ -14,16 +15,20 @@ import kotlin.random.Random
  */
 interface BanditPolicy<E : VarianceEstimator> {
 
-    fun beginRound(rng: Random) {}
-    fun evaluate(data: E, rng: Random): Float
-    fun completeRound(data: E, value: Float, weight: Float) = updateData(data, value, weight)
+    fun round(rng: Random) {}
+    fun evaluate(data: E, maximize: Boolean, rng: Random): Float
+    fun update(data: E, value: Float, weight: Float) = accept(data, value, weight)
 
-    fun updateData(data: E, value: Float, weight: Float) = data.accept(value, weight)
+    fun accept(data: E, value: Float, weight: Float) = data.accept(value, weight)
 
     /**
-     * This will be called when a bandit is initialized, it is often called multiple times during initialization.
+     * This will be copied to each bandit during initialization and during operation of [combo.bandit.Bandit] algorithms
+     * where the number of arms are dynamic.
      */
-    fun baseData(): E
+    val prior: E
+
+    @Suppress("UNCHECKED_CAST")
+    fun baseData() = prior.copy() as E
 
     /**
      * This is called when arms are added without initializing, usually when loading historic data.
@@ -41,83 +46,111 @@ interface BanditPolicy<E : VarianceEstimator> {
  * sampled value from each posterior. The prior is encoded directly into the [VarianceEstimator] as pseudo samples.
  */
 class ThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
-        val posterior: UnivariatePosterior<E>, val prior: E = posterior.defaultPrior()) : BanditPolicy<E> {
+        val posterior: UnivariatePosterior<E>, override val prior: E = posterior.defaultPrior())
+    : BanditPolicy<E> {
 
-    private val pool = posterior.poolEstimator(prior)
+    override fun evaluate(data: E, maximize: Boolean, rng: Random): Float {
+        val sample = posterior.sample(data, rng)
+        return if (maximize) sample else -sample
+    }
 
-    override fun evaluate(data: E, rng: Random) = posterior.sample(data, pool, rng)
-
-    override fun updateData(data: E, value: Float, weight: Float) {
+    override fun accept(data: E, value: Float, weight: Float) {
         posterior.update(data, value, weight)
     }
 
-    override fun completeRound(data: E, value: Float, weight: Float) {
+    override fun update(data: E, value: Float, weight: Float) {
         posterior.update(data, value, weight)
-        pool?.recalculate()
+    }
+}
+
+/**
+ * This method assigns a Bayesian posterior distribution to each arm and during each round selects the maximum from a
+ * sampled value from each posterior. For conjugate posteriors with multiple parameters, ie. only normal and log-normal,
+ * then the variance can be pooled such that it is estimated once for all bandits instead of a separate variance
+ * for each bandit. The prior is encoded directly into the [VarianceEstimator] as pseudo samples.
+ */
+class PooledThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
+        val posterior: PooledUnivariatePosterior<E>, override val prior: E = posterior.defaultPrior())
+    : BanditPolicy<E> {
+
+    override fun evaluate(data: E, maximize: Boolean, rng: Random): Float {
+        val sample = posterior.sample(data, rng)
+        return if (maximize) sample else -sample
     }
 
-    @Suppress("UNCHECKED_CAST")
-    override fun baseData() = prior.copy() as E
+    override fun accept(data: E, value: Float, weight: Float) {
+        posterior.update(data, value, weight)
+    }
+
+    override fun update(data: E, value: Float, weight: Float) {
+        posterior.update(data, value, weight)
+        posterior.pool.recalculate()
+    }
 
     override fun removeArm(armData: E) {
-        pool?.removeArm(armData)
-        pool?.recalculate()
+        posterior.pool.removeArm(armData)
+        posterior.pool.recalculate()
     }
 
     override fun addArm(armData: E) {
-        pool?.addArm(armData)
-        pool?.recalculate()
+        posterior.pool.addArm(armData)
+        posterior.pool.recalculate()
     }
 }
 
 /**
  * This algorithm selects the best option deterministically by appending an uncertainty padding term to the mean.
- * Depending on the type of reward there are improvements available in either [UCB1Tuned] or [UCB1Normal].
+ * This is designed for binomial rewards only, for normal rewards use [UCB1Normal], otherwise [UCB1Tuned].
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolicy<VarianceEstimator> {
+class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior: CountData = CountData())
+    : BanditPolicy<CountData> {
 
-    private var totalSamples = 0.0
+    private var totalSamples = 0.0f
 
-    override fun evaluate(data: VarianceEstimator, rng: Random) =
-            if (data.nbrWeightedSamples <= 1.0) Float.POSITIVE_INFINITY
-            else (data.mean + alpha * sqrt(2 * ln(totalSamples) / data.nbrWeightedSamples)).toFloat()
+    override fun evaluate(data: CountData, maximize: Boolean, rng: Random): Float {
+        return if (data.nbrWeightedSamples < 1.0f) Float.POSITIVE_INFINITY
+        else {
+            val score = if (maximize) data.mean else -data.mean
+            score + alpha * sqrt(2 * ln(totalSamples) / data.nbrWeightedSamples)
+        }
+    }
 
-    override fun baseData() = RunningVariance()
-
-    override fun completeRound(data: VarianceEstimator, value: Float, weight: Float) {
-        data.accept(value, weight)
+    override fun update(data: CountData, value: Float, weight: Float) {
+        accept(data, value, weight)
         totalSamples += weight
     }
 
-    override fun addArm(armData: VarianceEstimator) {
+    override fun addArm(armData: CountData) {
         totalSamples += armData.nbrWeightedSamples
     }
 
-    override fun removeArm(armData: VarianceEstimator) {
+    override fun removeArm(armData: CountData) {
         totalSamples -= armData.nbrWeightedSamples
     }
 }
 
 /**
- * This is an improvement over UCB1 for normal distributed rewards.
+ * This is a version of [UCB1] for normal distributed rewards.
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1Normal @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolicy<SquaredEstimator> {
+class UCB1Normal @JvmOverloads constructor(
+        val alpha: Float = 1.0f, override val prior: SquaredEstimator = SquaredEstimator())
+    : BanditPolicy<SquaredEstimator> {
 
     private var nbrArms = 0
 
-    override fun evaluate(data: SquaredEstimator, rng: Random) =
-            if (data.nbrWeightedSamples < 8 * ln(nbrArms.toFloat()) || nbrArms <= 1) Float.POSITIVE_INFINITY
-            else {
-                val nj = data.nbrWeightedSamples
-                val p1 = (data.meanOfSquares - nj * data.mean * data.mean) / (nj - 1)
-                data.mean + alpha * sqrt(16 * p1 * (ln(nbrArms - 1.0f) / nj))
-            }
-
-    override fun baseData() = SquaredEstimator()
+    override fun evaluate(data: SquaredEstimator, maximize: Boolean, rng: Random): Float {
+        return if (data.nbrWeightedSamples < 8 * ln(nbrArms.toFloat()) || nbrArms <= 1) Float.POSITIVE_INFINITY
+        else {
+            val score = if (maximize) data.mean else -data.mean
+            val nj = data.nbrWeightedSamples
+            val p1 = (data.meanOfSquares - nj * data.mean * data.mean) / (nj - 1)
+            score + alpha * sqrt(16 * p1 * (ln(nbrArms - 1.0f) / nj))
+        }
+    }
 
     override fun addArm(armData: SquaredEstimator) {
         nbrArms++
@@ -133,20 +166,24 @@ class UCB1Normal @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPoli
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1Tuned @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolicy<SquaredEstimator> {
+class UCB1Tuned @JvmOverloads constructor(
+        val alpha: Float = 1.0f, override val prior: SquaredEstimator = SquaredEstimator())
+    : BanditPolicy<SquaredEstimator> {
+
     private var totalSamples = 0.0f
-    override fun evaluate(data: SquaredEstimator, rng: Random) =
-            if (data.nbrWeightedSamples <= 1.0f) Float.POSITIVE_INFINITY
-            else {
-                val padding = ln(totalSamples) / data.nbrWeightedSamples
-                val V = data.meanOfSquares - data.mean * data.mean + sqrt(2f * padding)
-                data.mean + alpha * sqrt(padding * min(0.25f, V))
-            }
 
-    override fun baseData() = SquaredEstimator()
+    override fun evaluate(data: SquaredEstimator, maximize: Boolean, rng: Random): Float {
+        return if (data.nbrWeightedSamples <= 1.0f) Float.POSITIVE_INFINITY
+        else {
+            val padding = ln(totalSamples) / data.nbrWeightedSamples
+            val V = data.meanOfSquares - data.mean * data.mean + sqrt(2f * padding)
+            val score = if (maximize) data.mean else -data.mean
+            score + alpha * sqrt(padding * min(0.25f, V))
+        }
+    }
 
-    override fun completeRound(data: SquaredEstimator, value: Float, weight: Float) {
-        data.accept(value, weight)
+    override fun update(data: SquaredEstimator, value: Float, weight: Float) {
+        accept(data, value, weight)
         totalSamples += weight
     }
 
@@ -159,7 +196,9 @@ class UCB1Tuned @JvmOverloads constructor(val alpha: Float = 1.0f) : BanditPolic
     }
 }
 
-class SquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Float) : VarianceEstimator by base {
+class SquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Float)
+    : VarianceEstimator by base {
+
     constructor(mean: Float = 0.0f,
                 meanOfSquares: Float = 0.0f,
                 squaredDeviations: Float = 0.0f,
@@ -182,12 +221,17 @@ class SquaredEstimator private constructor(private val base: RunningVariance, me
     override fun toString() = "SquaredEstimator(mean=$mean, meanOfSquares=$meanOfSquares, squaredDeviations=$squaredDeviations, nbrSamples=$nbrSamples)"
 }
 
+class UniformSelection(override val prior: RunningVariance = RunningVariance()) : BanditPolicy<VarianceEstimator> {
+    override fun evaluate(data: VarianceEstimator, maximize: Boolean, rng: Random) = rng.nextFloat()
+}
+
 /**
  * Epsilon greedy is the most basic bandit policy. Each round a random arm is used with probability [epsilon], otherwise
  * the best alternative is used.
  */
 class EpsilonGreedy @JvmOverloads constructor(
-        val epsilon: Float = 0.1f) : BanditPolicy<VarianceEstimator> {
+        val epsilon: Float = 0.1f, override val prior: VarianceEstimator = RunningVariance())
+    : BanditPolicy<VarianceEstimator> {
 
     init {
         require(epsilon in 0.0..1.0) { "Epsilon parameter must be within 0-1, got $epsilon" }
@@ -195,14 +239,15 @@ class EpsilonGreedy @JvmOverloads constructor(
 
     private var nextP = 0.0f
 
-    override fun evaluate(data: VarianceEstimator, rng: Random): Float {
-        return if (nextP < epsilon)
+    override fun evaluate(data: VarianceEstimator, maximize: Boolean, rng: Random): Float {
+        return if (nextP < epsilon) {
             rng.nextFloat()
-        else data.mean
+        } else {
+            if (maximize) data.mean else -data.mean
+        }
     }
 
-    override fun baseData() = RunningVariance()
-    override fun beginRound(rng: Random) {
+    override fun round(rng: Random) {
         nextP = rng.nextFloat()
     }
 }
@@ -212,30 +257,32 @@ class EpsilonGreedy @JvmOverloads constructor(
  * version, [epsilon] can be greater than 1.
  */
 class EpsilonDecreasing @JvmOverloads constructor(
-        val epsilon: Float = 2.0f, val decay: Float = 0.5f) : BanditPolicy<VarianceEstimator> {
+        val epsilon: Float = 2.0f, val decay: Float = 0.5f, override val prior: RunningVariance = RunningVariance())
+    : BanditPolicy<VarianceEstimator> {
 
     private var totalSamples = 0.0f
+
     private var nextP = 0.0f
 
     init {
         require(epsilon > 0.0) { "Epsilon parameter must be within 0-1, got $epsilon" }
     }
 
-    override fun evaluate(data: VarianceEstimator, rng: Random): Float {
+    override fun evaluate(data: VarianceEstimator, maximize: Boolean, rng: Random): Float {
         val eps = min(1.0f, epsilon / totalSamples.pow(decay))
-        return if (nextP < eps)
+        return if (nextP < eps) {
             rng.nextFloat()
-        else data.mean
+        } else {
+            if (maximize) data.mean else -data.mean
+        }
     }
 
-    override fun baseData() = RunningVariance()
-
-    override fun beginRound(rng: Random) {
+    override fun round(rng: Random) {
         nextP = rng.nextFloat()
     }
 
-    override fun completeRound(data: VarianceEstimator, value: Float, weight: Float) {
-        data.accept(value, weight)
+    override fun update(data: VarianceEstimator, value: Float, weight: Float) {
+        accept(data, value, weight)
         totalSamples += weight
     }
 
