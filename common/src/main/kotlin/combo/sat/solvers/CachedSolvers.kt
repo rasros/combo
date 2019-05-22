@@ -18,7 +18,7 @@ import kotlin.random.Random
  * Using a cache with multiple threads in parallel makes the solver non-deterministic even if a specific random seed
  * is used.
  */
-class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: Int = 50) : Solver {
+class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: Int = 20) : Solver {
 
     override var randomSeed: Int = nanos().toInt()
         set(value) {
@@ -64,7 +64,7 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
  * is used.
  */
 class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
-        val baseOptimizer: Optimizer<O>, maxSize: Int = 50) : Optimizer<O> {
+        val baseOptimizer: Optimizer<O>, maxSize: Int = 20) : Optimizer<O> {
 
     override var randomSeed: Int = nanos().toInt()
         set(value) {
