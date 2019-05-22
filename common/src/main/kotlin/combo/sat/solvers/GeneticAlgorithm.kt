@@ -112,6 +112,11 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
     var mutation: MutationOperator<Candidates> = FixedMutation()
 
     /**
+     * This mutation operator is applied to the guess if applied once for each candidate.
+     */
+    var guessMutator: MutationOperator<Candidates> = mutation
+
+    /**
      * The [mutation] operator in conjunction with the [mutationProbability] adds additional diversity to the candidate
      * solutions. The default flips one random variable with probability 1.
      */
@@ -119,12 +124,15 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
 
     /**
      * In order to discourage the optimizer to converge to an infeasible candidate solution we add an external penalty
-     * to the objective function. The default penalty ensures that any infeasible candidate solution has a penalized
-     * score that is strictly greater than a feasible solution. In order for that to work the
-     * [combo.sat.solvers.ObjectiveFunction.lowerBound] and [combo.sat.solvers.ObjectiveFunction.upperBound] must be
-     * implemented and be finite. Otherwise, choose another penalty function that does not rely on bounds.
+     * to the objective function. If using linear objective, make sure to set this to [DisjunctPenalty].
      */
-    var penalty: PenaltyFunction = DisjunctPenalty()
+    var penalty: PenaltyFunction = SquaredPenalty()
+
+    /**
+     * If true then perform unit propagation before solving when assumptions are used.
+     * This will sometimes drastically reduce the number of variables and make it easier to solve.
+     */
+    var propagateAssumptions: Boolean = true
 
     /**
      * Use this for introspection during development to sample all scores.
@@ -140,17 +148,28 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         val lowerBound = function.lowerBound()
         val upperBound = function.upperBound()
-        val assumption: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
+
+        val assumption: Constraint
+        val p: Problem
+        if (propagateAssumptions && assumptions.isNotEmpty()) {
+            val units = IntHashSet()
+            units.addAll(assumptions)
+            p = Problem(problem.unitPropagation(units, true), problem.nbrVariables)
+            assumption = Conjunction(units)
+        } else {
+            p = problem
+            assumption = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
+        }
 
         fun score(s: Validator) = function.value(s).let { it + penalty.penalty(it, s.totalUnsatisfied, lowerBound, upperBound) }
 
         val candidates = let {
             val validators: Array<Validator> = Array(candidateSize) {
-                if (it == 0 && guess != null) Validator.build(problem, guess, assumption)
+                if (guess != null) Validator.build(p, guess.copy(), assumption)
                 else {
-                    val instance = instanceBuilder.create(problem.nbrVariables)
+                    val instance = instanceBuilder.create(p.nbrVariables)
                     initializer.initialize(instance, assumption, rng, function)
-                    Validator.build(problem, instance, assumption)
+                    Validator.build(p, instance, assumption)
                 }
             }
             val scores = FloatArray(candidateSize) {
@@ -159,12 +178,14 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
                         return validators[it].instance
                 }
             }
-            val candidates = ValidatorCandidates(validators, IntArray(validators.size), scores)
-            if (guess != null) {
-                // This just makes sure that the guess is not eliminated directly if using oldest elimination
-                candidates.origins[0] = 1
+            ValidatorCandidates(validators, IntArray(validators.size), scores)
+        }
+        if (guess != null) {
+            for (i in 1 until candidateSize) {
+                guessMutator.mutate(i, candidates, rng)
+                val score = score(candidates.instances[i])
+                candidates.update(i, 0L, score)
             }
-            candidates
         }
 
         for (restart in 1..restarts) {
@@ -214,9 +235,9 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
                 if (i in keep) {
                     candidates.update(i, 1, candidates.scores[i])
                 } else {
-                    val newInstance = instanceBuilder.create(problem.nbrVariables)
+                    val newInstance = instanceBuilder.create(p.nbrVariables)
                     initializer.initialize(newInstance, assumption, rng, function)
-                    candidates.instances[i] = Validator.build(problem, newInstance, assumption)
+                    candidates.instances[i] = Validator.build(p, newInstance, assumption)
                     @Suppress("UNCHECKED_CAST")
                     (candidates.instances as Array<MutableInstance>)[i] = candidates.instances[i]
                     val newScore = score(candidates.instances[i])

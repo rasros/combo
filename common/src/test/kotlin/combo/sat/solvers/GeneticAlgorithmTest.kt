@@ -1,20 +1,26 @@
 package combo.sat.solvers
 
+import combo.ga.FixedRateMutation
+import combo.ga.PropagatingMutator
 import combo.math.ImplicationDigraph
-import combo.sat.WordRandomSet
 import combo.sat.ImplicationConstraintCoercer
 import combo.sat.Problem
 import combo.sat.WeightSet
+import combo.sat.WordRandomSet
 
 class GALinearOptimizerTest : LinearOptimizerTest() {
     override fun optimizer(problem: Problem) = GeneticAlgorithmOptimizer<LinearObjective>(problem).apply {
         randomSeed = 0; timeout = 5 * 1000L; candidateSize = 80
-        initializer = ImplicationConstraintCoercer(problem, ImplicationDigraph(problem), WordRandomSet())
+        val id = ImplicationDigraph(problem)
+        initializer = ImplicationConstraintCoercer(problem, id, WordRandomSet())
+        penalty = DisjunctPenalty()
+        guessMutator = PropagatingMutator(FixedRateMutation(), id)
     }
 
     override fun largeOptimizer(problem: Problem) = GeneticAlgorithmOptimizer<LinearObjective>(problem).apply {
         randomSeed = 0; timeout = 5 * 1000L; candidateSize = 20; restarts = 1
         initializer = ImplicationConstraintCoercer(problem, ImplicationDigraph(problem), WeightSet())
+        penalty = DisjunctPenalty()
     }
 
     override fun infeasibleOptimizer(problem: Problem) = GeneticAlgorithmOptimizer<LinearObjective>(problem).apply {
@@ -35,8 +41,10 @@ class GASolverTest : SolverTest() {
     }
 
     override fun largeSolver(problem: Problem) = GeneticAlgorithmSolver(problem).apply {
-        randomSeed = 0; timeout = 5 * 1000L; candidateSize = 20
-        initializer = ImplicationConstraintCoercer(problem, ImplicationDigraph(problem), WordRandomSet())
+        randomSeed = 0; timeout = 1000 * 5 * 1000L; candidateSize = 20
+        val id = ImplicationDigraph(problem)
+        initializer = ImplicationConstraintCoercer(problem, id, WordRandomSet())
+        mutation = PropagatingMutator(FixedRateMutation(), id)
     }
 
     override fun unsatSolver(problem: Problem) = GeneticAlgorithmSolver(problem).apply {
