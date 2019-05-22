@@ -8,16 +8,16 @@ import kotlin.test.*
 
 abstract class InstanceTest {
 
-    abstract val factory: InstanceBuilder
+    abstract val builder: InstanceBuilder
 
     @Test
     fun indices() {
-        assertEquals(0 until 3, factory.create(3).indices)
+        assertEquals(0 until 3, builder.create(3).indices)
     }
 
     @Test
     fun getDefaultFalse() {
-        val instance = factory.create(10)
+        val instance = builder.create(10)
         for (i in instance.indices) {
             assertFalse(instance[i])
         }
@@ -25,12 +25,12 @@ abstract class InstanceTest {
 
     @Test
     fun size() {
-        for (i in 1..10) assertEquals(i, factory.create(i).size)
+        for (i in 1..10) assertEquals(i, builder.create(i).size)
     }
 
     @Test
     fun setOne() {
-        val instance = factory.create(4)
+        val instance = builder.create(4)
         instance[2] = true
         assertFalse(instance[0])
         assertFalse(instance[1])
@@ -40,7 +40,7 @@ abstract class InstanceTest {
 
     @Test
     fun flip() {
-        val instance = factory.create(5)
+        val instance = builder.create(5)
         for (i in instance.indices) assertFalse(instance[i])
         instance.flip(1)
         assertFalse(instance[0])
@@ -54,7 +54,7 @@ abstract class InstanceTest {
 
     @Test
     fun setMany() {
-        val instance = factory.create(10)
+        val instance = builder.create(10)
         assertFalse(instance[4])
         instance[4] = true
         assertTrue(instance[4])
@@ -68,7 +68,7 @@ abstract class InstanceTest {
 
     @Test
     fun setAll() {
-        val instance = factory.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
+        val instance = builder.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
         assertTrue(instance[0])
         assertTrue(instance[1])
         assertFalse(instance[2])
@@ -76,14 +76,14 @@ abstract class InstanceTest {
 
     @Test
     fun copyEquals() {
-        val instance = factory.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
+        val instance = builder.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
         assertEquals(instance, instance.copy())
         assertEquals(instance.copy(), instance)
     }
 
     @Test
     fun copy() {
-        val instance = factory.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
+        val instance = builder.create(3).apply { setAll(intArrayOf(1, 2, -3)) }
         val instance2 = instance.copy()
         instance2[0] = false
         assertNotEquals(instance, instance2)
@@ -95,7 +95,7 @@ abstract class InstanceTest {
     fun copyRandom() {
         val r = Random(1023)
         for (i in 1..50) {
-            val instance = factory.create(1 + r.nextInt(1000))
+            val instance = builder.create(1 + r.nextInt(1000))
             for (k in 0 until instance.size) instance[k] = r.nextBoolean()
             assertContentEquals(instance.toIntArray(), instance.copy().toIntArray())
         }
@@ -103,13 +103,13 @@ abstract class InstanceTest {
 
     @Test
     fun empty() {
-        val instance = factory.create(0)
+        val instance = builder.create(0)
         assertEquals(0, instance.size)
     }
 
     @Test
     fun equalsTransitive() {
-        val instance1 = factory.create(10)
+        val instance1 = builder.create(10)
         for (k in 0 until instance1.size) instance1[k] = Random.nextBoolean()
         val instance2 = instance1.copy()
         assertEquals(instance1, instance2)
@@ -121,26 +121,26 @@ abstract class InstanceTest {
 
     @Test
     fun equalsSize() {
-        val instance1 = factory.create(10)
-        val instance2 = factory.create(11)
-        val instance3 = factory.create(10)
+        val instance1 = builder.create(10)
+        val instance2 = builder.create(11)
+        val instance3 = builder.create(10)
         assertNotEquals(instance1, instance2)
         assertEquals(instance1, instance3)
     }
 
     @Test
     fun hashCodeSize() {
-        val instance1 = factory.create(10)
-        val instance2 = factory.create(11)
-        val instance3 = factory.create(10)
+        val instance1 = builder.create(10)
+        val instance2 = builder.create(11)
+        val instance3 = builder.create(10)
         assertNotEquals(instance1.hashCode(), instance2.hashCode())
         assertEquals(instance1.hashCode(), instance3.hashCode())
     }
 
     @Test
     fun equalsSet() {
-        val instance1 = factory.create(20)
-        val instance2 = factory.create(20)
+        val instance1 = builder.create(20)
+        val instance2 = builder.create(20)
         assertEquals(instance1, instance2)
         instance1[10] = true
         assertNotEquals(instance1, instance2)
@@ -148,8 +148,8 @@ abstract class InstanceTest {
 
     @Test
     fun hashCodeSetDiffers() {
-        val instance1 = factory.create(20)
-        val instance2 = factory.create(20)
+        val instance1 = builder.create(20)
+        val instance2 = builder.create(20)
         assertEquals(instance1.hashCode(), instance2.hashCode())
         instance1[10] = true
         assertNotEquals(instance1.hashCode(), instance2.hashCode())
@@ -159,7 +159,7 @@ abstract class InstanceTest {
     fun randomHashEquals() {
         // Tests equals/hashCode implementations
         val s = generateSequence {
-            factory.create(4).apply {
+            builder.create(4).apply {
                 for (k in 0 until 4) this[k] = Random.nextBoolean()
             }
         }.take(100).toHashSet()
@@ -168,13 +168,13 @@ abstract class InstanceTest {
 
     @Test
     fun emptyIterator() {
-        val instance = factory.create(10)
+        val instance = builder.create(10)
         assertEquals(0, instance.iterator().asSequence().count())
     }
 
     @Test
     fun iterator() {
-        val instance = factory.create(10)
+        val instance = builder.create(10)
         instance[2] = true
         instance[9] = true
         val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
@@ -183,7 +183,7 @@ abstract class InstanceTest {
 
     @Test
     fun iteratorLarge() {
-        val instance = factory.create(100)
+        val instance = builder.create(100)
         for (i in instance.indices step 5)
             instance[i] = true
         val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
@@ -192,7 +192,7 @@ abstract class InstanceTest {
 
     @Test
     fun iteratorLargeHoled() {
-        val instance = factory.create(200)
+        val instance = builder.create(200)
         instance[195] = true
         instance[85] = true
         val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
@@ -201,7 +201,7 @@ abstract class InstanceTest {
 
     @Test
     fun iteratorLastElement() {
-        val instance = factory.create(99)
+        val instance = builder.create(99)
         instance[31] = true
         instance[98] = true
         val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
@@ -210,7 +210,7 @@ abstract class InstanceTest {
 
     @Test
     fun iteratorAllOnes() {
-        val instance = factory.create(227)
+        val instance = builder.create(227)
         for (i in instance.indices) instance[i] = true
         val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
         assertContentEquals((0 until 227).toList().toIntArray(), result)
@@ -218,7 +218,7 @@ abstract class InstanceTest {
 
     @Test
     fun flipLarge() {
-        val instance = factory.create(101)
+        val instance = builder.create(101)
         for (i in instance.indices) assertFalse(instance[i])
         for (i in instance.indices step 3) instance.flip(i)
         for (i in instance.indices) if (i.rem(3) == 0) assertTrue(instance[i]) else assertFalse(instance[i])
@@ -230,7 +230,7 @@ abstract class InstanceTest {
     fun flipRandom() {
         for (i in 1..10) {
             val r = Random.Default
-            val instance = factory.create(1 + r.nextInt(1001))
+            val instance = builder.create(1 + r.nextInt(1001))
             for (j in 1..100) {
                 val id = r.nextInt(instance.size)
                 val b1 = instance[id]
@@ -242,7 +242,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsSetGetBounds() {
-        val instance = factory.create(100)
+        val instance = builder.create(100)
         instance.setBits(50, 32, Int.MIN_VALUE)
         assertEquals(Int.MIN_VALUE, instance.getBits(50, 32))
 
@@ -255,7 +255,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsSetGetBoundsByte() {
-        val instance = factory.create(100)
+        val instance = builder.create(100)
         instance.setBits(10, 8, 0b10000000)
         assertEquals(Byte.MIN_VALUE, instance.getBits(10, 8).toByte())
 
@@ -265,7 +265,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsSetGetArbitrary() {
-        val instance = factory.create(13)
+        val instance = builder.create(13)
         instance.setBits(0, 5, 1)
         assertEquals(1, instance.getBits(0, 5))
 
@@ -275,13 +275,13 @@ abstract class InstanceTest {
 
     @Test
     fun setBitsTmp() {
-        val instance = factory.create(64)
+        val instance = builder.create(64)
         instance.setBits(30, 4, 5)
     }
 
     @Test
     fun bitsSetGetManyInts() {
-        val instance = factory.create(200)
+        val instance = builder.create(200)
         for (i in 0..168) {
             val value = Random.nextInt()
             instance.setBits(i, 32, value)
@@ -291,7 +291,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsSetGetManyShorts() {
-        val instance = factory.create(200)
+        val instance = builder.create(200)
         val rng = Random(0)
         for (i in 0..184) {
             for (j in instance.indices) instance[j] = false
@@ -303,7 +303,7 @@ abstract class InstanceTest {
 
     @Test
     fun getSetFloat() {
-        val instance = factory.create(32)
+        val instance = builder.create(32)
         for (i in 1..10) {
             val rnd = Float.fromBits(Random.nextBits(32))
             instance.setFloat(0, rnd)
@@ -313,7 +313,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsIsolated() {
-        val instance = factory.create(65)
+        val instance = builder.create(65)
         for (i in instance.indices) instance[i] = true
         instance.setBits(63, 2, 1)
         for (i in 0 until 63) assertTrue(instance[i])
@@ -328,7 +328,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsIsolatedEven() {
-        val instance = factory.create(96)
+        val instance = builder.create(96)
         instance.setBits(0, 32, -1)
         instance.setBits(32, 32, 0)
         assertEquals(-1, instance.getBits(0, 32))
@@ -338,7 +338,7 @@ abstract class InstanceTest {
 
     @Test
     fun bitsIsolatedUneven() {
-        val instance = factory.create(118)
+        val instance = builder.create(118)
         instance.setBits(54, 32, -1)
         instance.setBits(22, 32, 0)
         instance.setBits(86, 32, 0)
@@ -357,7 +357,7 @@ abstract class InstanceTest {
 
     @Test
     fun getSetSignedBits10() {
-        val instance = factory.create(10)
+        val instance = builder.create(10)
 
         instance.setSignedInt(0, 10, 8)
         assertEquals(8, instance.getSignedInt(0, 10))
@@ -368,7 +368,7 @@ abstract class InstanceTest {
 
     @Test
     fun getSetSignedBits32() {
-        val instance = factory.create(32)
+        val instance = builder.create(32)
 
         instance.setSignedInt(0, 32, Int.MIN_VALUE)
         assertEquals(Int.MIN_VALUE, instance.getSignedInt(0, 32))
@@ -382,16 +382,16 @@ abstract class InstanceTest {
 
     @Test
     fun wordSize() {
-        assertEquals(2, factory.create(60).wordSize)
-        assertEquals(1, factory.create(32).wordSize)
-        assertEquals(0, factory.create(0).wordSize)
-        assertEquals(2, factory.create(64).wordSize)
-        assertEquals(3, factory.create(65).wordSize)
+        assertEquals(2, builder.create(60).wordSize)
+        assertEquals(1, builder.create(32).wordSize)
+        assertEquals(0, builder.create(0).wordSize)
+        assertEquals(2, builder.create(64).wordSize)
+        assertEquals(3, builder.create(65).wordSize)
     }
 
     @Test
     fun wordIterator() {
-        val instance1 = factory.create(100)
+        val instance1 = builder.create(100)
         instance1[10] = true
         instance1[50] = true
         val list = instance1.wordIterator().asSequence().toList().sortedBy { it.key() }
@@ -403,8 +403,8 @@ abstract class InstanceTest {
 
     @Test
     fun orInstance() {
-        val inst1 = factory.create(60)
-        val inst2 = factory.create(60)
+        val inst1 = builder.create(60)
+        val inst2 = builder.create(60)
         inst1[10] = true
         inst1[30] = true
         inst2[20] = true
@@ -424,8 +424,8 @@ abstract class InstanceTest {
 
     @Test
     fun andInstance() {
-        val inst1 = factory.create(60)
-        val inst2 = factory.create(60)
+        val inst1 = builder.create(60)
+        val inst2 = builder.create(60)
         inst1[10] = true
         inst1[30] = true
         inst1[40] = true
@@ -449,10 +449,10 @@ abstract class InstanceTest {
 }
 
 class SparseBitArrayTest : InstanceTest() {
-    override val factory = SparseBitArrayBuilder
+    override val builder = SparseBitArrayBuilder
 }
 
 class BitArrayTest : InstanceTest() {
-    override val factory = BitArrayBuilder
+    override val builder = BitArrayBuilder
 }
 

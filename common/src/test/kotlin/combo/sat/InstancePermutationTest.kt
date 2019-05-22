@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.math.RandomSequence
 import combo.util.IntHashSet
 import combo.util.isNotEmpty
 import kotlin.math.pow
@@ -39,9 +38,9 @@ class InstancePermutationTest {
         val size = 1001
         left.addAll(0 until size)
         var k = 0
-        val rng = RandomSequence(0L)
+        val rng = Random(0)
         while (left.isNotEmpty() && k++ <= 10000) {
-            val instance = InstancePermutation(size, BitArrayBuilder, rng.next()).asSequence().first()
+            val instance = InstancePermutation(size, BitArrayBuilder, rng).asSequence().first()
             for (i in instance)
                 left.remove(i)
         }

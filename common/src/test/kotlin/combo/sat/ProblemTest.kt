@@ -39,7 +39,7 @@ class ProblemTest {
         var reducedConstraints = problem.unitPropagation(units, returnConstraints = true)
         if (units.isNotEmpty()) reducedConstraints += Conjunction(units)
         val reducedProblem = Problem(reducedConstraints, problem.nbrVariables)
-        val solutions2 = ExhaustiveSolver(reducedProblem).asSequence(units.toArray().apply { sort() }).toSet()
+        val solutions2 = ExhaustiveSolver(reducedProblem).asSequence(units).toSet()
         val unitsSentence = Conjunction(units)
         val constraints: MutableList<Constraint> = reducedProblem.constraints.toMutableList()
         constraints.add(unitsSentence)
