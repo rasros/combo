@@ -85,6 +85,12 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
      */
     var pNew: Float = 0.0f
 
+    /**
+     * Chance of generating new instance regardless of whether there are any instances matching the assumptions, using
+     * a guess initial solution randomly selected from a matching instance.
+     */
+    var pNewWithGuess: Float = 0.1f
+
     private val buffer = RandomConcurrentBuffer<Instance>(maxSize)
 
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
@@ -110,6 +116,19 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
                     minV = v
                     best = it
                 }
+            }
+        }
+
+        if (minV > function.lowerBound() && best != null && rng.nextFloat() < pNewWithGuess) {
+            try {
+                val guessed = baseOptimizer.optimizeOrThrow(function, assumptions, guess ?: best!!.copy() as MutableInstance?)
+                val v = function.value(guessed)
+                if (v != minV)
+                    buffer.add(rng, guessed)
+                if (v < minV)
+                    best = guessed
+            } catch (e: ValidationException) {
+                failure = e
             }
         }
         return if (best == null && failure == null)
