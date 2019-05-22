@@ -2,6 +2,7 @@ package combo.sat
 
 import combo.math.ImplicationDigraph
 import combo.math.IntPermutation
+import combo.math.nextGeometric
 import combo.math.nextNormal
 import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Disjunction
@@ -55,8 +56,7 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
         assumption.coerce(mi, rng)
         for (i in IntPermutation(problem.nbrVariables, rng)) {
             val lit = mi.literal(i)
-            implicationDigraph.trueImplications(lit)?.run { mi.or(this) }
-            implicationDigraph.falseImplications(lit)?.run { mi.andNot(this) }
+            implicationDigraph.propagate(lit, mi)
         }
         for (c in complexConstraints)
             c.coerce(mi, rng)
@@ -68,28 +68,29 @@ object NoInitializer : InstanceInitializer<ObjectiveFunction?> {
     }
 }
 
-class WeightSet @JvmOverloads constructor(val noiseStd: Float = 0.5F) : InstanceInitializer<LinearObjective> {
+class WeightSet @JvmOverloads constructor(val noiseStd: Float = 0.5f) : InstanceInitializer<LinearObjective> {
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: LinearObjective) {
         for (i in mi.indices) {
-            mi[i] = if (function.maximize) function.weights[i] + rng.nextNormal(0.0F, noiseStd) >= 0
-            else function.weights[i] + rng.nextNormal(0.0F, noiseStd) < 0
+            mi[i] = if (function.maximize) function.weights[i] + rng.nextNormal(0.0f, noiseStd) >= 0
+            else function.weights[i] + rng.nextNormal(0.0f, noiseStd) < 0
         }
     }
 }
 
-class RandomSet(val pBias: Float = .5F) : InstanceInitializer<ObjectiveFunction?> {
+class RandomSet(val pBias: Float = .5f) : InstanceInitializer<ObjectiveFunction?> {
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
         for (j in mi.indices) mi[j] = rng.nextFloat() < pBias
     }
 }
 
 /**
- * This approximates pBias to the closest multiple of 1/2^n. For n=1, i.e. pBias = 0.5F the speedup compared to
- * [RandomSet] is about 50x. For n=3 (pBias=0.125 or pBias=0.875) the speedup is 25x.
+ * Initializes an [Instance] a whole word (32 bit int) at a time. This approximates pBias to the closest multiple of
+ * 1/2^n. For n=1, i.e. pBias = 0.5f the speedup compared to[RandomSet] is about 50x.
+ * For n=3 (pBias=0.125 or pBias=0.875) the speedup is 25x.
  */
-class FastRandomSet(val start: Int, val steps: Int) : InstanceInitializer<ObjectiveFunction?> {
+class WordRandomSet(val start: Int, val steps: Int) : InstanceInitializer<ObjectiveFunction?> {
 
-    constructor(pBias: Float = .5F) : this(if (pBias > 0.5F) 0 else -1, min(sqrt(1 / min(pBias, 1 - pBias)).roundToInt(), 8))
+    constructor(pBias: Float = .5f) : this(if (pBias > 0.5f) 0 else -1, min(sqrt(1 / min(pBias, 1 - pBias)).roundToInt(), 8))
 
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
         val ints = (mi.size shr 5) + if (mi.size and 0x1F > 0) 1 else 0
@@ -111,6 +112,19 @@ class FastRandomSet(val start: Int, val steps: Int) : InstanceInitializer<Object
                 mi.setBits(offset, nbrBits, k and (-1 shl nbrBits).inv())
             } else mi.setBits(offset, 32, k)
             offset += 32
+        }
+    }
+}
+
+/**
+ * Useful for very sparse problems where [pBias] is close to 0.
+ */
+class GeometricRandomSet(val pBias: Float) : InstanceInitializer<ObjectiveFunction?> {
+    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
+        var index = rng.nextGeometric(pBias) - 1
+        while (index < mi.size) {
+            mi.flip(index)
+            index += rng.nextGeometric(pBias)
         }
     }
 }
