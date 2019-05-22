@@ -98,7 +98,7 @@ class ValidatorCandidates(override val instances: Array<Validator>, val origins:
         }
         val ret = score < minScore
         maxScore = max(maxScore, score)
-        minScore = max(minScore, score)
+        minScore = min(minScore, score)
         return ret
     }
 }
