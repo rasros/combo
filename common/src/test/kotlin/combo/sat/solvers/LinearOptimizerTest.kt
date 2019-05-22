@@ -258,7 +258,7 @@ abstract class LinearOptimizerTest {
             testOptimize(collectionOf(11, 8), FloatArray(nbrVariables) { 0.0f }, this, true, 0.0f, 0.0f)
             testOptimize(collectionOf(5, -8, 10), FloatArray(nbrVariables) { 0.0f }, this, false, 0.0f, 0.0f)
             testOptimize(collectionOf(2, 3, 5), FloatArray(nbrVariables) { it.toFloat() }, this, true, 62.0f, 1.0f)
-            testOptimize(collectionOf(8), FloatArray(nbrVariables) { it.toFloat() }, this, false, 16.0f, 1.0f)
+            testOptimize(collectionOf(8), FloatArray(nbrVariables) { it.toFloat() }, this, false, 16.0f, 3.0f)
             testOptimize(collectionOf(11), FloatArray(nbrVariables) { it.toFloat() * .1f }, this, true, 5.2f, 1.0f)
             testOptimize(collectionOf(-7, -6), FloatArray(nbrVariables) { it.toFloat() * .1f }, this, false, 0.0f, 0.1f)
         }
