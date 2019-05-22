@@ -42,6 +42,11 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
         field[wordIx] = value
     }
 
+    override fun clear() {
+        for (i in field.indices)
+            field[i] = 0
+    }
+
     override fun iterator(): IntIterator {
         return object : IntIterator() {
             var fieldI: Int = 0

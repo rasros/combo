@@ -28,6 +28,8 @@ class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(1,
         else map[wordIx] = value
     }
 
+    override fun clear() = map.clear()
+
     override fun iterator(): IntIterator {
         return object : IntIterator() {
             var base = map.entryIterator()

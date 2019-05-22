@@ -1,46 +1,43 @@
 package combo.sat
 
-import combo.sat.constraints.Conjunction
-import combo.sat.solvers.ObjectiveFunction
 import combo.util.IntHashSet
-import combo.util.collectionOf
-import combo.util.mapArray
 import kotlin.random.Random
 
 /**
  * This contains cached information about satisfied constraints during search.
  */
-class Validator(val instance: MutableInstance, val problem: Problem, assumptions: Literals) :
+class Validator(val problem: Problem, val instance: MutableInstance, val assumption: Constraint) :
         MutableInstance, Instance by instance {
 
     companion object {
-        fun <O : ObjectiveFunction?> build(problem: Problem, initializer: InstanceInitializer<O>,
-                                           instance: MutableInstance, function: O,
-                                           assumptions: Literals, rng: Random): Validator {
-            val ti = Validator(instance, problem, assumptions)
-            with(ti) {
-                initializer.initialize(instance, assumption, rng, function)
-
-                for ((constId, const) in problem.constraints.withIndex()) {
-                    constraintCache[constId] = const.cache(instance)
-                    totalUnsatisfied += const.violations(this, constraintCache[constId]).also {
-                        if (it > 0) unsatisfied.add(constId)
-                    }
-                }
-                constraintCache[constraintCache.lastIndex] = assumption.cache(instance)
-                totalUnsatisfied += assumption.violations(this, constraintCache.last()).also {
-                    if (it > 0) unsatisfied.add(constraintCache.lastIndex)
-                }
-            }
+        fun build(problem: Problem, instance: MutableInstance, assumption: Constraint): Validator {
+            val ti = Validator(problem, instance, assumption)
+            ti.rebuildIndex()
             return ti
+        }
+    }
+
+    private fun rebuildIndex() {
+        totalUnsatisfied = 0
+        unsatisfied.clear()
+        for ((constId, const) in problem.constraints.withIndex()) {
+            constraintCache[constId] = const.cache(instance)
+            totalUnsatisfied += const.violations(this, constraintCache[constId]).also {
+                if (it > 0) unsatisfied.add(constId)
+            }
+        }
+        constraintCache[constraintCache.lastIndex] = assumption.cache(instance)
+        totalUnsatisfied += assumption.violations(this, constraintCache.last()).also {
+            if (it > 0) unsatisfied.add(constraintCache.lastIndex)
         }
     }
 
     var totalUnsatisfied: Int = 0
         private set
-    val assumption: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(collectionOf(*assumptions))
 
-    private val assumptionIxs = collectionOf(*assumptions.mapArray { it.toIx() })
+    private val assumptionIxs = IntHashSet(nullValue = -1).apply {
+        assumption.literals.forEach { add(it.toIx()) }
+    }
     private val unsatisfied = IntHashSet(nullValue = -1)
     private val constraintCache = IntArray(problem.nbrConstraints + 1)
 
@@ -93,5 +90,16 @@ class Validator(val instance: MutableInstance, val problem: Problem, assumptions
         totalUnsatisfied += newFlips - oldFlips
     }
 
-    override fun setWord(wordIx: Int, value: Int) = throw UnsupportedOperationException()
+    override fun setWord(wordIx: Int, value: Int) {
+        instance.setWord(wordIx, value)
+        rebuildIndex()
+    }
+
+    override fun equals(other: Any?) = instance.equals(other)
+    override fun hashCode() = instance.hashCode()
+
+    override fun clear() {
+        instance.clear()
+        rebuildIndex()
+    }
 }

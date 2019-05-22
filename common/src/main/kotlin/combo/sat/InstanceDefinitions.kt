@@ -52,6 +52,7 @@ interface MutableInstance : Instance {
     fun flip(ix: Int) = set(ix, !get(ix))
     operator fun set(ix: Int, value: Boolean)
     fun setWord(wordIx: Int, value: Int)
+    fun clear()
 }
 
 fun Instance.nbrBits(wordIx: Int): Int {
