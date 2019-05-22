@@ -71,11 +71,11 @@ class Conjunction(override val literals: IntCollection) : PropositionalConstrain
     override fun offset(offset: Int) = Conjunction(literals.map { it.offset(offset) })
 
     override fun remap(from: Int, to: Int) =
-            Conjunction(collectionOf(*literals.mutableCopy().apply {
+            Conjunction(literals.mutableCopy().apply {
                 val truth = from.toLiteral(true) in literals
                 remove(from.toLiteral(truth))
                 add(to.toLiteral(truth))
-            }.toArray()))
+            })
 
     override fun unitPropagation(unit: Literal): PropositionalConstraint {
         if (!unit in literals) return Empty
