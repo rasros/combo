@@ -2,8 +2,10 @@ package combo.sat.solvers
 
 import combo.math.Vector
 import combo.sat.*
-import combo.util.EMPTY_INT_ARRAY
+import combo.util.EmptyCollection
+import combo.util.IntCollection
 import combo.util.sumByFloat
+import kotlin.jvm.JvmOverloads
 import kotlin.math.max
 import kotlin.math.min
 
@@ -16,10 +18,11 @@ interface Solver : Iterable<Instance> {
     /**
      * Generates a random solution, ie. a witness.
      * @param assumptions these variables will be fixed during solving, see [Literal].
+     * @param guess starting point for search if one is provided. This instance will be reused if applicable.
      */
-    fun witness(assumptions: Literals = EMPTY_INT_ARRAY): Instance? {
+    fun witness(assumptions: IntCollection = EmptyCollection, guess: MutableInstance? = null): Instance? {
         return try {
-            witnessOrThrow(assumptions)
+            witnessOrThrow(assumptions, guess)
         } catch (e: ValidationException) {
             null
         }
@@ -27,10 +30,11 @@ interface Solver : Iterable<Instance> {
 
     /**
      * @param assumptions these variables will be fixed during solving, see [Literal].
+     * @param guess starting point for search if one is provided. This instance will be reused if applicable.
      * @throws ValidationException if there is a logical error in the problem or a solution cannot be found with the
      * allotted resources..
      */
-    fun witnessOrThrow(assumptions: Literals = EMPTY_INT_ARRAY): Instance
+    fun witnessOrThrow(assumptions: IntCollection = EmptyCollection, guess: MutableInstance? = null): Instance
 
     /**
      * Note that the iterator cannot be used in parallel, but multiple iterators can be used in parallel from the same
@@ -43,14 +47,14 @@ interface Solver : Iterable<Instance> {
      * solver. The method does not throw exceptions if
      * @param assumptions these variables will be fixed during solving, see [Literal].
      */
-    fun asSequence(assumptions: Literals = EMPTY_INT_ARRAY): Sequence<Instance> {
+    fun asSequence(assumptions: IntCollection = EmptyCollection): Sequence<Instance> {
         return generateSequence { witness(assumptions) }
     }
 
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
-    var randomSeed: Long
+    var randomSeed: Int
 
     /**
      * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
@@ -68,10 +72,11 @@ interface Optimizer<in O : ObjectiveFunction> {
      * Returns null if no instance can be found.
      * @param function the objective function to optimize on.
      * @param assumptions these variables will be fixed during solving, see [Literal].
+     * @param guess starting point for search if one is provided. This instance will be reused if applicable.
      */
-    fun optimize(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Instance? {
+    fun optimize(function: O, assumptions: IntCollection = EmptyCollection, guess: MutableInstance? = null): Instance? {
         return try {
-            optimizeOrThrow(function, assumptions)
+            optimizeOrThrow(function, assumptions, guess)
         } catch (e: ValidationException) {
             null
         }
@@ -81,15 +86,16 @@ interface Optimizer<in O : ObjectiveFunction> {
      * Minimize the [function], optionally with the additional constraints in [assumptions].
      * @param function the objective function to optimize on.
      * @param assumptions these variables will be fixed during solving, see [Literal].
+     * @param guess starting point for search if one is provided. This instance will be reused if applicable.
      * @throws ValidationException if there is a logical error in the problem or a solution cannot be found with the
      * allotted resources.
      */
-    fun optimizeOrThrow(function: O, assumptions: Literals = EMPTY_INT_ARRAY): Instance
+    fun optimizeOrThrow(function: O, assumptions: IntCollection = EmptyCollection, guess: MutableInstance? = null): Instance
 
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
-    var randomSeed: Long
+    var randomSeed: Int
 
     /**
      * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.

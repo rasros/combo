@@ -1,28 +1,39 @@
 package combo.sat.solvers
 
 import combo.math.IntPermutation
-import combo.math.RandomSequence
 import combo.sat.*
-import combo.util.OffsetIterator
-import combo.util.millis
-import combo.util.nanos
-import combo.util.power2
+import combo.sat.constraints.Conjunction
+import combo.util.*
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 
 /**
- * This solver implements local search for sat solving and optimization.
- * The specific algorithm used can be either simple hill climbing, walksat, walksat with annealing, and/or tabu search.
+ * This solver implements local search for sat solving and optimization. For most easy optimization and solving tasks
+ * this is the best option since there is very little overhead.
+ *
+ * Local search works by randomly generating a candidate solution. During each step a change in the [Instance] is taken
+ * either randomly with probability [pRandomWalk] or a maximum greedy improvement is selected. The the candidate is
+ * replaced by the improved candidate. If there are any unsatisfied constraints then the variables to inspect are taken
+ * from the variables in the constraint, otherwise they are selected randomly. At most [maxConsideration] variables are
+ * looked at for each step, if this parameter is set too low it can lead to premature termination of the algorithm.
+ *
+ * The specific algorithm used can be either simple Hill climbing, WalkSAT, WalkSAT with annealing, and/or Tabu search.
+ * The type of algorithm is only decided through setting the various parameters,  [tabuListSize] (Tabu search),
+ * [pRandomWalk] (WalkSAT), [pRandomWalkDecay] (Simulated annealing).
+ *
  * @param problem the problem contains the [Constraint]s and the number of variables.
  */
 open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-    override var randomSeed: Long
+    final override var randomSeed: Int = nanos().toInt()
         set(value) {
-            this.randomSequence = RandomSequence(value)
+            this.rng = Random(value)
+            field = value
         }
-        get() = randomSequence.startingSeed
+    private var rng = Random(randomSeed)
+
     override var timeout: Long = -1L
 
     /**
@@ -48,7 +59,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     var pRandomWalkDecay: Float = 0.95f
 
     /**
-     * Keep a ring-buffer with blocked assignments during search.
+     * Keep a ring-buffer with blocked assignments during search. Size is always a power of 2.
      */
     var tabuListSize: Int = Int.power2(min(problem.nbrVariables, 2))
         set(value) {
@@ -67,9 +78,9 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     /**
      * This determines how instances are given their starting values. This has a huge effect on the quality and
      * efficiency of solutions. Use [ConstraintCoercer] or [ImplicationConstraintCoercer] for a heuristic initial
-     * solution or either [FastRandomSet] or [RandomSet] for a totally random initial guess.
+     * solution or either [WordRandomSet] or [RandomSet] for a totally random initial guess.
      */
-    var initializer: InstanceInitializer<O> = ConstraintCoercer(problem, FastRandomSet())
+    var initializer: InstanceInitializer<O> = ConstraintCoercer(problem, WordRandomSet())
 
     /**
      * Threshold of improvement to stop current iteration in the search.
@@ -81,9 +92,8 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
      */
     var maxConsideration: Int = max(20, problem.nbrVariables / 5)
 
-    private var randomSequence = RandomSequence(nanos())
 
-    override fun optimizeOrThrow(function: O, assumptions: Literals): Instance {
+    override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
 
         val adjustedMaxConsideration = max(2, min(maxConsideration, problem.nbrVariables))
@@ -94,13 +104,19 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
         val lowerBound = function.lowerBound()
         val tabuBuffer = IntArray(tabuListSize) { -1 }
         var tabuI = 0
+        val assumption: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
 
         for (restart in 1..restarts) {
-            val rng = randomSequence.next()
             var pRandomWalk = pRandomWalk
 
-            val instance = instanceBuilder.create(problem.nbrVariables)
-            val validator = Validator.build(problem, initializer, instance, function, assumptions, rng)
+            val instance: MutableInstance
+            if (guess != null && restart == 1) {
+                instance = guess
+            } else {
+                instance = instanceBuilder.create(problem.nbrVariables)
+                initializer.initialize(instance, assumption, rng, function)
+            }
+            val validator = Validator.build(problem, instance, assumption)
 
             fun setReturnValue(value: Float) {
                 if (value < bestValue && validator.totalUnsatisfied == 0) {
@@ -127,7 +143,8 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                         literals.permutation(rng)
                     } else {
                         n = min(adjustedMaxConsideration, problem.nbrVariables)
-                        if (problem.nbrVariables > adjustedMaxConsideration) OffsetIterator(1,IntPermutation(problem.nbrVariables, rng).iterator())
+                        if (problem.nbrVariables > adjustedMaxConsideration)
+                            OffsetIterator(1, IntPermutation(problem.nbrVariables, rng).iterator())
                         else (1..problem.nbrVariables).iterator()
                     }
                     var maxSatImp = Int.MIN_VALUE
@@ -182,5 +199,6 @@ class LocalSearchSolver(problem: Problem) : LocalSearchOptimizer<SatObjective>(p
         restarts = Int.MAX_VALUE
     }
 
-    override fun witnessOrThrow(assumptions: Literals) = optimizeOrThrow(SatObjective, assumptions)
+    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?) =
+            optimizeOrThrow(SatObjective, assumptions, guess)
 }

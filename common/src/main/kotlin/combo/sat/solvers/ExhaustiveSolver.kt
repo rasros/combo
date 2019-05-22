@@ -1,11 +1,9 @@
 package combo.sat.solvers
 
-import combo.math.RandomSequence
 import combo.sat.*
-import combo.util.EMPTY_INT_ARRAY
-import combo.util.IntHashSet
-import combo.util.millis
-import combo.util.nanos
+import combo.sat.constraints.Conjunction
+import combo.util.*
+import kotlin.random.Random
 
 /**
  * This [Solver] and [Optimizer] uses brute force. It can only solve small and easy problems.
@@ -13,15 +11,18 @@ import combo.util.nanos
  */
 class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFunction> {
 
-    override var randomSeed: Long
+    override var randomSeed: Int = nanos().toInt()
         set(value) {
-            this.randomSequence = RandomSequence(value)
+            this.rng = Random(value)
+            field = value
         }
-        get() = randomSequence.startingSeed
+    private var rng = Random(randomSeed)
+
     override var timeout: Long = -1L
 
     /**
      * If true then perform unit propagation before solving when assumptions are used.
+     * This will sometimes drastically reduce the number of variables and make it possible to solve using brute force.
      */
     var propagateAssumptions: Boolean = true
 
@@ -29,16 +30,19 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
      * Determines the [Instance] that will be created for solving, for very sparse problems use
      * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
      */
-    var instanceFactory: InstanceBuilder = BitArrayBuilder
+    var instanceBuilder: InstanceBuilder = BitArrayBuilder
 
-    private var randomSequence = RandomSequence(nanos())
-
-    override fun witnessOrThrow(assumptions: Literals): Instance {
+    /**
+     * The [guess] is used only if it satisfies all constraints.
+     */
+    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
         val propAssumptions = propAssumptions(assumptions)
+        if (guess != null && (propAssumptions.isEmpty() || Conjunction(propAssumptions).satisfies(guess)) && problem.satisfies(guess))
+            return guess
         val remap = createRemap(propAssumptions)
         val nbrVariables = problem.nbrVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
+        return InstancePermutation(nbrVariables, instanceBuilder, rng)
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapInstance(propAssumptions, it, remap) }
@@ -46,7 +50,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
                 .firstOrNull() ?: throw if (millis() > end) TimeoutException(timeout) else UnsatisfiableException()
     }
 
-    override fun asSequence(assumptions: Literals): Sequence<Instance> {
+    override fun asSequence(assumptions: IntCollection): Sequence<Instance> {
         val propAssumptions = try {
             propAssumptions(assumptions)
         } catch (e: UnsatisfiableException) {
@@ -55,29 +59,29 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         val remap = createRemap(propAssumptions)
         val nbrVariables = problem.nbrVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
+        return InstancePermutation(nbrVariables, instanceBuilder, rng)
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapInstance(propAssumptions, it, remap) }
                 .filter { problem.satisfies(it) }
     }
 
-    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: Literals) = asSequence(assumptions).minBy {
+    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: MutableInstance?) = asSequence(assumptions).minBy {
         function.value(it)
     } ?: throw UnsatisfiableException()
 
-    private fun propAssumptions(assumptions: Literals): Literals {
+    private fun propAssumptions(assumptions: IntCollection): IntCollection {
         return if (propagateAssumptions && assumptions.isNotEmpty()) {
             val units = IntHashSet()
             units.addAll(assumptions)
             problem.unitPropagation(units)
-            units.toArray()
+            units
         } else {
             assumptions
         }
     }
 
-    private fun createRemap(assumptions: Literals): IntArray {
+    private fun createRemap(assumptions: IntCollection): IntArray {
         if (assumptions.isEmpty()) return EMPTY_INT_ARRAY
         val nbrVariables = problem.nbrVariables - assumptions.size
         val themap = IntArray(nbrVariables)
@@ -91,9 +95,9 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         return themap
     }
 
-    private fun remapInstance(assumptions: Literals, instance: Instance, remap: IntArray): Instance {
+    private fun remapInstance(assumptions: IntCollection, instance: Instance, remap: IntArray): Instance {
         return if (assumptions.isNotEmpty()) {
-            val result = this.instanceFactory.create(problem.nbrVariables)
+            val result = this.instanceBuilder.create(problem.nbrVariables)
             result.setAll(assumptions)
             for (i in instance.indices) {
                 result[remap[i]] = instance[i]
