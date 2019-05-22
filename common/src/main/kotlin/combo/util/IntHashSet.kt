@@ -1,7 +1,6 @@
 package combo.util
 
 import combo.math.IntPermutation
-import kotlin.jvm.Transient
 import kotlin.random.Random
 
 /**
@@ -20,10 +19,8 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
     override var size: Int = size
         private set
 
-    @Transient
     private var threshold = IntCollection.nextThreshold(table.size)
 
-    @Transient
     private var mask = table.size - 1
 
     override fun copy() = IntHashSet(table.copyOf(), size, nullValue)
@@ -40,7 +37,7 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
     override operator fun contains(value: Int) = table[linearProbe(value)] != nullValue
 
     override fun map(transform: (Int) -> Int): IntHashSet {
-        val mapped = IntHashSet(size)
+        val mapped = IntHashSet(size, nullValue)
         for (i in table) {
             if (i != nullValue) mapped.add(transform(i))
         }

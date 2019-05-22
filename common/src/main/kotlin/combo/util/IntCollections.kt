@@ -53,7 +53,7 @@ interface MutableIntCollection : IntCollection {
 }
 
 /**
- * Immutable collection
+ * Immutable collection. This may not contain 0.
  */
 fun collectionOf(vararg array: Int): IntCollection {
     // Check for IntRange

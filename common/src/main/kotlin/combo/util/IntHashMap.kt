@@ -1,7 +1,6 @@
 package combo.util
 
 import combo.math.IntPermutation
-import kotlin.jvm.Transient
 import kotlin.random.Random
 
 /**
@@ -17,10 +16,8 @@ class IntHashMap private constructor(private var table: LongArray, size: Int, va
     override var size: Int = size
         private set
 
-    @Transient
     private var threshold = IntCollection.nextThreshold(table.size)
 
-    @Transient
     private var mask = table.size - 1
 
     fun isEmpty() = size == 0
@@ -52,7 +49,7 @@ class IntHashMap private constructor(private var table: LongArray, size: Int, va
      * Map keys in the hashmap.
      */
     override fun map(transform: (Int) -> Int): IntHashMap {
-        val mapped = IntHashMap(size)
+        val mapped = IntHashMap(size, nullKey)
         for (i in table) {
             if (i.key() != nullKey) mapped.add(entry(transform(i.key()), i.value()))
         }
