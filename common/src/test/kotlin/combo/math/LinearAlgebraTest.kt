@@ -256,8 +256,9 @@ class LinearAlgebraTest {
         for (i in rounded.indices)
             assertEquals(rounded[i], vector[i].roundToInt())
         val larger = vector.toIntArray(1e-4f)
-        for (i in rounded.indices)
-            assertTrue(larger[i].absoluteValue > rounded[i].absoluteValue)
+        for (i in rounded.indices) {
+            assertTrue(larger[i].absoluteValue >= rounded[i].absoluteValue)
+        }
     }
 }
 
