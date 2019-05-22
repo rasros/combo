@@ -92,11 +92,28 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
      */
     var maxConsideration: Int = max(20, problem.nbrVariables / 5)
 
+    /**
+     * If true then perform unit propagation before solving when assumptions are used.
+     * This will sometimes drastically reduce the number of variables and make it easier to solve.
+     */
+    var propagateAssumptions: Boolean = true
 
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
 
-        val adjustedMaxConsideration = max(2, min(maxConsideration, problem.nbrVariables))
+        val assumption: Constraint
+        val p: Problem
+        if (propagateAssumptions && assumptions.isNotEmpty()) {
+            val units = IntHashSet()
+            units.addAll(assumptions)
+            p = Problem(problem.unitPropagation(units, true), problem.nbrVariables)
+            assumption = Conjunction(units)
+        } else {
+            p = problem
+            assumption = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
+        }
+
+        val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrVariables))
 
         var bestValue = Float.POSITIVE_INFINITY
         var bestInstance: Instance? = null
@@ -104,7 +121,6 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
         val lowerBound = function.lowerBound()
         val tabuBuffer = IntArray(tabuListSize) { -1 }
         var tabuI = 0
-        val assumption: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
 
         for (restart in 1..restarts) {
             var pRandomWalk = pRandomWalk
@@ -113,10 +129,10 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
             if (guess != null && restart == 1) {
                 instance = guess
             } else {
-                instance = instanceBuilder.create(problem.nbrVariables)
+                instance = instanceBuilder.create(p.nbrVariables)
                 initializer.initialize(instance, assumption, rng, function)
             }
-            val validator = Validator.build(problem, instance, assumption)
+            val validator = Validator.build(p, instance, assumption)
 
             fun setReturnValue(value: Float) {
                 if (value < bestValue && validator.totalUnsatisfied == 0) {
@@ -128,24 +144,24 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
             var prevValue = function.value(instance)
             setReturnValue(prevValue)
 
-            if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || problem.nbrVariables == 0))
+            if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || p.nbrVariables == 0))
                 return validator.instance
 
             for (step in 1..maxSteps) {
                 val n: Int
                 val ix: Int = if (pRandomWalk > rng.nextFloat()) {
                     if (validator.totalUnsatisfied > 0) validator.randomUnsatisfied(rng).literals.random(rng).toIx()
-                    else rng.nextInt(problem.nbrVariables)
+                    else rng.nextInt(p.nbrVariables)
                 } else {
                     val itr: IntIterator = if (validator.totalUnsatisfied > 0) {
                         val literals = validator.randomUnsatisfied(rng).literals
                         n = min(adjustedMaxConsideration, literals.size)
                         literals.permutation(rng)
                     } else {
-                        n = min(adjustedMaxConsideration, problem.nbrVariables)
-                        if (problem.nbrVariables > adjustedMaxConsideration)
-                            OffsetIterator(1, IntPermutation(problem.nbrVariables, rng).iterator())
-                        else (1..problem.nbrVariables).iterator()
+                        n = min(adjustedMaxConsideration, p.nbrVariables)
+                        if (p.nbrVariables > adjustedMaxConsideration)
+                            OffsetIterator(1, IntPermutation(p.nbrVariables, rng).iterator())
+                        else (1..p.nbrVariables).iterator()
                     }
                     var maxSatImp = Int.MIN_VALUE
                     var maxOptImp = 0.0f
