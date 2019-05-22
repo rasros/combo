@@ -2,22 +2,11 @@
 
 package combo.math
 
-import combo.util.AtomicInt
 import combo.util.MIN_VALUE32
 import combo.util.assert
 import kotlin.jvm.JvmName
 import kotlin.math.*
 import kotlin.random.Random
-
-class RandomSequence(val startingSeed: Long) {
-    private val permutation = IntPermutation(rng = Random(startingSeed))
-    private val counter: AtomicInt = AtomicInt()
-
-    fun next(): Random {
-        val count = counter.inc()
-        return Random(permutation.encode(count))
-    }
-}
 
 /**
  * Generate number in binary32 between from (inclusive) and until (inclusive).
@@ -142,11 +131,8 @@ fun Random.nextBinomial(p: Float, n: Int = 1): Int {
 }
 
 fun Random.nextGeometric(p: Float): Int {
-    return if (p == 1.0f) 1
-    else {
-        val u = nextFloatPos()
-        (ln(u) / ln(1 - p) + 1).toInt()
-    }
+    val u = nextFloatPos()
+    return 1 + (ln1p(-u) / ln1p(-p)).toInt()
 }
 
 fun Random.nextExponential(rate: Float): Float {
