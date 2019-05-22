@@ -1,9 +1,6 @@
-@file:JvmName("VarianceFunctions")
-
 package combo.bandit.glm
 
 import combo.math.*
-import kotlin.jvm.JvmName
 
 interface VarianceFunction {
     fun dispersion(mle: Float): Float
