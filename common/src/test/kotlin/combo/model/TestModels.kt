@@ -8,32 +8,30 @@ import combo.util.collectionOf
 import kotlin.random.Random
 
 object TestModels {
-    val MODELS: Array<Model>  by lazy {
+
+
+    val SAT_PROBLEMS: List<Problem> by lazy {
         arrayOf(MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7)
+                .map { m -> m.problem }
     }
-
-    val UNSAT: Array<Model> by lazy {
+    val UNSAT_PROBLEMS: List<Problem> by lazy {
         arrayOf(UNSAT1, UNSAT2, UNSAT3, UNSAT4)
+                .map { m -> m.problem }
     }
-
-    val LARGE: Array<Model> by lazy {
+    val LARGE_SAT_PROBLEMS: List<Problem>  by lazy {
         arrayOf(LARGE1, LARGE2, LARGE3, LARGE4)
+                .map { m -> m.problem }
     }
-
-    val NUMERIC: Array<Model> by lazy {
+    val NUMERIC_PROBLEMS: List<Problem>  by lazy {
         arrayOf(NUMERIC1, NUMERIC2, NUMERIC3)
+                .map { m -> m.problem }
     }
-
-    val CSP: Array<Model> by lazy {
-        arrayOf(CSP1)
+    val PB_PROBLEMS: List<Problem>  by lazy {
+        arrayOf(CSP1).map { m -> m.problem }
     }
-
-    val PROBLEMS: List<Problem> by lazy { MODELS.map { m -> m.problem } }
-    val UNSAT_PROBLEMS: List<Problem> by lazy { UNSAT.map { m -> m.problem } }
-    val LARGE_PROBLEMS: List<Problem>  by lazy { LARGE.map { m -> m.problem } }
-    val NUMERIC_PROBLEMS: List<Problem>  by lazy { NUMERIC.map { m -> m.problem } }
-    val CSP_PROBLEMS: List<Problem>  by lazy { CSP.map { m -> m.problem } }
-    val TINY_PROBLEMS: List<Problem> by lazy { listOf(MODEL2.problem, MODEL3.problem, MODEL5.problem) }
+    val TINY_PROBLEMS: List<Problem> by lazy {
+        listOf(MODEL2.problem, MODEL3.problem, MODEL5.problem)
+    }
 
     val MODEL1 by lazy {
         Model.model("All Round Basic") {
@@ -285,7 +283,7 @@ object TestModels {
     }
 
     val CSP1 by lazy {
-        Model.model("All kinds of CSP constraints") {
+        Model.model("All kinds of PB constraints") {
             val f1 = bool()
             val f2 = bool()
             val f3 = bool()
@@ -301,9 +299,6 @@ object TestModels {
             }
             constraint {
                 linear(2, Relation.GT, intArrayOf(1, 2, 3, 4), arrayOf(f1, f2, f3, f4))
-            }
-            constraint {
-                linear(2, Relation.NE, intArrayOf(1, -1, 2, -1), arrayOf(f1, !f2, f3, f4))
             }
         }
     }

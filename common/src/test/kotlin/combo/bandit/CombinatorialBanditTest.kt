@@ -1,17 +1,23 @@
 package combo.bandit
 
 import combo.bandit.univariate.UCB1
+import combo.bandit.univariate.UCB1Normal
+import combo.bandit.univariate.UCB1Tuned
 import combo.math.VarianceEstimator
-import combo.sat.BitFieldInstanceFactory
 import combo.sat.Problem
 import combo.sat.solvers.ExhaustiveSolver
 
-class CombinatorialBanditTest : BanditTest<Array<LabelingData<VarianceEstimator>>>() {
+class CombinatorialBanditTest : BanditTest<Array<InstanceData<VarianceEstimator>>>() {
 
-    override fun bandit(problem: Problem, type: BanditType) = CombinatorialBandit(
-            ExhaustiveSolver(problem).apply {
-                randomSeed = 0L
-                instanceFactory = BitFieldInstanceFactory
-            }.sequence().toList().toTypedArray().let { if (it.size > 100) it.sliceArray(0 until 100) else it },
-            UCB1())
+    @Suppress("UNCHECKED_CAST")
+    override fun bandit(problem: Problem, type: BanditType): CombinatorialBandit<VarianceEstimator> {
+        val instances = ExhaustiveSolver(problem).apply { randomSeed = 0 }
+                .asSequence().take(100).toList().toTypedArray()
+
+        return when (type) {
+            BanditType.BINOMIAL -> CombinatorialBandit(instances, UCB1()) as CombinatorialBandit<VarianceEstimator>
+            BanditType.NORMAL -> CombinatorialBandit(instances, UCB1Normal()) as CombinatorialBandit<VarianceEstimator>
+            BanditType.POISSON -> CombinatorialBandit(instances, UCB1Tuned()) as CombinatorialBandit<VarianceEstimator>
+        }
+    }
 }

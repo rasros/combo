@@ -1,20 +1,16 @@
 package combo.bandit
 
-import combo.math.FullSample
-import combo.math.GrowingDataSample
-import combo.math.nextNormal
-import combo.math.nextPoisson
-import combo.model.ModelTest
+import combo.math.*
+import combo.model.TestModels
+import combo.model.TestModels.SAT_PROBLEMS
 import combo.sat.*
-import combo.sat.solvers.SolverTest
-import combo.sat.solvers.SolverTest.Companion.SMALL_PROBLEMS
+import combo.sat.constraints.Conjunction
 import combo.test.assertContentEquals
+import combo.util.IntCollection
 import combo.util.collectionOf
+import kotlin.math.sqrt
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 abstract class BanditTest<D> {
     abstract fun bandit(problem: Problem, type: BanditType): Bandit<D>
@@ -31,7 +27,7 @@ abstract class BanditTest<D> {
 
     @Test
     fun smallInfeasibleProblem() {
-        for ((i, p) in SolverTest.SMALL_UNSAT_PROBLEMS.withIndex()) {
+        for ((i, p) in TestModels.UNSAT_PROBLEMS.withIndex()) {
             try {
                 val infeasibleBandit = infeasibleBandit(p, Random.nextBoolean(), BanditType.random())
                 if (infeasibleBandit != null) {
@@ -46,23 +42,24 @@ abstract class BanditTest<D> {
 
     @Test
     fun minimizeVsMaximize() {
-        val p = ModelTest.SMALL1.problem
+        val p = TestModels.MODEL1.problem
         val bandit1 = bandit(p, BanditType.BINOMIAL)
         bandit1.rewards = FullSample()
         bandit1.maximize = true
-        bandit1.randomSeed = 1L
+        bandit1.randomSeed = 1
         val bandit2 = bandit(p, BanditType.BINOMIAL)
         bandit2.rewards = FullSample()
         bandit2.maximize = false
-        bandit2.randomSeed = 2L
+        bandit2.randomSeed = 2
         val rng = Random(1L)
-        for (i in 1..100) {
+
+        for (i in 1..200) {
             val instance1 = bandit1.chooseOrThrow()
             val instance2 = bandit2.chooseOrThrow()
             assertTrue(p.satisfies(instance1))
             assertTrue(p.satisfies(instance2))
-            bandit1.update(instance1, BanditType.BINOMIAL.linearRewards(instance1, rng), (rng.nextInt(5) + 1).toDouble())
-            bandit2.update(instance2, BanditType.BINOMIAL.linearRewards(instance2, rng), (rng.nextInt(5) + 1).toDouble())
+            bandit1.update(instance1, BanditType.BINOMIAL.linearRewards(instance1, rng), (rng.nextInt(5) + 1).toFloat())
+            bandit2.update(instance2, BanditType.BINOMIAL.linearRewards(instance2, rng), (rng.nextInt(5) + 1).toFloat())
         }
         val sum1 = bandit1.rewards.toArray().sum()
         val sum2 = bandit2.rewards.toArray().sum()
@@ -71,12 +68,12 @@ abstract class BanditTest<D> {
 
     @Test
     fun assumptionsSatisfied() {
-        val p = ModelTest.SMALL3.problem
+        val p = TestModels.MODEL4.problem
         val bandit = bandit(p, BanditType.POISSON)
         bandit.rewards = GrowingDataSample(4)
         for (i in 1..100) {
-            val instance = if (Random.nextBoolean()) bandit.chooseOrThrow(intArrayOf(4, 12)).also {
-                assertTrue { Conjunction(collectionOf(intArrayOf(4, 12))).satisfies(it) }
+            val instance = if (Random.nextBoolean()) bandit.chooseOrThrow(collectionOf(3, 12)).also {
+                assertTrue { Conjunction(collectionOf(3, 12)).satisfies(it) }
             }
             else bandit.chooseOrThrow()
             assertTrue(p.satisfies(instance))
@@ -86,27 +83,28 @@ abstract class BanditTest<D> {
 
     @Test
     fun assumptionsToInfeasible() {
-        fun testInfeasible(assumptions: IntArray, p: Problem) {
+        fun testInfeasible(assumptions: IntCollection, p: Problem) {
             assertFailsWith(ValidationException::class) {
                 val bandit = bandit(p, BanditType.NORMAL)
                 bandit.chooseOrThrow(assumptions)
+                bandit.chooseOrThrow(assumptions)
             }
         }
-        testInfeasible(intArrayOf(20, 22), SMALL_PROBLEMS[0])
-        testInfeasible(intArrayOf(10, 13, 15), SMALL_PROBLEMS[0])
-        testInfeasible(intArrayOf(4, 9), SMALL_PROBLEMS[0])
-        testInfeasible(intArrayOf(1, 6), SMALL_PROBLEMS[2])
-        testInfeasible(intArrayOf(6, 8, 10), SMALL_PROBLEMS[2])
-        testInfeasible(intArrayOf(12, 15, 17, 19), SMALL_PROBLEMS[2])
-        testInfeasible(intArrayOf(7, 8, 10), SMALL_PROBLEMS[3])
+        testInfeasible(collectionOf(11, 12), SAT_PROBLEMS[0])
+        testInfeasible(collectionOf(6, -7, -8), SAT_PROBLEMS[0])
+        testInfeasible(collectionOf(-2, 4), SAT_PROBLEMS[0])
+        testInfeasible(collectionOf(1, 6), SAT_PROBLEMS[2])
+        testInfeasible(collectionOf(3, 4, 5), SAT_PROBLEMS[3])
+        testInfeasible(collectionOf(-10, -11, -12), SAT_PROBLEMS[3])
+        testInfeasible(collectionOf(-4, 5), SAT_PROBLEMS[4])
     }
 
     @Test
     fun randomSeedDeterministic() {
-        val bandit1 = bandit(SMALL_PROBLEMS[2], BanditType.NORMAL)
-        val bandit2 = bandit(SMALL_PROBLEMS[2], BanditType.NORMAL)
-        bandit1.randomSeed = 0L
-        bandit2.randomSeed = 0L
+        val bandit1 = bandit(SAT_PROBLEMS[2], BanditType.NORMAL)
+        val bandit2 = bandit(SAT_PROBLEMS[2], BanditType.NORMAL)
+        bandit1.randomSeed = 0
+        bandit2.randomSeed = 0
         val rng1 = Random(1L)
         val rng2 = Random(1L)
         val instances1 = generateSequence {
@@ -127,8 +125,7 @@ abstract class BanditTest<D> {
 
     @Test
     fun storeLoadStore() {
-        for ((index, p) in SMALL_PROBLEMS.withIndex()) {
-            val p = SMALL_PROBLEMS[1]
+        for (p in SAT_PROBLEMS) {
             val bandit = bandit(p, BanditType.BINOMIAL)
             for (i in 0 until 100) {
                 val instance = bandit.chooseOrThrow()
@@ -138,36 +135,32 @@ abstract class BanditTest<D> {
             val bandit2 = bandit(p, BanditType.BINOMIAL)
             bandit2.importData(list1)
 
-            bandit.randomSeed = 1L
-            bandit2.randomSeed = 1L
-
-            assertEquals(bandit.chooseOrThrow(), bandit2.chooseOrThrow())
-            if (list1 is Array<*>)
-                assertEquals(list1.size, (bandit2.exportData() as Array<*>).size)
+            assertNotNull(bandit2.choose())
         }
     }
 }
 
 enum class BanditType {
+
     BINOMIAL {
-        override fun linearRewards(mean: Double, rng: Random) = (mean > rng.nextDouble()).toInt().toDouble()
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextBinomial(mean, trials).toFloat()
     },
     NORMAL {
-        override fun linearRewards(mean: Double, rng: Random) = rng.nextNormal(mean)
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextNormal(mean * trials, sqrt(1.0f * trials))
     },
     POISSON {
-        override fun linearRewards(mean: Double, rng: Random) = rng.nextPoisson(mean).toDouble()
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextPoisson(mean * trials).toFloat()
     };
 
-    fun linearRewards(instance: Instance, rng: Random): Double {
-        val sum = instance.truthIterator().asSequence().map { if (it.toBoolean()) 1.0 else 0.0 }.sum()
-        return linearRewards(sum / instance.size, rng)
+    fun linearRewards(instance: Instance, rng: Random): Float {
+        val sum = instance.iterator().asSequence().map { if (it.toBoolean()) 1.0f else 0.0f }.sum()
+        return linearRewards(sum / instance.size, 1, rng)
     }
 
-    abstract fun linearRewards(mean: Double, rng: Random): Double
+    abstract fun linearRewards(mean: Float, trials: Int, rng: Random): Float
 
     companion object {
-        fun random() = BanditType.values()[Random.nextInt(BanditType.values().size)]
+        fun random() = values()[Random.nextInt(values().size)]
     }
 }
 

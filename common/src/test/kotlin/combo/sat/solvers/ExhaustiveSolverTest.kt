@@ -10,6 +10,7 @@ class ExhaustiveSolverTest : SolverTest() {
 }
 
 class ExhaustiveLinearOptimizerTest : LinearOptimizerTest() {
+    override val isComplete = true
     override fun optimizer(problem: Problem) = ExhaustiveSolver(problem)
     override fun largeOptimizer(problem: Problem): ExhaustiveSolver? = null
     override fun infeasibleOptimizer(problem: Problem) = ExhaustiveSolver(problem).apply { timeout = 1L }
