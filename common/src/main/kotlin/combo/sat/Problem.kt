@@ -21,8 +21,7 @@ class Problem(val constraints: Array<out Constraint>, val nbrVariables: Int) {
                 map[ix]!!.add(i)
             }
         }
-        // TODO makes linkedhashmap unnecessarily
-        map.mapValues { it.value.toArray() }
+        map.mapValuesTo(HashMap()) { it.value.toArray() }
     }
 
     /**
