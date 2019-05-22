@@ -5,7 +5,6 @@ import combo.sat.*
 import combo.util.EmptyCollection
 import combo.util.IntCollection
 import combo.util.sumByFloat
-import kotlin.jvm.JvmOverloads
 import kotlin.math.max
 import kotlin.math.min
 
@@ -183,6 +182,12 @@ class SquaredPenalty : PenaltyFunction {
     override fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float) = violations.let { (it * it).toFloat() }
 }
 
+/**
+ * This penalty ensures that any infeasible candidate solution has a penalized
+ * score that is strictly greater than a feasible solution. In order for that to work the
+ * [combo.sat.solvers.ObjectiveFunction.lowerBound] and [combo.sat.solvers.ObjectiveFunction.upperBound] must be
+ * implemented and be finite. Otherwise, choose another penalty function that does not rely on bounds.
+ * */
 class DisjunctPenalty(private val extended: PenaltyFunction = LinearPenalty()) : PenaltyFunction {
     override fun penalty(value: Float, violations: Int, lowerBound: Float, upperBound: Float): Float {
         if (violations > 0) return upperBound - lowerBound + extended.penalty(value, violations, lowerBound, upperBound)
