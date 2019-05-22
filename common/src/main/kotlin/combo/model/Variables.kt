@@ -95,21 +95,21 @@ sealed class Select<V, T> constructor(name: String, mandatory: Boolean, parent: 
 class Option<V> constructor(override val canonicalVariable: Select<V, *>, val valueIndex: Int) : Value {
 
     init {
-        require(valueIndex in canonicalVariable.values.indices) { "Option with index=$valueIndex is out of bound with $name." }
+        require(valueIndex in canonicalVariable.values.indices) {
+            "Option with index=$valueIndex is out of bound with $name."
+        }
     }
 
     val value get() = canonicalVariable.values[valueIndex]
-    override fun toLiteral(index: VariableIndex) = (index.indexOf(canonicalVariable) + valueIndex + if (canonicalVariable.mandatory) 0 else 1).toLiteral(true)
-    override fun toString() = "Option($name=$value)"
+    override fun toLiteral(index: VariableIndex) = (index.indexOf(canonicalVariable) + valueIndex
+            + if (canonicalVariable.mandatory) 0 else 1).toLiteral(true)
 
+    override fun toString() = "Option($name=$value)"
     override val name: String get() = canonicalVariable.name
 }
 
-class Multiple<V> constructor(
-        name: String,
-        mandatory: Boolean,
-        parent: Value,
-        vararg values: V) : Select<V, Set<V>>(name, mandatory, parent, values) {
+class Multiple<V> constructor(name: String, mandatory: Boolean, parent: Value, vararg values: V)
+    : Select<V, Set<V>>(name, mandatory, parent, values) {
 
     override fun valueOf(instance: Instance, index: VariableIndex): Set<V>? {
         val ix = index.indexOf(this)
@@ -140,11 +140,8 @@ class Multiple<V> constructor(
     override fun toString() = "Multiple($name)"
 }
 
-class Alternative<V> constructor(
-        name: String,
-        mandatory: Boolean,
-        parent: Value,
-        vararg values: V) : Select<V, V>(name, mandatory, parent, values) {
+class Alternative<V> constructor(name: String, mandatory: Boolean, parent: Value, vararg values: V)
+    : Select<V, V>(name, mandatory, parent, values) {
 
     override fun valueOf(instance: Instance, index: VariableIndex): V? {
         val ix = index.indexOf(this)

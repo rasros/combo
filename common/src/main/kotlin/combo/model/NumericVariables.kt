@@ -5,7 +5,6 @@ import combo.util.IntHashSet
 import combo.util.MAX_VALUE32
 import combo.util.assert
 import combo.util.bitSize
-import kotlin.jvm.JvmOverloads
 import kotlin.math.max
 
 /**
@@ -14,12 +13,8 @@ import kotlin.math.max
  * @param min smallest allowed value (inclusive)
  * @param max largest allowed value (inclusive)
  */
-class IntVar @JvmOverloads constructor(
-        name: String,
-        mandatory: Boolean,
-        parent: Value,
-        val min: Int = Int.MIN_VALUE,
-        val max: Int = Int.MAX_VALUE) : Variable<Int>(name) {
+class IntVar constructor(name: String, mandatory: Boolean, parent: Value, val min: Int, val max: Int)
+    : Variable<Int>(name) {
 
     init {
         require(max > min) { "Min should be greater than min." }
@@ -82,12 +77,8 @@ class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Liter
  * @param min smallest allowed value (inclusive)
  * @param max largest allowed value (inclusive)
  */
-class FloatVar @JvmOverloads constructor(
-        name: String,
-        mandatory: Boolean = false,
-        parent: Value,
-        val min: Float = -MAX_VALUE32,
-        val max: Float = MAX_VALUE32) : Variable<Float>(name) {
+class FloatVar constructor(name: String, mandatory: Boolean, parent: Value, val min: Float, val max: Float)
+    : Variable<Float>(name) {
 
     init {
         require(max > min) { "Min should be greater than min." }
@@ -137,7 +128,7 @@ class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) :
     override fun toString() = "FloatLiteral($name=$value)"
 }
 
-class BitsVar @JvmOverloads constructor(
+class BitsVar constructor(
         name: String,
         mandatory: Boolean,
         parent: Value,
