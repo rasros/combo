@@ -25,7 +25,6 @@ import kotlin.random.Random
  * https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
  * http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
  *
- *
  * @param problem the problem contains the [Constraint]s and the number of variables.
  * @param banditPolicy the policy that the next bandit arm is selected with.
  * @param solver the solver will be used to generate [Instance]s that satisfy the constraints from the [Problem].
@@ -104,7 +103,9 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     var blockQueueSize = 2
 
     /**
-     * TODO
+     * When assumptions are used in the [chooseOrThrow] method, there is a risk that the assumptions does not work with
+     * a node [LeafNode.setLiterals]. In that case the algorithm tries again for a maximum of retries specified with
+     * this. This is quite rare since most cases are fixed by unit propagation.
      */
     var maxRestarts = 10
 
@@ -239,24 +240,30 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     }
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
+        var propagated: IntHashSet? = null
         for (restart in 0 until maxRestarts) {
+            if (restart == 1 && assumptions.isNotEmpty()) {
+                propagated = IntHashSet()
+                propagated.addAll(assumptions)
+                problem.unitPropagation(propagated)
+            }
             banditPolicy.round(rng)
             val node = liveNodes.maxBy {
                 when {
-                    blocks(assumptions, it.blocked) -> Float.NEGATIVE_INFINITY
-                    matches(it.setLiterals, assumptions) -> banditPolicy.evaluate(it.data, maximize, rng)
+                    blocks(propagated ?: assumptions, it.blocked) -> Float.NEGATIVE_INFINITY
+                    matches(it.setLiterals, propagated ?: assumptions) -> banditPolicy.evaluate(it.data, maximize, rng)
                     else -> Float.NEGATIVE_INFINITY
                 }
             }
             val instance = when {
-                node == null -> solver.witness(assumptions)
+                node == null -> solver.witness(propagated ?: assumptions)
                 assumptions.isEmpty() -> solver.witness(node.setLiterals)
-                else -> solver.witness(assumptions.mutableCopy().apply { addAll(node.setLiterals) })
+                else -> solver.witness((propagated ?: assumptions).mutableCopy().apply { addAll(node.setLiterals) })
             }
             if (instance != null) return instance
             if (node != null && assumptions.isNotEmpty()) {
                 node.blocked = node.blocked ?: CircleBuffer(blockQueueSize)
-                node.blocked!!.add(assumptions)
+                node.blocked!!.add((propagated ?: assumptions))
             }
         }
         throw IterationsReachedException(maxRestarts)
