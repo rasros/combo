@@ -1,9 +1,7 @@
 package combo.ga
 
-import combo.math.AliasMethodSampler
-import combo.math.DiscretePdfSampler
-import combo.math.IntPermutation
-import combo.math.nextGeometric
+import combo.math.*
+import combo.sat.literal
 import combo.util.assert
 import combo.util.transformArray
 import kotlin.math.max
@@ -168,6 +166,19 @@ interface RateMutationOperator : MutationOperator<Candidates> {
         var index = rng.nextGeometric(rate) - 1
         while (index < instance.size) {
             instance.flip(index)
+            index += rng.nextGeometric(rate)
+        }
+    }
+}
+
+class PropagatingMutator(val base: RateMutationOperator, val implicationDigraph: ImplicationDigraph) : MutationOperator<Candidates> {
+    override fun mutate(target: Int, candidates: Candidates, rng: Random) {
+        val instance = candidates.instances[target]
+        val rate = base.mutationRate(instance.size, rng)
+        var index = rng.nextGeometric(rate) - 1
+        while (index < instance.size) {
+            instance.flip(index)
+            implicationDigraph.propagate(instance.literal(index), instance)
             index += rng.nextGeometric(rate)
         }
     }
