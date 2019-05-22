@@ -32,13 +32,13 @@ class ParallelSolverTest {
             { p: Problem -> CachedOptimizer(LocalSearchOptimizer(p)) },
             { p: Problem -> JacopSolver(p) },
             { p: Problem -> Sat4JSolver(p) },
-            { p: Problem -> JOptimizerSolver(p) })
+            { p: Problem -> JOptimizer(p) })
 
     @Test
     fun parallelSolve() {
         val p = TestModels.SAT_PROBLEMS[0]
         for (solverCreator in solvers) {
-            val solver = solverCreator.invoke(p).apply { randomSeed = 0L }
+            val solver = solverCreator.invoke(p).apply { randomSeed = 0 }
             val pool = Executors.newFixedThreadPool(10)
             try {
                 val list = ArrayList<Callable<Instance>>()
@@ -67,7 +67,7 @@ class ParallelSolverTest {
         val p = TestModels.SAT_PROBLEMS[1]
         val nbrSolutions = ExhaustiveSolver(p).asSequence().count()
         for (solverCreator in solvers) {
-            val solver = solverCreator.invoke(p).apply { randomSeed = 0L }
+            val solver = solverCreator.invoke(p).apply { randomSeed = 0 }
             val pool = Executors.newFixedThreadPool(5)
             try {
                 val list = ArrayList<Callable<Set<Instance>>>()
@@ -92,7 +92,7 @@ class ParallelSolverTest {
     fun parallelOptimize() {
         val p = TestModels.SAT_PROBLEMS[3]
         for (solverCreator in optimizers) {
-            val optimizer = solverCreator.invoke(p).apply { randomSeed = 0L }
+            val optimizer = solverCreator.invoke(p).apply { randomSeed = 0 }
             val pool = Executors.newFixedThreadPool(5)
             try {
                 val list = ArrayList<Callable<Instance>>()

@@ -1,6 +1,5 @@
 package combo.sat.solvers
 
-import combo.math.RandomSequence
 import combo.math.toIntArray
 import combo.sat.*
 import combo.sat.constraints.*
@@ -44,11 +43,12 @@ class Sat4JSolver @JvmOverloads constructor(
                     "Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
 
-    override var randomSeed: Long
+    override var randomSeed: Int = nanos().toInt()
         set(value) {
-            this.randomSequence = RandomSequence(value)
+            this.rng = Random(value)
+            field = value
         }
-        get() = randomSequence.startingSeed
+    private var rng = Random(randomSeed)
 
     override var timeout: Long = -1L
 
@@ -68,8 +68,6 @@ class Sat4JSolver @JvmOverloads constructor(
      * See [toIntArray]
      */
     var delta: Float = 0.1f
-
-    private var randomSequence = RandomSequence(nanos())
 
     private val solverTL = ThreadLocal.withInitial {
         val solver: Sat4J<*> = if (problem.constraints.any { it is Linear }) PBSolverFactory.newLight() as Sat4J<*>
@@ -142,7 +140,7 @@ class Sat4JSolver @JvmOverloads constructor(
 
     }
 
-    override fun witnessOrThrow(assumptions: IntCollection): Instance {
+    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
         val solver = solverTL.get()
 
         if (maxConflicts > 0) solver.setTimeoutOnConflicts(maxConflicts)
@@ -151,7 +149,8 @@ class Sat4JSolver @JvmOverloads constructor(
         if (timeout > 0L) solver.setSearchListener(TimeoutListener(timeout))
         else solver.setSearchListener(VoidListener)
 
-        solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
+        if (guess == null) solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded()
+        else solver.order.phaseSelectionStrategy = InitialGuessSelectionStrategy(guess)
 
         val assumption = assumptions.toSat4JVec()
         try {
@@ -171,7 +170,7 @@ class Sat4JSolver @JvmOverloads constructor(
         if (timeout > 0L) solver.setSearchListener(TimeoutListener(timeout))
         else solver.setSearchListener(VoidListener)
 
-        solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
+        solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded()
 
         val iterator = ModelIterator(solver)
         val assumption = assumptions.toSat4JVec()
@@ -188,8 +187,8 @@ class Sat4JSolver @JvmOverloads constructor(
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection): Instance {
-        val pbSolver = PBSolverFactory.newLight()
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: MutableInstance?): Instance {
+        val pbSolver = PBSolverFactory.newLight() as PBSolver
         setupSolver(pbSolver)
 
         if (timeout > 0L) pbSolver.setSearchListener(TimeoutListener(timeout))
@@ -201,6 +200,7 @@ class Sat4JSolver @JvmOverloads constructor(
         })
         val variableLiterals = VecInt(IntArray(intWeights.size()) { it + 1 })
         pbSolver.objectiveFunction = Sat4JObjectiveFunction(variableLiterals, intWeights)
+        if (guess != null) pbSolver.order.phaseSelectionStrategy = InitialGuessSelectionStrategy(guess)
 
         val assumption = assumptions.toSat4JVec()
         val pseudoOptDecorator = PseudoOptDecorator(pbSolver)
@@ -225,13 +225,22 @@ class Sat4JSolver @JvmOverloads constructor(
 
     private object VoidListener : SearchListenerAdapter<ISolverService>()
 
-    private class RandomLiteralSelectionStrategySeeded(var rng: Random) : IPhaseSelectionStrategy {
+    private inner class RandomLiteralSelectionStrategySeeded : IPhaseSelectionStrategy {
         override fun assignLiteral(p: Int) {}
         override fun init(nlength: Int) {}
         override fun init(v: Int, p: Int) {}
         override fun updateVar(p: Int) {}
         override fun updateVarAtDecisionLevel(q: Int) {}
         override fun select(v: Int) = if (rng.nextBoolean()) posLit(v) else negLit(v)
+    }
+
+    private inner class InitialGuessSelectionStrategy(val guess: Instance) : IPhaseSelectionStrategy {
+        override fun assignLiteral(p: Int) {}
+        override fun init(nlength: Int) {}
+        override fun init(v: Int, p: Int) {}
+        override fun updateVarAtDecisionLevel(q: Int) {}
+        override fun updateVar(p: Int) {}
+        override fun select(v: Int) = if (guess[v - 1]) posLit(v) else negLit(v)
     }
 
     private fun IntCollection.toSat4JVec() = VecInt(this.toArray())

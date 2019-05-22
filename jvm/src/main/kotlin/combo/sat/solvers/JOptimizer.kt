@@ -8,7 +8,6 @@ import com.joptimizer.exception.InfeasibleProblemException
 import com.joptimizer.exception.IterationsLimitException
 import com.joptimizer.optimizers.BIPLokbaTableMethod
 import com.joptimizer.optimizers.BIPOptimizationRequest
-import combo.math.RandomSequence
 import combo.math.toIntArray
 import combo.sat.*
 import combo.sat.constraints.Cardinality
@@ -18,6 +17,7 @@ import combo.sat.constraints.ReifiedEquivalent
 import combo.sat.constraints.Relation.*
 import combo.util.*
 import org.apache.commons.logging.impl.NoOpLog
+import kotlin.random.Random
 
 /**
  * TODO support linear, cardinality with negated literals, reifiedeq, reifiedimp
@@ -25,7 +25,7 @@ import org.apache.commons.logging.impl.NoOpLog
  * Assumptions during solving are added using the A=b matrices, allowing reuse of the constant G<=h matrices.
  * Using this class requires an extra optional dependency, like so in gradle: compile "com.joptimizer:joptimizer:4.0.0"
  */
-class JOptimizerSolver @JvmOverloads constructor(
+class JOptimizer @JvmOverloads constructor(
         val problem: Problem,
         constraintHandler: (Constraint, row: Int, G: IntMatrix2D, h: IntMatrix1D) -> Int = { _, _, _, _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
@@ -34,11 +34,12 @@ class JOptimizerSolver @JvmOverloads constructor(
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Optimizer<LinearObjective> {
 
-    override var randomSeed: Long
+    override var randomSeed: Int = nanos().toInt()
         set(value) {
-            this.randomSequence = RandomSequence(value)
+            this.rng = Random(value)
+            field = value
         }
-        get() = randomSequence.startingSeed
+    private var rng = Random(randomSeed)
 
     /**
      * Timeout is not supported by JOptimizer, use maxIterations for pre-mature cancellation..
@@ -61,7 +62,6 @@ class JOptimizerSolver @JvmOverloads constructor(
      */
     var instanceBuilder: InstanceBuilder = BitArrayBuilder
 
-    private var randomSequence = RandomSequence(nanos())
     private val G: IntMatrix2D
     private val h: IntMatrix1D
 
@@ -128,13 +128,13 @@ class JOptimizerSolver @JvmOverloads constructor(
      * @throws UnsatisfiableException
      * @throws IterationsReachedException by maxIterations
      */
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection): Instance {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val request = BIPOptimizationRequest().apply {
             val mult = if (function.maximize) -1 else 1
             setC(function.weights.toIntArray(delta)
                     .apply { if (function.maximize) this.transformArray { it * mult } })
-            setG(this@JOptimizerSolver.G)
-            setH(this@JOptimizerSolver.h)
+            setG(this@JOptimizer.G)
+            setH(this@JOptimizer.h)
             if (assumptions.isNotEmpty()) {
                 val A = SparseIntMatrix2D(assumptions.size, problem.nbrVariables)
                 val B = DenseIntMatrix1D(assumptions.size)
