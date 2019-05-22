@@ -1,21 +1,27 @@
 package combo.model
 
-import combo.bandit.*
-import combo.bandit.ga.GABandit
-import combo.bandit.glm.NormalVariance
-import combo.bandit.glm.VarianceFunction
+import combo.bandit.Bandit
+import combo.bandit.CombinatorialBandit
+import combo.bandit.DecisionTreeBandit
+import combo.bandit.PredictionBandit
+import combo.bandit.ga.GeneticAlgorithmBandit
 import combo.bandit.univariate.BanditPolicy
-import combo.math.*
-import combo.sat.FastRandomSet
+import combo.math.DataSample
+import combo.math.ImplicationDigraph
+import combo.math.VarianceEstimator
 import combo.sat.ImplicationConstraintCoercer
-import combo.sat.WeightSet
-import combo.sat.solvers.*
-import combo.util.EMPTY_INT_ARRAY
+import combo.sat.WordRandomSet
+import combo.sat.solvers.CachedSolver
+import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.solvers.LocalSearchSolver
+import combo.sat.solvers.Solver
+import combo.util.EmptyCollection
+import combo.util.IntCollection
 import combo.util.IntHashSet
 import kotlin.jvm.JvmOverloads
 import kotlin.jvm.JvmStatic
 
-class ModelBandit<D>(val model: Model, val bandit: Bandit<D>) {
+open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
 
     companion object {
 
@@ -26,7 +32,7 @@ class ModelBandit<D>(val model: Model, val bandit: Bandit<D>) {
                                                         solver: Solver =
                                                                 if (model.problem.nbrVariables <= 15) ExhaustiveSolver(model.problem)
                                                                 else LocalSearchSolver(model.problem),
-                                                        limit: Int = 500): ModelBandit<Array<InstanceData<E>>> {
+                                                        limit: Int = 500): ModelBandit<CombinatorialBandit<E>> {
             val bandits = solver.asSequence().take(limit).toList().toTypedArray()
             val bandit = CombinatorialBandit(bandits, banditPolicy)
             return ModelBandit(model, bandit)
@@ -34,40 +40,43 @@ class ModelBandit<D>(val model: Model, val bandit: Bandit<D>) {
 
         @JvmStatic
         @JvmOverloads
-        fun <E : VarianceEstimator> dtBandit(model: Model,
-                                             banditPolicy: BanditPolicy<E>,
-                                             solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
-                                                 initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), FastRandomSet())
-                                             }).apply { pNew = 0.5f })
-                : ModelBandit<Array<LiteralData<E>>> {
-            val bandit = DecisionTreeBandit(model.problem, banditPolicy)
-            return ModelBandit(model, bandit)
+        fun <E : VarianceEstimator> treeBandit(model: Model,
+                                               banditPolicy: BanditPolicy<E>,
+                                               solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
+                                                   initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WordRandomSet())
+                                               }).apply { pNew = 0.5f })
+                : PredictionModelBandit<DecisionTreeBandit<E>> {
+            val bandit = DecisionTreeBandit(model.problem, banditPolicy, solver)
+            return PredictionModelBandit(model, bandit)
         }
 
+        /*
         @JvmStatic
         @JvmOverloads
-        fun glmBandit(model: Model,
-                      family: VarianceFunction = NormalVariance,
-                      link: Transform = family.canonicalLink(),
-                      regularization: Loss = SquaredLoss,
-                      linearOptimizer: Optimizer<LinearObjective> =
+        fun linearBandit(model: Model,
+                         family: VarianceFunction = NormalVariance,
+                         link: Transform = family.canonicalLink(),
+                         regularization: Loss = SquaredLoss,
+                         linearOptimizer: Optimizer<LinearObjective> =
                               CachedOptimizer(LocalSearchOptimizer<LinearObjective>(model.problem).apply {
                                   restarts = 1
                                   initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WeightSet(0.2f))
                               }).apply { this.pNew = 0.5f })
                 : ModelBandit<FloatArray> {
             TODO()
-        }
+        }*/
 
         @JvmStatic
         @JvmOverloads
-        fun <E : VarianceEstimator> gaBandit(model: Model,
-                                             banditPolicy: BanditPolicy<E>,
-                                             solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
-                                                 initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), FastRandomSet())
-                                             }).apply { pNew = 1.0f })
-                : ModelBandit<Array<InstanceData<E>>> {
-            val bandit = GABandit(model.problem, banditPolicy, solver)
+        fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model,
+                                                           banditPolicy: BanditPolicy<E>,
+                                                           solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
+                                                               initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WordRandomSet())
+                                                           }).apply { pNew = 1.0f })
+                : ModelBandit<GeneticAlgorithmBandit<E>> {
+            val bandit = GeneticAlgorithmBandit(model.problem, banditPolicy, solver)
+            // Extract implication digraph if possible
+            bandit.implicationDigraph = (((solver as? CachedSolver)?.baseSolver as? LocalSearchSolver)?.initializer as? ImplicationConstraintCoercer)?.implicationDigraph
             return ModelBandit(model, bandit)
         }
     }
@@ -86,10 +95,27 @@ class ModelBandit<D>(val model: Model, val bandit: Bandit<D>) {
         bandit.update(assignment.instance, result, weight)
     }
 
-    private fun assumptionsLiterals(assumptions: Array<out Literal>): IntArray {
-        if (assumptions.isEmpty()) return EMPTY_INT_ARRAY
+    private fun assumptionsLiterals(assumptions: Array<out Literal>): IntCollection {
+        if (assumptions.isEmpty()) return EmptyCollection
         val set = IntHashSet()
         assumptions.forEach { it.toAssumption(model.index, set) }
-        return set.toArray().apply { sort() }
+        return set
     }
+}
+
+class PredictionModelBandit<B : PredictionBandit<*>>(model: Model, override val bandit: B) : ModelBandit<B>(model, bandit) {
+    /**
+     * The total absolute error obtained on a prediction before update.
+     */
+    var trainAbsError: DataSample = bandit.trainAbsError
+
+    /**
+     * The total absolute error obtained on a prediction after update.
+     */
+    var testAbsError: DataSample = bandit.testAbsError
+
+    /**
+     * Evaluate the machine learning model on a [Assignment].
+     */
+    fun predict(assignment: Assignment): Float = bandit.predict(assignment.instance)
 }
