@@ -56,8 +56,8 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
      * Add historic data to the bandit, this can be used to stop and re-start the bandit. The array must be the same
      * length as [nbrArms].
      */
-    fun importData(historicData: List<E>) {
-        require(historicData.size == nbrArms)
+    fun importData(historicData: Array<E>) {
+        require(historicData.size == nbrArms){"Inconsistent array length with number of arms."}
         @Suppress("UNCHECKED_CAST")
         for (i in 0 until nbrArms) {
             banditPolicy.removeArm(data[i] as E)
@@ -70,6 +70,6 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
      * Exports all data to use for external storage. They can be used in a new [UnivariateBandit] instance that
      * continues optimizing through the [importData] function. The order of the returned array must be maintained.
      */
-    fun exportData(): List<E> = ArrayList<E>(data.size).apply { data.forEach { add(it as E) } }
+    fun exportData(): Array<E> = Array(data.size) { data[it].copy() } as Array<E> //.apply { data.forEach { add(it as E) } }
 }
 
