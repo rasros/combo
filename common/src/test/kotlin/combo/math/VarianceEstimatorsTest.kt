@@ -102,10 +102,10 @@ class ExponentialDecayVarianceTest {
     }
 }
 
-class CountDataTest {
+class SumEstimatorTest {
     @Test
     fun fixedSamples() {
-        val s = CountData()
+        val s = SumEstimator()
         for (value in floatArrayOf(1.0f, 0.3f, 0.2f, 0.1f))
             s.accept(value)
         assertEquals(0.4f, s.mean, 1E-6f)
@@ -115,18 +115,18 @@ class CountDataTest {
     @Test
     fun randomSamples() {
         val r = Random(101)
-        val s = generateSequence { r.nextFloat() }.take(200).sample(CountData())
+        val s = generateSequence { r.nextFloat() }.take(200).sample(SumEstimator())
         assertEquals(0.5f, s.mean, 0.1f)
         assertEquals(0.25f, s.variance, 0.1f)
     }
 
     @Test
     fun fixedWeightedSamples() {
-        val cd = CountData()
+        val cd = SumEstimator()
         val values = floatArrayOf(2.0f, 0.4f, 2.3f, 1.5f, 1.4f, 0.1f, 0.8f, 0.2f)
         val weights = floatArrayOf(2.0f, 2.3f, 2.9f, 2.9f, 1.7f, 1.2f, 3.8f, 2.0f)
         for ((i, v) in values.withIndex())
-            cd.accept(v, weights[i])
+            cd.accept(v / weights[i], weights[i])
         val sum = values.sum()
         assertEquals(sum, cd.sum, 1E-6f)
         assertEquals(cd.nbrWeightedSamples, weights.sum(), 1E-6f)
@@ -136,10 +136,10 @@ class CountDataTest {
     @Test
     fun illegalValues() {
         assertFailsWith(IllegalArgumentException::class) {
-            CountData().accept(5.0f, 2.0f)
+            SumEstimator().accept(5.0f, 2.0f)
         }
         assertFailsWith(IllegalArgumentException::class) {
-            CountData().accept(-1.0f, 1.0f)
+            SumEstimator().accept(-1.0f, 1.0f)
         }
     }
 }

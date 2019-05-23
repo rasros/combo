@@ -56,7 +56,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
      * VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
      * than the second best. The lower the value the more data is required before a split is performed.
      */
-    var delta: Float = 0.01f
+    var delta: Float = 0.05f
 
     /**
      * [delta] will be multiplied by this once for each split. This can be used to limit the growth of the tree.
@@ -67,7 +67,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
      * VFDT parameter, this is the threshold with which the algorithm splits even if it is not proven best.
      * Set to 0.0 for never and to 1.0 for always.
      */
-    var tau: Float = 0.05f
+    var tau: Float = 0.1f
 
     /**
      * Total number of nodes that are permitted to build.
@@ -263,7 +263,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             if (instance != null) return instance
             if (node != null && assumptions.isNotEmpty()) {
                 node.blocked = node.blocked ?: CircleBuffer(blockQueueSize)
-                node.blocked!!.add((propagated ?: assumptions))
+                node.blocked!!.add(assumptions)
             }
         }
         throw IterationsReachedException(maxRestarts)

@@ -1,6 +1,6 @@
 package combo.bandit.univariate
 
-import combo.math.CountData
+import combo.math.SumEstimator
 import combo.math.RunningVariance
 import combo.math.VarianceEstimator
 import combo.test.assertEquals
@@ -26,7 +26,7 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
         val arm1 = bp.baseData()
         bp.addArm(arm1)
         bp.round(Random)
-        bp.update(arm1, 2.0f, 10.0f)
+        bp.update(arm1, 0.2f, 10.0f)
         assertFalse(arm1.mean.isNaN())
         assertEquals(bp.baseData().nbrWeightedSamples + 10.0f, arm1.nbrWeightedSamples, 1E-6f)
     }
@@ -43,7 +43,7 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
             bp.round(rng)
             val s1 = bp.evaluate(arm1, true, rng)
             val s2 = bp.evaluate(arm2, true, rng)
-            if (s1 > s2) bp.update(arm1, 10.0f, 10.0f)
+            if (s1 > s2) bp.update(arm1, 1.0f, 10.0f)
             else bp.update(arm2, 0.0f, 10.0f)
         }
         assertTrue(arm1.mean > arm2.mean)
@@ -64,7 +64,7 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
             bp.round(rng)
             val s1 = bp.evaluate(arm1, false, rng)
             val s2 = bp.evaluate(arm2, false, rng)
-            if (s1 > s2) bp.update(arm1, 10.0f, 10.0f)
+            if (s1 > s2) bp.update(arm1, 1.0f, 10.0f)
             else bp.update(arm2, 0.0f, 10.0f)
         }
         assertTrue(arm1.mean > arm2.mean)
@@ -83,7 +83,7 @@ class PooledThompsonSamplingTest : BanditPolicyTest<VarianceEstimator>() {
             HierarchicalNormalPosterior(PooledVarianceEstimator(RunningVariance(0.0f, 0.02f, 0.02f))))
 }
 
-class UCB1Test : BanditPolicyTest<CountData>() {
+class UCB1Test : BanditPolicyTest<SumEstimator>() {
     override fun banditPolicy() = UCB1()
 }
 

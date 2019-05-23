@@ -25,8 +25,14 @@ interface Bandit<D> {
             }
 
     /**
-     * Add the results of a bandit evaluation. The [weight] can be used to increase the importance of the update, for
-     * binomial this is interpreted as the n-parameter.
+     * Update the result of an instance.
+     *
+     * @param instance the assigned values used for the result.
+     * @param result the reward obtained. If this constitutes multiple rewards then set weight appropriately and divide
+     * by the [weight].
+     * @param weight update strength. Can be used to signal importance of a result. The higher value the more the
+     * algorithm is updated. If these are number of trials (or observations) in for example a binomial distributed
+     * reward, then the result should be divided by weight before calling update (ie. the [result] should be mean).
      */
     fun update(instance: Instance, result: Float, weight: Float = 1.0f)
 
@@ -93,6 +99,6 @@ interface PredictionBandit<D> : Bandit<D> {
  * This class holds the data in the leaf nodes. The order of the literals in [setLiterals] is significant and cannot
  * be changed.
  */
-class LiteralData<E : VarianceEstimator>(val setLiterals: Literals, val data: E)
+class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E)
 
-class InstanceData<E : VarianceEstimator>(val instance: Instance, val data: E)
+class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E)

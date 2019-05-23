@@ -58,18 +58,18 @@ class PooledVarianceEstimator(val prior: VarianceEstimator) {
     }
 }
 
-object BinomialPosterior : UnivariatePosterior<CountData> {
-    override fun defaultPrior() = CountData(1.0f, 2.0f)
-    override fun sample(stat: CountData, rng: Random): Float {
+object BinomialPosterior : UnivariatePosterior<BinaryEstimator> {
+    override fun defaultPrior() = SumEstimator(1.0f, 2.0f)
+    override fun sample(stat: BinaryEstimator, rng: Random): Float {
         val alpha = stat.sum
         val beta = stat.nbrWeightedSamples - alpha
         return rng.nextBeta(alpha, beta)
     }
 }
 
-object PoissonPosterior : UnivariatePosterior<VarianceEstimator> {
-    override fun defaultPrior() = RunningVariance(1.0f, 0.0f, 0.01f)
-    override fun sample(stat: VarianceEstimator, rng: Random) = rng.nextGamma(stat.sum) / stat.nbrWeightedSamples
+object PoissonPosterior : UnivariatePosterior<MeanEstimator> {
+    override fun defaultPrior() = RunningMean(1.0f, 0.01f)
+    override fun sample(stat: MeanEstimator, rng: Random) = rng.nextGamma(stat.sum) / stat.nbrWeightedSamples
 }
 
 object GeometricPosterior : UnivariatePosterior<VarianceEstimator> {

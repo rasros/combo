@@ -30,7 +30,7 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
         fun <E : VarianceEstimator> combinatorialBandit(model: Model,
                                                         banditPolicy: BanditPolicy<E>,
                                                         solver: Solver =
-                                                                if (model.problem.nbrVariables <= 15) ExhaustiveSolver(model.problem)
+                                                                if (model.problem.nbrVariables <= 14) ExhaustiveSolver(model.problem)
                                                                 else LocalSearchSolver(model.problem),
                                                         limit: Int = 500): ModelBandit<CombinatorialBandit<E>> {
             val bandits = solver.asSequence().take(limit).toList().toTypedArray()
@@ -90,6 +90,16 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
     fun chooseOrThrow(vararg assumptions: Literal) =
             model.toAssignment(bandit.chooseOrThrow(assumptionsLiterals(assumptions)))
 
+    /**
+     * Update the result of an assignment.
+     *
+     * @param assignment the assigned values used for the result.
+     * @param result the reward obtained. If this constitutes multiple rewards then set weight appropriately and divide
+     * by the [weight].
+     * @param weight update strength. Can be used to signal importance of a result. The higher value the more the
+     * algorithm is updated. If these are number of trials (or observations) in for example a binomial distributed
+     * reward, then the result should be divided by weight before calling update (ie. the [result] should be mean).
+     */
     @JvmOverloads
     fun update(assignment: Assignment, result: Float, weight: Float = 1.0f) {
         bandit.update(assignment.instance, result, weight)

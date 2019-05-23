@@ -5,8 +5,7 @@ package combo.math
 import kotlin.jvm.JvmName
 import kotlin.math.sqrt
 
-interface MeanEstimator : DataSample {
-
+interface VarianceEstimator : DataSample {
     override fun accept(value: Float) = accept(value, 1.0f)
 
     /**
@@ -20,41 +19,33 @@ interface MeanEstimator : DataSample {
     val mean: Float
     val sum: Float get() = mean * nbrWeightedSamples
 
-    fun copy(): MeanEstimator
     override fun toArray() = floatArrayOf(mean)
-    fun combine(vs: MeanEstimator) = RunningMean(
+
+    fun combine(vs: VarianceEstimator) = RunningMean(
             (mean * nbrWeightedSamples + vs.mean * vs.nbrWeightedSamples) / (nbrWeightedSamples + vs.nbrWeightedSamples),
             nbrWeightedSamples + vs.nbrWeightedSamples)
-}
-
-class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEstimator {
-
-    override var mean = mean
-        private set
-    override var nbrWeightedSamples = nbrWeightedSamples
-        private set
-
-    override fun accept(value: Float, weight: Float) {
-        nbrWeightedSamples += weight
-        if (nbrWeightedSamples == weight) {
-            mean = value
-        } else {
-            val oldM = mean
-            mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
-        }
-    }
-
-    override fun toString() = "RunningMean(mean=$mean, nbrSamples=$nbrSamples)"
-    override fun copy() = RunningMean(mean, nbrWeightedSamples)
-}
-
-interface VarianceEstimator : MeanEstimator {
 
     val squaredDeviations: Float get() = variance * nbrWeightedSamples
     val variance: Float get() = squaredDeviations / nbrWeightedSamples
     val standardDeviation: Float get() = sqrt(variance)
 
-    override fun copy(): VarianceEstimator
+    fun copy(): VarianceEstimator
+}
+
+/**
+ * This estimator is only used with poisson data, hence the variance is the mean.
+ */
+interface MeanEstimator : VarianceEstimator {
+    override val variance: Float
+        get() = mean
+}
+
+/**
+ * This estimator is only used with binomial count data, hence the variance depends on the mean.
+ */
+interface BinaryEstimator : VarianceEstimator {
+    override val variance: Float
+        get() = mean * (1 - mean)
 }
 
 /**
@@ -129,14 +120,11 @@ class ExponentialDecayVariance(var beta: Float = 0.02f,
     override fun copy() = ExponentialDecayVariance(beta, mean, variance, nbrWeightedSamples)
 }
 
-/**
- * This estimator is only used with binomial count data, hence the variance depends on the mean.
- */
-class CountData(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
+class SumEstimator(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEstimator {
 
     override fun accept(value: Float, weight: Float) {
-        require(value in 0.0f..weight) { "CountData can only be used with Binomial data." }
-        sum += value
+        require(value in 0.0f..1.0f) { "SumEstimator can only be used with Binomial data." }
+        sum += value * weight
         nbrWeightedSamples += weight
     }
 
@@ -152,6 +140,27 @@ class CountData(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : VarianceE
     override val variance: Float
         get() = mean * (1 - mean)
 
-    override fun toString() = "CountData(sum=$sum, nbrSamples=$nbrSamples)"
-    override fun copy() = CountData(sum, nbrWeightedSamples)
+    override fun toString() = "SumEstimator(sum=$sum, nbrSamples=$nbrSamples)"
+    override fun copy() = SumEstimator(sum, nbrWeightedSamples)
+}
+
+class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEstimator {
+
+    override var mean = mean
+        private set
+    override var nbrWeightedSamples = nbrWeightedSamples
+        private set
+
+    override fun accept(value: Float, weight: Float) {
+        nbrWeightedSamples += weight
+        if (nbrWeightedSamples == weight) {
+            mean = value
+        } else {
+            val oldM = mean
+            mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
+        }
+    }
+
+    override fun toString() = "RunningMean(mean=$mean, nbrSamples=$nbrSamples)"
+    override fun copy() = RunningMean(mean, nbrWeightedSamples)
 }
