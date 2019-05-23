@@ -1,8 +1,10 @@
 package combo.sat
 
+import combo.math.IntPermutation
 import combo.test.assertContentEquals
 import combo.util.key
 import combo.util.value
+import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -167,18 +169,28 @@ abstract class InstanceTest {
     }
 
     @Test
-    fun emptyIterator() {
+    fun iteratorEmpty() {
         val instance = builder.create(10)
         assertEquals(0, instance.iterator().asSequence().count())
     }
 
     @Test
+    fun iteratorOne() {
+        val instance = builder.create(1)
+        instance[0] = true
+        assertContentEquals(listOf(0), instance.iterator().asSequence().toList())
+        instance[0] = false
+        assertContentEquals(emptyList<Int>(), instance.iterator().asSequence().toList())
+    }
+
+    @Test
     fun iterator() {
         val instance = builder.create(10)
+        instance[0] = true
         instance[2] = true
         instance[9] = true
         val result = instance.iterator().asSequence().toList().toIntArray().apply { sort() }
-        assertContentEquals(intArrayOf(2, 9), result)
+        assertContentEquals(intArrayOf(0, 2, 9), result)
     }
 
     @Test
@@ -445,6 +457,56 @@ abstract class InstanceTest {
         assertFalse(inst3[60])
 
         assertEquals(2, inst4.iterator().asSequence().count())
+    }
+
+    @Test
+    fun dot() {
+        val inst1 = builder.create(100)
+        assertEquals(0.0f, inst1.dot(FloatArray(100) { it.toFloat() }))
+        inst1[2] = true
+        assertEquals(2.0f, inst1.dot(FloatArray(100) { it.toFloat() }))
+        inst1[90] = true
+        assertEquals(92.0f, inst1.dot(FloatArray(100) { it.toFloat() }))
+    }
+
+    @Test
+    fun cardinality() {
+        val instance = builder.create(1)
+        instance[0] = true
+        assertEquals(1, instance.cardinality())
+        instance[0] = false
+        assertEquals(0, instance.cardinality())
+    }
+
+    @Test
+    fun hashCodeOrder() {
+        val rng = Random
+        val log2Size = 11
+        val baseInstance = builder.create(2.0.pow(log2Size).toInt())
+        val wordSize = baseInstance.wordSize
+        val words = IntArray(wordSize) { rng.nextInt() }
+        for (wi in 0 until wordSize)
+            baseInstance.setWord(wi, words[wi])
+        val baseHashCode = baseInstance.hashCode()
+        for (j in 0 until 10) {
+            val permutedInstance = builder.create(baseInstance.size)
+            for (wi in IntPermutation(wordSize, rng)) {
+                if (permutedInstance.getWord(wi) != words[wi])
+                    permutedInstance.setWord(wi, words[wi])
+            }
+            for (k in IntPermutation(baseInstance.size * 5, rng)) {
+                val wi = k % wordSize
+                if (rng.nextBoolean()) permutedInstance.setWord(wi, 0)
+                else if (rng.nextBoolean()) permutedInstance.setWord(wi, rng.nextInt())
+                else permutedInstance.setWord(wi, words[wi])
+            }
+            for (wi in IntPermutation(wordSize, rng)) {
+                if (permutedInstance.getWord(wi) != words[wi])
+                    permutedInstance.setWord(wi, words[wi])
+            }
+            val permutedHashCode = permutedInstance.hashCode()
+            assertEquals(baseHashCode, permutedHashCode)
+        }
     }
 }
 

@@ -3,7 +3,10 @@
 package combo.sat
 
 import combo.math.Vector
-import combo.util.*
+import combo.util.assert
+import combo.util.bitCount
+import combo.util.key
+import combo.util.value
 import kotlin.jvm.JvmName
 
 
@@ -175,41 +178,36 @@ fun Instance.getFloat(ix: Int) = Float.fromBits(getBits(ix, 32))
 fun Instance.deepEquals(other: Instance): Boolean {
     if (this === other) return true
     if (size != other.size) return false
-    for (i in 0 until size) if (this[i] != other[i]) return false
+    for (i in 0 until wordSize) if (getWord(i) != other.getWord(i)) return false
     return true
 }
 
-fun Instance.deepHashCode(): Int {
-    var result = size
-    val itr = iterator()
-    while (itr.hasNext())
-        result = 31 * result + itr.nextInt()
-    return result
+fun Instance.deepToString() = when {
+    wordSize <= 2 -> iterator().asSequence().joinToString(", ", "[", "]")
+    wordSize <= 10 -> wordIterator().asSequence().joinToString(", ", "[", "]") { "${it.key()}=${it.value()}" }
+    else -> "[<$size>]"
 }
 
-fun Instance.deepToString() = toIntArray().joinToString(",", "[", "]")
-
+/**
+ * Optimized for constant loop unrolling.
+ */
 infix fun Instance.dot(v: Vector): Float {
     var sum = 0.0f
-    val itr = iterator()
-    while (itr.hasNext()) sum += v[itr.nextInt()]
+    val itr = wordIterator()
+    while (itr.hasNext()) {
+        val e = itr.nextLong()
+        var value = e.value()
+        if (value == 0) continue
+        val wordIx = e.key()
+        val ix = (wordIx shl 5)
+        for (i in 0 until 32) {
+            if (value and 1 == 1) sum += v[ix + i]
+            value = value ushr 1
+            if (value == 0) break
+        }
+    }
     return sum
 }
-
-operator fun Instance.contains(literal: Literal): Boolean = literal(literal.toIx()) == literal
-fun Instance.literal(ix: Int) = ix.toLiteral(this[ix])
-
-fun Instance.toLiterals(): Literals {
-    val list = IntList()
-    val itr = iterator()
-    while (itr.hasNext()) list.add(itr.nextInt().toLiteral(true))
-    list.toArray()
-    return list.toArray()
-}
-
-fun MutableInstance.set(literal: Literal) = set(literal.toIx(), literal.toBoolean())
-fun MutableInstance.setAll(literals: Literals) = literals.forEach { set(it) }
-fun MutableInstance.setAll(literals: Iterable<Literal>) = literals.forEach { set(it) }
 
 fun Instance.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
 fun Instance.toFloatArray() = FloatArray(size) { if (this[it]) 1.0f else 0.0f }

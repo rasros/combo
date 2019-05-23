@@ -50,36 +50,20 @@ class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(1,
                 }
                 currentValue = currentValue ushr 1
                 if (i >= 32) throw NoSuchElementException()
-                return (currentKey shl Int.SIZE_BYTES + 1) + i++
+                return (currentKey shl 5) + i++
             }
         }
     }
 
     override fun wordIterator() = map.entryIterator()
 
-    override fun equals(other: Any?): Boolean {
-        return if (other is SparseBitArray) {
-            if (size != other.size) false
-            else {
-                val itr1 = map.entryIterator()
-                val itr2 = other.map.entryIterator()
-                while (itr1.hasNext() && itr2.hasNext())
-                    if (itr1.nextLong() != itr2.nextLong()) return false
-                if (itr1.hasNext() || itr2.hasNext()) return false
-                return true
-            }
-        } else if (other is Instance) deepEquals(other)
-        else false
-    }
+    override fun equals(other: Any?) = other is Instance && deepEquals(other)
 
     override fun hashCode(): Int {
         var result = size
         val itr = map.entryIterator()
-        while (itr.hasNext()) {
-            val l = itr.nextLong()
-            result = 31 * result + l.key()
-            result = 31 * result + l.value()
-        }
+        while (itr.hasNext())
+            result = result * 31 + itr.nextLong().hashCode()
         return result
     }
 

@@ -2,6 +2,7 @@
 
 package combo.sat
 
+import combo.util.IntList
 import kotlin.jvm.JvmName
 import kotlin.math.absoluteValue
 
@@ -19,4 +20,18 @@ operator fun Literal.not(): Literal = -this
 
 typealias Literals = IntArray
 
+operator fun Instance.contains(literal: Literal): Boolean = literal(literal.toIx()) == literal
+fun Instance.literal(ix: Int) = ix.toLiteral(this[ix])
+
+fun Instance.toLiterals(): Literals {
+    val list = IntList()
+    val itr:IntIterator = TODO()//iterator()
+    while (itr.hasNext()) list.add(itr.nextInt().toLiteral(true))
+    list.toArray()
+    return list.toArray()
+}
+
+fun MutableInstance.set(literal: Literal) = set(literal.toIx(), literal.toBoolean())
+fun MutableInstance.setAll(literals: Literals) = literals.forEach { set(it) }
+fun MutableInstance.setAll(literals: Iterable<Literal>) = literals.forEach { set(it) }
 

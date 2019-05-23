@@ -19,6 +19,7 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
 
     constructor(size: Int) : this(size, IntArray((size shr 5) + if (size and 0x1F > 0) 1 else 0))
 
+    override val wordSize: Int get() = this.field.size
 
     override fun copy(): BitArray = BitArray(size, field.copyOf())
 
@@ -51,18 +52,18 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
         return object : IntIterator() {
             var fieldI: Int = 0
             var fieldValue: Int = if (field.isEmpty()) 0 else field[fieldI]
-            var i = 0
+            var valueI = 0
 
             private fun advance() {
                 if (fieldI + 1 < field.size && fieldValue == 0) {
                     fieldI++
                     while (fieldI + 1 < field.size && field[fieldI] == 0)
                         fieldI++
-                    i = 0
+                    valueI = 0
                     fieldValue = field[fieldI]
                 }
                 while (fieldValue != 0 && fieldValue and 1 == 0) {
-                    i++
+                    valueI++
                     fieldValue = fieldValue ushr 1
                 }
             }
@@ -73,9 +74,9 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
 
             override fun hasNext() = fieldI + 1 < field.size || fieldValue != 0
             override fun nextInt(): Int {
-                if (i >= 32) throw NoSuchElementException()
-                val ret = (fieldI shl Int.SIZE_BYTES + 1) + i
-                i++
+                if (valueI >= 32) throw NoSuchElementException()
+                val ret = (fieldI shl 5) + valueI
+                valueI++
                 fieldValue = fieldValue ushr 1
                 advance()
                 return ret
