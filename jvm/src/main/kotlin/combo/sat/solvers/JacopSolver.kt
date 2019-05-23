@@ -14,8 +14,6 @@ import org.jacop.floats.constraints.XeqP
 import org.jacop.floats.core.FloatVar
 import org.jacop.satwrapper.SatTranslation
 import org.jacop.search.*
-import java.util.*
-import kotlin.collections.HashMap
 import kotlin.math.ceil
 import kotlin.random.Random
 
@@ -185,43 +183,35 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    /**
-     * This method is not lazy due to limitations in jacop. Use another solver or [forEachInstance] instead.
-     * If timeout is not set it will only terminate once all solutions are exhausted, which is probably never.
-     */
     override fun asSequence(assumptions: IntCollection): kotlin.sequences.Sequence<Instance> {
-        val list = ArrayList<Instance>()
-        forEachInstance(Integer.MAX_VALUE, assumptions) { list.add(it) }
-        return list.asSequence()
-    }
+        with(ConstraintEncoder()) {
+            if (assumptions.isNotEmpty())
+                for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
-    /**
-     * This method is the preferred way to iterate through solutions using Jacop.
-     */
-    fun forEachInstance(limit: Int, assumptions: IntCollection, instanceConsumer: (Instance) -> Unit) {
-        with(encoderTL.get()) {
-            try {
-                store.setLevel(store.level + 1)
-                if (assumptions.isNotEmpty())
-                    for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom())
+            val search = DepthFirstSearch<BooleanVar>().apply {
+                setPrintInfo(false)
+                setTimeout(this)
+            }
 
-                val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom())
-                val search = DepthFirstSearch<BooleanVar>().apply {
-                    setPrintInfo(false)
-                    setTimeout(this)
+            return generateSequence {
+                val instance: Instance?
+                try {
+                    store.setLevel(store.level + 1)
+                    val result = search.labeling(store, select)
+                    instance = if (!result) null
+                    else toInstance(this@with)
+                } finally {
+                    store.removeLevel(store.level)
+                    store.setLevel(store.level - 1)
                 }
-                search.setSolutionListener(object : SimpleSolutionListener<BooleanVar>() {
-                    override fun recordSolution() {
-                        super.recordSolution()
-                        instanceConsumer.invoke(toInstance(this@with))
-                    }
-                })
-                search.getSolutionListener().setSolutionLimit(limit)
-                search.getSolutionListener().searchAll(true)
-                search.labeling(store, select)
-            } finally {
-                store.removeLevel(store.level)
-                store.setLevel(store.level - 1)
+
+                if (instance != null) {
+                    store.impose(Or(Array(instance.size) {
+                        XeqC(vars[it], if (instance[it]) 0 else 1)
+                    }))
+                }
+                instance
             }
         }
     }
