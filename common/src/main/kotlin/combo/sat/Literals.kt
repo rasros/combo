@@ -25,7 +25,7 @@ fun Instance.literal(ix: Int) = ix.toLiteral(this[ix])
 
 fun Instance.toLiterals(): Literals {
     val list = IntList()
-    val itr:IntIterator = TODO()//iterator()
+    val itr = iterator()
     while (itr.hasNext()) list.add(itr.nextInt().toLiteral(true))
     list.toArray()
     return list.toArray()

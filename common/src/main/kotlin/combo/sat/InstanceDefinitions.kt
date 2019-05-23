@@ -183,7 +183,6 @@ fun Instance.deepEquals(other: Instance): Boolean {
 }
 
 fun Instance.deepToString() = when {
-    wordSize <= 2 -> iterator().asSequence().joinToString(", ", "[", "]")
     wordSize <= 10 -> wordIterator().asSequence().joinToString(", ", "[", "]") { "${it.key()}=${it.value()}" }
     else -> "[<$size>]"
 }
