@@ -12,9 +12,9 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.*
 
-abstract class BanditTest<D> {
-    abstract fun bandit(problem: Problem, type: BanditType): Bandit<D>
-    open fun infeasibleBandit(problem: Problem, maximize: Boolean, type: BanditType): Bandit<D>? =
+abstract class BanditTest<B : Bandit<*>> {
+    abstract fun bandit(problem: Problem, type: BanditType): B
+    open fun infeasibleBandit(problem: Problem, maximize: Boolean, type: BanditType): B? =
             bandit(problem, type)
 
     @Test
@@ -123,6 +123,7 @@ abstract class BanditTest<D> {
         assertContentEquals(instances1, instances2)
     }
 
+    @Suppress("UNCHECKED_CAST")
     @Test
     fun storeLoadStore() {
         for (p in SAT_PROBLEMS) {
@@ -131,11 +132,64 @@ abstract class BanditTest<D> {
                 val instance = bandit.chooseOrThrow()
                 bandit.update(instance, BanditType.BINOMIAL.linearRewards(instance, Random))
             }
-            val list1 = bandit.exportData()
+            val list1 = (bandit as Bandit<Any>).exportData()
             val bandit2 = bandit(p, BanditType.BINOMIAL)
-            bandit2.importData(list1)
+            (bandit2 as Bandit<Any>).importData(list1)
 
             assertNotNull(bandit2.choose())
+        }
+    }
+
+    @Test
+    fun relativeWeightImportance() {
+        val p = Problem(emptyArray(), 1)
+        val inst0 = BitArray(1, intArrayOf(0))
+        val inst1 = BitArray(1, intArrayOf(1))
+        // This has a small chance of failure so we fix seed
+        val rng = Random(0)
+        for (type in BanditType.values()) {
+            val bandit = bandit(p, type)
+            for (i in 0 until 100) {
+                bandit.update(inst0, type.linearRewards(inst0, rng))
+                bandit.update(inst1, type.linearRewards(inst0, rng), 0.5f)
+                bandit.update(inst1, type.linearRewards(inst1, rng), 1.0f)
+            }
+            var count = 0
+            for (i in 0 until 100)
+                if (bandit.chooseOrThrow()[0]) count++
+            assertTrue(count > 50, "$type")
+        }
+    }
+}
+
+abstract class PredictionBanditTest<B : PredictionBandit<*>> : BanditTest<B>() {
+
+    abstract override fun bandit(problem: Problem, type: BanditType): B
+
+    @Test
+    fun updateWeightStrength() {
+        val p = Problem(emptyArray(), 2)
+        val instances = (0 until 4).asSequence().map { BitArray(2, intArrayOf(it)) }.toList()
+        val rng = Random
+        val weight = 0.1f
+        for (type in BanditType.values()) {
+            val bandit = bandit(p, type)
+            val means = (0 until 4).asSequence().map { RunningMean() }.toList()
+            val meansUnweighted = (0 until 4).asSequence().map { RunningMean() }.toList()
+            for (t in 0 until 100) {
+                for ((i, inst) in instances.withIndex()) {
+                    val result = type.linearRewards(inst, rng)
+                    bandit.update(inst, result, weight)
+                    means[i].accept(result, weight)
+                    meansUnweighted[i].accept(result)
+                }
+            }
+            println(type)
+            println(means.map { it.mean }.toList().joinToString("\t"))
+            println(meansUnweighted.map { it.mean }.toList().joinToString("\t"))
+            println((0 until 4).map { bandit.predict(instances[it]) }.toList().joinToString("\t"))
+            println()
+            println()
         }
     }
 }
@@ -143,18 +197,18 @@ abstract class BanditTest<D> {
 enum class BanditType {
 
     BINOMIAL {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextBinomial(mean, trials).toFloat()
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextBinomial(mean, trials).toFloat() / trials
     },
     NORMAL {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextNormal(mean * trials, sqrt(1.0f * trials))
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextNormal(2.0f + 3 * mean, sqrt(2.0f) / trials)
     },
     POISSON {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextPoisson(mean * trials).toFloat()
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = generateSequence { rng.nextPoisson(1 + 3 * mean) }.take(trials).average().toFloat()
     };
 
     fun linearRewards(instance: Instance, rng: Random): Float {
-        val sum = instance.iterator().asSequence().map { if (it.toBoolean()) 1.0f else 0.0f }.sum()
-        return linearRewards(sum / instance.size, 1, rng)
+        val weights = FloatArray(instance.size) { 1 + it * 0.1f }
+        return linearRewards((1 + (instance dot weights)) / (weights.sum() + 2), 1, rng)
     }
 
     abstract fun linearRewards(mean: Float, trials: Int, rng: Random): Float
