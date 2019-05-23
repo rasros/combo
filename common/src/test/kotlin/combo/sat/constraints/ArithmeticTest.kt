@@ -124,7 +124,7 @@ class LinearTest : ConstraintTest() {
         for (rel in values()) {
             for (w in weights) {
                 for (deg in -5..5) {
-                        randomExhaustivePropagations(Linear(lits, w, deg, rel))
+                    randomExhaustivePropagations(Linear(lits, w, deg, rel))
                 }
             }
         }

@@ -1,7 +1,10 @@
 package combo.sat.solvers
 
 import combo.math.ImplicationDigraph
-import combo.sat.*
+import combo.sat.ImplicationConstraintCoercer
+import combo.sat.Problem
+import combo.sat.WeightSet
+import combo.sat.WordRandomSet
 
 class LocalSearchSolverTest : SolverTest() {
     override fun solver(problem: Problem) = LocalSearchSolver(problem).apply {

@@ -7,7 +7,10 @@ import combo.sat.Tautology
 import combo.sat.constraints.Conjunction
 import combo.sat.constraints.Disjunction
 import combo.test.assertContentEquals
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ConstraintsBuilderTest {
 

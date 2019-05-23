@@ -1,7 +1,10 @@
 package combo.bandit
 
 import combo.bandit.ga.GeneticAlgorithmBandit
-import combo.bandit.univariate.*
+import combo.bandit.univariate.NormalPosterior
+import combo.bandit.univariate.ThompsonSampling
+import combo.bandit.univariate.UCB1
+import combo.bandit.univariate.UCB1Tuned
 import combo.math.VarianceEstimator
 import combo.sat.Problem
 

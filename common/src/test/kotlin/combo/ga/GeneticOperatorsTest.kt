@@ -1,11 +1,6 @@
 package combo.ga
 
-import combo.model.TestModels
-import combo.sat.*
-import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import combo.sat.Validator
 
 data class ExpandedCandidates(val candidates: Candidates,
                               val instances: Array<Validator>,

@@ -41,7 +41,7 @@ abstract class ConstraintTest {
         assertEquals(constraint.violations(instance), constraint.violations(instance, updatedCache))
     }
 
-    fun randomCoerce(constraint: Constraint) : List<Instance> {
+    fun randomCoerce(constraint: Constraint): List<Instance> {
         val rng = Random.Default
         for (i in constraint.literals) require(i.toIx() <= 4)
         val list = ArrayList<Instance>()
