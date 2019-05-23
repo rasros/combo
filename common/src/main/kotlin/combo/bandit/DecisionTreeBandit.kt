@@ -12,6 +12,8 @@ import combo.sat.solvers.Solver
 import combo.util.*
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
+import kotlin.math.max
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -354,7 +356,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
         override fun update(instance: Instance, result: Float, weight: Float): Node {
             banditPolicy.update(data, result, weight)
-            nViewed++
+            nViewed += max(1, weight.roundToInt())
             for ((i, ix) in auditedVariables.withIndex()) {
                 if (instance[ix]) banditPolicy.accept(dataPos[i] as E, result, weight)
                 else banditPolicy.accept(dataNeg[i] as E, result, weight)
@@ -365,8 +367,16 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                 var ig2 = 0.0f
                 var bestI = -1
 
+                val vp = dataPos[0].variance
+                val np = dataPos[0].nbrWeightedSamples
+                val mp = dataPos[0].mean
+                val vn = dataNeg[0].variance
+                val nn = dataNeg[0].nbrWeightedSamples
+                val mn = dataNeg[0].mean
+                val variance = (vp * np + vn * nn) / (np + nn) + (mp - mn) * (mp - mn) * np * nn / (np + nn) / (np + nn)
+
                 for (i in auditedVariables.indices) {
-                    val ig = data.variance - variancePurity(i)
+                    val ig = variance - variancePurity(i)
                     if (ig > ig1) {
                         bestI = i
                         ig2 = ig1

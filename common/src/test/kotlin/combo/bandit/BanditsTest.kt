@@ -6,6 +6,7 @@ import combo.model.TestModels.SAT_PROBLEMS
 import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.test.assertContentEquals
+import combo.test.assertEquals
 import combo.util.IntCollection
 import combo.util.collectionOf
 import kotlin.math.sqrt
@@ -63,6 +64,8 @@ abstract class BanditTest<B : Bandit<*>> {
         }
         val sum1 = bandit1.rewards.toArray().sum()
         val sum2 = bandit2.rewards.toArray().sum()
+        println(sum1)
+        println(sum2)
         assertTrue(sum1 > sum2)
     }
 
@@ -167,29 +170,22 @@ abstract class PredictionBanditTest<B : PredictionBandit<*>> : BanditTest<B>() {
     abstract override fun bandit(problem: Problem, type: BanditType): B
 
     @Test
-    fun updateWeightStrength() {
+    fun updatePrediction() {
         val p = Problem(emptyArray(), 2)
         val instances = (0 until 4).asSequence().map { BitArray(2, intArrayOf(it)) }.toList()
-        val rng = Random
-        val weight = 0.1f
+        val rng = Random(0)
         for (type in BanditType.values()) {
             val bandit = bandit(p, type)
             val means = (0 until 4).asSequence().map { RunningMean() }.toList()
-            val meansUnweighted = (0 until 4).asSequence().map { RunningMean() }.toList()
-            for (t in 0 until 100) {
+            for (t in 0 until 400) {
                 for ((i, inst) in instances.withIndex()) {
                     val result = type.linearRewards(inst, rng)
-                    bandit.update(inst, result, weight)
-                    means[i].accept(result, weight)
-                    meansUnweighted[i].accept(result)
+                    bandit.update(inst, result)
+                    means[i].accept(result)
                 }
             }
-            println(type)
-            println(means.map { it.mean }.toList().joinToString("\t"))
-            println(meansUnweighted.map { it.mean }.toList().joinToString("\t"))
-            println((0 until 4).map { bandit.predict(instances[it]) }.toList().joinToString("\t"))
-            println()
-            println()
+            for (i in 0 until 4)
+                assertEquals(means[i].mean, bandit.predict(instances[i]), 0.2f, "$type")
         }
     }
 }
@@ -203,7 +199,7 @@ enum class BanditType {
         override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextNormal(2.0f + 3 * mean, sqrt(2.0f) / trials)
     },
     POISSON {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = generateSequence { rng.nextPoisson(1 + 3 * mean) }.take(trials).average().toFloat()
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = generateSequence { rng.nextPoisson(1 + 3 * mean).toFloat() }.take(trials).average().toFloat()
     };
 
     fun linearRewards(instance: Instance, rng: Random): Float {
