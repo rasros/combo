@@ -7,8 +7,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
+import kotlin.test.*
 
 class RunningVarianceTest {
 
@@ -48,6 +47,86 @@ class RunningVarianceTest {
             weights[i] * (v - mean).pow(2)
         }.sum() / weights.sum()
         assertEquals(variance, rv.variance, 0.1f)
+    }
+
+    @Test
+    fun equalsTests() {
+        val v1 = RunningVariance()
+        val v2 = RunningVariance()
+        assertFalse(v1.equals(RunningMean()))
+        v1.accept(1.0f)
+        assertNotEquals(v1, v2)
+        v2.accept(1.0f)
+        assertEquals(v1, v2)
+        assertFalse(v1.equals(null))
+    }
+
+    @Test
+    fun hashCodeTests() {
+        val v1 = RunningVariance()
+        val v2 = RunningVariance()
+        assertEquals(v1.hashCode(), v2.hashCode())
+        v1.accept(1.0f)
+        v2.accept(1.0f)
+        assertEquals(v1.hashCode(), v2.hashCode())
+    }
+}
+
+class RunningMeanTest {
+
+    @Test
+    fun fixedSamples() {
+        val s = RunningMean()
+        val values = floatArrayOf(2.0f, 3.0f, 0.0f, 4.0f, 3.0f, 4.0f, 4.0f, 3.0f)
+        val mean = values.sum() / values.size
+        for (value in values)
+            s.accept(value)
+        assertEquals(mean, s.mean, 0.1f)
+        assertEquals(mean, s.variance, 0.1f)
+    }
+
+    @Test
+    fun randomSamples() {
+        val r = Random(100)
+        val s = generateSequence { r.nextPoisson(10.0f) }.take(200).sample(RunningMean())
+        assertEquals(10.0f, s.mean, 0.3f)
+        assertEquals(10.0f, s.variance, 0.3f)
+        assertEquals(sqrt(10.0f), s.standardDeviation, 0.1f)
+    }
+
+    @Test
+    fun fixedWeightedSamples() {
+        val rv = RunningMean()
+        val values = floatArrayOf(4.3f, -0.4f, 3.5f, 2.5f, 5.4f, -0.1f, 3.0f, 2.2f)
+        val weights = floatArrayOf(2.0f, 2.3f, 2.3f, 0.9f, 1.7f, 1.2f, 0.8f, 2.0f)
+        for ((i, v) in values.withIndex())
+            rv.accept(v, weights[i])
+        val sum = values dot weights
+        val mean = sum / weights.sum()
+        assertEquals(rv.nbrWeightedSamples, weights.sum(), 0.1f)
+        assertEquals(mean, rv.mean, 0.1f)
+    }
+
+    @Test
+    fun equalsTests() {
+        val v1 = RunningMean()
+        val v2 = RunningMean()
+        assertFalse(v1.equals(BinarySum()))
+        v1.accept(1.0f)
+        assertNotEquals(v1, v2)
+        v2.accept(1.0f)
+        assertEquals(v1, v2)
+        assertFalse(v1.equals(null))
+    }
+
+    @Test
+    fun hashCodeTests() {
+        val v1 = RunningMean()
+        val v2 = RunningMean()
+        assertEquals(v1.hashCode(), v2.hashCode())
+        v1.accept(1.0f)
+        v2.accept(1.0f)
+        assertEquals(v1.hashCode(), v2.hashCode())
     }
 }
 
@@ -100,12 +179,34 @@ class ExponentialDecayVarianceTest {
         }.sum() / weights.sum()
         assertEquals(variance, edv.variance, 1.0f)
     }
+
+    @Test
+    fun equalsTests() {
+        val v1 = ExponentialDecayVariance()
+        val v2 = ExponentialDecayVariance()
+        assertFalse(v1.equals(RunningVariance()))
+        v1.accept(1.0f)
+        assertNotEquals(v1, v2)
+        v2.accept(1.0f)
+        assertEquals(v1, v2)
+        assertFalse(v1.equals(null))
+    }
+
+    @Test
+    fun hashCodeTests() {
+        val v1 = ExponentialDecayVariance()
+        val v2 = ExponentialDecayVariance()
+        assertEquals(v1.hashCode(), v2.hashCode())
+        v1.accept(1.0f)
+        v2.accept(1.0f)
+        assertEquals(v1.hashCode(), v2.hashCode())
+    }
 }
 
-class SumEstimatorTest {
+class BinarySumTest {
     @Test
     fun fixedSamples() {
-        val s = SumEstimator()
+        val s = BinarySum()
         for (value in floatArrayOf(1.0f, 0.3f, 0.2f, 0.1f))
             s.accept(value)
         assertEquals(0.4f, s.mean, 1E-6f)
@@ -115,14 +216,14 @@ class SumEstimatorTest {
     @Test
     fun randomSamples() {
         val r = Random(101)
-        val s = generateSequence { r.nextFloat() }.take(200).sample(SumEstimator())
+        val s = generateSequence { r.nextFloat() }.take(200).sample(BinarySum())
         assertEquals(0.5f, s.mean, 0.1f)
         assertEquals(0.25f, s.variance, 0.1f)
     }
 
     @Test
     fun fixedWeightedSamples() {
-        val cd = SumEstimator()
+        val cd = BinarySum()
         val values = floatArrayOf(2.0f, 0.4f, 2.3f, 1.5f, 1.4f, 0.1f, 0.8f, 0.2f)
         val weights = floatArrayOf(2.0f, 2.3f, 2.9f, 2.9f, 1.7f, 1.2f, 3.8f, 2.0f)
         for ((i, v) in values.withIndex())
@@ -136,10 +237,33 @@ class SumEstimatorTest {
     @Test
     fun illegalValues() {
         assertFailsWith(IllegalArgumentException::class) {
-            SumEstimator().accept(5.0f, 2.0f)
+            BinarySum().accept(5.0f, 2.0f)
         }
         assertFailsWith(IllegalArgumentException::class) {
-            SumEstimator().accept(-1.0f, 1.0f)
+            BinarySum().accept(-1.0f, 1.0f)
         }
     }
+
+    @Test
+    fun equalsTests() {
+        val v1 = BinarySum()
+        val v2 = BinarySum()
+        assertFalse(v1.equals(RunningMean()))
+        v1.accept(1.0f)
+        assertNotEquals(v1, v2)
+        v2.accept(1.0f)
+        assertEquals(v1, v2)
+        assertFalse(v1.equals(null))
+    }
+
+    @Test
+    fun hashCodeTests() {
+        val v1 = BinarySum()
+        val v2 = BinarySum()
+        assertEquals(v1.hashCode(), v2.hashCode())
+        v1.accept(1.0f)
+        v2.accept(1.0f)
+        assertEquals(v1.hashCode(), v2.hashCode())
+    }
 }
+

@@ -1,8 +1,5 @@
-@file:JvmName("VarianceEstimators")
-
 package combo.math
 
-import kotlin.jvm.JvmName
 import kotlin.math.sqrt
 
 interface VarianceEstimator : DataSample {
@@ -41,7 +38,7 @@ interface MeanEstimator : VarianceEstimator {
 }
 
 /**
- * This estimator is only used with binomial count data, hence the variance depends on the mean.
+ * This estimator is only used with binomial count data, hence the variance is a function of the mean.
  */
 interface BinaryEstimator : VarianceEstimator {
     override val variance: Float
@@ -51,9 +48,8 @@ interface BinaryEstimator : VarianceEstimator {
 /**
  * Calculates incremental mean and variance according to the Welford's online algorithm.
  */
-class RunningVariance(mean: Float = 0.0f,
-                      squaredDeviations: Float = 0.0f,
-                      nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
+class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
+    : VarianceEstimator {
 
     override var mean = mean
         private set
@@ -75,6 +71,21 @@ class RunningVariance(mean: Float = 0.0f,
 
     override fun toString() = "RunningVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = RunningVariance(mean, squaredDeviations, nbrWeightedSamples)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunningVariance) return false
+        return mean == other.mean &&
+                squaredDeviations == other.squaredDeviations &&
+                nbrWeightedSamples == other.nbrWeightedSamples
+    }
+
+    override fun hashCode(): Int {
+        var result = mean.hashCode()
+        result = 31 * result + squaredDeviations.hashCode()
+        result = 31 * result + nbrWeightedSamples.hashCode()
+        return result
+    }
 }
 
 /**
@@ -83,10 +94,8 @@ class RunningVariance(mean: Float = 0.0f,
  * @param beta strength of the update. For finite samples n the optimal parameter can be set to: beta = 2/n+1.
  * Default n is 99
  */
-class ExponentialDecayVariance(var beta: Float = 0.02f,
-                               mean: Float = 0.0f,
-                               variance: Float = 0.0f,
-                               nbrWeightedSamples: Float = 0.0f) : VarianceEstimator {
+class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, variance: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
+    : VarianceEstimator {
 
     constructor(window: Int) : this(2.0f / (window + 1.0f))
 
@@ -118,12 +127,27 @@ class ExponentialDecayVariance(var beta: Float = 0.02f,
 
     override fun toString() = "ExponentialDecayVariance(beta=$beta, mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = ExponentialDecayVariance(beta, mean, variance, nbrWeightedSamples)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ExponentialDecayVariance) return false
+        return mean == other.mean &&
+                variance == other.variance &&
+                nbrWeightedSamples == other.nbrWeightedSamples
+    }
+
+    override fun hashCode(): Int {
+        var result = mean.hashCode()
+        result = 31 * result + variance.hashCode()
+        result = 31 * result + nbrWeightedSamples.hashCode()
+        return result
+    }
 }
 
-class SumEstimator(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEstimator {
+class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEstimator {
 
     override fun accept(value: Float, weight: Float) {
-        require(value in 0.0f..1.0f) { "SumEstimator can only be used with Binomial data." }
+        require(value in 0.0f..1.0f) { "BinarySum can only be used with Binomial data." }
         sum += value * weight
         nbrWeightedSamples += weight
     }
@@ -140,8 +164,20 @@ class SumEstimator(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : Binary
     override val variance: Float
         get() = mean * (1 - mean)
 
-    override fun toString() = "SumEstimator(sum=$sum, nbrSamples=$nbrSamples)"
-    override fun copy() = SumEstimator(sum, nbrWeightedSamples)
+    override fun toString() = "BinarySum(sum=$sum, nbrSamples=$nbrSamples)"
+    override fun copy() = BinarySum(sum, nbrWeightedSamples)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is BinarySum) return false
+        return sum == other.sum && nbrWeightedSamples == other.nbrWeightedSamples
+    }
+
+    override fun hashCode(): Int {
+        var result = sum.hashCode()
+        result = 31 * result + nbrWeightedSamples.hashCode()
+        return result
+    }
 }
 
 class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEstimator {
@@ -163,4 +199,16 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
 
     override fun toString() = "RunningMean(mean=$mean, nbrSamples=$nbrSamples)"
     override fun copy() = RunningMean(mean, nbrWeightedSamples)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunningMean) return false
+        return mean == other.mean && nbrWeightedSamples == other.nbrWeightedSamples
+    }
+
+    override fun hashCode(): Int {
+        var result = mean.hashCode()
+        result = 31 * result + nbrWeightedSamples.hashCode()
+        return result
+    }
 }
