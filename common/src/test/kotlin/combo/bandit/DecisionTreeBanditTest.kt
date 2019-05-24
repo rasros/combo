@@ -1,8 +1,10 @@
 package combo.bandit
 
 import combo.bandit.univariate.*
-import combo.math.SumEstimator
+import combo.math.MeanEstimator
+import combo.math.BinarySum
 import combo.model.TestModels
+import combo.model.TestModels.SAT_PROBLEMS
 import combo.sat.BitArray
 import combo.sat.Problem
 import combo.sat.constraints.Conjunction
@@ -35,12 +37,12 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
 
     @Test
     fun loadJunkData() {
-        val n1 = LiteralData(intArrayOf(1, 4), SumEstimator(5.0f, 1.0f))
-        val n2 = LiteralData(intArrayOf(-1, 4), SumEstimator(4.0f, 1.0f))
-        val n3 = LiteralData(intArrayOf(1, 4, 3), SumEstimator(3.0f, 1.0f))
-        val n4 = LiteralData(intArrayOf(3, 4), SumEstimator(2.0f, 1.0f))
-        val n5 = LiteralData(intArrayOf(2), SumEstimator(1.0f, 1.0f))
-        val bandit = DecisionTreeBandit(TestModels.MODEL1.problem, ThompsonSampling(BinomialPosterior, SumEstimator(0.0f, 1.0f)))
+        val n1 = LiteralData(intArrayOf(1, 4), BinarySum(5.0f, 1.0f))
+        val n2 = LiteralData(intArrayOf(-1, 4), BinarySum(4.0f, 1.0f))
+        val n3 = LiteralData(intArrayOf(1, 4, 3), BinarySum(3.0f, 1.0f))
+        val n4 = LiteralData(intArrayOf(3, 4), BinarySum(2.0f, 1.0f))
+        val n5 = LiteralData(intArrayOf(2), BinarySum(1.0f, 1.0f))
+        val bandit = DecisionTreeBandit(TestModels.MODEL1.problem, ThompsonSampling(BinomialPosterior, BinarySum(0.0f, 1.0f)))
         bandit.importData(arrayOf(n5, n4, n3, n2, n1))
         val export = bandit.exportData()
         // Only the first two nodes are useful
@@ -49,10 +51,10 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
 
     @Test
     fun loadOutOfBoundsLiterals() {
-        val n1 = LiteralData(intArrayOf(0, 101), SumEstimator(3.0f, 1.0f))
-        val n2 = LiteralData(intArrayOf(0, 100, 2), SumEstimator(2.0f, 1.0f))
-        val n3 = LiteralData(intArrayOf(0, 100, 3), SumEstimator(1.0f, 1.0f))
-        val n4 = LiteralData(intArrayOf(1), SumEstimator(0.0f, 1.0f))
+        val n1 = LiteralData(intArrayOf(0, 101), BinarySum(3.0f, 1.0f))
+        val n2 = LiteralData(intArrayOf(0, 100, 2), BinarySum(2.0f, 1.0f))
+        val n3 = LiteralData(intArrayOf(0, 100, 3), BinarySum(1.0f, 1.0f))
+        val n4 = LiteralData(intArrayOf(1), BinarySum(0.0f, 1.0f))
         assertFailsWith(IllegalArgumentException::class) {
             DecisionTreeBandit(TestModels.MODEL1.problem, ThompsonSampling(BinomialPosterior)).apply {
                 importData(arrayOf(n3, n4, n2, n1))
@@ -61,7 +63,7 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
     }
 
     @Test
-    fun storeLoadStoreReducedData() {
+    fun exportImportReducedData() {
         val p = TestModels.MODEL1.problem
         val bandit = bandit(p, BanditType.POISSON)
         for (i in 1..100) {
@@ -81,6 +83,23 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
                 assertEquals(node.data.variance, it.data.variance)
                 assertEquals(node.data.nbrWeightedSamples, it.data.nbrWeightedSamples)
             })
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun exportImportExportSame() {
+        for (p in SAT_PROBLEMS) {
+            val bandit = bandit(p, BanditType.BINOMIAL)
+            for (i in 0 until 100) {
+                val instance = bandit.chooseOrThrow()
+                bandit.update(instance, BanditType.BINOMIAL.linearRewards(instance, Random))
+            }
+            val list1 = (bandit as DecisionTreeBandit<MeanEstimator>).exportData()
+            val bandit2 = bandit(p, BanditType.BINOMIAL)
+            (bandit2 as DecisionTreeBandit<MeanEstimator>).importData(list1)
+
+            assertNotNull(bandit2.choose())
         }
     }
 

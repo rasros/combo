@@ -64,8 +64,6 @@ abstract class BanditTest<B : Bandit<*>> {
         }
         val sum1 = bandit1.rewards.toArray().sum()
         val sum2 = bandit2.rewards.toArray().sum()
-        println(sum1)
-        println(sum2)
         assertTrue(sum1 > sum2)
     }
 
@@ -128,7 +126,24 @@ abstract class BanditTest<B : Bandit<*>> {
 
     @Suppress("UNCHECKED_CAST")
     @Test
-    fun storeLoadStore() {
+    fun exportIdempotent() {
+        for (p in SAT_PROBLEMS) {
+            val bandit = bandit(p, BanditType.BINOMIAL)
+            for (i in 0 until 100) {
+                val instance = bandit.chooseOrThrow()
+                bandit.update(instance, BanditType.BINOMIAL.linearRewards(instance, Random))
+            }
+            val list1 = (bandit as Bandit<Any>).exportData()
+            val list2 = (bandit as Bandit<Any>).exportData()
+            if (list1 is Array<*>)
+                assertContentEquals(list1, list2 as Array<*>)
+            else throw IllegalArgumentException("Update test with other types")
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun exportImport() {
         for (p in SAT_PROBLEMS) {
             val bandit = bandit(p, BanditType.BINOMIAL)
             for (i in 0 until 100) {
@@ -139,6 +154,24 @@ abstract class BanditTest<B : Bandit<*>> {
             val bandit2 = bandit(p, BanditType.BINOMIAL)
             (bandit2 as Bandit<Any>).importData(list1)
 
+            assertNotNull(bandit2.choose())
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    @Test
+    fun exportImportReplace() {
+        for (p in SAT_PROBLEMS) {
+            val bandit1 = bandit(p, BanditType.NORMAL)
+            val bandit2 = bandit(p, BanditType.NORMAL)
+            for (i in 0 until 100) {
+                val instance1 = bandit1.chooseOrThrow()
+                bandit1.update(instance1, BanditType.NORMAL.linearRewards(instance1, Random))
+                val instance2 = bandit1.chooseOrThrow()
+                bandit2.update(instance2, BanditType.NORMAL.linearRewards(instance2, Random))
+            }
+            val list1 = (bandit1 as Bandit<Any>).exportData()
+            (bandit2 as Bandit<Any>).importData(list1)
             assertNotNull(bandit2.choose())
         }
     }
