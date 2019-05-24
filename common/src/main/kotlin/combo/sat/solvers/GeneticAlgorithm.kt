@@ -2,6 +2,7 @@ package combo.sat.solvers
 
 import combo.ga.*
 import combo.math.DataSample
+import combo.math.VoidSample
 import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.util.*
@@ -98,7 +99,7 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
     /**
      * The recombinaton operator controls the way that new candidates are generated after the initial population.
      */
-    var recombination: RecombinationOperator<Candidates> = KPointRecombination(1)
+    var recombination: RecombinationOperator<ValidatorCandidates> = KPointRecombination(1)
 
     /**
      * Probability that the [recombination] operator is used when eliminating a candidate.
@@ -109,12 +110,12 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
      * The [mutation] operator in conjunction with the [mutationProbability] adds additional diversity to the candidate
      * solutions. The default flips one random variable with probability 1.
      */
-    var mutation: MutationOperator<Candidates> = FixedMutation()
+    var mutation: MutationOperator<ValidatorCandidates> = FixedMutation()
 
     /**
      * This mutation operator is applied to the guess if applied once for each candidate.
      */
-    var guessMutator: MutationOperator<Candidates> = mutation
+    var guessMutator: MutationOperator<ValidatorCandidates> = mutation
 
     /**
      * The [mutation] operator in conjunction with the [mutationProbability] adds additional diversity to the candidate
@@ -137,12 +138,12 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
     /**
      * Use this for introspection during development to sample all scores.
      */
-    var scoreSample: DataSample? = null
+    var scoreSample: DataSample = VoidSample
 
     /**
      * Use this for introspection during development to sample all minimum scores.
      */
-    var minScoreSample: DataSample? = null
+    var minScoreSample: DataSample = VoidSample
 
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
@@ -215,8 +216,8 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
                 if (!candidates.update(eliminated, step, score)) stalls++
                 else stalls = 0
 
-                scoreSample?.run { accept(score) }
-                minScoreSample?.run { accept(candidates.minScore) }
+                scoreSample.accept(score)
+                minScoreSample.accept(candidates.minScore)
 
                 if (millis() > end || (stalls >= stallSteps && restart < restarts) || candidates.minScore == candidates.maxScore)
                     break

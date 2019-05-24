@@ -1,5 +1,6 @@
 package combo.ga
 
+import combo.sat.Instance
 import combo.sat.MutableInstance
 import combo.sat.Validator
 import kotlin.math.max
@@ -13,7 +14,7 @@ interface Candidates {
     /**
      * The actual candidates.
      */
-    val instances: Array<out MutableInstance>
+    val instances: Array<out Instance>
 
     /**
      * Minimum score of all instances.

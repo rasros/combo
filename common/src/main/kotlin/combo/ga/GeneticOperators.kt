@@ -14,14 +14,14 @@ import kotlin.random.Random
  * in the [combo.sat.Instance] indicated by the index into the [Candidates.instances] array.
  */
 interface RecombinationOperator<in C : Candidates> {
-    fun combine(parent1: Int, parent2: Int, child: Int, candidates: Candidates, rng: Random)
+    fun combine(parent1: Int, parent2: Int, child: Int, candidates: C, rng: Random)
 }
 
 /**
  * Choose each variable uniformly at random from each parent.
  */
-class UniformRecombination : RecombinationOperator<Candidates> {
-    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: Candidates, rng: Random) {
+class UniformRecombination : RecombinationOperator<ValidatorCandidates> {
+    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: ValidatorCandidates, rng: Random) {
         val s1 = candidates.instances[parent1]
         val s2 = candidates.instances[parent2]
         val s3 = candidates.instances[child]
@@ -36,8 +36,8 @@ class UniformRecombination : RecombinationOperator<Candidates> {
  * [k]-points are selected randomly (plus end points) and the intervals between the points are selected from each
  * parent interwoven.
  */
-class KPointRecombination(val k: Int = 1) : RecombinationOperator<Candidates> {
-    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: Candidates, rng: Random) {
+class KPointRecombination(val k: Int = 1) : RecombinationOperator<ValidatorCandidates> {
+    override fun combine(parent1: Int, parent2: Int, child: Int, candidates: ValidatorCandidates, rng: Random) {
         var s1 = candidates.instances[parent1]
         var s2 = candidates.instances[parent2]
         val s3 = candidates.instances[child]
@@ -153,16 +153,18 @@ interface MutationOperator<in C : Candidates> {
     fun mutate(target: Int, candidates: C, rng: Random)
 }
 
+interface MutationRate {
+    fun rate(nbrVariables: Int, rng: Random): Float
+}
+
 /**
  * This flips each variable with a uniform probability rate.
  */
-interface RateMutationOperator : MutationOperator<Candidates> {
+class RateMutationOperator(val mutationRate: MutationRate) : MutationOperator<ValidatorCandidates> {
 
-    fun mutationRate(nbrVariables: Int, rng: Random): Float
-
-    override fun mutate(target: Int, candidates: Candidates, rng: Random) {
+    override fun mutate(target: Int, candidates: ValidatorCandidates, rng: Random) {
         val instance = candidates.instances[target]
-        val rate = mutationRate(instance.size, rng)
+        val rate = mutationRate.rate(instance.size, rng)
         var index = rng.nextGeometric(rate) - 1
         while (index < instance.size) {
             instance.flip(index)
@@ -171,10 +173,10 @@ interface RateMutationOperator : MutationOperator<Candidates> {
     }
 }
 
-class PropagatingMutator(val base: RateMutationOperator, val implicationDigraph: ImplicationDigraph) : MutationOperator<Candidates> {
-    override fun mutate(target: Int, candidates: Candidates, rng: Random) {
+class PropagatingMutator(val mutationRate: MutationRate, val implicationDigraph: ImplicationDigraph) : MutationOperator<ValidatorCandidates> {
+    override fun mutate(target: Int, candidates: ValidatorCandidates, rng: Random) {
         val instance = candidates.instances[target]
-        val rate = base.mutationRate(instance.size, rng)
+        val rate = mutationRate.rate(instance.size, rng)
         var index = rng.nextGeometric(rate) - 1
         while (index < instance.size) {
             instance.flip(index)
@@ -187,12 +189,12 @@ class PropagatingMutator(val base: RateMutationOperator, val implicationDigraph:
 /**
  * This flips exactly [nbrFlips].
  */
-class FixedMutation(val nbrFlips: Int = 1) : MutationOperator<Candidates> {
+class FixedMutation(val nbrFlips: Int = 1) : MutationOperator<ValidatorCandidates> {
     init {
         assert(nbrFlips > 0)
     }
 
-    override fun mutate(target: Int, candidates: Candidates, rng: Random) {
+    override fun mutate(target: Int, candidates: ValidatorCandidates, rng: Random) {
         val instance = candidates.instances[target]
         val permutation = IntPermutation(instance.size, rng)
         for (i in 0 until nbrFlips) {
@@ -204,14 +206,14 @@ class FixedMutation(val nbrFlips: Int = 1) : MutationOperator<Candidates> {
 /**
  * This flips with rate [nbrFlips] / N.
  */
-class FixedRateMutation(val nbrFlips: Int = 1) : RateMutationOperator {
-    override fun mutationRate(nbrVariables: Int, rng: Random) = min(1.0f, nbrFlips / nbrVariables.toFloat())
+class FixedRateMutation(val nbrFlips: Int = 1) : MutationRate {
+    override fun rate(nbrVariables: Int, rng: Random) = min(1.0f, nbrFlips / nbrVariables.toFloat())
 }
 
 /**
  * See this paper for explanation https://arxiv.org/abs/1703.03334
  */
-class FastGAMutation(val nbrVariables: Int, val beta: Float = 1.5f) : RateMutationOperator {
+class FastGAMutation(val nbrVariables: Int, val beta: Float = 1.5f) : MutationRate {
 
     private val pdfSampler: DiscretePdfSampler
 
@@ -223,7 +225,7 @@ class FastGAMutation(val nbrVariables: Int, val beta: Float = 1.5f) : RateMutati
         pdfSampler = AliasMethodSampler(probs)
     }
 
-    override fun mutationRate(nbrVariables: Int, rng: Random): Float {
+    override fun rate(nbrVariables: Int, rng: Random): Float {
         val r = pdfSampler.sample(rng) + 1
         return r / nbrVariables.toFloat()
     }
