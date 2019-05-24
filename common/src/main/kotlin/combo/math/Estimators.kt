@@ -18,9 +18,7 @@ interface VarianceEstimator : DataSample {
 
     override fun toArray() = floatArrayOf(mean)
 
-    fun combine(vs: VarianceEstimator) = RunningMean(
-            (mean * nbrWeightedSamples + vs.mean * vs.nbrWeightedSamples) / (nbrWeightedSamples + vs.nbrWeightedSamples),
-            nbrWeightedSamples + vs.nbrWeightedSamples)
+    fun combine(vs: VarianceEstimator): VarianceEstimator
 
     val squaredDeviations: Float get() = variance * nbrWeightedSamples
     val variance: Float get() = squaredDeviations / nbrWeightedSamples
@@ -71,6 +69,19 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
 
     override fun toString() = "RunningVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = RunningVariance(mean, squaredDeviations, nbrWeightedSamples)
+
+    override fun combine(vs: VarianceEstimator): RunningVariance {
+        val n1 = nbrWeightedSamples
+        val n2 = vs.nbrWeightedSamples
+        val v1 = variance
+        val v2 = vs.variance
+        val m1 = mean
+        val m2 = vs.mean
+        val n = n1 + n2
+        val m = (m1 * n1 + m2 * n2) / n
+        val v = (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+        return RunningVariance(m, v * n, n)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -128,6 +139,19 @@ class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, vari
     override fun toString() = "ExponentialDecayVariance(beta=$beta, mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = ExponentialDecayVariance(beta, mean, variance, nbrWeightedSamples)
 
+    override fun combine(vs: VarianceEstimator): ExponentialDecayVariance {
+        val n1 = nbrWeightedSamples
+        val n2 = vs.nbrWeightedSamples
+        val v1 = variance
+        val v2 = vs.variance
+        val m1 = mean
+        val m2 = vs.mean
+        val n = n1 + n2
+        val m = (m1 * n1 + m2 * n2) / n
+        val v = (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+        return ExponentialDecayVariance(beta, m, v, n)
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ExponentialDecayVariance) return false
@@ -167,6 +191,8 @@ class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEst
     override fun toString() = "BinarySum(sum=$sum, nbrSamples=$nbrSamples)"
     override fun copy() = BinarySum(sum, nbrWeightedSamples)
 
+    override fun combine(vs: VarianceEstimator) = BinarySum(sum + vs.sum, nbrWeightedSamples + vs.nbrWeightedSamples)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is BinarySum) return false
@@ -204,6 +230,14 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
         if (this === other) return true
         if (other !is RunningMean) return false
         return mean == other.mean && nbrWeightedSamples == other.nbrWeightedSamples
+    }
+
+    override fun combine(vs: VarianceEstimator): RunningMean {
+        val n1 = nbrWeightedSamples
+        val n2 = vs.nbrWeightedSamples
+        val m1 = mean
+        val m2 = vs.mean
+        return RunningMean((m1 * n1 + m2 * n2) / (n1 + n2), n1 + n2)
     }
 
     override fun hashCode(): Int {
