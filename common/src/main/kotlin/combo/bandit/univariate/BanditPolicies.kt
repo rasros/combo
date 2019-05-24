@@ -1,6 +1,6 @@
 package combo.bandit.univariate
 
-import combo.math.SumEstimator
+import combo.math.BinarySum
 import combo.math.RunningVariance
 import combo.math.VarianceEstimator
 import kotlin.jvm.JvmOverloads
@@ -104,12 +104,12 @@ class PooledThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior: SumEstimator = SumEstimator())
-    : BanditPolicy<SumEstimator> {
+class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior: BinarySum = BinarySum())
+    : BanditPolicy<BinarySum> {
 
     private var totalSamples = 0.0f
 
-    override fun evaluate(data: SumEstimator, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: BinarySum, maximize: Boolean, rng: Random): Float {
         return if (data.nbrWeightedSamples < 1.0f) Float.POSITIVE_INFINITY
         else {
             val score = if (maximize) data.mean else -data.mean
@@ -117,16 +117,16 @@ class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior
         }
     }
 
-    override fun update(data: SumEstimator, value: Float, weight: Float) {
+    override fun update(data: BinarySum, value: Float, weight: Float) {
         accept(data, value, weight)
         totalSamples += weight
     }
 
-    override fun addArm(armData: SumEstimator) {
+    override fun addArm(armData: BinarySum) {
         totalSamples += armData.nbrWeightedSamples
     }
 
-    override fun removeArm(armData: SumEstimator) {
+    override fun removeArm(armData: BinarySum) {
         totalSamples -= armData.nbrWeightedSamples
     }
 }

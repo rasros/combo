@@ -59,7 +59,7 @@ class PooledVarianceEstimator(val prior: VarianceEstimator) {
 }
 
 object BinomialPosterior : UnivariatePosterior<BinaryEstimator> {
-    override fun defaultPrior() = SumEstimator(1.0f, 2.0f)
+    override fun defaultPrior() = BinarySum(1.0f, 2.0f)
     override fun sample(stat: BinaryEstimator, rng: Random): Float {
         val alpha = stat.sum
         val beta = stat.nbrWeightedSamples - alpha

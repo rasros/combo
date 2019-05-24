@@ -1,6 +1,6 @@
 package combo.bandit.univariate
 
-import combo.math.SumEstimator
+import combo.math.BinarySum
 import combo.math.RunningVariance
 import combo.math.VarianceEstimator
 import combo.test.assertEquals
@@ -83,7 +83,7 @@ class PooledThompsonSamplingTest : BanditPolicyTest<VarianceEstimator>() {
             HierarchicalNormalPosterior(PooledVarianceEstimator(RunningVariance(0.0f, 0.02f, 0.02f))))
 }
 
-class UCB1Test : BanditPolicyTest<SumEstimator>() {
+class UCB1Test : BanditPolicyTest<BinarySum>() {
     override fun banditPolicy() = UCB1()
 }
 
