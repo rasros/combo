@@ -99,6 +99,32 @@ interface PredictionBandit<D> : Bandit<D> {
  * This class holds the data in the leaf nodes. The order of the literals in [setLiterals] is significant and cannot
  * be changed.
  */
-class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E)
+class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        if (other !is LiteralData<*>) return false
+        return setLiterals.contentEquals(other.setLiterals) && data == other.data
+    }
 
-class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E)
+    override fun hashCode(): Int {
+        var result = setLiterals.hashCode()
+        result = 31 * result + data.hashCode()
+        return result
+    }
+}
+
+class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        if (other !is InstanceData<*>) return false
+        return instance == other.instance && data == other.data
+    }
+
+    override fun hashCode(): Int {
+        var result = instance.hashCode()
+        result = 31 * result + data.hashCode()
+        return result
+    }
+}
