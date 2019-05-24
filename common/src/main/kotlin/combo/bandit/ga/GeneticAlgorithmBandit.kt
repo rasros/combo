@@ -16,7 +16,13 @@ import kotlin.math.min
 import kotlin.random.Random
 
 /**
- * TODO doc
+ * This bandit uses a univariate bandit algorithm, such as [combo.bandit.univariate.ThompsonSampling]. Each instance
+ * in the candidate solutions (or gene pool) is a bandit. As new candidates are generated and poor ones are eliminated
+ * the bandits arms are added or removed.
+ *
+ * @param problem the problem contains the [Constraint]s and the number of variables.
+ * @param banditPolicy the policy that the next bandit arm is chosen.
+ * @param solver the solver will be used to generate [Instance]s that satisfy the constraints from the [Problem].
  */
 class GeneticAlgorithmBandit<E : VarianceEstimator> @JvmOverloads constructor(
         val problem: Problem,
@@ -161,24 +167,24 @@ class GeneticAlgorithmBandit<E : VarianceEstimator> @JvmOverloads constructor(
             val eliminated = elimination.select(candidates, rng)
             if (eliminated < 0) return
             replacementCount = 0
-            var newInstance: MutableInstance
+            var newInstance: MutableInstance? = null
             val recombined = if (rng.nextFloat() < recombinationProbability) {
                 val parent1 = selection.select(candidates, rng)
                 val instance1 = candidates.instances[parent1]
                 val parent2 = selection.select(candidates, rng)
                 val instance2 = candidates.instances[parent2]
                 val intersect = IntList()
-                for (i in instance1.indices) { // TODO word iteration
+                for (i in instance1.indices) {
                     val lit1 = instance1.literal(i)
                     val lit2 = instance2.literal(i)
                     if (lit1 == lit2) intersect.add(lit1)
                 }
-                newInstance = solver.witnessOrThrow(intersect) as MutableInstance
+                newInstance = solver.witness(intersect) as MutableInstance
                 parent1 != parent2
-            } else {
+            } else false
+            if (newInstance == null)
                 newInstance = candidates.instances[selection.select(candidates, rng)].copy()
-                false
-            }
+
             if (!recombined || rng.nextFloat() < mutationProbability) {
                 val mr = mutation.mutationRate(problem.nbrVariables, rng)
 
@@ -194,18 +200,13 @@ class GeneticAlgorithmBandit<E : VarianceEstimator> @JvmOverloads constructor(
                     implicationDigraph?.propagate(literal, newInstance)
                     index += rng.nextGeometric(mr)
                 }
-                try {
-                    newInstance = solver.witnessOrThrow(forcedAssumption
-                            ?: EmptyCollection, newInstance) as MutableInstance
-                } catch (e: ValidationException) {
-                    // TODO check these
-                    println()
-                }
+                newInstance = solver.witness(forcedAssumption ?: EmptyCollection, newInstance) as MutableInstance?
+                        ?: newInstance
             }
-            while (!allowDuplicates && newInstance in candidates.duplications)
+            while (!allowDuplicates && newInstance!! in candidates.duplications)
                 newInstance = solver.witness() as MutableInstance
 
-            candidates.replaceCandidate(eliminated, newInstance)?.run {
+            candidates.replaceCandidate(eliminated, newInstance!!)?.run {
                 banditPolicy.removeArm(this)
             }
             if (candidates.duplications[newInstance]!!.size == 1)
@@ -219,6 +220,10 @@ class GeneticAlgorithmBandit<E : VarianceEstimator> @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Replace the current candidates and their data with that of the [historicData]. [candidateSize] will be set to
+     * the length of the [historicData].
+     */
     override fun importData(historicData: Array<InstanceData<E>>) {
         /*
         // TODO

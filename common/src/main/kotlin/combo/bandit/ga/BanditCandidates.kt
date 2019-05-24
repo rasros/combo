@@ -13,19 +13,26 @@ import combo.util.isEmpty
 class BanditCandidates<E : VarianceEstimator>(override val instances: Array<MutableInstance>,
                                               val baseData: E) : Candidates {
 
-    val origins: LongArray = LongArray(instances.size)
-    override var minScore: Float = baseData.mean
-    override var maxScore: Float = baseData.mean
-    var oldestOrigin: Long = 0L
+    private val origins: LongArray = LongArray(instances.size)
+    private var oldestOrigin: Long = 0L
     override var oldestCandidate: Int = 0
+        private set
+
+    override var minScore: Float = baseData.mean
+        private set
+    override var maxScore: Float = baseData.mean
+        private set
+
     override val nbrCandidates: Int
         get() = instances.size
     override val nbrVariables: Int
         get() = instances[0].size
-    var nbrUpdates = 0L
 
-    var estimators: MutableMap<Instance, E> = HashMap()
-    var duplications: MutableMap<Instance, IntHashSet> = HashMap()
+    var nbrUpdates = 0L
+        private set
+
+    val estimators: MutableMap<Instance, E> = HashMap()
+    val duplications: MutableMap<Instance, IntHashSet> = HashMap()
 
     init {
         @Suppress("UNCHECKED_CAST")
