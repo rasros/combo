@@ -2,6 +2,7 @@
 
 package combo.math
 
+import combo.util.EMPTY_FLOAT_ARRAY
 import combo.util.assert
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
@@ -26,6 +27,12 @@ interface DataSample {
     fun toArray(): FloatArray
 
     val nbrSamples: Long
+}
+
+object VoidSample : DataSample {
+    override fun accept(value: Float) {}
+    override fun toArray() = EMPTY_FLOAT_ARRAY
+    override val nbrSamples = 0L
 }
 
 /**
