@@ -1,5 +1,6 @@
 package combo.math
 
+import combo.util.FloatCircleBuffer
 import kotlin.math.sqrt
 
 interface VarianceEstimator : DataSample {
@@ -25,6 +26,12 @@ interface VarianceEstimator : DataSample {
     val standardDeviation: Float get() = sqrt(variance)
 
     fun copy(): VarianceEstimator
+}
+
+interface RemovableEstimator : VarianceEstimator {
+    fun remove(value: Float, weight: Float = 1.0f)
+    override fun combine(vs: VarianceEstimator): RemovableEstimator
+    override fun copy(): RemovableEstimator
 }
 
 /**
@@ -54,7 +61,7 @@ interface SquaredEstimator : VarianceEstimator {
  * Calculates incremental mean and variance according to the Welford's online algorithm.
  */
 class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
-    : VarianceEstimator {
+    : RemovableEstimator {
 
     override var mean = mean
         private set
@@ -64,14 +71,19 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
         private set
 
     override fun accept(value: Float, weight: Float) {
+        require(weight >= 0.0f)
         nbrWeightedSamples += weight
-        if (nbrWeightedSamples == weight) {
-            mean = value
-        } else {
-            val oldM = mean
-            mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
-            squaredDeviations += weight * (value - oldM) * (value - mean)
-        }
+        val oldM = mean
+        mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
+        squaredDeviations += weight * (value - oldM) * (value - mean)
+    }
+
+    override fun remove(value: Float, weight: Float) {
+        require(nbrWeightedSamples > weight)
+        nbrWeightedSamples -= weight
+        val oldM = mean
+        mean = oldM - (value - oldM) * (weight / (nbrWeightedSamples))
+        squaredDeviations -= weight * (value - oldM) * (value - mean)
     }
 
     override fun toString() = "RunningVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
@@ -140,10 +152,9 @@ class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, vari
             mean += inc
             variance = (1 - adjustedBeta) * (variance + inc * diff)
         }
-
     }
 
-    override fun toString() = "ExponentialDecayVariance(beta=$beta, mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
+    override fun toString() = "ExponentialDecayVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = ExponentialDecayVariance(beta, mean, variance, nbrWeightedSamples)
 
     override fun combine(vs: VarianceEstimator): ExponentialDecayVariance {
@@ -175,12 +186,19 @@ class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, vari
     }
 }
 
-class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEstimator {
+class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEstimator, RemovableEstimator {
 
     override fun accept(value: Float, weight: Float) {
         require(value in 0.0f..1.0f) { "BinarySum can only be used with Binomial data." }
         sum += value * weight
         nbrWeightedSamples += weight
+    }
+
+    override fun remove(value: Float, weight: Float) {
+        require(value in 0.0f..1.0f) { "BinarySum can only be used with Binomial data." }
+        require(nbrWeightedSamples >= weight)
+        sum -= value * weight
+        nbrWeightedSamples -= weight
     }
 
     override var sum = sum
@@ -213,7 +231,7 @@ class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEst
     }
 }
 
-class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEstimator {
+class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEstimator, RemovableEstimator {
 
     override var mean = mean
         private set
@@ -222,12 +240,15 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
 
     override fun accept(value: Float, weight: Float) {
         nbrWeightedSamples += weight
-        if (nbrWeightedSamples == weight) {
-            mean = value
-        } else {
-            val oldM = mean
-            mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
-        }
+        val oldM = mean
+        mean = oldM + (value - oldM) * (weight / nbrWeightedSamples)
+    }
+
+    override fun remove(value: Float, weight: Float) {
+        require(nbrWeightedSamples >= weight)
+        nbrWeightedSamples -= weight
+        val oldM = mean
+        mean = oldM - (value - oldM) * (weight / nbrWeightedSamples)
     }
 
     override fun toString() = "RunningMean(mean=$mean, nbrSamples=$nbrSamples)"
@@ -256,8 +277,8 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
     }
 }
 
-class RunningSquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Float)
-    : VarianceEstimator by base, SquaredEstimator {
+class RunningSquaredMeans private constructor(private val base: RunningVariance, meanOfSquares: Float)
+    : RemovableEstimator by base, SquaredEstimator {
 
     constructor(mean: Float = 0.0f,
                 meanOfSquares: Float = 0.0f,
@@ -267,27 +288,37 @@ class RunningSquaredEstimator private constructor(private val base: RunningVaria
     override var meanOfSquares: Float = meanOfSquares
         private set
 
+    override fun accept(value: Float) = accept(value, 1.0f)
+
     override fun accept(value: Float, weight: Float) {
         base.accept(value, weight)
-        meanOfSquares = if (weight == nbrWeightedSamples)
-            value * value
-        else {
-            val oldMS = meanOfSquares
-            oldMS + (value * value - oldMS) * (weight / nbrWeightedSamples)
-        }
+        val oldMS = meanOfSquares
+        meanOfSquares = oldMS + (value * value - oldMS) * (weight / nbrWeightedSamples)
     }
 
-    override fun combine(vs: VarianceEstimator): SquaredEstimator {
+    override fun remove(value: Float, weight: Float) {
+        base.remove(value, weight)
+        val oldMS = meanOfSquares
+        meanOfSquares = oldMS - (value * value - oldMS) * (weight / nbrWeightedSamples)
+    }
+
+    override fun combine(vs: VarianceEstimator): RunningSquaredMeans {
         vs as SquaredEstimator
-        return RunningSquaredEstimator(base.combine(vs), vs.meanOfSquares + meanOfSquares)
+        val ms1 = meanOfSquares
+        val ms2 = vs.meanOfSquares
+        val n1 = nbrWeightedSamples
+        val n2 = vs.nbrWeightedSamples
+        val n = n1 + n2
+        val ms = if (n == 0.0f) 0.0f else (ms1 * n1 + ms2 * n2) / n
+        return RunningSquaredMeans(base.combine(vs), ms)
     }
 
-    override fun copy() = RunningSquaredEstimator(mean, meanOfSquares, squaredDeviations, nbrWeightedSamples)
-    override fun toString() = "RunningSquaredEstimator(mean=$mean, meanOfSquares=$meanOfSquares, squaredDeviations=$squaredDeviations, nbrSamples=$nbrSamples)"
+    override fun copy() = RunningSquaredMeans(mean, meanOfSquares, squaredDeviations, nbrWeightedSamples)
+    override fun toString() = "RunningSquaredMeans(mean=$mean, meanOfSquares=$meanOfSquares, squaredDeviations=$squaredDeviations, nbrSamples=$nbrSamples)"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is RunningSquaredEstimator) return false
+        if (other !is RunningSquaredMeans) return false
         return base == other.base && meanOfSquares == other.meanOfSquares
     }
 
@@ -296,4 +327,58 @@ class RunningSquaredEstimator private constructor(private val base: RunningVaria
         result = 31 * result + meanOfSquares.hashCode()
         return result
     }
+}
+
+class WindowedEstimator(val windowSize: Int, val base: RemovableEstimator) : BinaryEstimator, MeanEstimator, VarianceEstimator by base {
+
+    private val values = FloatCircleBuffer(windowSize)
+    private val weights = FloatCircleBuffer(windowSize)
+
+    override val variance: Float get() = base.variance
+
+    override fun accept(value: Float, weight: Float) {
+        val oldV = values.add(value)
+        val oldW = weights.add(weight)
+        if (oldW > 0.0f) base.remove(oldV, oldW)
+        base.accept(value, weight)
+    }
+
+    override fun combine(vs: VarianceEstimator) = WindowedEstimator(windowSize, base.combine(vs))
+    override fun copy() = WindowedEstimator(windowSize, base.copy())
+    override fun toString() = "WindowedEstimator(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is WindowedEstimator) return false
+        return base == other.base
+    }
+
+    override fun hashCode() = base.hashCode()
+}
+
+class WindowedSquaredEstimator(val windowSize: Int, val base: RunningSquaredMeans) : SquaredEstimator by base {
+
+    private val values = FloatCircleBuffer(windowSize)
+    private val weights = FloatCircleBuffer(windowSize)
+
+    override val variance: Float get() = base.variance
+
+    override fun accept(value: Float, weight: Float) {
+        val oldV = values.add(value)
+        val oldW = weights.add(weight)
+        if (oldW > 0.0f) base.remove(oldV, oldW)
+        base.accept(value, weight)
+    }
+
+    override fun combine(vs: VarianceEstimator) = WindowedSquaredEstimator(windowSize, base.combine(vs))
+    override fun copy() = WindowedSquaredEstimator(windowSize, base.copy())
+    override fun toString() = "WindowedSquaredEstimator(mean=$mean, meanOfSquares=$meanOfSquares, variance=$variance, nbrSamples=$nbrSamples)"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is WindowedSquaredEstimator) return false
+        return base == other.base
+    }
+
+    override fun hashCode() = base.hashCode()
 }

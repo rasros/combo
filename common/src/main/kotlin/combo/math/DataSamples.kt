@@ -3,6 +3,7 @@
 package combo.math
 
 import combo.util.EMPTY_FLOAT_ARRAY
+import combo.util.FloatCircleBuffer
 import combo.util.assert
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
@@ -39,23 +40,17 @@ object VoidSample : DataSample {
  * Contains the latest numbers in the stream.
  */
 class WindowSample(size: Int) : DataSample {
-    private val window = FloatArray(size)
-    private var pointer: Int = 0
+    private val window = FloatCircleBuffer(size)
 
     override var nbrSamples: Long = 0L
         private set
 
     override fun accept(value: Float) {
         nbrSamples++
-        window[pointer] = value
-        pointer = (++pointer % window.size)
+        window.add(value)
     }
 
-    override fun toArray(): FloatArray {
-        return if (nbrSamples < window.size) window.sliceArray(0 until nbrSamples.toInt())
-        else with(window) { sliceArray(pointer until size) + sliceArray(0 until pointer) }
-    }
-
+    override fun toArray() = window.toList().toFloatArray()
     val size = window.size
 }
 

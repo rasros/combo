@@ -98,10 +98,9 @@ class DataSamplesTest {
         val s = WindowSample(20)
         for (i in 1..94)
             s.accept(i.toFloat())
-        s.toArray()
         s.accept(1.0f)
-        val data = s.toArray()
-        assertEquals(1.0f, data[data.size - 1])
+        val data2 = s.toArray()
+        assertEquals(1.0f, data2[data2.size - 1])
     }
 
     @Test
