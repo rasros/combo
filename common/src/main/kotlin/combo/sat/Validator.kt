@@ -9,13 +9,6 @@ import kotlin.random.Random
 class Validator(val problem: Problem, val instance: MutableInstance, val assumption: Constraint) :
         MutableInstance, Instance by instance {
 
-    companion object {
-        fun build(problem: Problem, instance: MutableInstance, assumption: Constraint): Validator {
-            val ti = Validator(problem, instance, assumption)
-            ti.rebuildIndex()
-            return ti
-        }
-    }
 
     private fun rebuildIndex() {
         totalUnsatisfied = 0
@@ -40,6 +33,10 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
     }
     private val unsatisfied = IntHashSet(nullValue = -1)
     private val constraintCache = IntArray(problem.nbrConstraints + 1)
+
+    init {
+        rebuildIndex()
+    }
 
     fun randomUnsatisfied(rng: Random): Constraint {
         val constId = unsatisfied.random(rng)
