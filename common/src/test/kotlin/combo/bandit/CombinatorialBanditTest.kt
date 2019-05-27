@@ -1,10 +1,10 @@
 package combo.bandit
 
-import combo.bandit.univariate.SquaredEstimator
 import combo.bandit.univariate.UCB1
 import combo.bandit.univariate.UCB1Normal
 import combo.bandit.univariate.UCB1Tuned
 import combo.math.BinarySum
+import combo.math.RunningSquaredEstimator
 import combo.model.TestModels.MODEL1
 import combo.sat.Problem
 import combo.sat.solvers.ExhaustiveSolver
@@ -32,7 +32,7 @@ class CombinatorialBanditTest : BanditTest<CombinatorialBandit<*>>() {
         val solutions2 = ExhaustiveSolver(problem).asSequence().take(150).toList().toTypedArray()
 
         val bandit = CombinatorialBandit(solutions1, UCB1Normal())
-        bandit.importData(solutions2.map { InstanceData(it, SquaredEstimator()) }.toTypedArray(), true)
+        bandit.importData(solutions2.map { InstanceData(it, RunningSquaredEstimator()) }.toTypedArray(), true)
         val postData = bandit.exportData()
 
         // Verify that data has been replaced by solutions2
@@ -46,7 +46,10 @@ class CombinatorialBanditTest : BanditTest<CombinatorialBandit<*>>() {
         val problem = MODEL1.problem
         val solutions1 = ExhaustiveSolver(problem).asSequence().take(20).toList().toTypedArray()
         val solutions2 = ExhaustiveSolver(problem).asSequence().take(50).toList().toTypedArray()
-        solutions1[0] = solutions2[0]
+
+        // Make sure that there are some overlap
+        if (!solutions1.contains(solutions2[0]))
+            solutions1[0] = solutions2[0]
 
         val bandit = CombinatorialBandit(solutions1, UCB1())
         bandit.importData(solutions2.map { InstanceData(it, BinarySum(0.5f, 10.0f)) }.toTypedArray(), false)

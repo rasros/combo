@@ -52,7 +52,7 @@ abstract class BanditTest<B : Bandit<*>> {
         bandit2.rewards = FullSample()
         bandit2.maximize = false
         bandit2.randomSeed = 2
-        val rng = Random(1L)
+        val rng = Random(1)
 
         for (i in 1..200) {
             val instance1 = bandit1.chooseOrThrow()
@@ -185,6 +185,7 @@ abstract class BanditTest<B : Bandit<*>> {
         val rng = Random(0)
         for (type in BanditType.values()) {
             val bandit = bandit(p, type)
+            bandit.randomSeed = 0
             for (i in 0 until 100) {
                 bandit.update(inst0, type.linearRewards(inst0, rng))
                 bandit.update(inst1, type.linearRewards(inst0, rng), 0.1f)
