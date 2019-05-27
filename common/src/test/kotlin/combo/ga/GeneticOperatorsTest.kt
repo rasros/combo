@@ -1,18 +1,28 @@
 package combo.ga
 
-import combo.sat.Validator
+import combo.math.ImplicationDigraph
+import combo.math.IntPermutation
+import combo.model.TestModels
+import combo.model.TestModels.MODEL1
+import combo.model.TestModels.MODEL3
+import combo.model.TestModels.MODEL5
+import combo.sat.*
+import combo.util.IntHashSet
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
-data class ExpandedCandidates(val candidates: Candidates,
+data class ExpandedCandidates(val candidates: ValidatorCandidates,
                               val instances: Array<Validator>,
                               val scores: FloatArray)
 
-/*
 fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCandidates {
     val instanceBuilder = BitArrayBuilder
     val instances = Array(nbrStates) {
         val instance = instanceBuilder.create(problem.nbrVariables)
         WordRandomSet().initialize(instance, Tautology, rng, null)
-        Validator.build(problem, instance)
+        Validator(problem, instance, Tautology)
     }
     val scores = FloatArray(nbrStates) { instances[it].totalUnsatisfied.toFloat() }
     val candidates = ValidatorCandidates(instances, IntArray(nbrStates), scores)
@@ -23,7 +33,7 @@ class CandidatesTest {
 
     @Test
     fun createOne() {
-        val (candidates, _, scores) = createCandidates(TestModels.SAT_PROBLEMS[0], 1, Random)
+        val (candidates, _, scores) = createCandidates(MODEL1.problem, 1, Random)
         assertEquals(0, candidates.oldestCandidate)
         assertEquals(scores[0], candidates.maxScore)
         assertEquals(scores[0], candidates.minScore)
@@ -31,9 +41,9 @@ class CandidatesTest {
 
     @Test
     fun minMaxScore() {
-        val (candidates, instances, _) = createCandidates(TestModels.SAT_PROBLEMS[2], 20, Random)
-        val min = instances.map { it.totalUnsatisfied.toDouble() }.min()!!
-        val max = instances.map { it.totalUnsatisfied.toDouble() }.max()!!
+        val (candidates, instances, _) = createCandidates(MODEL3.problem, 20, Random)
+        val min = instances.map { it.totalUnsatisfied.toFloat() }.min()!!
+        val max = instances.map { it.totalUnsatisfied.toFloat() }.max()!!
         assertEquals(min, candidates.minScore)
         assertEquals(max, candidates.maxScore)
     }
@@ -41,8 +51,13 @@ class CandidatesTest {
     @Test
     fun candidatesWithAge() {
         val origins = intArrayOf(1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6)
-        val score = DoubleArray(origins.size) { it.toDouble() }
-        val candidates = ValidatorCandidates(Array(origins.size) { BitArray(1) }, origins) { score[it] }
+        val scores = FloatArray(origins.size) { it.toFloat() }
+        val problem = Problem(emptyArray(), 1)
+        val validators = Array(origins.size) {
+            val instance = BitArray(1)
+            Validator(problem, instance, Tautology)
+        }
+        val candidates = ValidatorCandidates(validators, origins, scores)
         assertEquals(6, candidates.oldestCandidate)
         assertEquals(1, candidates.oldestOrigin)
     }
@@ -50,11 +65,17 @@ class CandidatesTest {
     @Test
     fun oldestAfterUpdate() {
         val origins = intArrayOf(1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6)
-        val score = DoubleArray(origins.size) { it.toDouble() }
-        val candidates = ValidatorCandidates(Array(origins.size) { BitArray(1) }, origins) { score[it] }
+        val scores = FloatArray(origins.size) { it.toFloat() }
+        val problem = Problem(emptyArray(), 10)
+        val validators = Array(origins.size) {
+            val instance = BitArray(10)
+            WordRandomSet().initialize(instance, Tautology, Random, null)
+            Validator(problem, instance, Tautology)
+        }
+        val candidates = ValidatorCandidates(validators, origins, scores)
         assertEquals(6, candidates.oldestCandidate)
         assertEquals(1, candidates.oldestOrigin)
-        candidates.update(6, 10, 0.0)
+        candidates.update(6, 10, 0.0f)
         assertEquals(0, candidates.oldestCandidate)
         assertEquals(1, candidates.oldestOrigin)
     }
@@ -63,15 +84,21 @@ class CandidatesTest {
     fun changeToYoungerOrigin() {
         // This tests the similar functionality in GeneticAlgorithmOptimizer that changes the origin to something older
         val origins = IntArray(20) { 10 + it }
-        val score = DoubleArray(20) { it.toDouble() }
+        val scores = FloatArray(20) { it.toFloat() }
+        val problem = Problem(emptyArray(), 10)
+        val validators = Array(origins.size) {
+            val instance = BitArray(10)
+            WordRandomSet().initialize(instance, Tautology, Random, null)
+            Validator(problem, instance, Tautology)
+        }
 
-        val candidates = ValidatorCandidates(Array(20) { BitArray(1) }, origins) { score[it] }
-        val keep = IntHashSet().apply { addAll(0 until 5) }
+        val candidates = ValidatorCandidates(validators, origins, scores)
+        val keep = IntHashSet(nullValue = -1).apply { addAll(0 until 5) }
         for (i in 0 until candidates.nbrCandidates) {
             if (i in keep) {
-                candidates.update(i, 1, -1.0)
+                candidates.update(i, 1, -1.0f)
             } else {
-                candidates.update(i, 0, 1.0)
+                candidates.update(i, 0, 1.0f)
             }
         }
         assertTrue(candidates.oldestCandidate >= 5)
@@ -81,11 +108,11 @@ class CandidatesTest {
 
 abstract class RecombinationOperatorTest {
 
-    abstract fun crossoverOperator(): RecombinationOperator
+    abstract fun crossoverOperator(): RecombinationOperator<ValidatorCandidates>
 
     @Test
     fun crossoverSelf() {
-        val p = TestModels.SAT_PROBLEMS[4]
+        val p = MODEL5.problem
         val (candidates, trackers) = createCandidates(p, 10, Random)
         val crossoverOperator = crossoverOperator()
         val instance1 = candidates.instances[0].copy()
@@ -133,7 +160,7 @@ class KPoint2CrossoverTest : RecombinationOperatorTest() {
 
 abstract class SelectionOperatorTest {
 
-    abstract fun selectionOperator(popSize: Int): SelectionOperator
+    abstract fun selectionOperator(popSize: Int): SelectionOperator<Candidates>
 
     @Test
     fun totalSpread() {
@@ -165,53 +192,84 @@ class OldestEliminationTest {
     @Test
     fun selectOldest() {
         val (candidates, _) = createCandidates(TestModels.SAT_PROBLEMS[0], 10, Random)
-        for (i in 0 until 8) {
-            candidates.update(i, i, candidates.scores[i])
+        for (i in 0..8) {
+            candidates.update(i, (i + 1).toLong(), candidates.scores[i])
         }
         assertEquals(9, OldestElimination().select(candidates, Random))
     }
 }
 
-abstract class PointMutationOperatorTest {
+abstract class MutationRateTest {
 
-    abstract fun mutationOperator(nbrVariables: Int): RateMutationOperator
+    abstract fun rate(nbrVariables: Int): MutationRate
 
     @Test
     fun mutationRate() {
         for (n in 1..20) {
-            val mutator = mutationOperator(n)
-            val rate = mutator.mutationRate(n, Random)
+            val mutator = rate(n)
+            val rate = mutator.rate(n, Random)
             assertTrue(rate > 0 && rate <= 1, "$n")
         }
     }
+}
+
+class FastGAMutationTest : MutationRateTest() {
+    override fun rate(nbrVariables: Int) = FastGAMutation(nbrVariables, 1.5f)
+}
+
+class FixedRateMutationTest : MutationRateTest() {
+    override fun rate(nbrVariables: Int) = FixedRateMutation()
+}
+
+class FixedRate2MutationTest : MutationRateTest() {
+    override fun rate(nbrVariables: Int) = FixedRateMutation(2)
+}
+
+abstract class MutationOperatorTest {
+
+    abstract fun mutationOperator(problem: Problem): MutationOperator<ValidatorCandidates>
 
     @Test
     fun mutateCanChange() {
         for (n in 1..20) {
-            val mutator = mutationOperator(n)
-            val rng = Random
-            val preMutated = BitArray(n)
-            for (j in 0 until n) preMutated[j] = rng.nextBoolean()
-            val postMutated = preMutated.copy()
+            val problem = Problem(emptyArray(), n)
+            val rng = Random(n)
+            val (candidates, _, _) = createCandidates(problem, 1, rng)
+            val mutator = mutationOperator(problem)
+            val preMutated = candidates.instances[0].instance.copy()
+            val postMutated = candidates.instances[0]
             var itr = 0
             do {
-                mutator.mutate(postMutated, rng)
+                mutator.mutate(0, candidates, rng)
                 assertTrue(itr++ <= 50, "Max iterations reached")
             } while (preMutated == postMutated)
         }
     }
+
+    @Test
+    fun mutateCanChangeWithProblem() {
+        val problem = MODEL1.problem
+        val rng = Random(problem.nbrConstraints)
+        val (candidates, _, _) = createCandidates(problem, 1, rng)
+        val mutator = mutationOperator(problem)
+        val preMutated = candidates.instances[0].instance.copy()
+        val postMutated = candidates.instances[0]
+        var itr = 0
+        do {
+            mutator.mutate(0, candidates, rng)
+            assertTrue(itr++ <= 50, "Max iterations reached")
+        } while (preMutated == postMutated)
+    }
 }
 
-class FastGAMutationTest : PointMutationOperatorTest() {
-    override fun mutationOperator(nbrVariables: Int) = FastGAMutation(nbrVariables, 1.5)
+class RateMutationOperatorTest : MutationOperatorTest() {
+    override fun mutationOperator(problem: Problem) = RateMutationOperator(FixedRateMutation(1))
 }
 
-class FixedRateMutationTest : PointMutationOperatorTest() {
-    override fun mutationOperator(nbrVariables: Int) = FixedRateMutation()
+class FixedMutationOperatorTest : MutationOperatorTest() {
+    override fun mutationOperator(problem: Problem) = FixedMutation(1)
 }
 
-class FixedRate2MutationTest : PointMutationOperatorTest() {
-    override fun mutationOperator(nbrVariables: Int) = FixedRateMutation(2)
+class PropagatingMutatorTest : MutationOperatorTest() {
+    override fun mutationOperator(problem: Problem) = PropagatingMutator(FixedRateMutation(1), ImplicationDigraph(problem))
 }
-
- */
