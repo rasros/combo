@@ -70,6 +70,18 @@ class RunningVarianceTest {
         v2.accept(1.0f)
         assertEquals(v1.hashCode(), v2.hashCode())
     }
+
+    @Test
+    fun combineEmptyTest() {
+        val v1 = RunningVariance()
+        val v2 = RunningVariance()
+        val v = v1.combine(v2)
+        assertFalse(v.mean.isNaN())
+        assertTrue(v.variance.isNaN())
+        assertFalse(v.nbrWeightedSamples.isNaN())
+        assertEquals(v, v1)
+        assertEquals(v, v2)
+    }
 }
 
 class RunningMeanTest {
@@ -127,6 +139,18 @@ class RunningMeanTest {
         v1.accept(1.0f)
         v2.accept(1.0f)
         assertEquals(v1.hashCode(), v2.hashCode())
+    }
+
+    @Test
+    fun combineEmptyTest() {
+        val v1 = RunningMean()
+        val v2 = RunningMean()
+        val v = v1.combine(v2)
+        assertFalse(v.mean.isNaN())
+        assertFalse(v.variance.isNaN())
+        assertFalse(v.nbrWeightedSamples.isNaN())
+        assertEquals(v, v1)
+        assertEquals(v, v2)
     }
 }
 
@@ -201,6 +225,18 @@ class ExponentialDecayVarianceTest {
         v2.accept(1.0f)
         assertEquals(v1.hashCode(), v2.hashCode())
     }
+
+    @Test
+    fun combineEmptyTest() {
+        val v1 = ExponentialDecayVariance()
+        val v2 = ExponentialDecayVariance()
+        val v = v1.combine(v2)
+        assertFalse(v.mean.isNaN())
+        assertFalse(v.variance.isNaN())
+        assertFalse(v.nbrWeightedSamples.isNaN())
+        assertEquals(v, v1)
+        assertEquals(v, v2)
+    }
 }
 
 class BinarySumTest {
@@ -265,5 +301,65 @@ class BinarySumTest {
         v2.accept(1.0f)
         assertEquals(v1.hashCode(), v2.hashCode())
     }
+
+    @Test
+    fun combineEmptyTest() {
+        val v1 = BinarySum()
+        val v2 = BinarySum()
+        val v = v1.combine(v2)
+        assertTrue(v.mean.isNaN())
+        assertTrue(v.variance.isNaN())
+        assertFalse(v.nbrWeightedSamples.isNaN())
+        assertEquals(v, v1)
+        assertEquals(v, v2)
+    }
 }
 
+class RunningSquaredEstimatorTest {
+
+    @Test
+    fun equalsTests() {
+        val v1 = RunningSquaredEstimator()
+        val v2 = RunningSquaredEstimator()
+        assertFalse(v1.equals(RunningVariance()))
+        v1.accept(1.0f)
+        assertNotEquals(v1, v2)
+        v2.accept(1.0f)
+        assertEquals(v1, v2)
+        assertFalse(v1.equals(null))
+    }
+
+    @Test
+    fun hashCodeTests() {
+        val v1 = RunningSquaredEstimator()
+        val v2 = RunningSquaredEstimator()
+        assertEquals(v1.hashCode(), v2.hashCode())
+        v1.accept(1.0f)
+        v2.accept(1.0f)
+        assertEquals(v1.hashCode(), v2.hashCode())
+    }
+
+    @Test
+    fun combine() {
+        val rng = Random(0)
+        val data1 = generateSequence { rng.nextNormal(2.0f, 4.0f) }.take(100).toList().toTypedArray()
+        val data2 = generateSequence { rng.nextNormal(3.0f, 9.0f) }.take(100).toList().toTypedArray()
+        val se1 = data1.asSequence().sample(RunningSquaredEstimator())
+        val se2 = data2.asSequence().sample(RunningSquaredEstimator())
+        val totalSeExpected = (data1 + data2).toList().shuffled().asSequence().sample(RunningSquaredEstimator())
+        val totalSeAcutal = se1.combine(se2)
+        assertEquals(totalSeExpected.meanOfSquares, totalSeAcutal.meanOfSquares, 5.0f)
+    }
+
+    @Test
+    fun combineEmptyTest() {
+        val v1 = RunningSquaredEstimator()
+        val v2 = RunningSquaredEstimator()
+        val v = v1.combine(v2)
+        assertFalse(v.mean.isNaN())
+        assertTrue(v.variance.isNaN())
+        assertFalse(v.nbrWeightedSamples.isNaN())
+        assertEquals(v, v1)
+        assertEquals(v, v2)
+    }
+}

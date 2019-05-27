@@ -44,6 +44,13 @@ interface BinaryEstimator : VarianceEstimator {
 }
 
 /**
+ * This estimator is used for UCB1Tuned and UCB1Normal
+ */
+interface SquaredEstimator : VarianceEstimator {
+    val meanOfSquares: Float
+}
+
+/**
  * Calculates incremental mean and variance according to the Welford's online algorithm.
  */
 class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
@@ -78,8 +85,8 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
         val m1 = mean
         val m2 = vs.mean
         val n = n1 + n2
-        val m = (m1 * n1 + m2 * n2) / n
-        val v = (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+        val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
+        val v = if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
         return RunningVariance(m, v * n, n)
     }
 
@@ -147,8 +154,8 @@ class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, vari
         val m1 = mean
         val m2 = vs.mean
         val n = n1 + n2
-        val m = (m1 * n1 + m2 * n2) / n
-        val v = (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+        val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
+        val v = if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
         return ExponentialDecayVariance(beta, m, v, n)
     }
 
@@ -237,12 +244,56 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
         val n2 = vs.nbrWeightedSamples
         val m1 = mean
         val m2 = vs.mean
-        return RunningMean((m1 * n1 + m2 * n2) / (n1 + n2), n1 + n2)
+        val n = n1 + n2
+        val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
+        return RunningMean(m, n)
     }
 
     override fun hashCode(): Int {
         var result = mean.hashCode()
         result = 31 * result + nbrWeightedSamples.hashCode()
+        return result
+    }
+}
+
+class RunningSquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Float)
+    : VarianceEstimator by base, SquaredEstimator {
+
+    constructor(mean: Float = 0.0f,
+                meanOfSquares: Float = 0.0f,
+                squaredDeviations: Float = 0.0f,
+                nbrWeightedSamples: Float = 0.0f) : this(RunningVariance(mean, squaredDeviations, nbrWeightedSamples), meanOfSquares)
+
+    override var meanOfSquares: Float = meanOfSquares
+        private set
+
+    override fun accept(value: Float, weight: Float) {
+        base.accept(value, weight)
+        meanOfSquares = if (weight == nbrWeightedSamples)
+            value * value
+        else {
+            val oldMS = meanOfSquares
+            oldMS + (value * value - oldMS) * (weight / nbrWeightedSamples)
+        }
+    }
+
+    override fun combine(vs: VarianceEstimator): SquaredEstimator {
+        vs as SquaredEstimator
+        return RunningSquaredEstimator(base.combine(vs), vs.meanOfSquares + meanOfSquares)
+    }
+
+    override fun copy() = RunningSquaredEstimator(mean, meanOfSquares, squaredDeviations, nbrWeightedSamples)
+    override fun toString() = "RunningSquaredEstimator(mean=$mean, meanOfSquares=$meanOfSquares, squaredDeviations=$squaredDeviations, nbrSamples=$nbrSamples)"
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RunningSquaredEstimator) return false
+        return base == other.base && meanOfSquares == other.meanOfSquares
+    }
+
+    override fun hashCode(): Int {
+        var result = base.hashCode()
+        result = 31 * result + meanOfSquares.hashCode()
         return result
     }
 }
