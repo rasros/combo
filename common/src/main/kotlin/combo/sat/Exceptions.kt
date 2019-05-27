@@ -13,7 +13,9 @@ sealed class ValidationException(message: String, cause: Throwable? = null, val 
 
 class TimeoutException(timeout: Long) : ValidationException("Timeout of ${timeout}ms reached.")
 
-class IterationsReachedException(itr: Int) : ValidationException("Max iterations of $itr reached.")
+class IterationsReachedException(msg: String) : ValidationException(msg) {
+    constructor(itr: Int) : this("Max iterations of $itr reached.")
+}
 
 class UnsatisfiableException(override val message: String = "The model is unsatisfiable because " +
         "there is a contradiction in the specification.",
