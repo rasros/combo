@@ -61,7 +61,7 @@ class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy
         @Suppress("UNCHECKED_CAST")
         for (i in 0 until nbrArms) {
             banditPolicy.removeArm(data[i] as E)
-            data[i] = historicData[i].copy() as E
+            data[i] = data[i].combine(historicData[i]) as E
             banditPolicy.addArm(data[i] as E)
         }
     }
