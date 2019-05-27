@@ -81,6 +81,8 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         }
     }
 
+    override fun isComplete() = true
+
     private fun createRemap(assumptions: IntCollection): IntArray {
         if (assumptions.isEmpty()) return EMPTY_INT_ARRAY
         val nbrVariables = problem.nbrVariables - assumptions.size

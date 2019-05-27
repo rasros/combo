@@ -216,6 +216,8 @@ class Sat4JSolver @JvmOverloads constructor(
         }
     }
 
+    override fun isComplete() = true
+
     private class TimeoutListener(val timeout: Long) : SearchListenerAdapter<ISolverService>() {
         private val end = timeout + millis()
         override fun assuming(p: Int) {

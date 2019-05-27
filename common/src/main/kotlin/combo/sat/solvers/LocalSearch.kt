@@ -132,7 +132,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
                 instance = instanceBuilder.create(p.nbrVariables)
                 initializer.initialize(instance, assumption, rng, function)
             }
-            val validator = Validator.build(p, instance, assumption)
+            val validator = Validator(p, instance, assumption)
 
             fun setReturnValue(value: Float) {
                 if (value < bestValue && validator.totalUnsatisfied == 0) {

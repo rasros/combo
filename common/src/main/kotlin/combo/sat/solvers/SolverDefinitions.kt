@@ -59,6 +59,8 @@ interface Solver : Iterable<Instance> {
      * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
      */
     var timeout: Long
+
+    fun isComplete() = false
 }
 
 /**

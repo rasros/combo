@@ -166,11 +166,11 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
 
         val candidates = let {
             val validators: Array<Validator> = Array(candidateSize) {
-                if (guess != null) Validator.build(p, guess.copy(), assumption)
+                if (guess != null) Validator(p, guess.copy(), assumption)
                 else {
                     val instance = instanceBuilder.create(p.nbrVariables)
                     initializer.initialize(instance, assumption, rng, function)
-                    Validator.build(p, instance, assumption)
+                    Validator(p, instance, assumption)
                 }
             }
             val scores = FloatArray(candidateSize) {
@@ -238,7 +238,7 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
                 } else {
                     val newInstance = instanceBuilder.create(p.nbrVariables)
                     initializer.initialize(newInstance, assumption, rng, function)
-                    candidates.instances[i] = Validator.build(p, newInstance, assumption)
+                    candidates.instances[i] = Validator(p, newInstance, assumption)
                     @Suppress("UNCHECKED_CAST")
                     (candidates.instances as Array<MutableInstance>)[i] = candidates.instances[i]
                     val newScore = score(candidates.instances[i])
