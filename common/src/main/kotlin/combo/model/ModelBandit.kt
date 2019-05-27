@@ -2,7 +2,7 @@ package combo.model
 
 import combo.bandit.Bandit
 import combo.bandit.CombinatorialBandit
-import combo.bandit.DecisionTreeBandit
+import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.PredictionBandit
 import combo.bandit.ga.GeneticAlgorithmBandit
 import combo.bandit.univariate.BanditPolicy
@@ -70,9 +70,9 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
         @JvmOverloads
         fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model,
                                                            banditPolicy: BanditPolicy<E>,
-                                                           solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
+                                                           solver: Solver = LocalSearchSolver(model.problem).apply {
                                                                initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WordRandomSet())
-                                                           }).apply { pNew = 1.0f })
+                                                           })
                 : ModelBandit<GeneticAlgorithmBandit<E>> {
             val bandit = GeneticAlgorithmBandit(model.problem, banditPolicy, solver)
             // Extract implication digraph if possible
