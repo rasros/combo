@@ -55,8 +55,39 @@ class ArrayQueue<E> : Iterable<E> {
         }
     }
 
-    val size: Int get() = if (write >= read) write - read
-    else array.size - (read - write)
+    val size: Int
+        get() = if (write >= read) write - read
+        else array.size - (read - write)
+}
+
+class FloatCircleBuffer(bufferSize: Int) : Iterable<Float> {
+
+    private var array: FloatArray = FloatArray(bufferSize)
+    private var write = 0
+
+    fun add(f: Float): Float {
+        val old = array[write]
+        array[write] = f
+        size = min(array.size, size + 1)
+        write = (write + 1) % array.size
+        return old
+    }
+
+    override fun iterator() = object : FloatIterator() {
+        private var caret = write % array.size
+        private var seen = 0
+        override fun hasNext() = seen < size
+        override fun nextFloat(): Float {
+            if (caret >= size) throw NoSuchElementException()
+            val value = array[caret]
+            caret = (caret + 1) % array.size
+            seen++
+            return value
+        }
+    }
+
+    var size: Int = 0
+        private set
 }
 
 class CircleBuffer<E>(bufferSize: Int) : Iterable<E> {
@@ -65,18 +96,24 @@ class CircleBuffer<E>(bufferSize: Int) : Iterable<E> {
     private var array: Array<E?> = arrayOfNulls<Any?>(bufferSize) as Array<E?>
     private var write = 0
 
-    fun add(e: E) {
+    fun add(e: E): E? {
+        val old = e
         array[write] = e
         size = min(array.size, size + 1)
         write = (write + 1) % array.size
+        return old
     }
 
     override fun iterator() = object : Iterator<E> {
-        private var ptr = 0
-        override fun hasNext() = ptr < size
+        private var caret = write % array.size
+        private var seen = 0
+        override fun hasNext() = seen < size
         override fun next(): E {
-            if (ptr >= size) throw NoSuchElementException()
-            return array[ptr++]!!
+            if (caret >= size) throw NoSuchElementException()
+            val value = array[caret]!!
+            caret = (caret + 1) % array.size
+            seen++
+            return value
         }
     }
 
