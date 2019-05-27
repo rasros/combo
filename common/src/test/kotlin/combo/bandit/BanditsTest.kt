@@ -187,8 +187,8 @@ abstract class BanditTest<B : Bandit<*>> {
             val bandit = bandit(p, type)
             for (i in 0 until 100) {
                 bandit.update(inst0, type.linearRewards(inst0, rng))
-                bandit.update(inst1, type.linearRewards(inst0, rng), 0.5f)
-                bandit.update(inst1, type.linearRewards(inst1, rng), 1.0f)
+                bandit.update(inst1, type.linearRewards(inst0, rng), 0.1f)
+                bandit.update(inst1, type.linearRewards(inst1, rng), 0.9f)
             }
             var count = 0
             for (i in 0 until 100)

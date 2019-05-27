@@ -41,12 +41,33 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
     override var maximize: Boolean = true
     override var rewards: DataSample = GrowingDataSample()
 
-    override fun importData(historicData: Array<InstanceData<E>>) {
-        for (data in historicData) {
-            if (data.instance in instanceData) {
-                banditPolicy.removeArm(instanceData[data.instance]!!)
-                instanceData[data.instance] = data.data
-                banditPolicy.addArm(data.data)
+    @Suppress("UNCHECKED_CAST")
+    override fun importData(data: Array<InstanceData<E>>, restructure: Boolean) {
+
+        // Remove all missing instances
+        if (restructure) {
+            val set = data.mapTo(HashSet()) { it.instance }
+            val itr = instanceData.keys.iterator()
+            while (itr.hasNext()) {
+                val instance = itr.next()
+                if (instance !in set)
+                    itr.remove()
+            }
+        }
+
+        for ((instance, e) in data) {
+            val old = this.instanceData[instance]
+            if (old != null) {
+                @Suppress("UNCHECKED_CAST")
+                val combined = old.combine(e) as E
+                banditPolicy.removeArm(old)
+                this.instanceData[instance] = combined
+                banditPolicy.addArm(combined)
+            } else if (restructure) {
+                // Add new instances
+                val armData = e.copy() as E
+                banditPolicy.addArm(armData)
+                this.instanceData[instance] = armData
             }
         }
     }

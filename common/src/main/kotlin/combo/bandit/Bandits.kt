@@ -12,11 +12,19 @@ import kotlin.math.abs
 /**
  * A bandit optimizes an online binary decision problem. These bandits are multi-variate,
  * ie. there are multiple binary decision variables.
+ *
+ * TODO further bandit explanation, rewards optimization, arms, choose/update loop, iid, stochastic non-adversial.
  */
 interface Bandit<D> {
 
+    /**
+     * TODO
+     */
     fun chooseOrThrow(assumptions: IntCollection = EmptyCollection): Instance
 
+    /**
+     * TODO
+     */
     fun choose(assumptions: IntCollection = EmptyCollection) =
             try {
                 chooseOrThrow(assumptions)
@@ -37,10 +45,16 @@ interface Bandit<D> {
     fun update(instance: Instance, result: Float, weight: Float = 1.0f)
 
     /**
-     * Add historic data to the bandit, this can be used to store and re-start the bandit. In general, any existing
-     * data is lost when importing.
+     * Add historic data to the bandit, this can be used to store and re-start the bandit. Any existing data is combined
+     * with the imported data importing. It is not recommended to do import of any data that the bandit has already
+     * seen, since that will cause an underestimation of variance in the rewards.
+     *
+     * @param data added to the bandit.
+     * @param restructure whether the bandit structure should exactly fit that of the imported data. If set to true
+     * some data might be lost in the import but can be used to keep multiple parallel bandits in sync. If set to false
+     * the merge will only be on existing summary statistics.
      */
-    fun importData(historicData: D)
+    fun importData(data: D, restructure: Boolean = false)
 
     /**
      * Exports all data to use for external storage. They can be used in a new [Bandit] instance that
@@ -65,7 +79,8 @@ interface Bandit<D> {
 }
 
 /**
- * A [PredictionBandit] uses a machine learning model as part of the algorithm.
+ * A [PredictionBandit] uses a machine learning model as part of the algorithm. This machine learning algorithm can also
+ * be used to make predictions about an [Instance]. In addition, further
  */
 interface PredictionBandit<D> : Bandit<D> {
 
@@ -99,7 +114,7 @@ interface PredictionBandit<D> : Bandit<D> {
  * This class holds the data in the leaf nodes. The order of the literals in [setLiterals] is significant and cannot
  * be changed.
  */
-class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E) {
+data class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -114,7 +129,7 @@ class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data
     }
 }
 
-class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E) {
+data class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
