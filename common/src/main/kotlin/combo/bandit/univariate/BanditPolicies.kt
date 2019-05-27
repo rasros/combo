@@ -217,6 +217,11 @@ class SquaredEstimator private constructor(private val base: RunningVariance, me
         }
     }
 
+    override fun combine(vs: VarianceEstimator): SquaredEstimator {
+        vs as SquaredEstimator
+        return SquaredEstimator(base.combine(vs), vs.meanOfSquares + meanOfSquares)
+    }
+
     override fun copy() = SquaredEstimator(mean, meanOfSquares, squaredDeviations, nbrWeightedSamples)
     override fun toString() = "SquaredEstimator(mean=$mean, meanOfSquares=$meanOfSquares, squaredDeviations=$squaredDeviations, nbrSamples=$nbrSamples)"
 }
