@@ -55,6 +55,10 @@ inline fun IntArray.transformArray(transform: (Int) -> Int) {
         this[i] = transform(this[i])
 }
 
+fun FloatArray.removeAt(ix: Int) = copyOfRange(0, ix) + copyOfRange(ix + 1, size)
 fun IntArray.removeAt(ix: Int) = copyOfRange(0, ix) + copyOfRange(ix + 1, size)
+fun LongArray.removeAt(ix: Int) = copyOfRange(0, ix) + copyOfRange(ix + 1, size)
+fun <T> Array<T>.removeAt(ix: Int) = copyOfRange(0, ix) + copyOfRange(ix + 1, size)
 val EMPTY_INT_ARRAY = IntArray(0)
+val EMPTY_FLOAT_ARRAY = FloatArray(0)
 
