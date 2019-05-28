@@ -29,7 +29,7 @@ fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCan
     return ExpandedCandidates(candidates, instances, scores)
 }
 
-class CandidatesTest {
+class ValidatorCandidatesTest {
 
     @Test
     fun createOne() {
