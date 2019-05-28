@@ -9,8 +9,10 @@ fun gcdAll(vararg ns: Int): Int {
     if (ns.isEmpty()) return 0
     if (ns.size == 1) return ns[1]
     var g = gcd(ns[0].absoluteValue, ns[1].absoluteValue)
+    if (g == 1) return 1
     for (i in 2 until ns.size) {
         g = gcd(g, ns[i].absoluteValue)
+        if (g == 1) return 1
     }
     return g
 }

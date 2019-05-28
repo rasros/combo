@@ -25,5 +25,7 @@ class NumbersTest {
     @Test
     fun gcdAll() {
         assertEquals(25, gcdAll(-100, 50, 25))
+        assertEquals(1, gcdAll(-10, 11, 0, 13))
+        assertEquals(2, gcdAll(6, 8, 4, 16))
     }
 }
