@@ -252,10 +252,10 @@ class LinearAlgebraTest {
     fun toIntArray() {
         val rng = Random
         val vector = Vector(100) { rng.nextNormal() }
-        val rounded = vector.toIntArray(1.0f)
+        val rounded = vector.toIntArray(1.0f, false)
         for (i in rounded.indices)
             assertEquals(rounded[i], vector[i].roundToInt())
-        val larger = vector.toIntArray(1e-4f)
+        val larger = vector.toIntArray(1e-4f, false)
         for (i in rounded.indices) {
             assertTrue(larger[i].absoluteValue >= rounded[i].absoluteValue)
         }

@@ -1,5 +1,7 @@
 package combo.model
 
+import combo.math.gcd
+import combo.math.gcdAll
 import combo.sat.Constraint
 import combo.sat.Empty
 import combo.sat.PropositionalConstraint
@@ -60,13 +62,25 @@ class ConstraintBuilder(val index: VariableIndex) {
     }
 
     fun linear(degree: Int, relation: Relation, weights: IntArray, variables: Array<out Value>): PropositionalConstraint {
+
+        val gcd = gcd(degree, gcdAll(*weights))
+        val simplifiedDegree: Int
+        val simplifiedWeights: IntArray
+        if (gcd > 1) {
+            simplifiedDegree = degree / gcd
+            simplifiedWeights = weights.mapArray { it / gcd }
+        } else {
+            simplifiedDegree = degree
+            simplifiedWeights = weights
+        }
+
         val literals = IntHashMap()
         var k = 0
         variables.forEach { literals[it.toLiteral(index)] = k++ }
 
-        val linear = Linear(literals, weights, degree, relation)
-        if (relation.isTautology(linear.lowerBound, linear.upperBound, degree)) return Tautology
-        if (relation.isEmpty(linear.lowerBound, linear.upperBound, degree)) return Empty
+        val linear = Linear(literals, simplifiedWeights, simplifiedDegree, relation)
+        if (relation.isTautology(linear.lowerBound, linear.upperBound, simplifiedDegree)) return Tautology
+        if (relation.isEmpty(linear.lowerBound, linear.upperBound, simplifiedDegree)) return Empty
         return linear
     }
 

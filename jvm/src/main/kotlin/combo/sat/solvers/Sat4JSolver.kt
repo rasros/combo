@@ -23,7 +23,6 @@ import org.sat4j.tools.ModelIterator
 import org.sat4j.tools.SearchListenerAdapter
 import java.math.BigInteger
 import java.math.BigInteger.valueOf
-import kotlin.math.roundToLong
 import kotlin.random.Random
 import org.sat4j.minisat.core.Solver as Sat4J
 import org.sat4j.pb.ObjectiveFunction as Sat4JObjectiveFunction
@@ -67,7 +66,12 @@ class Sat4JSolver @JvmOverloads constructor(
      * Precision with which to convert floating point constraint and objective function into integer constraints.
      * See [toIntArray]
      */
-    var delta: Float = 0.1f
+    var delta: Float = 0.01f
+
+    /**
+     * Simplify weights with GCD before optimizing.
+     */
+    var gcdOptimize: Boolean = true
 
     private val solverTL = ThreadLocal.withInitial {
         val solver: Sat4J<*> = if (problem.constraints.any { it is Linear }) PBSolverFactory.newLight() as Sat4J<*>
@@ -193,13 +197,13 @@ class Sat4JSolver @JvmOverloads constructor(
 
         if (timeout > 0L) pbSolver.setSearchListener(TimeoutListener(timeout))
 
-        val intWeights = Vec(Array<BigInteger>(function.weights.size) {
-            val value = (function.weights[it] / delta).roundToLong()
-            val minimizer = if (function.maximize) -value else value
-            valueOf(minimizer)
+        val intWeights = function.weights.toIntArray(delta, gcdOptimize)
+        val bigIntWeights = Vec(Array<BigInteger>(function.weights.size) {
+            val i = if (function.maximize) -intWeights[it] else intWeights[it]
+            valueOf(i.toLong())
         })
-        val variableLiterals = VecInt(IntArray(intWeights.size()) { it + 1 })
-        pbSolver.objectiveFunction = Sat4JObjectiveFunction(variableLiterals, intWeights)
+        val variableLiterals = VecInt(IntArray(bigIntWeights.size()) { it + 1 })
+        pbSolver.objectiveFunction = Sat4JObjectiveFunction(variableLiterals, bigIntWeights)
         if (guess != null) pbSolver.order.phaseSelectionStrategy = InitialGuessSelectionStrategy(guess)
 
         val assumption = assumptions.toSat4JVec()

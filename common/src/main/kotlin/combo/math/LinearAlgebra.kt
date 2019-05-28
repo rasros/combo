@@ -141,6 +141,13 @@ fun Matrix.cholDowndate(v: Vector) {
     }
 }
 
-fun Vector.toIntArray(delta: Float) = IntArray(size) {
-    (this[it] / delta).roundToInt()
+fun Vector.toIntArray(delta: Float, gcd: Boolean): IntArray {
+    val array = IntArray(size) {
+        (this[it] / delta).roundToInt()
+    }
+    if (gcd) {
+        val g = gcdAll(*array)
+        if (g > 1) array.transformArray { it / g }
+    }
+    return array
 }

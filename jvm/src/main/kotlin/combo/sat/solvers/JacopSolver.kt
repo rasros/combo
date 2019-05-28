@@ -45,7 +45,12 @@ class JacopSolver @JvmOverloads constructor(
      * Precision with which to convert objective function into integer constraints.
      * See [toIntArray]
      */
-    var delta: Float = 0.1f
+    var delta: Float = 0.01f
+
+    /**
+     * Simplify weights with GCD before optimizing.
+     */
+    var gcdOptimize: Boolean = true
 
     private inner class ConstraintEncoder {
         val store = Store()
@@ -227,8 +232,8 @@ class JacopSolver @JvmOverloads constructor(
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
                 val cost = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
-                val lin = LinearInt(vars, function.weights.toIntArray(delta).mapArray {
-                    if (function.maximize) -it else it
+                val lin = LinearInt(vars, function.weights.toIntArray(delta, gcdOptimize).apply {
+                    if (function.maximize) transformArray { -it }
                 }, "=", cost)
                 store.impose(lin)
                 val search = DepthFirstSearch<BooleanVar>().apply {

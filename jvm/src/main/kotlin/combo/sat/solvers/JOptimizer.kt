@@ -52,9 +52,15 @@ class JOptimizer @JvmOverloads constructor(
     var maxIterations: Int = Int.MAX_VALUE
 
     /**
-     * Sensitivity of conversion of float objective function to int objective function.
+     * Precision with which to convert objective function into integer constraints.
+     * See [toIntArray]
      */
-    var delta: Float = 1e-4f
+    var delta: Float = 0.01f
+
+    /**
+     * Simplify weights with GCD before optimizing.
+     */
+    var gcdOptimize: Boolean = true
 
     /**
      * Determines the [Instance] that will be created for solving, for very sparse problems use
@@ -130,9 +136,8 @@ class JOptimizer @JvmOverloads constructor(
      */
     override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val request = BIPOptimizationRequest().apply {
-            val mult = if (function.maximize) -1 else 1
-            setC(function.weights.toIntArray(delta)
-                    .apply { if (function.maximize) this.transformArray { it * mult } })
+            setC(function.weights.toIntArray(delta, gcdOptimize)
+                    .apply { if (function.maximize) this.transformArray { -it } })
             setG(this@JOptimizer.G)
             setH(this@JOptimizer.h)
             if (assumptions.isNotEmpty()) {
