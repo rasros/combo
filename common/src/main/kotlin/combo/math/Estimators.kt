@@ -1,6 +1,7 @@
 package combo.math
 
 import combo.util.FloatCircleBuffer
+import kotlin.math.min
 import kotlin.math.sqrt
 
 interface VarianceEstimator : DataSample {
@@ -120,9 +121,10 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
 
 /**
  * This calculates a moving average and variance by assigning old values an exponentially decaying weight. The storage
- * requirement is constant and does not depend on the size of the window of the moving average.
+ * requirement is constant and does not depend on the size of the window of the moving average. The [nbrSamples] is
+ * capped to the window size.
  * @param beta strength of the update. For finite samples n the optimal parameter can be set to: beta = 2/n+1.
- * Default n is 99
+ * Default n is 99.
  */
 class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, variance: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
     : VarianceEstimator {
@@ -135,13 +137,14 @@ class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, vari
         private set
     override var nbrWeightedSamples = nbrWeightedSamples
         private set
+    private val maxSize: Float = 2 / beta - 1
 
     init {
-        require(beta < 1.0f && beta > 0.0f) { "Beta (1-decay) parameter must be within 0 to 1 range, got $beta." }
+        require(beta < 1.0f && beta > 0.0f) { "Beta (decay parameter) must be within 0 to 1 range, got $beta." }
     }
 
     override fun accept(value: Float, weight: Float) {
-        nbrWeightedSamples += weight
+        nbrWeightedSamples = min(maxSize, nbrWeightedSamples + weight)
         if (nbrWeightedSamples == weight) {
             mean = value
         } else {
@@ -167,7 +170,7 @@ class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, vari
         val n = n1 + n2
         val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
         val v = if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
-        return ExponentialDecayVariance(beta, m, v, n)
+        return ExponentialDecayVariance(beta, m, v, min(maxSize, n))
     }
 
     override fun equals(other: Any?): Boolean {
@@ -356,7 +359,7 @@ class WindowedEstimator(val windowSize: Int, val base: RemovableEstimator) : Bin
     override fun hashCode() = base.hashCode()
 }
 
-class WindowedSquaredEstimator(val windowSize: Int, val base: RunningSquaredMeans) : SquaredEstimator by base {
+class WindowedSquaredEstimator(val windowSize: Int, val base: RunningSquaredMeans = RunningSquaredMeans()) : SquaredEstimator by base {
 
     private val values = FloatCircleBuffer(windowSize)
     private val weights = FloatCircleBuffer(windowSize)
