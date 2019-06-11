@@ -35,8 +35,8 @@ class ValidatorCandidatesTest {
     fun createOne() {
         val (candidates, _, scores) = createCandidates(MODEL1.problem, 1, Random)
         assertEquals(0, candidates.oldestCandidate)
-        assertEquals(scores[0], candidates.maxScore)
-        assertEquals(scores[0], candidates.minScore)
+        assertEquals(scores[0], candidates.worstScore)
+        assertEquals(scores[0], candidates.bestScore)
     }
 
     @Test
@@ -44,8 +44,8 @@ class ValidatorCandidatesTest {
         val (candidates, instances, _) = createCandidates(MODEL3.problem, 20, Random)
         val min = instances.map { it.totalUnsatisfied.toFloat() }.min()!!
         val max = instances.map { it.totalUnsatisfied.toFloat() }.max()!!
-        assertEquals(min, candidates.minScore)
-        assertEquals(max, candidates.maxScore)
+        assertEquals(min, candidates.bestScore)
+        assertEquals(max, candidates.worstScore)
     }
 
     @Test
