@@ -4,6 +4,11 @@ import combo.math.*
 import kotlin.math.*
 import kotlin.random.Random
 
+/**
+ * Univariate conjugate posteriors which can be described by a [VarianceEstimator]. The naming convention of the
+ * classes are based on the likelihood, that is the rewards in a a bandit setting. For example, for poisson distributed
+ * rewards the corresponding posterior is named [PoissonPosterior].
+ */
 interface UnivariatePosterior<E : VarianceEstimator> {
 
     fun sample(stat: E, rng: Random): Float
@@ -17,9 +22,10 @@ interface UnivariatePosterior<E : VarianceEstimator> {
 
 interface PooledUnivariatePosterior<E : VarianceEstimator> : UnivariatePosterior<E> {
     val pool: PooledVarianceEstimator
+    fun copy(): PooledUnivariatePosterior<E>
 }
 
-class PooledVarianceEstimator(val prior: VarianceEstimator) {
+class PooledVarianceEstimator(val prior: VarianceEstimator = RunningVariance(0.0f, 0.02f, 0.02f)) {
     private val arms = HashSet<VarianceEstimator>()
     val nbrArms: Int
         get() = arms.size
@@ -56,6 +62,13 @@ class PooledVarianceEstimator(val prior: VarianceEstimator) {
             nbrWeightedSamples += g.nbrWeightedSamples
         }
     }
+
+    fun copy() = PooledVarianceEstimator(prior).also{
+        it.arms.addAll(arms)
+        it.nbrWeightedSamples = nbrWeightedSamples
+        it.means = means.copy()
+        it.squaredTotalDeviations = squaredTotalDeviations
+    }
 }
 
 object BinomialPosterior : UnivariatePosterior<BinaryEstimator> {
@@ -81,7 +94,8 @@ object GeometricPosterior : UnivariatePosterior<VarianceEstimator> {
 /**
  * Section 3.1 in https://arxiv.org/pdf/1303.3390.pdf
  */
-class HierarchicalNormalPosterior(override val pool: PooledVarianceEstimator) : PooledUnivariatePosterior<VarianceEstimator> {
+class HierarchicalNormalPosterior(override val pool: PooledVarianceEstimator = PooledVarianceEstimator())
+    : PooledUnivariatePosterior<VarianceEstimator> {
 
     override fun defaultPrior() = RunningVariance(0.0f, 0.02f, 0.02f)
     override fun sample(stat: VarianceEstimator, rng: Random): Float {
@@ -103,6 +117,8 @@ class HierarchicalNormalPosterior(override val pool: PooledVarianceEstimator) : 
             if (value.isFinite()) return value
         }
     }
+
+    override fun copy() = HierarchicalNormalPosterior(pool.copy())
 }
 
 object NormalPosterior : UnivariatePosterior<VarianceEstimator> {

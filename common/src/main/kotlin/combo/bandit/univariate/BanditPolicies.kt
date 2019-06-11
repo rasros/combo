@@ -1,8 +1,6 @@
 package combo.bandit.univariate
 
-import combo.math.BinarySum
-import combo.math.RunningVariance
-import combo.math.VarianceEstimator
+import combo.math.*
 import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
 import kotlin.math.min
@@ -15,8 +13,7 @@ import kotlin.random.Random
  */
 interface BanditPolicy<E : VarianceEstimator> {
 
-    fun round(rng: Random) {}
-    fun evaluate(data: E, maximize: Boolean, rng: Random): Float
+    fun evaluate(data: E, step: Long, maximize: Boolean, rng: Random): Float
     fun update(data: E, value: Float, weight: Float) = accept(data, value, weight)
 
     fun accept(data: E, value: Float, weight: Float) = data.accept(value, weight)
@@ -39,6 +36,8 @@ interface BanditPolicy<E : VarianceEstimator> {
      * This is used when an arm is removed for various reasons, such as when loading historic data.
      */
     fun removeArm(armData: E) {}
+
+    fun copy(): BanditPolicy<E> = this
 }
 
 /**
@@ -49,7 +48,7 @@ class ThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
         val posterior: UnivariatePosterior<E>, override val prior: E = posterior.defaultPrior())
     : BanditPolicy<E> {
 
-    override fun evaluate(data: E, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: E, step: Long, maximize: Boolean, rng: Random): Float {
         val sample = posterior.sample(data, rng)
         return if (maximize) sample else -sample
     }
@@ -73,7 +72,7 @@ class PooledThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
         val posterior: PooledUnivariatePosterior<E>, override val prior: E = posterior.defaultPrior())
     : BanditPolicy<E> {
 
-    override fun evaluate(data: E, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: E, step: Long, maximize: Boolean, rng: Random): Float {
         val sample = posterior.sample(data, rng)
         return if (maximize) sample else -sample
     }
@@ -96,6 +95,8 @@ class PooledThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
         posterior.pool.addArm(armData)
         posterior.pool.recalculate()
     }
+
+    override fun copy() = PooledThompsonSampling(posterior.copy(), prior)
 }
 
 /**
@@ -104,12 +105,12 @@ class PooledThompsonSampling<E : VarianceEstimator> @JvmOverloads constructor(
  * @param alpha exploration parameter, with default 1.0. Higher alpha means more exploration and less exploration with
  * lower.
  */
-class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior: BinarySum = BinarySum())
-    : BanditPolicy<BinarySum> {
+class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior: BinaryEstimator = BinarySum())
+    : BanditPolicy<BinaryEstimator> {
 
     private var totalSamples = 0.0f
 
-    override fun evaluate(data: BinarySum, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: BinaryEstimator, step: Long, maximize: Boolean, rng: Random): Float {
         return if (data.nbrWeightedSamples < 1.0f) Float.POSITIVE_INFINITY
         else {
             val score = if (maximize) data.mean else -data.mean
@@ -117,17 +118,22 @@ class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior
         }
     }
 
-    override fun update(data: BinarySum, value: Float, weight: Float) {
+    override fun update(data: BinaryEstimator, value: Float, weight: Float) {
         accept(data, value, weight)
         totalSamples += weight
     }
 
-    override fun addArm(armData: BinarySum) {
+    override fun addArm(armData: BinaryEstimator) {
         totalSamples += armData.nbrWeightedSamples
     }
 
-    override fun removeArm(armData: BinarySum) {
+    override fun removeArm(armData: BinaryEstimator) {
         totalSamples -= armData.nbrWeightedSamples
+    }
+
+    override fun copy() = UCB1(alpha, prior).also {
+        it.totalSamples = totalSamples
+
     }
 }
 
@@ -137,12 +143,12 @@ class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior
  * lower.
  */
 class UCB1Normal @JvmOverloads constructor(
-        val alpha: Float = 1.0f, override val prior: SquaredEstimator = SquaredEstimator())
+        val alpha: Float = 1.0f, override val prior: SquaredEstimator = RunningSquaredMeans())
     : BanditPolicy<SquaredEstimator> {
 
     private var nbrArms = 0
 
-    override fun evaluate(data: SquaredEstimator, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: SquaredEstimator, step: Long, maximize: Boolean, rng: Random): Float {
         return if (data.nbrWeightedSamples < 8 * ln(nbrArms.toFloat()) || nbrArms <= 1) Float.POSITIVE_INFINITY
         else {
             val score = if (maximize) data.mean else -data.mean
@@ -159,6 +165,10 @@ class UCB1Normal @JvmOverloads constructor(
     override fun removeArm(armData: SquaredEstimator) {
         nbrArms--
     }
+
+    override fun copy() = UCB1Normal(alpha, prior).also {
+        it.nbrArms = nbrArms
+    }
 }
 
 /**
@@ -167,12 +177,12 @@ class UCB1Normal @JvmOverloads constructor(
  * lower.
  */
 class UCB1Tuned @JvmOverloads constructor(
-        val alpha: Float = 1.0f, override val prior: SquaredEstimator = SquaredEstimator())
+        val alpha: Float = 1.0f, override val prior: SquaredEstimator = RunningSquaredMeans())
     : BanditPolicy<SquaredEstimator> {
 
     private var totalSamples = 0.0f
 
-    override fun evaluate(data: SquaredEstimator, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: SquaredEstimator, step: Long, maximize: Boolean, rng: Random): Float {
         return if (data.nbrWeightedSamples <= 1.0f) Float.POSITIVE_INFINITY
         else {
             val padding = ln(totalSamples) / data.nbrWeightedSamples
@@ -194,40 +204,14 @@ class UCB1Tuned @JvmOverloads constructor(
     override fun removeArm(armData: SquaredEstimator) {
         totalSamples -= armData.nbrWeightedSamples
     }
-}
 
-class SquaredEstimator private constructor(private val base: RunningVariance, meanOfSquares: Float)
-    : VarianceEstimator by base {
-
-    constructor(mean: Float = 0.0f,
-                meanOfSquares: Float = 0.0f,
-                squaredDeviations: Float = 0.0f,
-                nbrWeightedSamples: Float = 0.0f) : this(RunningVariance(mean, squaredDeviations, nbrWeightedSamples), meanOfSquares)
-
-    var meanOfSquares: Float = meanOfSquares
-        private set
-
-    override fun accept(value: Float, weight: Float) {
-        base.accept(value, weight)
-        if (weight == nbrWeightedSamples)
-            meanOfSquares = value * value
-        else {
-            val oldMS = meanOfSquares
-            meanOfSquares = oldMS + (value * value - oldMS) * (weight / nbrWeightedSamples)
-        }
+    override fun copy() = UCB1Tuned(alpha, prior).also {
+        it.totalSamples = totalSamples
     }
-
-    override fun combine(vs: VarianceEstimator): SquaredEstimator {
-        vs as SquaredEstimator
-        return SquaredEstimator(base.combine(vs), vs.meanOfSquares + meanOfSquares)
-    }
-
-    override fun copy() = SquaredEstimator(mean, meanOfSquares, squaredDeviations, nbrWeightedSamples)
-    override fun toString() = "SquaredEstimator(mean=$mean, meanOfSquares=$meanOfSquares, squaredDeviations=$squaredDeviations, nbrSamples=$nbrSamples)"
 }
 
 class UniformSelection(override val prior: RunningVariance = RunningVariance()) : BanditPolicy<VarianceEstimator> {
-    override fun evaluate(data: VarianceEstimator, maximize: Boolean, rng: Random) = rng.nextFloat()
+    override fun evaluate(data: VarianceEstimator, step: Long, maximize: Boolean, rng: Random) = rng.nextFloat()
 }
 
 /**
@@ -242,18 +226,13 @@ class EpsilonGreedy @JvmOverloads constructor(
         require(epsilon in 0.0..1.0) { "Epsilon parameter must be within 0-1, got $epsilon" }
     }
 
-    private var nextP = 0.0f
 
-    override fun evaluate(data: VarianceEstimator, maximize: Boolean, rng: Random): Float {
-        return if (nextP < epsilon) {
+    override fun evaluate(data: VarianceEstimator, step: Long, maximize: Boolean, rng: Random): Float {
+        return if (Random(step).nextFloat() < epsilon) {
             rng.nextFloat()
         } else {
             if (maximize) data.mean else -data.mean
         }
-    }
-
-    override fun round(rng: Random) {
-        nextP = rng.nextFloat()
     }
 }
 
@@ -267,23 +246,17 @@ class EpsilonDecreasing @JvmOverloads constructor(
 
     private var totalSamples = 0.0f
 
-    private var nextP = 0.0f
-
     init {
         require(epsilon > 0.0) { "Epsilon parameter must be within 0-1, got $epsilon" }
     }
 
-    override fun evaluate(data: VarianceEstimator, maximize: Boolean, rng: Random): Float {
+    override fun evaluate(data: VarianceEstimator, step: Long, maximize: Boolean, rng: Random): Float {
         val eps = min(1.0f, epsilon / totalSamples.pow(decay))
-        return if (nextP < eps) {
+        return if (Random(step).nextFloat() < eps) {
             rng.nextFloat()
         } else {
             if (maximize) data.mean else -data.mean
         }
-    }
-
-    override fun round(rng: Random) {
-        nextP = rng.nextFloat()
     }
 
     override fun update(data: VarianceEstimator, value: Float, weight: Float) {
@@ -297,5 +270,9 @@ class EpsilonDecreasing @JvmOverloads constructor(
 
     override fun removeArm(armData: VarianceEstimator) {
         totalSamples -= armData.nbrWeightedSamples
+    }
+
+    override fun copy() = EpsilonDecreasing(epsilon, decay, prior).also {
+        it.totalSamples = totalSamples
     }
 }
