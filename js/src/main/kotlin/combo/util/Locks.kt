@@ -3,6 +3,7 @@ package combo.util
 actual interface Condition {
     actual fun await()
     actual fun signal()
+    actual fun signalAll()
 }
 
 actual interface ReadWriteLock {
@@ -20,12 +21,10 @@ actual interface Lock {
 actual class ReentrantLock : Lock {
 
     private val condition = object : Condition {
+        override fun signalAll() {}
         override fun await() {}
         override fun signal() {}
     }
-
-    actual fun hasWaiters(condition: Condition) = false
-    fun getHoldCount() = 0
 
     override fun newCondition(): Condition = condition
     override fun lock() {}
@@ -36,7 +35,5 @@ actual class ReentrantLock : Lock {
 actual class ReentrantReadWriteLock : ReadWriteLock {
     private val lock = ReentrantLock()
     override fun readLock() = lock
-    actual override fun writeLock() = lock
+    override fun writeLock() = lock
 }
-
-actual typealias ReentrantWriteLock = ReentrantLock
