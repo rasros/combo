@@ -1,17 +1,16 @@
 package combo.util
 
 import combo.math.IntPermutation
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.random.Random
 
-actual class RandomConcurrentBuffer<E> actual constructor(private val maxSize: Int) {
+class RandomCache<E>(private val maxSize: Int) {
 
     private val readWriteLock = ReentrantReadWriteLock()
     private val readLock = readWriteLock.readLock()
     private val writeLock = readWriteLock.writeLock()
     private val list = ArrayList<E>()
 
-    actual fun get(rng: Random, filter: (E) -> Boolean, create: () -> E): E {
+    fun get(rng: Random, filter: (E) -> Boolean, create: () -> E): E {
         readLock.lock()
         val e = try {
             if (list.size < maxSize) null
@@ -24,7 +23,7 @@ actual class RandomConcurrentBuffer<E> actual constructor(private val maxSize: I
         }
     }
 
-    actual fun add(rng: Random, e: E) {
+    fun add(rng: Random, e: E) {
         writeLock.lock()
         try {
             if (list.size < maxSize) list.add(e)
@@ -34,7 +33,7 @@ actual class RandomConcurrentBuffer<E> actual constructor(private val maxSize: I
         }
     }
 
-    actual fun forEach(action: (E) -> Unit)  {
+    fun forEach(action: (E) -> Unit) {
         readLock.lock()
         try {
             list.forEach(action)
@@ -43,7 +42,7 @@ actual class RandomConcurrentBuffer<E> actual constructor(private val maxSize: I
         }
     }
 
-    actual fun find(predicate: (E) -> Boolean): E? {
+    fun find(predicate: (E) -> Boolean): E? {
         readLock.lock()
         try {
             return list.find(predicate)

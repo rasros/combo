@@ -7,8 +7,8 @@ class AtomicLongTest {
     @Test
     fun getAndIncrement() {
         val l = AtomicLong(0)
-        assertEquals(0L, l.inc())
-        assertEquals(1L, l.inc())
+        assertEquals(0L, l.getAndIncrement())
+        assertEquals(1L, l.getAndIncrement())
         assertEquals(2L, l.get())
     }
 
@@ -23,8 +23,8 @@ class AtomicIntTest {
     @Test
     fun getAndIncrement() {
         val l = AtomicInt(0)
-        assertEquals(0, l.inc())
-        assertEquals(1, l.inc())
+        assertEquals(0, l.getAndIncrement())
+        assertEquals(1, l.getAndIncrement())
         assertEquals(2, l.get())
     }
 

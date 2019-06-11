@@ -1,7 +1,6 @@
 package combo.util
 
 import kotlin.math.min
-import kotlin.random.Random
 
 class ArrayQueue<E> : Iterable<E> {
 
@@ -60,9 +59,9 @@ class ArrayQueue<E> : Iterable<E> {
         else array.size - (read - write)
 }
 
-class FloatCircleBuffer(bufferSize: Int) : Iterable<Float> {
+class FloatCircleBuffer(private var array: FloatArray) : Iterable<Float> {
+    constructor(bufferSize: Int) : this(FloatArray(bufferSize))
 
-    private var array: FloatArray = FloatArray(bufferSize)
     private var write = 0
 
     fun add(f: Float): Float {
@@ -85,6 +84,8 @@ class FloatCircleBuffer(bufferSize: Int) : Iterable<Float> {
             return value
         }
     }
+
+    fun toArray() = array.toTypedArray()
 
     var size: Int = 0
         private set
@@ -119,11 +120,4 @@ class CircleBuffer<E>(bufferSize: Int) : Iterable<E> {
 
     var size: Int = 0
         private set
-}
-
-expect class RandomConcurrentBuffer<E>(maxSize: Int) {
-    fun get(rng: Random, filter: (E) -> Boolean, create: () -> E): E
-    fun add(rng: Random, e: E)
-    fun find(predicate: (E) -> Boolean): E?
-    fun forEach(action: (E) -> Unit)
 }
