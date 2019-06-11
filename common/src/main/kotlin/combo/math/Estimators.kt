@@ -18,7 +18,8 @@ interface VarianceEstimator : DataSample {
     val mean: Float
     val sum: Float get() = mean * nbrWeightedSamples
 
-    override fun toArray() = floatArrayOf(mean)
+    override fun values() = floatArrayOf(mean)
+    override fun labels() = longArrayOf(0L)
 
     fun combine(vs: VarianceEstimator): VarianceEstimator
 
@@ -26,7 +27,7 @@ interface VarianceEstimator : DataSample {
     val variance: Float get() = squaredDeviations / nbrWeightedSamples
     val standardDeviation: Float get() = sqrt(variance)
 
-    fun copy(): VarianceEstimator
+    override fun copy(): VarianceEstimator
 }
 
 interface RemovableEstimator : VarianceEstimator {
@@ -41,6 +42,7 @@ interface RemovableEstimator : VarianceEstimator {
 interface MeanEstimator : VarianceEstimator {
     override val variance: Float
         get() = mean
+    override fun copy(): VarianceEstimator
 }
 
 /**
@@ -49,6 +51,7 @@ interface MeanEstimator : VarianceEstimator {
 interface BinaryEstimator : VarianceEstimator {
     override val variance: Float
         get() = mean * (1 - mean)
+    override fun copy(): BinaryEstimator
 }
 
 /**
@@ -56,6 +59,7 @@ interface BinaryEstimator : VarianceEstimator {
  */
 interface SquaredEstimator : VarianceEstimator {
     val meanOfSquares: Float
+    override fun copy(): SquaredEstimator
 }
 
 /**
