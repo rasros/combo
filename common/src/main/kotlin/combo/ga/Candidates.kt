@@ -19,12 +19,12 @@ interface Candidates {
     /**
      * Minimum score of all instances.
      */
-    val minScore: Float
+    val bestScore: Float
 
     /**
      * Maximum score of all instances.
      */
-    val maxScore: Float
+    val worstScore: Float
 
     /**
      * Index of the candidate which was created furthest steps back.
@@ -40,8 +40,9 @@ interface Candidates {
 
     /**
      * Gives the score of a candidate. This is always cached so it is cheap to call.
+     * @param elimination whether this is used for elimination or selection.
      */
-    fun score(ix: Int): Float
+    fun score(ix: Int, elimination: Boolean = false): Float
 }
 
 /**
@@ -51,9 +52,9 @@ interface Candidates {
 class ValidatorCandidates(override val instances: Array<Validator>, val origins: IntArray, val scores: FloatArray)
     : Candidates {
 
-    override var minScore: Float = Float.POSITIVE_INFINITY
+    override var bestScore: Float = Float.POSITIVE_INFINITY
         private set
-    override var maxScore: Float = Float.NEGATIVE_INFINITY
+    override var worstScore: Float = Float.NEGATIVE_INFINITY
         private set
     var oldestOrigin: Int = Int.MAX_VALUE
         private set
@@ -67,9 +68,9 @@ class ValidatorCandidates(override val instances: Array<Validator>, val origins:
     init {
         for (i in instances.indices) {
             val s = scores[i]
-            minScore = min(minScore, s)
-            if (s > maxScore) {
-                maxScore = s
+            bestScore = min(bestScore, s)
+            if (s > worstScore) {
+                worstScore = s
                 if (origins[i] <= oldestOrigin) {
                     oldestCandidate = i
                     oldestOrigin = origins[i]
@@ -78,7 +79,7 @@ class ValidatorCandidates(override val instances: Array<Validator>, val origins:
         }
     }
 
-    override fun score(ix: Int) = scores[ix]
+    override fun score(ix: Int, elimination: Boolean) = scores[ix]
 
     /**
      * Update the [score] of candidate at position [ix].
@@ -97,9 +98,9 @@ class ValidatorCandidates(override val instances: Array<Validator>, val origins:
                 }
             }
         }
-        val ret = score < minScore
-        maxScore = max(maxScore, score)
-        minScore = min(minScore, score)
+        val ret = score < bestScore
+        worstScore = max(worstScore, score)
+        bestScore = min(bestScore, score)
         return ret
     }
 }

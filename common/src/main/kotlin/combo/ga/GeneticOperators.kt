@@ -78,10 +78,10 @@ class UniformSelection : SelectionOperator<Candidates> {
  */
 class StochasticAcceptanceSelection(val acceptanceMin: Float = 0.05f) : SelectionOperator<Candidates> {
     override fun select(candidates: Candidates, rng: Random): Int {
-        if (!candidates.minScore.isFinite()) return rng.nextInt(candidates.nbrCandidates)
+        if (!candidates.bestScore.isFinite()) return rng.nextInt(candidates.nbrCandidates)
         for (k in 1..100) {
             val i = rng.nextInt(candidates.nbrCandidates)
-            val ratio = max(acceptanceMin, candidates.minScore / candidates.score(i))
+            val ratio = max(acceptanceMin, candidates.bestScore / candidates.score(i, false))
             if (ratio.isNaN() || rng.nextFloat() < ratio) return i
         }
         return rng.nextInt(candidates.nbrCandidates)
@@ -103,7 +103,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator<Candidate
         val perm = IntPermutation(candidates.nbrCandidates, rng)
         for (i in 0 until min(candidates.nbrCandidates, tournamentSize)) {
             val ix = perm.encode(i)
-            val s = candidates.score(ix)
+            val s = candidates.score(ix, false)
             if (s < bestScore) {
                 best = ix
                 bestScore = s
@@ -122,7 +122,7 @@ class OldestElimination : SelectionOperator<Candidates> {
 }
 
 /**
- * This works like [TournamentSelection] but selects the minimum score instead.
+ * This works like [TournamentSelection] but selects the minimum score instead. May fail by returning -1.
  */
 class TournamentElimination(val tournamentSize: Int) : SelectionOperator<Candidates> {
 
@@ -132,11 +132,11 @@ class TournamentElimination(val tournamentSize: Int) : SelectionOperator<Candida
 
     override fun select(candidates: Candidates, rng: Random): Int {
         var worstScore = Float.NEGATIVE_INFINITY
-        var worst = 0
+        var worst = -1
         val perm = IntPermutation(candidates.nbrCandidates, rng)
         for (i in 0 until min(candidates.nbrCandidates, tournamentSize)) {
             val ix = perm.encode(i)
-            val s = candidates.score(ix)
+            val s = candidates.score(ix, true)
             if (s > worstScore) {
                 worst = ix
                 worstScore = s
