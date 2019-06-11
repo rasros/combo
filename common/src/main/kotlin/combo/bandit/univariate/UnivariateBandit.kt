@@ -1,75 +1,64 @@
 package combo.bandit.univariate
 
+import combo.bandit.ParallelMode
 import combo.math.DataSample
-import combo.math.GrowingDataSample
-import combo.math.VarianceEstimator
-import combo.util.nanos
-import kotlin.random.Random
 
 /**
  * A bandit optimizes an online binary decision problem. These bandits are uni-variate,
  * ie. there are is a single variable that changes.
  */
-@Suppress("UNCHECKED_CAST")
-class UnivariateBandit<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy: BanditPolicy<E>) {
-
-    init {
-        require(nbrArms > 0)
-    }
+interface UnivariateBandit<D> {
 
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
-    var randomSeed: Int = nanos().toInt()
-        set(value) {
-            field = value
-            this.rng = Random(value)
-        }
-    private var rng = Random(randomSeed)
+    var randomSeed: Int
 
     /**
      * Whether the bandit should maximize or minimize the total rewards.
      */
-    var maximize: Boolean = true
+    var maximize: Boolean
 
-    /**
-     * A sample of the total rewards obtained, for use in analysis and debugging.
-     */
-    var rewards: DataSample = GrowingDataSample()
-
-    private val data: Array<VarianceEstimator> = Array(nbrArms) { banditPolicy.baseData().also { banditPolicy.addArm(it) } }
+    var rewards: DataSample
 
     /**
      * Select the next bandit to use. Indexed from 0 to [nbrArms].
      */
-    fun choose(): Int {
-        banditPolicy.round(rng)
-        return (nbrArms - 1 downTo 0).maxBy { banditPolicy.evaluate(data[it] as E, maximize, rng) }!!
-    }
+    fun choose(): Int
 
-    fun update(armIndex: Int, result: Float, weight: Float = 1.0f) {
-        banditPolicy.update(data[armIndex] as E, result, weight)
-        rewards.accept(result, weight)
-    }
+    fun update(armIndex: Int, result: Float, weight: Float = 1.0f)
+
+    fun updateAll(armIndices: IntArray, results: FloatArray, weights: FloatArray? = null)
 
     /**
      * Add historic data to the bandit, this can be used to stop and re-start the bandit. The array must be the same
      * length as [nbrArms].
+     *
+     * @param data added to the bandit.
+     * @param restructure whether the bandit structure should exactly fit that of the imported data. If set to true
+     * some data might be lost in the import but can be used to keep multiple parallel bandits in sync. If set to false
+     * the merge will only be on existing summary statistics.
      */
-    fun importData(historicData: Array<E>) {
-        require(historicData.size == nbrArms){"Inconsistent array length with number of arms."}
-        @Suppress("UNCHECKED_CAST")
-        for (i in 0 until nbrArms) {
-            banditPolicy.removeArm(data[i] as E)
-            data[i] = data[i].combine(historicData[i]) as E
-            banditPolicy.addArm(data[i] as E)
-        }
-    }
+    fun importData(data: D, restructure: Boolean = false)
 
     /**
      * Exports all data to use for external storage. They can be used in a new [UnivariateBandit] instance that
      * continues optimizing through the [importData] function. The order of the returned array must be maintained.
      */
-    fun exportData(): Array<E> = Array(data.size) { data[it].copy() } as Array<E> //.apply { data.forEach { add(it as E) } }
+    fun exportData(): D
+
+    /**
+     * Creates a bandit with the same underlying data that can be used concurrently with blocking.
+     */
+    fun concurrent(): UnivariateBandit<D>
+
+    /**
+     * Creates a bandit that can use both [choose] and [update] in parallel from multiple threads. Note that the
+     * [ParallelUnivariateBandit.processUpdates] function must be called periodically, from e.g. a pool of worker
+     * threads.
+     */
+    fun parallel(batchSize: IntRange = 1..50,
+                 mode: ParallelMode = ParallelMode.BLOCKING_SUPPORTED,
+                 banditCopies: Int = 2): ParallelUnivariateBandit<D>
 }
 
