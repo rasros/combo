@@ -1,8 +1,10 @@
-package combo.bandit
+package combo.bandit.dt
 
+import combo.bandit.LiteralData
+import combo.bandit.PredictionBandit
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
-import combo.math.GrowingDataSample
+import combo.math.BucketSample
 import combo.math.IntPermutation
 import combo.math.VarianceEstimator
 import combo.sat.*
@@ -50,9 +52,9 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         }
     private var rng = Random(randomSeed)
 
-    override var rewards: DataSample = GrowingDataSample(20)
-    override var trainAbsError: DataSample = GrowingDataSample(10)
-    override var testAbsError: DataSample = GrowingDataSample(10)
+    override var rewards: DataSample = BucketSample(20)
+    override var trainAbsError: DataSample = BucketSample(10)
+    override var testAbsError: DataSample = BucketSample(10)
 
     /**
      * VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
@@ -116,20 +118,20 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     private val numericConstraints: Array<NumericConstraint> = problem.constraints
             .mapNotNull { it as? NumericConstraint }.toTypedArray()
 
-    private var root: Node = AuditNode(EmptyCollection, banditPolicy.baseData(), Random(0)).also {
-        // We use a fixed random seed here because this node is created before randomSeed can be set.
-        liveNodes.add(it)
-        banditPolicy.addArm(it.data)
-    }
+    private var root: Node = if (problem.nbrVariables == 0) TerminalNode(EmptyCollection, banditPolicy.baseData()) else
+        AuditNode(EmptyCollection, banditPolicy.baseData(), Random(0)).also {
+            // We use a fixed random seed here because this node is created before randomSeed can be set.
+            liveNodes.add(it)
+            banditPolicy.addArm(it.data)
+        }
 
     private var nbrNodes = 1
     private var nbrAuditNodes = 1
 
+    override fun importData(data: Array<LiteralData<E>>, restructure: Boolean) {
+        if (data.isEmpty()) return
 
-    override fun importData(historicData: Array<LiteralData<E>>) {
-        if (historicData.isEmpty()) return
-
-        val sorted = historicData.sortedBy { if (maximize) -it.data.mean else it.data.mean }
+        val sorted = data.sortedBy { if (maximize) -it.data.mean else it.data.mean }
 
         for (node in liveNodes) banditPolicy.removeArm(node.data)
 
@@ -249,11 +251,10 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                 propagated.addAll(assumptions)
                 problem.unitPropagation(propagated)
             }
-            banditPolicy.round(rng)
             val node = liveNodes.maxBy {
                 when {
                     blocks(propagated ?: assumptions, it.blocked) -> Float.NEGATIVE_INFINITY
-                    matches(it.setLiterals, propagated ?: assumptions) -> banditPolicy.evaluate(it.data, maximize, rng)
+                    matches(it.setLiterals, propagated ?: assumptions) -> banditPolicy.evaluate(it.data, 0L, maximize, rng) // TODO step
                     else -> Float.NEGATIVE_INFINITY
                 }
             }
@@ -349,8 +350,10 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                     }
                 }
             }
+            assert(set.isNotEmpty())
             set.toArray()
         }
+
         val dataPos: Array<VarianceEstimator> = Array(auditedVariables.size) { banditPolicy.baseData() }
         val dataNeg: Array<VarianceEstimator> = Array(auditedVariables.size) { banditPolicy.baseData() }
 
@@ -367,13 +370,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                 var ig2 = 0.0f
                 var bestI = -1
 
-                val vp = dataPos[0].variance
-                val np = dataPos[0].nbrWeightedSamples
-                val mp = dataPos[0].mean
-                val vn = dataNeg[0].variance
-                val nn = dataNeg[0].nbrWeightedSamples
-                val mn = dataNeg[0].mean
-                val variance = (vp * np + vn * nn) / (np + nn) + (mp - mn) * (mp - mn) * np * nn / (np + nn) / (np + nn)
+                val variance = dataPos[0].combine(dataNeg[0]).variance
 
                 for (i in auditedVariables.indices) {
                     val ig = variance - variancePurity(i)
@@ -434,6 +431,10 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             val n = nPos + nNeg
             return (nNeg / n) * neg.variance + (nPos / n) * pos.variance
         }
+    }
+
+    private fun createSplitNode(variable: Int) {
+        TODO()
     }
 
     private fun createLeafNode(setLiterals: IntCollection, splitLit: Int, total: E): LeafNode {
