@@ -9,22 +9,22 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class UnivariateBanditTest {
+class MultiArmedBanditTest {
 
     @Test
     fun zeroArms() {
         assertFailsWith(IllegalArgumentException::class) {
-            UnivariateBandit(0, UCB1())
+            MultiArmedBandit(0, UCB1())
         }
     }
 
     @Test
     fun minimizeVsMaximize() {
-        val bandit1 = UnivariateBandit(10, UCB1Tuned())
+        val bandit1 = MultiArmedBandit(10, UCB1Tuned())
         bandit1.rewards = FullSample()
         bandit1.maximize = true
         bandit1.randomSeed = 1
-        val bandit2 = UnivariateBandit(10, UCB1Tuned())
+        val bandit2 = MultiArmedBandit(10, UCB1Tuned())
         bandit2.rewards = FullSample()
         bandit2.maximize = false
         bandit2.randomSeed = 2
@@ -38,15 +38,15 @@ class UnivariateBanditTest {
             bandit1.update(i1, BanditType.BINOMIAL.linearRewards((i1 + 1).toFloat() / 12, trials1, rng), trials1.toFloat())
             bandit2.update(i2, BanditType.BINOMIAL.linearRewards((i2 + 1).toFloat() / 12, trials2, rng), trials2.toFloat())
         }
-        val sum1 = bandit1.rewards.toArray().sum()
-        val sum2 = bandit2.rewards.toArray().sum()
+        val sum1 = bandit1.rewards.values().sum()
+        val sum2 = bandit2.rewards.values().sum()
         assertTrue(sum1 > sum2)
     }
 
     @Test
     fun randomSeedDeterministic() {
-        val bandit1 = UnivariateBandit(10, ThompsonSampling(NormalPosterior))
-        val bandit2 = UnivariateBandit(10, ThompsonSampling(NormalPosterior))
+        val bandit1 = MultiArmedBandit(10, ThompsonSampling(NormalPosterior))
+        val bandit2 = MultiArmedBandit(10, ThompsonSampling(NormalPosterior))
         bandit1.randomSeed = 0
         bandit2.randomSeed = 0
         val rng1 = Random(1L)
@@ -69,13 +69,13 @@ class UnivariateBanditTest {
 
     @Test
     fun storeLoadStore() {
-        val bandit = UnivariateBandit(20, EpsilonDecreasing())
+        val bandit = MultiArmedBandit(20, EpsilonDecreasing())
         for (i in 0 until 100) {
             val j = bandit.choose()
             bandit.update(j, BanditType.BINOMIAL.linearRewards(j.toFloat() / 20, 1, Random))
         }
         val list1 = bandit.exportData()
-        val bandit2 = UnivariateBandit(20, EpsilonDecreasing())
+        val bandit2 = MultiArmedBandit(20, EpsilonDecreasing())
         bandit2.importData(list1)
 
         bandit.randomSeed = 1

@@ -4,7 +4,7 @@ import combo.bandit.univariate.UCB1
 import combo.bandit.univariate.UCB1Normal
 import combo.bandit.univariate.UCB1Tuned
 import combo.math.BinarySum
-import combo.math.RunningSquaredEstimator
+import combo.math.RunningSquaredMeans
 import combo.model.TestModels.MODEL1
 import combo.sat.Problem
 import combo.sat.solvers.ExhaustiveSolver
@@ -32,7 +32,7 @@ class CombinatorialBanditTest : BanditTest<CombinatorialBandit<*>>() {
         val solutions2 = ExhaustiveSolver(problem).asSequence().take(150).toList().toTypedArray()
 
         val bandit = CombinatorialBandit(solutions1, UCB1Normal())
-        bandit.importData(solutions2.map { InstanceData(it, RunningSquaredEstimator()) }.toTypedArray(), true)
+        bandit.importData(solutions2.map { InstanceData(it, RunningSquaredMeans()) }.toTypedArray(), true)
         val postData = bandit.exportData()
 
         // Verify that data has been replaced by solutions2

@@ -1,8 +1,6 @@
 package combo.bandit.univariate
 
-import combo.math.BinarySum
-import combo.math.RunningVariance
-import combo.math.VarianceEstimator
+import combo.math.*
 import combo.test.assertEquals
 import kotlin.random.Random
 import kotlin.test.Test
@@ -17,7 +15,7 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
         val bp = banditPolicy()
         val data = bp.baseData()
         bp.addArm(data)
-        bp.evaluate(data, true, Random)
+        bp.evaluate(data, 0L, true, Random)
     }
 
     @Test
@@ -25,7 +23,6 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
         val bp = banditPolicy()
         val arm1 = bp.baseData()
         bp.addArm(arm1)
-        bp.round(Random)
         bp.update(arm1, 0.2f, 10.0f)
         assertFalse(arm1.mean.isNaN())
         assertEquals(bp.baseData().nbrWeightedSamples + 10.0f, arm1.nbrWeightedSamples, 1E-6f)
@@ -39,15 +36,14 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
         bp.addArm(arm1)
         bp.addArm(arm2)
         val rng = Random(0)
-        for (i in 1..50) {
-            bp.round(rng)
-            val s1 = bp.evaluate(arm1, true, rng)
-            val s2 = bp.evaluate(arm2, true, rng)
+        for (i in 0 until 50) {
+            val s1 = bp.evaluate(arm1, i.toLong(), true, rng)
+            val s2 = bp.evaluate(arm2, i.toLong(), true, rng)
             if (s1 > s2) bp.update(arm1, 1.0f, 10.0f)
             else bp.update(arm2, 0.0f, 10.0f)
         }
         assertTrue(arm1.mean > arm2.mean)
-        assertTrue(bp.evaluate(arm1, true, rng) > bp.evaluate(arm2, true, rng))
+        assertTrue(bp.evaluate(arm1, 50L, true, rng) > bp.evaluate(arm2, 50L, true, rng))
         assertEquals(bp.baseData().nbrWeightedSamples * 2 + 500.0f,
                 arm1.nbrWeightedSamples + arm2.nbrWeightedSamples, 1E-6f)
     }
@@ -60,15 +56,14 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
         bp.addArm(arm1)
         bp.addArm(arm2)
         val rng = Random(0)
-        for (i in 1..50) {
-            bp.round(rng)
-            val s1 = bp.evaluate(arm1, false, rng)
-            val s2 = bp.evaluate(arm2, false, rng)
+        for (i in 0 until 50 ) {
+            val s1 = bp.evaluate(arm1, i.toLong(), false, rng)
+            val s2 = bp.evaluate(arm2, i.toLong(), false, rng)
             if (s1 > s2) bp.update(arm1, 1.0f, 10.0f)
             else bp.update(arm2, 0.0f, 10.0f)
         }
         assertTrue(arm1.mean > arm2.mean)
-        assertTrue(bp.evaluate(arm1, false, rng) < bp.evaluate(arm2, false, rng))
+        assertTrue(bp.evaluate(arm1, 50L, false, rng) < bp.evaluate(arm2, 50L, false, rng))
         assertEquals(bp.baseData().nbrWeightedSamples * 2 + 500.0f,
                 arm1.nbrWeightedSamples + arm2.nbrWeightedSamples, 1E-6f)
     }
@@ -83,7 +78,7 @@ class PooledThompsonSamplingTest : BanditPolicyTest<VarianceEstimator>() {
             HierarchicalNormalPosterior(PooledVarianceEstimator(RunningVariance(0.0f, 0.02f, 0.02f))))
 }
 
-class UCB1Test : BanditPolicyTest<BinarySum>() {
+class UCB1Test : BanditPolicyTest<BinaryEstimator>() {
     override fun banditPolicy() = UCB1()
 }
 

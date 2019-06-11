@@ -62,8 +62,8 @@ abstract class BanditTest<B : Bandit<*>> {
             bandit1.update(instance1, BanditType.BINOMIAL.linearRewards(instance1, rng), (rng.nextInt(5) + 1).toFloat())
             bandit2.update(instance2, BanditType.BINOMIAL.linearRewards(instance2, rng), (rng.nextInt(5) + 1).toFloat())
         }
-        val sum1 = bandit1.rewards.toArray().sum()
-        val sum2 = bandit2.rewards.toArray().sum()
+        val sum1 = bandit1.rewards.values().sum()
+        val sum2 = bandit2.rewards.values().sum()
         assertTrue(sum1 > sum2)
     }
 
@@ -71,7 +71,7 @@ abstract class BanditTest<B : Bandit<*>> {
     fun assumptionsSatisfied() {
         val p = TestModels.MODEL4.problem
         val bandit = bandit(p, BanditType.POISSON)
-        bandit.rewards = GrowingDataSample(4)
+        bandit.rewards = BucketSample(4)
         for (i in 1..100) {
             val instance = if (Random.nextBoolean()) bandit.chooseOrThrow(collectionOf(3, 12)).also {
                 assertTrue { Conjunction(collectionOf(3, 12)).satisfies(it) }
@@ -194,6 +194,16 @@ abstract class BanditTest<B : Bandit<*>> {
             var count = 0
             for (i in 0 until 100)
                 if (bandit.chooseOrThrow()[0]) count++
+            if (count <= 50) {
+                val exportData = bandit.exportData()
+                if (exportData is Array<*>) {
+                    if (exportData[0] is InstanceData<*>)
+                        for ((i, e) in exportData as Array<InstanceData<*>>) {
+                            println(i)
+                            println(e)
+                        }
+                }
+            }
             assertTrue(count > 50, "$type")
         }
     }

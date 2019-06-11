@@ -53,8 +53,8 @@ class UnivariatePosteriorsTest {
         val stat = p.defaultPrior()
         val r = Random(893)
         val dataSample = generateSequence { p.sample(stat, r) }.take(100).sample(FullSample())
-        val neg = dataSample.toArray().count { it < 0 }
-        val pos = dataSample.toArray().count { it > 0 }
+        val neg = dataSample.values().count { it < 0 }
+        val pos = dataSample.values().count { it > 0 }
         assertEquals(neg.toFloat(), pos.toFloat(), 30.0f)
     }
 

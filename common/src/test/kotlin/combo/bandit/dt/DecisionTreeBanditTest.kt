@@ -1,5 +1,9 @@
-package combo.bandit
+package combo.bandit.dt
 
+import combo.bandit.Bandit
+import combo.bandit.BanditType
+import combo.bandit.LiteralData
+import combo.bandit.PredictionBanditTest
 import combo.bandit.univariate.*
 import combo.math.MeanEstimator
 import combo.math.BinarySum
@@ -13,6 +17,7 @@ import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.*
 
+@Ignore
 class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
 
     @Suppress("UNCHECKED_CAST")

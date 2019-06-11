@@ -1,9 +1,8 @@
 package combo.bandit.ga
 
+import combo.bandit.univariate.*
 import combo.ga.TournamentElimination
-import combo.math.ExponentialDecayVariance
-import combo.math.RunningVariance
-import combo.math.nextNormal
+import combo.math.*
 import combo.model.TestModels.MODEL1
 import combo.sat.Problem
 import kotlin.math.sqrt
@@ -15,8 +14,8 @@ import kotlin.test.assertTrue
 class EliminationChainTest {
     @Test
     fun noEliminationOnEmpty() {
-        val candidates = createCandidates(MODEL1.problem, 20, RunningVariance())
-        val s = EliminationChain<RunningVariance>(SignificanceTestElimination(0.999f), TournamentElimination(10))
+        val candidates = createCandidates(MODEL1.problem, 20, UCB1())
+        val s = EliminationChain<BinaryEstimator>(SignificanceTestElimination(0.999f), TournamentElimination(10))
         val select = s.select(candidates, Random)
         assertTrue(select < 0)
     }
@@ -24,18 +23,18 @@ class EliminationChainTest {
     @Test
     fun guaranteedElimination() {
         val p = Problem(emptyArray(), 20)
-        val candidates = createCandidates(p, 10, ExponentialDecayVariance())
+        val candidates = createCandidates(p, 10, UCB1Normal())
         candidates.minSamples = 0f
-        val chain = EliminationChain<ExponentialDecayVariance>(SignificanceTestElimination(), TournamentElimination(3))
+        val chain = EliminationChain<SquaredEstimator>(SignificanceTestElimination(), TournamentElimination(3))
         val e = chain.select(candidates, Random)
         assertTrue(e >= 0)
     }
 
     @Test
     fun eliminate() {
-        val candidates = createCandidates(MODEL1.problem, 20, RunningVariance())
+        val candidates = createCandidates(MODEL1.problem, 20, EpsilonDecreasing())
         candidates.minSamples = 4.0f
-        val s = EliminationChain<RunningVariance>(SignificanceTestElimination(0.5f), SmallestCountElimination())
+        val s = EliminationChain<VarianceEstimator>(SignificanceTestElimination(0.5f), SmallestCountElimination())
 
         val rng = Random
         do {
@@ -54,14 +53,14 @@ class SignificanceTestEliminationTest {
 
     @Test
     fun noEliminationOnEmpty() {
-        val candidates = createCandidates(MODEL1.problem, 10, RunningVariance())
+        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior))
         val s = SignificanceTestElimination(0.999f)
         assertTrue(s.select(candidates, Random) < 0)
     }
 
     @Test
     fun eliminateMinimization() {
-        val candidates = createCandidates(MODEL1.problem, 10, RunningVariance())
+        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior))
         candidates.maximize = false
         candidates.minSamples = 4.0f
         val s = SignificanceTestElimination(0.05f)
@@ -88,7 +87,7 @@ class SignificanceTestEliminationTest {
 
     @Test
     fun eliminateMaximization() {
-        val candidates = createCandidates(MODEL1.problem, 10, RunningVariance())
+        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior))
         candidates.maximize = true
         candidates.minSamples = 4.0f
         val s = SignificanceTestElimination(0.05f)
@@ -118,7 +117,7 @@ class SmallestCountEliminiationTest {
 
     @Test
     fun noEliminationOnEmpty() {
-        val candidates = createCandidates(MODEL1.problem, 10, RunningVariance())
+        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior))
         val s = SmallestCountElimination()
         val rng = Random(0)
         assertTrue(s.select(candidates, rng) < 0)
@@ -126,7 +125,7 @@ class SmallestCountEliminiationTest {
 
     @Test
     fun eliminate() {
-        val candidates = createCandidates(MODEL1.problem, 20, RunningVariance())
+        val candidates = createCandidates(MODEL1.problem, 20, ThompsonSampling(NormalPosterior, RunningVariance()))
         candidates.minSamples = 4.0f
         val s = SmallestCountElimination()
 
