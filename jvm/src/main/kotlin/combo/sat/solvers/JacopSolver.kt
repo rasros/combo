@@ -26,12 +26,12 @@ class JacopSolver @JvmOverloads constructor(
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
 
-    override var randomSeed: Int = nanos().toInt()
+    override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long = -1L
 
@@ -169,6 +169,7 @@ class JacopSolver @JvmOverloads constructor(
             try {
                 store.setLevel(store.level + 1)
                 if (vars.isEmpty()) return instanceBuilder.create(0)
+                val rng = randomSequence.next()
                 if (assumptions.isNotEmpty()) {
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
                 }
@@ -176,13 +177,13 @@ class JacopSolver @JvmOverloads constructor(
                     setPrintInfo(false)
                     setTimeout(this)
                 }
-                val indomain = if (guess == null) BinaryIndomainRandom() else InitialGuessIndomain(this, guess)
+                val indomain = if (guess == null) BinaryIndomainRandom(rng) else InitialGuessIndomain(this, guess)
                 val result = search.labeling(store, SimpleSelect(vars, MostConstrainedDynamic(), indomain))
                 if (!result) {
                     if (search.timeOutOccured) throw TimeoutException(timeout)
                     else throw UnsatisfiableException()
                 }
-                return toInstance(this)
+                return toInstance(this, rng)
             } finally {
                 store.removeLevel(store.level)
                 store.setLevel(store.level - 1)
@@ -194,8 +195,9 @@ class JacopSolver @JvmOverloads constructor(
         with(ConstraintEncoder()) {
             if (assumptions.isNotEmpty())
                 for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
+            val rng = randomSequence.next()
 
-            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom())
+            val select = SimpleSelect(vars, MostConstrainedStatic(), BinaryIndomainRandom(rng))
             val search = DepthFirstSearch<BooleanVar>().apply {
                 setPrintInfo(false)
                 setTimeout(this)
@@ -207,7 +209,7 @@ class JacopSolver @JvmOverloads constructor(
                     store.setLevel(store.level + 1)
                     val result = search.labeling(store, select)
                     instance = if (!result) null
-                    else toInstance(this@with)
+                    else toInstance(this@with, rng)
                 } finally {
                     store.removeLevel(store.level)
                     store.setLevel(store.level - 1)
@@ -250,7 +252,7 @@ class JacopSolver @JvmOverloads constructor(
                     else throw UnsatisfiableException()
                 }
 
-                return toInstance(this)
+                return toInstance(this, randomSequence.next())
             } finally {
                 store.removeLevel(store.level)
                 store.setLevel(store.level - 1)
@@ -258,7 +260,7 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    private fun toInstance(encoder: ConstraintEncoder): Instance {
+    private fun toInstance(encoder: ConstraintEncoder, rng: Random): Instance {
         val instance = instanceBuilder.create(encoder.vars.size)
         encoder.vars.forEachIndexed { i, v ->
             if ((v.dom().singleton() && v.value() == 1) || (!v.dom().singleton() && rng.nextBoolean()))
@@ -280,11 +282,11 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    private inner class BinaryIndomainRandom : Indomain<BooleanVar> {
+    private class BinaryIndomainRandom(val rng: Random) : Indomain<BooleanVar> {
         override fun indomain(v: BooleanVar) = rng.nextInt(2)
     }
 
-    private inner class InitialGuessIndomain(val encoder: ConstraintEncoder, val guess: MutableInstance) : Indomain<BooleanVar> {
+    private class InitialGuessIndomain(val encoder: ConstraintEncoder, val guess: MutableInstance) : Indomain<BooleanVar> {
         override fun indomain(v: BooleanVar) = if (guess[encoder.varIndex[v]!!]) 1 else 0
     }
 

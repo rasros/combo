@@ -7,7 +7,6 @@ import combo.util.*
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.random.Random
 
 /**
  * This solver implements local search for sat solving and optimization. For most easy optimization and solving tasks
@@ -27,12 +26,12 @@ import kotlin.random.Random
  */
 open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-    final override var randomSeed: Int = nanos().toInt()
+    final override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long = -1L
 
@@ -101,6 +100,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
 
+        val rng = randomSequence.next()
         val assumption: Constraint
         val p: Problem
         if (propagateAssumptions && assumptions.isNotEmpty()) {

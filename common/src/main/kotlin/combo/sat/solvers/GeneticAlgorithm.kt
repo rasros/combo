@@ -9,7 +9,6 @@ import combo.util.*
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.random.Random
 
 /**
  * Steady state Genetic Algorithm Optimizer. This keeps a list of [candidateSize]] candidate solutions that are
@@ -29,12 +28,12 @@ import kotlin.random.Random
  */
 open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem) : Optimizer<O> {
 
-    final override var randomSeed: Int = nanos().toInt()
+    final override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng: Random = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long = -1L
 
@@ -147,6 +146,7 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
 
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
+        val rng = randomSequence.next()
         val lowerBound = function.lowerBound()
         val upperBound = function.upperBound()
 
@@ -193,7 +193,11 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
             var stalls = 0
 
             for (step in 1L..maxSteps) {
-                val eliminated = elimination.select(candidates, rng)
+                val eliminated = let {
+                    val e = elimination.select(candidates, rng)
+                    if (e < 0) rng.nextInt(candidateSize)
+                    else e
+                }
                 val recombined = if (rng.nextFloat() < recombinationProbability) {
                     val parent1: Int = selection.select(candidates, rng)
                     val parent2: Int = selection.select(candidates, rng)
@@ -217,9 +221,9 @@ open class GeneticAlgorithmOptimizer<O : ObjectiveFunction>(val problem: Problem
                 else stalls = 0
 
                 scoreSample.accept(score)
-                minScoreSample.accept(candidates.minScore)
+                minScoreSample.accept(candidates.bestScore)
 
-                if (millis() > end || (stalls >= stallSteps && restart < restarts) || candidates.minScore == candidates.maxScore)
+                if (millis() > end || (stalls >= stallSteps && restart < restarts) || candidates.bestScore == candidates.worstScore)
                     break
             }
 

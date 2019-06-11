@@ -73,7 +73,7 @@ abstract class ObjectiveFunctionTest {
             val f = function(p.nbrVariables)
             val instance = BitArray(p.nbrVariables)
             WordRandomSet().initialize(instance, Tautology, Random, null)
-            val s = Validator.build(p, instance, Tautology)
+            val s = Validator(p, instance, Tautology)
             val v = f.value(instance)
             val ix = Random.nextInt(p.nbrVariables)
             val imp = f.improvement(instance, ix)

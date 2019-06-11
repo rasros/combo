@@ -4,13 +4,9 @@ package combo.sat.solvers
 
 import combo.sat.*
 import combo.sat.constraints.Conjunction
-import combo.util.IntCollection
-import combo.util.RandomConcurrentBuffer
-import combo.util.isEmpty
-import combo.util.nanos
+import combo.util.*
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
-import kotlin.random.Random
 
 /**
  * A cached solver reuses previous solutions, provided that there are previous instances that match the assumptions.
@@ -20,13 +16,12 @@ import kotlin.random.Random
  */
 class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: Int = 20) : Solver {
 
-    override var randomSeed: Int = nanos().toInt()
+    override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            baseSolver.randomSeed = value
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng: Random = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long
         get() = baseSolver.timeout
@@ -39,9 +34,10 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
      */
     var pNew: Float = 0.0f
 
-    private val buffer = RandomConcurrentBuffer<Instance>(maxSize)
+    private val buffer = RandomCache<Instance>(maxSize)
 
     override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
+        val rng = randomSequence.next()
         var failure: ValidationException? = null
         try {
             if (rng.nextFloat() < pNew)
@@ -55,6 +51,8 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
             baseSolver.witnessOrThrow(assumptions, guess).also { buffer.add(rng, it) }
         else l ?: throw UnsatisfiableException("Failed to find matching fallback instance.", failure)
     }
+
+    override fun asSequence(assumptions: IntCollection) = baseSolver.asSequence(assumptions)
 }
 
 /**
@@ -66,13 +64,12 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
 class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         val baseOptimizer: Optimizer<O>, maxSize: Int = 20) : Optimizer<O> {
 
-    override var randomSeed: Int = nanos().toInt()
+    override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            this.baseOptimizer.randomSeed = value
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng: Random = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long
         get() = baseOptimizer.timeout
@@ -91,10 +88,11 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
      */
     var pNewWithGuess: Float = 0.1f
 
-    private val buffer = RandomConcurrentBuffer<Instance>(maxSize)
+    private val buffer = RandomCache<Instance>(maxSize)
 
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val c: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
+        val rng = randomSequence.next()
         var minV = Float.MAX_VALUE
         var best: Instance? = null
         var failure: ValidationException? = null

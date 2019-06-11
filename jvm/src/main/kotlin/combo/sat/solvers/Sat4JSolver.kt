@@ -5,6 +5,7 @@ import combo.sat.*
 import combo.sat.constraints.*
 import combo.sat.constraints.Relation.*
 import combo.util.IntCollection
+import combo.util.RandomSequence
 import combo.util.millis
 import combo.util.nanos
 import org.sat4j.core.LiteralsUtils.negLit
@@ -42,12 +43,12 @@ class Sat4JSolver @JvmOverloads constructor(
                     "Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
 
-    override var randomSeed: Int = nanos().toInt()
+    override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long = -1L
 
@@ -153,7 +154,8 @@ class Sat4JSolver @JvmOverloads constructor(
         if (timeout > 0L) solver.setSearchListener(TimeoutListener(timeout))
         else solver.setSearchListener(VoidListener)
 
-        if (guess == null) solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded()
+        if (guess == null)
+            solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
         else solver.order.phaseSelectionStrategy = InitialGuessSelectionStrategy(guess)
 
         val assumption = assumptions.toSat4JVec()
@@ -174,7 +176,7 @@ class Sat4JSolver @JvmOverloads constructor(
         if (timeout > 0L) solver.setSearchListener(TimeoutListener(timeout))
         else solver.setSearchListener(VoidListener)
 
-        solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded()
+        solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
 
         val iterator = ModelIterator(solver)
         val assumption = assumptions.toSat4JVec()
@@ -231,7 +233,7 @@ class Sat4JSolver @JvmOverloads constructor(
 
     private object VoidListener : SearchListenerAdapter<ISolverService>()
 
-    private inner class RandomLiteralSelectionStrategySeeded : IPhaseSelectionStrategy {
+    private class RandomLiteralSelectionStrategySeeded(val rng: Random) : IPhaseSelectionStrategy {
         override fun assignLiteral(p: Int) {}
         override fun init(nlength: Int) {}
         override fun init(v: Int, p: Int) {}
@@ -240,7 +242,7 @@ class Sat4JSolver @JvmOverloads constructor(
         override fun select(v: Int) = if (rng.nextBoolean()) posLit(v) else negLit(v)
     }
 
-    private inner class InitialGuessSelectionStrategy(val guess: Instance) : IPhaseSelectionStrategy {
+    private class InitialGuessSelectionStrategy(val guess: Instance) : IPhaseSelectionStrategy {
         override fun assignLiteral(p: Int) {}
         override fun init(nlength: Int) {}
         override fun init(v: Int, p: Int) {}

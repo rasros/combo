@@ -33,6 +33,11 @@ fun assertContentEquals(expected: IntArray, actual: IntArray, message: String? =
             ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }
 
+fun assertContentEquals(expected: LongArray, actual: LongArray, message: String? = null) {
+    assertTrue(expected.contentEquals(actual), message
+            ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
+}
+
 fun assertContentEquals(expected: List<*>, actual: List<*>, message: String? = null) {
     assertTrue(expected.toTypedArray().contentEquals(actual.toTypedArray()), message
             ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")

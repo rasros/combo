@@ -3,7 +3,6 @@ package combo.sat.solvers
 import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.util.*
-import kotlin.random.Random
 
 /**
  * This [Solver] and [Optimizer] uses brute force. It can only solve small and easy problems.
@@ -11,12 +10,12 @@ import kotlin.random.Random
  */
 class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFunction> {
 
-    override var randomSeed: Int = nanos().toInt()
+    override var randomSeed: Int
         set(value) {
-            this.rng = Random(value)
-            field = value
+            this.randomSequence = RandomSequence(value)
         }
-    private var rng = Random(randomSeed)
+        get() = randomSequence.randomSeed
+    private var randomSequence = RandomSequence(nanos().toInt())
 
     override var timeout: Long = -1L
 
@@ -42,7 +41,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         val remap = createRemap(propAssumptions)
         val nbrVariables = problem.nbrVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceBuilder, rng)
+        return InstancePermutation(nbrVariables, instanceBuilder, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapInstance(propAssumptions, it, remap) }
@@ -59,7 +58,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         val remap = createRemap(propAssumptions)
         val nbrVariables = problem.nbrVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceBuilder, rng)
+        return InstancePermutation(nbrVariables, instanceBuilder, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapInstance(propAssumptions, it, remap) }
