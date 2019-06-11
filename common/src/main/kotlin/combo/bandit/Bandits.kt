@@ -18,12 +18,14 @@ import kotlin.math.abs
 interface Bandit<D> {
 
     /**
-     * TODO
+     * Generate the next instance to try out, throwing [ValidationException] on failure.
+     * @param assumptions these are values that must be set by the returned instance, the format is in Dimacs.
      */
     fun chooseOrThrow(assumptions: IntCollection = EmptyCollection): Instance
 
     /**
-     * TODO
+     * Generate the next instance to try out, returning null on failure.
+     * @param assumptions these are values that must be set by the returned instance, the format is in Dimacs.
      */
     fun choose(assumptions: IntCollection = EmptyCollection) =
             try {
@@ -43,6 +45,16 @@ interface Bandit<D> {
      * reward, then the result should be divided by weight before calling update (ie. the [result] should be mean).
      */
     fun update(instance: Instance, result: Float, weight: Float = 1.0f)
+
+    /**
+     * Update multiple results, all arrays must be same length.
+     */
+    fun updateAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray? = null) {
+        require(instances.size == results.size) { "Arrays must be same length." }
+        if (weights != null) require(weights.size == results.size) { "Arrays must be same length." }
+        for (i in instances.indices)
+            update(instances[i], results[i], weights?.get(i) ?: 1.0f)
+    }
 
     /**
      * Add historic data to the bandit, this can be used to store and re-start the bandit. Any existing data is combined
@@ -117,8 +129,7 @@ interface PredictionBandit<D> : Bandit<D> {
 data class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other == null || this::class != other::class) return false
-        if (other !is LiteralData<*>) return false
+        if (other == null || other !is LiteralData<*>) return false
         return setLiterals.contentEquals(other.setLiterals) && data == other.data
     }
 
@@ -132,8 +143,7 @@ data class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val
 data class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other == null || this::class != other::class) return false
-        if (other !is InstanceData<*>) return false
+        if (other == null || other !is InstanceData<*>) return false
         return instance == other.instance && data == other.data
     }
 

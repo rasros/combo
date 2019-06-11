@@ -2,13 +2,14 @@ package combo.bandit
 
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
-import combo.math.GrowingDataSample
+import combo.math.BucketSample
 import combo.math.VarianceEstimator
 import combo.sat.Constraint
 import combo.sat.Instance
 import combo.sat.Tautology
 import combo.sat.UnsatisfiableException
 import combo.sat.constraints.Conjunction
+import combo.util.AtomicLong
 import combo.util.IntCollection
 import combo.util.isNotEmpty
 import combo.util.nanos
@@ -27,7 +28,7 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
 
     private val instanceData = LinkedHashMap<Instance, E>().apply {
         instances.associateTo(this) {
-            it to banditPolicy.baseData().also { banditPolicy.addArm(it) }
+            it to banditPolicy.baseData().also { e -> banditPolicy.addArm(e) }
         }
     }
 
@@ -39,11 +40,12 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
     private var rng = Random(randomSeed)
 
     override var maximize: Boolean = true
-    override var rewards: DataSample = GrowingDataSample()
+    override var rewards: DataSample = BucketSample()
+
+    private val step = AtomicLong()
 
     @Suppress("UNCHECKED_CAST")
     override fun importData(data: Array<InstanceData<E>>, restructure: Boolean) {
-
         // Remove all missing instances
         if (restructure) {
             val set = data.mapTo(HashSet()) { it.instance }
@@ -82,15 +84,15 @@ class CombinatorialBandit<E : VarianceEstimator>(instances: Array<Instance>,
 
     override fun update(instance: Instance, result: Float, weight: Float) {
         rewards.accept(result, weight)
-        val d = instanceData[instance]
-        if (d != null) banditPolicy.update(d, result, weight)
+        val e = instanceData[instance]
+        if (e != null) banditPolicy.update(e, result, weight)
     }
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
-        banditPolicy.round(rng)
         val con: Constraint = if (assumptions.isNotEmpty()) Conjunction(assumptions) else Tautology
+        val t = step.getAndIncrement()
         val instance = instanceData.maxBy {
-            if (con.satisfies(it.key)) banditPolicy.evaluate(it.value, maximize, rng)
+            if (con.satisfies(it.key)) banditPolicy.evaluate(it.value, t, maximize, rng)
             else Float.NEGATIVE_INFINITY
         }?.key
         if (instance == null || !con.satisfies(instance))
