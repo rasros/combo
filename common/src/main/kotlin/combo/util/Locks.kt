@@ -3,6 +3,7 @@ package combo.util
 expect interface Condition {
     fun await()
     fun signal()
+    fun signalAll()
 }
 
 expect interface Lock {
@@ -17,17 +18,9 @@ expect interface ReadWriteLock {
     fun writeLock(): Lock
 }
 
-expect class ReentrantLock() : Lock {
-    fun hasWaiters(condition: Condition): Boolean
-}
+expect class ReentrantLock() : Lock
+expect class ReentrantReadWriteLock() : ReadWriteLock
 
-expect class ReentrantWriteLock : Lock {
-    fun getHoldCount(): Int
-}
-
-expect class ReentrantReadWriteLock() : ReadWriteLock {
-    override fun writeLock(): ReentrantWriteLock
-}
 
 inline fun <T> Lock.withLock(action: () -> T): T {
     lock()
