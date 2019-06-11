@@ -14,7 +14,7 @@ import combo.util.AtomicInt
 abstract class Variable<out T>(override val name: String) : Value {
 
     companion object {
-        fun defaultName() = "${"$"}x_${COUNTER.inc()}"
+        fun defaultName() = "${"$"}x_${COUNTER.getAndIncrement()}"
         private val COUNTER: AtomicInt = AtomicInt()
     }
 
