@@ -14,11 +14,6 @@ expect class AtomicInt(value: Int = 0) {
     fun set(value: Int)
 }
 
-expect class AtomicBool(value: Boolean = false) {
-    fun get(): Boolean
-    fun set(value: Boolean)
-}
-
 expect class AtomicReference<V>(value: V) {
     fun compareAndSet(expect: V, update: V): Boolean
     fun getAndSet(newValue: V): V
