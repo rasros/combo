@@ -29,7 +29,7 @@ class InstancePermutation constructor(
 
     override fun next(): MutableInstance {
         val instance = builder.create(nbrVariables)
-        val c = count.inc()
+        val c = count.getAndIncrement()
         var ix = 0
         for (perm in permutation) {
             val value = perm.encode(c and perm.size - 1)
