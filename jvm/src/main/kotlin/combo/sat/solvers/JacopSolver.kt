@@ -150,9 +150,15 @@ class JacopSolver @JvmOverloads constructor(
                     if (c.literal.toBoolean()) Reified(wrapped, vars[c.literal.toIx()])
                     else Eq(XeqC(vars[c.literal.toIx()], 0), wrapped)
                 }
-                is NumericConstraint -> {
-                    throw UnsupportedOperationException(
-                            "Numeric constraints not supported.")
+                is IntBounds -> {
+                    val xs = vars.copyOfRange(c.literals.min.toIx(), c.literals.max.toIx() + 1)
+                    val y = IntVar(store, c.min, c.max)
+                    BinaryXeqY(xs, y)
+                }
+                is FloatBounds -> {
+                    val xs = vars.copyOfRange(c.literals.min.toIx(), c.literals.max.toIx() + 1)
+                    val y = FloatVar(store, c.min.toDouble(), c.max.toDouble())
+                    BinaryXeqP(xs, y)
                 }
                 else -> null
             }
