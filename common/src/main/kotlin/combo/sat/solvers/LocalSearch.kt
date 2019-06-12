@@ -58,7 +58,8 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     var pRandomWalkDecay: Float = 0.95f
 
     /**
-     * Keep a ring-buffer with blocked assignments during search. Size is always a power of 2.
+     * Keep a ring-buffer with blocked assignments during search. Size is always a power of 2. Sometimes called tabu
+     * tenure.
      */
     var tabuListSize: Int = Int.power2(min(problem.nbrVariables, 2))
         set(value) {
