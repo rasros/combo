@@ -1,6 +1,9 @@
 package combo.sat.solvers
 
+import combo.model.FloatVar
+import combo.model.IntVar
 import combo.model.TestModels.LARGE_SAT_PROBLEMS
+import combo.model.TestModels.NUMERIC3
 import combo.model.TestModels.NUMERIC_PROBLEMS
 import combo.model.TestModels.PB_PROBLEMS
 import combo.model.TestModels.SAT_PROBLEMS
@@ -14,10 +17,7 @@ import combo.util.IntList
 import combo.util.collectionOf
 import kotlin.math.pow
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 abstract class SolverTest {
 
@@ -119,6 +119,30 @@ abstract class SolverTest {
                 assertTrue(p.satisfies(solver.witnessOrThrow()), "Model $i")
                 assertTrue(p.satisfies(solver.witness()!!), "Model $i")
             }
+        }
+    }
+
+    @Test
+    fun numericSatAssumptions() {
+        val m = NUMERIC3
+        val solver = numericSolver(m.problem)
+        if (solver != null) {
+            val opt1 = m.index["opt1"] as IntVar
+
+            // First number is optional -100..100
+            val intSet = solver.witnessOrThrow(collectionOf(m.index.indexOf(opt1).toLiteral(true)))
+            assertTrue(NUMERIC3.toAssignment(intSet)[opt1]!! in -100..100)
+
+            val intUnset = solver.witnessOrThrow(collectionOf(m.index.indexOf(opt1).toLiteral(false)))
+            assertNull(NUMERIC3.toAssignment(intUnset)[opt1])
+
+            // First number is optional -100..100
+            val opt2 = m.index["opt2"] as FloatVar
+            val floatSet = solver.witnessOrThrow(collectionOf(m.index.indexOf(opt2).toLiteral(true)))
+            assertTrue(NUMERIC3.toAssignment(floatSet)[opt2]!! in -0.1f..1.0f)
+
+            val floatUnset = solver.witnessOrThrow(collectionOf(m.index.indexOf(opt2).toLiteral(false)))
+            assertNull(NUMERIC3.toAssignment(floatUnset)[opt2])
         }
     }
 

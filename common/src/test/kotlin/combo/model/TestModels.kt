@@ -265,9 +265,9 @@ object TestModels {
 
     val NUMERIC3 by lazy {
         Model.model("All kinds of numeric variables") {
-            optionalInt(min = -100, max = 100)
-            int()
-            optionalFloat(min = -0.1f, max = 1.0f)
+            optionalInt("opt1", min = -100, max = 100)
+            int("int1")
+            optionalFloat("opt2", min = -0.1f, max = 1.0f)
             float(min = -0.1f, max = 1.0f)
             optionalBits(nbrBits = 10)
             bits(nbrBits = 100)
