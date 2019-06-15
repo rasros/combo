@@ -31,8 +31,7 @@ class ParallelSolverTest {
             { p: Problem -> ExhaustiveSolver(p) },
             { p: Problem -> CachedOptimizer(LocalSearchOptimizer(p)) },
             { p: Problem -> JacopSolver(p) },
-            { p: Problem -> Sat4JSolver(p) },
-            { p: Problem -> JOptimizer(p) })
+            { p: Problem -> Sat4JSolver(p) })
 
     @Test
     fun parallelSolve() {

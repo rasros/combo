@@ -14,28 +14,6 @@ dependencies {
     compileOnly("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
     testCompile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
 
-    // New version is available but does not include BIP anymore
-    compileOnly("com.joptimizer:joptimizer:4.0.0") {
-        exclude group: "org.apache.commons", module: "commons-csv"
-        exclude group: "net.sourceforge.csparsej", module: "csparsej"
-        exclude group: "log4j", module: "log4j"
-        exclude group: "net.sourceforge.jtransforms", module: "jtransforms"
-        exclude group: "net.sourceforge.jplasma", module: "jplasma"
-        exclude group: "com.github.rwl", module: "JKLU"
-        exclude group: "net.sourceforge.parallelcolt", module: "optimization"
-        exclude group: "com.googlecode.netlib-java", module: "netlib-java"
-    }
-    testCompile("com.joptimizer:joptimizer:4.0.0") {
-        exclude group: "org.apache.commons", module: "commons-csv"
-        exclude group: "net.sourceforge.csparsej", module: "csparsej"
-        exclude group: "log4j", module: "log4j"
-        exclude group: "net.sourceforge.jtransforms", module: "jtransforms"
-        exclude group: "net.sourceforge.jplasma", module: "jplasma"
-        exclude group: "com.github.rwl", module: "JKLU"
-        exclude group: "net.sourceforge.parallelcolt", module: "optimization"
-        exclude group: "com.googlecode.netlib-java", module: "netlib-java"
-    }
-
     compileOnly("org.jacop:jacop:4.6.0") {
         exclude group: "org.scala-lang", module: "scala-library"
         exclude group: "org.scala-lang", module: "scala-compiler"
