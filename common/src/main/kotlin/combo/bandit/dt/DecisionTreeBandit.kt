@@ -3,10 +3,7 @@ package combo.bandit.dt
 import combo.bandit.LiteralData
 import combo.bandit.PredictionBandit
 import combo.bandit.univariate.BanditPolicy
-import combo.math.DataSample
-import combo.math.BucketSample
-import combo.math.IntPermutation
-import combo.math.VarianceEstimator
+import combo.math.*
 import combo.sat.*
 import combo.sat.constraints.NumericConstraint
 import combo.sat.solvers.LocalSearchSolver
@@ -55,6 +52,14 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
     override var rewards: DataSample = BucketSample(20)
     override var trainAbsError: DataSample = BucketSample(10)
     override var testAbsError: DataSample = BucketSample(10)
+
+    /**
+     * Which split metric to use for deciding what variable to split on. The default value is gini impurity for binary
+     * data and variance reduction otherwise.
+     */
+    var splitMetric: SplitMetric =
+            if (banditPolicy.baseData() is BinaryEstimator) GiniCoefficient
+            else VarianceReduction
 
     /**
      * VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
@@ -113,12 +118,14 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
      */
     var maxRestarts = 10
 
-    private val liveNodes = ArrayList<LeafNode>()
+    private val step = AtomicLong()
+
+    private val liveNodes = ArrayList<LeafNode<E>>()
 
     private val numericConstraints: Array<NumericConstraint> = problem.constraints
             .mapNotNull { it as? NumericConstraint }.toTypedArray()
 
-    private var root: Node = if (problem.nbrVariables == 0) TerminalNode(EmptyCollection, banditPolicy.baseData()) else
+    private var root: Node<E> = if (problem.nbrVariables == 0) TerminalNode(EmptyCollection, banditPolicy.baseData()) else
         AuditNode(EmptyCollection, banditPolicy.baseData(), Random(0)).also {
             // We use a fixed random seed here because this node is created before randomSeed can be set.
             liveNodes.add(it)
@@ -130,9 +137,19 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
     override fun importData(data: Array<LiteralData<E>>, restructure: Boolean) {
         if (data.isEmpty()) return
+        if (restructure) {
+            importRestructure(data)
+        } else {
+            for (d in data) {
+                root.findLeaves(d.setLiterals).forEach {
+                    it.data = it.data.combine(d.data) as E
+                }
+            }
+        }
+    }
 
+    private fun importRestructure(data: Array<LiteralData<E>>) {
         val sorted = data.sortedBy { if (maximize) -it.data.mean else it.data.mean }
-
         for (node in liveNodes) banditPolicy.removeArm(node.data)
 
         liveNodes.clear()
@@ -145,7 +162,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         nbrNodes = 3
         nbrAuditNodes = 0
 
-        fun createHistoricNode(setLiterals: IntCollection, total: E): LeafNode {
+        fun createHistoricNode(setLiterals: IntCollection, total: E): LeafNode<E> {
             val propagatedLiterals = IntHashSet(nullValue = 0)
             propagatedLiterals.addAll(setLiterals)
             problem.unitPropagation(propagatedLiterals)
@@ -166,7 +183,7 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             // 2) if needed, add more splits until the path is rebuilt, finally 3) add the leaf node to the parent.
 
             // 1) traverse the tree
-            var r: SplitNode = root as SplitNode
+            var r: SplitNode<E> = root as SplitNode<E>
             var stopIx = 0
             while (true) {
                 r = if (r.pos is SplitNode && r.ix.toLiteral(true) in node.setLiterals) r.pos as SplitNode
@@ -212,14 +229,14 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         }
 
         // Replace all TerminalNodes with data == prior with real node
-        val queue = ArrayQueue<SplitNode>()
+        val queue = ArrayQueue<SplitNode<E>>()
         queue.add(root as SplitNode)
         while (queue.size > 0) {
             val r = queue.remove()
-            if (r.pos is SplitNode) queue.add(r.pos as SplitNode)
+            if (r.pos is SplitNode<*>) queue.add(r.pos as SplitNode<E>)
             else if ((r.pos is TerminalNode) && (r.pos as TerminalNode).data === prior)
                 r.pos = createHistoricNode((r.pos as TerminalNode).setLiterals, banditPolicy.baseData())
-            if (r.neg is SplitNode) queue.add(r.neg as SplitNode)
+            if (r.neg is SplitNode<*>) queue.add(r.neg as SplitNode<E>)
             else if ((r.neg is TerminalNode) && (r.neg as TerminalNode).data === prior)
                 r.neg = createHistoricNode((r.neg as TerminalNode).setLiterals, banditPolicy.baseData())
         }
@@ -229,15 +246,15 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
     override fun exportData(): Array<LiteralData<E>> {
         val data = ArrayList<LiteralData<E>>()
-        val queue = ArrayList<Pair<IntArray, SplitNode>>()
+        val queue = ArrayList<Pair<IntArray, SplitNode<E>>>()
         if (root is SplitNode) queue.add(EMPTY_INT_ARRAY to root as SplitNode)
         while (queue.isNotEmpty()) {
             val (lits, r) = queue.removeAt(queue.lastIndex)
             val posLits = lits + r.ix.toLiteral(true)
             val negLits = lits + r.ix.toLiteral(false)
-            if (r.pos is SplitNode) queue.add(posLits to r.pos as SplitNode)
+            if (r.pos is SplitNode<E>) queue.add(posLits to r.pos as SplitNode<E>)
             else data += LiteralData(posLits, (r.pos as LeafNode).data)
-            if (r.neg is SplitNode) queue.add(negLits to r.neg as SplitNode)
+            if (r.neg is SplitNode<E>) queue.add(negLits to r.neg as SplitNode<E>)
             else data += LiteralData(negLits, (r.neg as LeafNode).data)
         }
         return data.toTypedArray()
@@ -253,8 +270,9 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             }
             val node = liveNodes.maxBy {
                 when {
-                    blocks(propagated ?: assumptions, it.blocked) -> Float.NEGATIVE_INFINITY
-                    matches(it.setLiterals, propagated ?: assumptions) -> banditPolicy.evaluate(it.data, 0L, maximize, rng) // TODO step
+                    it.blocks(propagated ?: assumptions) -> Float.NEGATIVE_INFINITY
+                    it.matches(propagated ?: assumptions) ->
+                        banditPolicy.evaluate(it.data, step.getAndIncrement(), maximize, rng)
                     else -> Float.NEGATIVE_INFINITY
                 }
             }
@@ -278,58 +296,13 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         root = root.update(instance, result, weight)
     }
 
-    private fun blocks(assumptions: IntCollection, blocker: CircleBuffer<IntCollection>?): Boolean {
-        if (assumptions.isEmpty() || blocker == null) return false
-        for (b in blocker) {
-            if (b === assumptions) return true
-            for (lit in b)
-                if (lit !in assumptions) return false
-        }
-        return true
-    }
-
-    /**
-     * Checks whether the assumptions can be satisfied by the conjunction formed by setLiterals.
-     * Both arrays are assumed sorted.
-     */
-    private fun matches(setLiterals: IntCollection, assumptions: IntCollection): Boolean {
-        if (assumptions.isEmpty()) return true
-        for (lit in setLiterals)
-            if (!lit in assumptions) return false
-        return true
-    }
-
-    private abstract inner class Node {
-        abstract fun findLeaf(instance: Instance): LeafNode
-        abstract fun update(instance: Instance, result: Float, weight: Float): Node
-    }
-
-    private inner class SplitNode(val ix: Int, var pos: Node, var neg: Node) : Node() {
-
-        override fun update(instance: Instance, result: Float, weight: Float): Node {
-            if (instance[ix]) pos = pos.update(instance, result, weight)
-            else neg = neg.update(instance, result, weight)
-            return this
-        }
-
-        override fun findLeaf(instance: Instance) =
-                if (instance[ix]) pos.findLeaf(instance)
-                else neg.findLeaf(instance)
-    }
-
-    private abstract inner class LeafNode(val setLiterals: IntCollection, val data: E = banditPolicy.baseData())
-        : Node() {
-        override fun findLeaf(instance: Instance) = this
-        var blocked: CircleBuffer<IntCollection>? = null
-    }
-
-    private inner class TerminalNode(setLiterals: IntCollection, data: E) : LeafNode(setLiterals, data) {
+    private inner class TerminalNode(setLiterals: IntCollection, data: E) : LeafNode<E>(setLiterals, data) {
         override fun update(instance: Instance, result: Float, weight: Float) =
                 this.apply { banditPolicy.update(data, result, weight) }
     }
 
     private inner class AuditNode(setLiterals: IntCollection, total: E, rng: Random = this.rng)
-        : LeafNode(setLiterals, total) {
+        : LeafNode<E>(setLiterals, total) {
 
         var nViewed: Int = 0
 
@@ -350,14 +323,13 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                     }
                 }
             }
-            assert(set.isNotEmpty())
             set.toArray()
         }
 
-        val dataPos: Array<VarianceEstimator> = Array(auditedVariables.size) { banditPolicy.baseData() }
-        val dataNeg: Array<VarianceEstimator> = Array(auditedVariables.size) { banditPolicy.baseData() }
+        val dataPos = Array<VarianceEstimator>(auditedVariables.size) { banditPolicy.baseData() }
+        val dataNeg = Array<VarianceEstimator>(auditedVariables.size) { banditPolicy.baseData() }
 
-        override fun update(instance: Instance, result: Float, weight: Float): Node {
+        override fun update(instance: Instance, result: Float, weight: Float): Node<E> {
             banditPolicy.update(data, result, weight)
             nViewed += max(1, weight.roundToInt())
             for ((i, ix) in auditedVariables.withIndex()) {
@@ -366,24 +338,11 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             }
 
             if (nViewed > updatePeriod) {
-                var ig1 = 0.0f
-                var ig2 = 0.0f
-                var bestI = -1
-
-                val variance = dataPos[0].combine(dataNeg[0]).variance
-
-                for (i in auditedVariables.indices) {
-                    val ig = variance - variancePurity(i)
-                    if (ig > ig1) {
-                        bestI = i
-                        ig2 = ig1
-                        ig1 = ig
-                    } else if (ig > ig2)
-                        ig2 = ig
-                }
+                val total = dataPos[0].combine(dataNeg[0]) as E
+                val (sm1, sm2, bestI) = splitMetric.split(total, dataPos, dataNeg, minSamples)
 
                 val eps = hoeffdingBound(delta, data.nbrWeightedSamples, setLiterals.size)
-                if (bestI >= 0 && (ig2 / ig1 < 1 - eps || eps < tau)) {
+                if (bestI >= 0 && (sm2 / sm1 < 1 - eps || eps < tau)) {
 
                     val totalPos = dataPos[bestI] as E
                     val totalNeg = dataNeg[bestI] as E
@@ -397,8 +356,8 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
                     nbrAuditNodes--
                     nbrNodes += 2
 
-                    val pos: LeafNode
-                    val neg: LeafNode
+                    val pos: LeafNode<E>
+                    val neg: LeafNode<E>
 
                     // The order in which the nodes are created give priority to nodes with best score
                     if (inOrder) {
@@ -420,24 +379,9 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         }
 
         override fun findLeaf(instance: Instance) = this
-
-        fun variancePurity(index: Int): Float {
-            val pos = dataPos[index]
-            val neg = dataNeg[index]
-            if (pos.nbrWeightedSamples < minSamples || neg.nbrWeightedSamples < minSamples)
-                return Float.POSITIVE_INFINITY
-            val nPos = pos.nbrWeightedSamples
-            val nNeg = neg.nbrWeightedSamples
-            val n = nPos + nNeg
-            return (nNeg / n) * neg.variance + (nPos / n) * pos.variance
-        }
     }
 
-    private fun createSplitNode(variable: Int) {
-        TODO()
-    }
-
-    private fun createLeafNode(setLiterals: IntCollection, splitLit: Int, total: E): LeafNode {
+    private fun createLeafNode(setLiterals: IntCollection, splitLit: Int, total: E): LeafNode<E> {
         val propagatedLiterals = IntHashSet(nullValue = 0)
         propagatedLiterals.addAll(setLiterals)
         propagatedLiterals.add(splitLit)

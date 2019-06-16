@@ -121,7 +121,6 @@ interface PredictionBandit<D> : Bandit<D> {
     }
 }
 
-
 /**
  * This class holds the data in the leaf nodes. The order of the literals in [setLiterals] is significant and cannot
  * be changed.

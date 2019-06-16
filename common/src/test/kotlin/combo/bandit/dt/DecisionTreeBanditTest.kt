@@ -5,8 +5,8 @@ import combo.bandit.BanditType
 import combo.bandit.LiteralData
 import combo.bandit.PredictionBanditTest
 import combo.bandit.univariate.*
-import combo.math.MeanEstimator
 import combo.math.BinarySum
+import combo.math.MeanEstimator
 import combo.model.TestModels
 import combo.model.TestModels.SAT_PROBLEMS
 import combo.sat.BitArray
@@ -17,7 +17,6 @@ import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.*
 
-@Ignore
 class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
 
     @Suppress("UNCHECKED_CAST")
@@ -48,7 +47,7 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
         val n4 = LiteralData(intArrayOf(3, 4), BinarySum(2.0f, 1.0f))
         val n5 = LiteralData(intArrayOf(2), BinarySum(1.0f, 1.0f))
         val bandit = DecisionTreeBandit(TestModels.MODEL1.problem, ThompsonSampling(BinomialPosterior, BinarySum(0.0f, 1.0f)))
-        bandit.importData(arrayOf(n5, n4, n3, n2, n1))
+        bandit.importData(arrayOf(n5, n4, n3, n2, n1), true)
         val export = bandit.exportData()
         // Only the first two nodes are useful
         assertEquals(9.0, export.sumByDouble { it.data.mean.toDouble() })
@@ -62,7 +61,7 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
         val n4 = LiteralData(intArrayOf(1), BinarySum(0.0f, 1.0f))
         assertFailsWith(IllegalArgumentException::class) {
             DecisionTreeBandit(TestModels.MODEL1.problem, ThompsonSampling(BinomialPosterior)).apply {
-                importData(arrayOf(n3, n4, n2, n1))
+                importData(arrayOf(n3, n4, n2, n1), true)
             }
         }
     }
@@ -79,7 +78,7 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
         val reduced = data.sliceArray(0 until data.size / 2)
         val bandit2 = DecisionTreeBandit(p, ThompsonSampling(PoissonPosterior))
         @Suppress("UNCHECKED_CAST")
-        (bandit2 as Bandit<Any>).importData(reduced)
+        (bandit2 as Bandit<Any>).importData(reduced, true)
         val data2 = bandit2.exportData()
         assertTrue(data2.size >= reduced.size)
         for (node in reduced) {
@@ -102,7 +101,7 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
             }
             val list1 = (bandit as DecisionTreeBandit<MeanEstimator>).exportData()
             val bandit2 = bandit(p, BanditType.BINOMIAL)
-            (bandit2 as DecisionTreeBandit<MeanEstimator>).importData(list1)
+            (bandit2 as DecisionTreeBandit<MeanEstimator>).importData(list1, true)
 
             assertNotNull(bandit2.choose())
         }
