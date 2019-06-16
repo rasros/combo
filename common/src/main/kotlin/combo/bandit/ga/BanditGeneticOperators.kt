@@ -3,7 +3,7 @@ package combo.bandit.ga
 import combo.ga.SelectionOperator
 import combo.math.IntPermutation
 import combo.math.VarianceEstimator
-import combo.math.normalInverseCdf
+import combo.math.normInvCdf
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -34,7 +34,7 @@ class SignificanceTestElimination(alpha: Float = 0.05f) : SelectionOperator<Band
         require(alpha > 0.0f && alpha < 1.0f)
     }
 
-    val z = normalInverseCdf(1 - alpha / 2)
+    val z = normInvCdf(1 - alpha / 2)
 
     override fun select(candidates: BanditCandidates<*>, rng: Random): Int {
         var maxCI = Float.NEGATIVE_INFINITY

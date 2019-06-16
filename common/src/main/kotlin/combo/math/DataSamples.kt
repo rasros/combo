@@ -18,6 +18,13 @@ interface DataSample {
     fun accept(value: Float)
     fun accept(value: Float, weight: Float) = accept(value)
 
+    fun acceptAll(values: FloatArray, weights: FloatArray? = null) {
+        for (i in values.indices) {
+            if (weights == null) accept(values[i])
+            else accept(values[i], weights[i])
+        }
+    }
+
     /**
      * Returns available data points or estimates.
      */

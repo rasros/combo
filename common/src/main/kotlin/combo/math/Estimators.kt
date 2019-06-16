@@ -42,6 +42,7 @@ interface RemovableEstimator : VarianceEstimator {
 interface MeanEstimator : VarianceEstimator {
     override val variance: Float
         get() = mean
+
     override fun copy(): VarianceEstimator
 }
 
@@ -51,6 +52,7 @@ interface MeanEstimator : VarianceEstimator {
 interface BinaryEstimator : VarianceEstimator {
     override val variance: Float
         get() = mean * (1 - mean)
+
     override fun copy(): BinaryEstimator
 }
 
