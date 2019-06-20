@@ -8,7 +8,6 @@ import org.jacop.core.IntVar
 import org.jacop.core.Store
 import org.jacop.floats.core.FloatVar
 
-
 class BinaryXeqY(val xs: Array<BooleanVar>, val y: IntVar, val isSigned: Boolean = y.min() < 0) : PrimitiveConstraint() {
 
     private companion object {
@@ -159,8 +158,8 @@ class BinaryXeqP(val xs: Array<BooleanVar>, val p: FloatVar) : PrimitiveConstrai
         val min = if (xs[31].max() == 1) -maxUnsigned else minUnsigned
 
         // Use Float.compare to get exact -0.0f and 0.0f comparison
-        val c1 = java.lang.Float.compare(min, p.max().toFloat())
-        val c2 = java.lang.Float.compare(max, p.min().toFloat())
+        val c1 = min.compareTo(p.max().toFloat())
+        val c2 = max.compareTo(p.min().toFloat())
         return if (sat) c1 <= 0 && c2 >= 0
         else c1 > 0 || c2 < 0
     }
