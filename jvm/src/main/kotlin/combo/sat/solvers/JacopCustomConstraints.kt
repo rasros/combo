@@ -7,7 +7,6 @@ import org.jacop.core.IntDomain
 import org.jacop.core.IntVar
 import org.jacop.core.Store
 import org.jacop.floats.core.FloatVar
-import kotlin.math.min
 
 
 class BinaryXeqY(val xs: Array<BooleanVar>, val y: IntVar, val isSigned: Boolean = y.min() < 0) : PrimitiveConstraint() {
@@ -39,8 +38,8 @@ class BinaryXeqY(val xs: Array<BooleanVar>, val y: IntVar, val isSigned: Boolean
         var max = 0
         val l = if (isSigned) xs.size - 1 else xs.size
         for (i in 0 until l) {
-            min += xs[i].min() * (1 shl i)
-            max += xs[i].max() * (1 shl i)
+            min = min or (xs[i].min() shl i)
+            max = max or (xs[i].max() shl i)
         }
         if (isSigned) {
             val sign = xs.last()
@@ -68,8 +67,8 @@ class BinaryXeqY(val xs: Array<BooleanVar>, val y: IntVar, val isSigned: Boolean
         var max = 0
         val l = if (isSigned) xs.size - 1 else xs.size
         for (i in 0 until l) {
-            min += xs[i].min() * (1 shl i)
-            max += xs[i].max() * (1 shl i)
+            min = min or (xs[i].min() shl i)
+            max = max or (xs[i].max() shl i)
         }
         if (isSigned && xs.last().min() == 1) {
             val mask = -1 shl l
@@ -111,24 +110,19 @@ class BinaryXeqP(val xs: Array<BooleanVar>, val p: FloatVar) : PrimitiveConstrai
     }
 
     private fun prune(store: Store, sat: Boolean) {
-        var minMantissa = 0
-        var maxMantissa = 0
-        for (i in 0..22) {
-            minMantissa += xs[i].min() * (1 shl i)
-            maxMantissa += xs[i].max() * (1 shl i)
+        var minBits = 0
+        var maxBits = 0
+        for (i in 0 until 31) {
+            minBits = minBits or (xs[i].min() shl i)
+            maxBits = maxBits or (xs[i].max() shl i)
         }
+        if (maxBits and 0x7F800000 == 0x7F800000)
+            maxBits = (maxBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
+        if (minBits and 0x7F800000 == 0x7F800000)
+            minBits = (minBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
 
-        var minExponent = 0
-        var maxExponent = 0
-        for (i in 0 until 8) {
-            minExponent += xs[i + 23].min() * (1 shl i)
-            maxExponent += xs[i + 23].max() * (1 shl i)
-        }
-        maxExponent = min(maxExponent, 254) // Remove NaN and +/- Inf
-        minExponent = min(minExponent, 254) // Remove NaN and +/- Inf
-
-        val maxUnsigned = Float.fromBits(maxMantissa or (maxExponent shl 23))
-        val minUnsigned = Float.fromBits(minMantissa or (minExponent shl 23))
+        val maxUnsigned = Float.fromBits(maxBits)
+        val minUnsigned = Float.fromBits(minBits)
 
         val max = if (xs[31].min() == 1) -minUnsigned else maxUnsigned
         val min = if (xs[31].max() == 1) -maxUnsigned else minUnsigned
@@ -147,24 +141,19 @@ class BinaryXeqP(val xs: Array<BooleanVar>, val p: FloatVar) : PrimitiveConstrai
     }
 
     private fun entail(sat: Boolean): Boolean {
-        var minMantissa = 0
-        var maxMantissa = 0
-        for (i in 0..22) {
-            minMantissa += xs[i].min() * (1 shl i)
-            maxMantissa += xs[i].max() * (1 shl i)
+        var minBits = 0
+        var maxBits = 0
+        for (i in 0 until 31) {
+            minBits = minBits or (xs[i].min() shl i)
+            maxBits = maxBits or (xs[i].max() shl i)
         }
+        if (maxBits and 0x7F800000 == 0x7F800000)
+            maxBits = (maxBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
+        if (minBits and 0x7F800000 == 0x7F800000)
+            minBits = (minBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
 
-        var minExponent = 0
-        var maxExponent = 0
-        for (i in 0 until 8) {
-            minExponent += xs[i + 23].min() * (1 shl i)
-            maxExponent += xs[i + 23].max() * (1 shl i)
-        }
-        maxExponent = min(maxExponent, 254) // Remove NaN and +/- Inf
-        minExponent = min(minExponent, 254) // Remove NaN and +/- Inf
-
-        val maxUnsigned = Float.fromBits(maxMantissa or (maxExponent shl 23))
-        val minUnsigned = Float.fromBits(minMantissa or (minExponent shl 23))
+        val maxUnsigned = Float.fromBits(maxBits)
+        val minUnsigned = Float.fromBits(minBits)
 
         val max = if (xs[31].min() == 1) -minUnsigned else maxUnsigned
         val min = if (xs[31].max() == 1) -maxUnsigned else minUnsigned
