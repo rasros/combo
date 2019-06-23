@@ -48,7 +48,7 @@ class JacopSolver @JvmOverloads constructor(
     var delta: Float = 0.01f
 
     /**
-     * Simplify weights with GCD before optimizing.
+     * Simplify weights with greatest common divisor before optimizing.
      */
     var gcdOptimize: Boolean = true
 

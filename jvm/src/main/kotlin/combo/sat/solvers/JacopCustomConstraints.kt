@@ -16,6 +16,7 @@ class BinaryXeqY(val xs: Array<BooleanVar>, val y: IntVar, val isSigned: Boolean
 
     init {
         numberId = idNumber.incrementAndGet()
+        require(xs.size <= 32)
         setScope(xs, arrayOf(y))
     }
 
@@ -24,42 +25,45 @@ class BinaryXeqY(val xs: Array<BooleanVar>, val y: IntVar, val isSigned: Boolean
     override fun getDefaultNestedNotConsistencyPruningEvent() = IntDomain.BOUND
     override fun getDefaultNestedConsistencyPruningEvent() = IntDomain.BOUND
 
-    override fun consistency(store: Store) {
-        prune(store, true)
-    }
-
-    override fun notConsistency(store: Store) {
-        prune(store, false)
-    }
+    override fun consistency(store: Store) = prune(store, true)
+    override fun notConsistency(store: Store) = prune(store, false)
 
     private fun prune(store: Store, sat: Boolean) {
-        var min = 0
-        var max = 0
-        val l = if (isSigned) xs.size - 1 else xs.size
-        for (i in 0 until l) {
-            min = min or (xs[i].min() shl i)
-            max = max or (xs[i].max() shl i)
-        }
-        if (isSigned) {
-            val sign = xs.last()
-            if (sign.max() == 1) {
-                min = min or (-1 shl l)
-                if (sign.singleton(1))
-                    max = max or (-1 shl l)
+        do {
+            var min = 0
+            var max = 0
+            val l = if (isSigned) xs.size - 1 else xs.size
+            for (i in 0 until l) {
+                min = min or (xs[i].min() shl i)
+                max = max or (xs[i].max() shl i)
             }
-        }
+            if (isSigned) {
+                val sign = xs.last()
+                if (sign.max() == 1) {
+                    min = min or (-1 shl l)
+                    if (sign.singleton(1))
+                        max = max or (-1 shl l)
+                }
+            }
 
-        if (sat) y.domain.`in`(store.level, y, min, max)
-        else if (!sat && min == max)
-            y.domain.inComplement(store.level, y, min)
+            if (sat) y.domain.`in`(store.level, y, min, max)
+            else if (!sat && min == max) y.domain.inComplement(store.level, y, min)
+
+            store.propagationHasOccurred = false
+
+            val fixed = y.min() xor y.max()
+            for (i in (l - 1) downTo 0) {
+                if (((fixed ushr i) and 1) == 0) {
+                    val value = (y.min() ushr i) and 1
+                    xs[i].domain.`in`(store.level, xs[i], value, value)
+                } else break
+            }
+
+        } while (store.propagationHasOccurred)
     }
 
     override fun notSatisfied() = entail(false)
-
-    override fun satisfied(): Boolean {
-        if (!grounded()) return false
-        return entail(true)
-    }
+    override fun satisfied() = entail(true)
 
     private fun entail(sat: Boolean): Boolean {
         var min = 0
@@ -100,68 +104,69 @@ class BinaryXeqP(val xs: Array<BooleanVar>, val p: FloatVar) : PrimitiveConstrai
     override fun getDefaultNestedNotConsistencyPruningEvent() = IntDomain.BOUND
     override fun getDefaultNestedConsistencyPruningEvent() = IntDomain.BOUND
 
-    override fun consistency(store: Store) {
-        prune(store, true)
-    }
-
-    override fun notConsistency(store: Store) {
-        prune(store, false)
-    }
+    override fun consistency(store: Store) = prune(store, true)
+    override fun notConsistency(store: Store) = prune(store, false)
 
     private fun prune(store: Store, sat: Boolean) {
-        var minBits = 0
-        var maxBits = 0
-        for (i in 0 until 31) {
-            minBits = minBits or (xs[i].min() shl i)
-            maxBits = maxBits or (xs[i].max() shl i)
-        }
-        if (maxBits and 0x7F800000 == 0x7F800000)
-            maxBits = (maxBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
-        if (minBits and 0x7F800000 == 0x7F800000)
-            minBits = (minBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
+        do {
+            val minUnsigned = if (xs[31].singleton()) bound(true) else 0.0f
+            val maxUnsigned = bound(false)
 
-        val maxUnsigned = Float.fromBits(maxBits)
-        val minUnsigned = Float.fromBits(minBits)
+            val min = if (xs[31].max() == 0) minUnsigned
+            else -maxUnsigned
+            val max = if (xs[31].min() == 1) -minUnsigned
+            else maxUnsigned
 
-        val max = if (xs[31].min() == 1) -minUnsigned else maxUnsigned
-        val min = if (xs[31].max() == 1) -maxUnsigned else minUnsigned
+            if (sat) p.domain.`in`(store.level, p, min.toDouble(), max.toDouble())
+            else if (!sat && min == max) p.domain.inComplement(store.level, p, min.toDouble())
+            store.propagationHasOccurred = false
 
-        if (sat) p.domain.`in`(store.level, p, min.toDouble(), max.toDouble())
-        else if (!sat && min == max)
-            p.domain.inComplement(store.level, p, min.toDouble())
-
+            val fixed: Int = p.min().toFloat().toRawBits() xor p.max().toFloat().toRawBits()
+            for (i in 31 downTo 0) {
+                if (((fixed ushr i) and 1) == 0) {
+                    val value = (p.min().toFloat().toRawBits() ushr i) and 1
+                    xs[i].domain.`in`(store.level, xs[i], value, value)
+                } else break
+            }
+        } while (store.propagationHasOccurred)
     }
 
     override fun notSatisfied() = entail(false)
-
-    override fun satisfied(): Boolean {
-        if (!grounded()) return false
-        return entail(true)
-    }
+    override fun satisfied() = entail(true)
 
     private fun entail(sat: Boolean): Boolean {
-        var minBits = 0
-        var maxBits = 0
-        for (i in 0 until 31) {
-            minBits = minBits or (xs[i].min() shl i)
-            maxBits = maxBits or (xs[i].max() shl i)
-        }
-        if (maxBits and 0x7F800000 == 0x7F800000)
-            maxBits = (maxBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
-        if (minBits and 0x7F800000 == 0x7F800000)
-            minBits = (minBits and 0x7EFFFFFF) // Remove NaN and +/- Inf
+        val minUnsigned = if (xs[31].singleton()) bound(true) else 0.0f
+        val maxUnsigned = bound(false)
 
-        val maxUnsigned = Float.fromBits(maxBits)
-        val minUnsigned = Float.fromBits(minBits)
-
-        val max = if (xs[31].min() == 1) -minUnsigned else maxUnsigned
-        val min = if (xs[31].max() == 1) -maxUnsigned else minUnsigned
+        val min = if (xs[31].max() == 0) minUnsigned
+        else -maxUnsigned
+        val max = if (xs[31].min() == 1) -minUnsigned
+        else maxUnsigned
 
         // Use Float.compare to get exact -0.0f and 0.0f comparison
-        val c1 = min.compareTo(p.max().toFloat())
-        val c2 = max.compareTo(p.min().toFloat())
-        return if (sat) c1 <= 0 && c2 >= 0
-        else c1 > 0 || c2 < 0
+        return if (sat) {
+            val c1 = min.compareTo(p.min().toFloat())
+            val c2 = max.compareTo(p.max().toFloat())
+            c1 >= 0 && c2 <= 0
+        } else {
+            val c1 = min.compareTo(p.max().toFloat())
+            val c2 = max.compareTo(p.min().toFloat())
+            c1 > 0 || c2 < 0
+        }
+    }
+
+    private fun bound(lower: Boolean): Float {
+        var bits = 0
+        if (lower) {
+            for (i in 0 until 31)
+                bits = bits or (xs[i].min() shl i)
+        } else {
+            for (i in 0 until 31)
+                bits = bits or (xs[i].max() shl i)
+        }
+        if (bits and 0x7F800000 == 0x7F800000)
+            bits = (bits and 0x7EFFFFFF) // Remove NaN and +/- Inf
+        return Float.fromBits(bits)
     }
 
     override fun toString(): String {
