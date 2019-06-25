@@ -1,6 +1,7 @@
 package combo.ga
 
 import combo.math.*
+import combo.sat.ImplicationDigraph
 import combo.sat.literal
 import combo.util.assert
 import combo.util.transformArray
@@ -215,18 +216,18 @@ class FixedRateMutation(val nbrFlips: Int = 1) : MutationRate {
  */
 class FastGAMutation(val nbrVariables: Int, val beta: Float = 1.5f) : MutationRate {
 
-    private val pdfSampler: DiscretePdfSampler
+    private val sampler: DiscreteSampler
 
     init {
         assert(beta > 1)
         val probs = FloatArray(max(1, nbrVariables / 2)) { (1 + it).toFloat().pow(-beta) }
         val sum = probs.sum()
         probs.transformArray { it / sum }
-        pdfSampler = AliasMethodSampler(probs)
+        sampler = AliasMethodSampler(probs)
     }
 
     override fun rate(nbrVariables: Int, rng: Random): Float {
-        val r = pdfSampler.sample(rng) + 1
+        val r = sampler.sample(rng) + 1
         return r / nbrVariables.toFloat()
     }
 }

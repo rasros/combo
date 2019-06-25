@@ -71,8 +71,8 @@ class ProblemTest {
                 .map { perm.encode(it) }
                 .map { it.toLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }
-        val sents: Array<Constraint> = p.constraints.toList().toTypedArray()
-        val p2 = Problem(p.binarySize, sents + Conjunction(IntList(lits)))
+        val constraints: Array<Constraint> = p.constraints.toList().toTypedArray()
+        val p2 = Problem(p.binarySize, constraints + Conjunction(IntList(lits)))
         val reduced = try {
             val units = IntHashSet().apply { addAll(lits) }
             var reduced = p.unitPropagation(units)
@@ -88,8 +88,8 @@ class ProblemTest {
 
     @Test
     fun satisfies() {
-        val sentences = arrayOf(Cardinality(IntList(intArrayOf(1, 2, 3)), 1, Relation.LE))
-        val problem = Problem(3, sentences)
+        val constraints = arrayOf(Cardinality(IntList(intArrayOf(1, 2, 3)), 1, Relation.LE))
+        val problem = Problem(3, constraints)
         assertFalse(problem.satisfies(BitArray(3, IntArray(1) { 0b110 })))
         assertTrue(problem.satisfies(BitArray(3, IntArray(1) { 0b000 })))
         assertTrue(problem.satisfies(BitArray(3, IntArray(1) { 0b010 })))
@@ -97,15 +97,16 @@ class ProblemTest {
 
     @Test
     fun clauseMatch() {
-        val problem = Problem(3, arrayOf(
+        val constraints:Array<out Constraint> = arrayOf(
                 Disjunction(IntList(intArrayOf(1, 2, 3))),
-                Conjunction(IntList(intArrayOf(-1)))))
+                Conjunction(IntList(intArrayOf(-1))))
+        val problem = Problem(3, constraints)
         assertContentEquals(intArrayOf(0, 1), problem.constraining(0))
         assertContentEquals(intArrayOf(0), problem.constraining(1))
         assertContentEquals(intArrayOf(0), problem.constraining(2))
     }
 
 
-    // TODO tests on groups
+    // TODO tests on encoders
 }
 

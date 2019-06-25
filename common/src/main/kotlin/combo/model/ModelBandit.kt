@@ -7,7 +7,7 @@ import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.ga.GeneticAlgorithmBandit
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
-import combo.math.ImplicationDigraph
+import combo.sat.ImplicationDigraph
 import combo.math.VarianceEstimator
 import combo.sat.ImplicationConstraintCoercer
 import combo.sat.WordRandomSet

@@ -1,6 +1,6 @@
 package combo.ga
 
-import combo.math.ImplicationDigraph
+import combo.sat.ImplicationDigraph
 import combo.math.IntPermutation
 import combo.model.TestModels
 import combo.model.TestModels.MODEL1

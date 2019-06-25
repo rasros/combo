@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.math.ImplicationDigraph
 import combo.math.IntPermutation
 import combo.math.nextGeometric
 import combo.math.nextNormal

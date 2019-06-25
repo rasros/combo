@@ -1,6 +1,5 @@
-package combo.math
+package combo.sat
 
-import combo.sat.*
 import combo.sat.constraints.*
 import combo.util.IntHashSet
 import combo.util.IntList

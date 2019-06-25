@@ -4,14 +4,14 @@ import combo.util.IntList
 import combo.util.assert
 import kotlin.random.Random
 
-interface DiscretePdfSampler {
+interface DiscreteSampler {
     fun sample(rng: Random): Int
 }
 
 /**
- * Implementation of Vose's Alias Method for sampling from a discrete PDF in constant time.
+ * Implementation of Vose's Alias Method for sampling from a discrete PMF in constant time.
  */
-class AliasMethodSampler(probabilities: FloatArray) : DiscretePdfSampler {
+class AliasMethodSampler(probabilities: FloatArray) : DiscreteSampler {
     private val U = FloatArray(probabilities.size) // Probability table
     private val K = IntArray(probabilities.size) { it } // Alias table
 
@@ -48,7 +48,7 @@ class AliasMethodSampler(probabilities: FloatArray) : DiscretePdfSampler {
 /**
  * [probabilities] are required to be sorted in ascending order
  */
-class BinarySearchSampler(private val probabilities: DoubleArray) : DiscretePdfSampler {
+class BinarySearchSampler(private val probabilities: DoubleArray) : DiscreteSampler {
     override fun sample(rng: Random): Int {
         val n = probabilities.size
         val x = rng.nextDouble()

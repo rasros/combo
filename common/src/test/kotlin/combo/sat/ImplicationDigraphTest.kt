@@ -1,7 +1,7 @@
-package combo.math
+package combo.sat
 
+import combo.math.IntPermutation
 import combo.model.Model
-import combo.sat.*
 import combo.sat.constraints.Cardinality
 import combo.test.assertContentEquals
 import combo.util.mapArray

@@ -1,6 +1,6 @@
 package combo.sat.solvers
 
-import combo.math.ImplicationDigraph
+import combo.sat.ImplicationDigraph
 import combo.sat.ImplicationConstraintCoercer
 import combo.sat.Problem
 import combo.sat.WeightSet
