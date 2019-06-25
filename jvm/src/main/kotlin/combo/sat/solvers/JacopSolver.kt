@@ -54,10 +54,13 @@ class JacopSolver @JvmOverloads constructor(
 
     private inner class ConstraintEncoder {
         val store = Store()
-        val vars = Array(problem.nbrVariables) { i ->
+
+        // TODO use temporary vars instead of vars for BinaryXeqX/Y
+
+        val vars = Array(problem.binarySize) { i ->
             BooleanVar(store, "x$i")
         }
-        val optimizeVars = Array(problem.nbrVariables) { i ->
+        val optimizeVars = Array(problem.binarySize) { i ->
             FloatVar(store, "xf$i", 0.0, 1.0)
         }
         val varIndex = HashMap<BooleanVar, Int>().apply {

@@ -36,24 +36,26 @@ class IntVar constructor(name: String, mandatory: Boolean, parent: Value, val mi
 
     private fun isSigned() = min < 0 || max < 0
 
-    override fun valueOf(instance: Instance, index: VariableIndex): Int? {
-        val ix = index.indexOf(this)
-        if (!mandatory && !instance[ix]) return null
+    override fun valueOf(instance: Instance, rootIndex: Int): Int? {
+        if (!mandatory && !instance[rootIndex]) return null
         val offset = if (mandatory) 0 else 1
-        val value = if (isSigned()) instance.getSignedInt(ix + offset, nbrLiterals - offset) else
-            instance.getBits(ix + offset, nbrLiterals - offset)
+        val value = if (isSigned()) instance.getSignedInt(rootIndex + offset, nbrLiterals - offset) else
+            instance.getBits(rootIndex + offset, nbrLiterals - offset)
         assert((mandatory && value == 0) || value in min..max)
         return value
     }
 
     override fun toString() = "IntVar($name in $min:$max)"
+    override fun encoder(binaryIx: Int, vectorIx: Int) =
+            if (isSigned()) IntEncoder(binaryIx, vectorIx, nbrLiterals - (if (mandatory) 0 else 1), min, max)
+            else CountEncoder(binaryIx, vectorIx, nbrLiterals - (if (mandatory) 0 else 1), min, max)
 }
 
 class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Literal {
 
     override val name: String get() = canonicalVariable.name
 
-    override fun toAssumption(index: VariableIndex, set: IntHashSet) {
+    override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
         val ix = index.indexOf(canonicalVariable)
         val offset = if (!canonicalVariable.mandatory) {
             set.add(ix.toLiteral(true))
@@ -94,23 +96,24 @@ class FloatVar constructor(name: String, mandatory: Boolean, parent: Value, val 
         return FloatLiteral(this, value)
     }
 
-    override fun valueOf(instance: Instance, index: VariableIndex): Float? {
-        val ix = index.indexOf(this)
-        if (!mandatory && !instance[ix]) return null
+    override fun valueOf(instance: Instance, rootIndex: Int): Float? {
+        if (!mandatory && !instance[rootIndex]) return null
         val offset = if (mandatory) 0 else 1
-        val intValue = instance.getBits(ix + offset, 32)
+        val intValue = instance.getBits(rootIndex + offset, 32)
         val value = Float.fromBits(intValue)
         return value
     }
 
     override fun toString() = "FloatVar($name in $min:$max)"
+
+    override fun encoder(binaryIx: Int, vectorIx: Int) = FloatEncoder(binaryIx, vectorIx, min, max)
 }
 
 class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) : Literal {
 
     override val name: String get() = canonicalVariable.name
 
-    override fun toAssumption(index: VariableIndex, set: IntHashSet) {
+    override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
         val ix = index.indexOf(canonicalVariable)
         val offset = if (!canonicalVariable.mandatory) {
             set.add(ix.toLiteral(true))
@@ -141,14 +144,13 @@ class BitsVar constructor(
     override val reifiedValue: Value = if (mandatory) parent else this
     override val nbrLiterals: Int get() = nbrBits + if (mandatory) 0 else 1
 
-    override fun valueOf(instance: Instance, index: VariableIndex): Instance? {
-        val ix = index.indexOf(this)
-        if (!mandatory && !instance[ix]) return null
+    override fun valueOf(instance: Instance, rootIndex: Int): Instance? {
+        if (!mandatory && !instance[rootIndex]) return null
         return BitArray(nbrBits).apply {
             var offset = if (mandatory) 0 else 1
             for (i in field.indices) {
                 val nbrBits = if (i == field.lastIndex) nbrBits and 0x1F else 32
-                field[i] = instance.getBits(ix + offset, nbrBits)
+                field[i] = instance.getBits(rootIndex + offset, nbrBits)
                 offset += nbrBits
             }
         }
@@ -159,6 +161,8 @@ class BitsVar constructor(
     override fun toString(): String {
         return "BitsVar(nbrLiterals=$nbrBits)"
     }
+
+    override fun encoder(binaryIx: Int, vectorIx: Int) = BitsEncoder(binaryIx, vectorIx, nbrBits)
 }
 
 class BitValue constructor(override val canonicalVariable: BitsVar, val bitIndex: Int) : Value {

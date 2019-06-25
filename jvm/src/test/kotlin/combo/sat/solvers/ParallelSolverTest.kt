@@ -44,7 +44,7 @@ class ParallelSolverTest {
                 for (i in 0 until 50) {
                     list.add(Callable {
                         val assumptions = if (Random.nextBoolean()) EmptyCollection
-                        else collectionOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
+                        else collectionOf(Random.nextInt(p.binarySize).toLiteral(Random.nextBoolean()))
                         solver.witnessOrThrow(assumptions)
                     })
                 }
@@ -98,9 +98,9 @@ class ParallelSolverTest {
                 for (i in 0 until 20)
                     list.add(Callable {
                         val assumptions = if (Random.nextBoolean()) EmptyCollection
-                        else collectionOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
+                        else collectionOf(Random.nextInt(p.binarySize).toLiteral(Random.nextBoolean()))
                         optimizer.optimizeOrThrow(
-                                LinearObjective(true, FloatArray(p.nbrVariables) { Random.nextNormal() }),
+                                LinearObjective(true, FloatArray(p.binarySize) { Random.nextNormal() }),
                                 assumptions)
                     })
                 val instances = pool.invokeAll(list).map { it.get() }

@@ -20,7 +20,7 @@ data class ExpandedCandidates(val candidates: ValidatorCandidates,
 fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCandidates {
     val instanceBuilder = BitArrayBuilder
     val instances = Array(nbrStates) {
-        val instance = instanceBuilder.create(problem.nbrVariables)
+        val instance = instanceBuilder.create(problem.binarySize)
         WordRandomSet().initialize(instance, Tautology, rng, null)
         Validator(problem, instance, Tautology)
     }
@@ -52,7 +52,7 @@ class ValidatorCandidatesTest {
     fun candidatesWithAge() {
         val origins = intArrayOf(1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6)
         val scores = FloatArray(origins.size) { it.toFloat() }
-        val problem = Problem(emptyArray(), 1)
+        val problem = Problem(1, emptyArray())
         val validators = Array(origins.size) {
             val instance = BitArray(1)
             Validator(problem, instance, Tautology)
@@ -66,7 +66,7 @@ class ValidatorCandidatesTest {
     fun oldestAfterUpdate() {
         val origins = intArrayOf(1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6)
         val scores = FloatArray(origins.size) { it.toFloat() }
-        val problem = Problem(emptyArray(), 10)
+        val problem = Problem(10, emptyArray())
         val validators = Array(origins.size) {
             val instance = BitArray(10)
             WordRandomSet().initialize(instance, Tautology, Random, null)
@@ -85,7 +85,7 @@ class ValidatorCandidatesTest {
         // This tests the similar functionality in GeneticAlgorithmOptimizer that changes the origin to something older
         val origins = IntArray(20) { 10 + it }
         val scores = FloatArray(20) { it.toFloat() }
-        val problem = Problem(emptyArray(), 10)
+        val problem = Problem(10, emptyArray())
         val validators = Array(origins.size) {
             val instance = BitArray(10)
             WordRandomSet().initialize(instance, Tautology, Random, null)
@@ -232,7 +232,7 @@ abstract class MutationOperatorTest {
     @Test
     fun mutateCanChange() {
         for (n in 1..20) {
-            val problem = Problem(emptyArray(), n)
+            val problem = Problem(n, emptyArray())
             val rng = Random(n)
             val (candidates, _, _) = createCandidates(problem, 1, rng)
             val mutator = mutationOperator(problem)

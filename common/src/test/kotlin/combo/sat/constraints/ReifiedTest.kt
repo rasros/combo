@@ -63,8 +63,8 @@ class ReifiedEquivalentTest : ConstraintTest() {
         val e = ReifiedEquivalent(-1, Conjunction(IntList(intArrayOf(2, 3))))
         val c = e.toCnf().toList<Constraint>().toTypedArray()
         assertEquals(3, c.size)
-        val s1 = ExhaustiveSolver(Problem(arrayOf(e), 3)).asSequence().toSet()
-        val s2 = ExhaustiveSolver(Problem(c, 3)).asSequence().toSet()
+        val s1 = ExhaustiveSolver(Problem(3, arrayOf(e))).asSequence().toSet()
+        val s2 = ExhaustiveSolver(Problem(3, c)).asSequence().toSet()
         assertEquals(s1.size, s2.size)
         for (l in s1) assertTrue(s2.contains(l))
     }
@@ -74,8 +74,8 @@ class ReifiedEquivalentTest : ConstraintTest() {
         val e = ReifiedEquivalent(2, Disjunction(IntList(intArrayOf(1, -3))))
         val c = e.toCnf().toList<Constraint>().toTypedArray()
         assertEquals(3, c.size)
-        val s1 = ExhaustiveSolver(Problem(arrayOf(e), 3)).asSequence().toList()
-        val s2 = ExhaustiveSolver(Problem(c, 3)).asSequence().toList()
+        val s1 = ExhaustiveSolver(Problem(3, arrayOf(e))).asSequence().toList()
+        val s2 = ExhaustiveSolver(Problem(3, c)).asSequence().toList()
         assertEquals(s1.size, s2.size)
         for (l in s1) assertTrue(s2.contains(l))
     }

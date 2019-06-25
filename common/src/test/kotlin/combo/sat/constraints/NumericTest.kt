@@ -88,10 +88,7 @@ class IntBoundsTest : ConstraintTest() {
             for (i in 1..1000) {
                 val coercedInstances = randomCoerce(IntBounds(ix, min, max, nbrLiterals(min, max)))
                 val variable = IntVar("", mandatory = true, parent = Root(""), min = min, max = max)
-                val index = VariableIndex("")
-                if (ix > 0) index.add(BitsVar("b", mandatory = true, parent = Root(""), nbrBits = ix))
-                index.add(variable)
-                val values = coercedInstances.map { variable.valueOf(it, index)!! }
+                val values = coercedInstances.map { variable.valueOf(it, 0)!! }
                 if (min in values && max in values) return
                 assertTrue(values.max()!! <= max)
                 assertTrue(values.min()!! >= min)
@@ -135,6 +132,26 @@ class FloatBoundsTest : ConstraintTest() {
     }
 
     @Test
+    fun unitPropagations() {
+        fun test(min: Float, max: Float, literals: Literals, sat: Boolean) {
+            val fb = FloatBounds(0, min, max)
+            val c = fb.unitPropagations(literals)
+            if (!sat) assertEquals(c, Empty)
+            else if (c is FloatBounds) {
+                assertTrue(c.min >= min)
+                assertTrue(c.max <= max)
+            } else {
+                fail("Did not expect: $c")
+            }
+        }
+        test(-1.2f, -1.1f, intArrayOf(32), true)
+        test(-Float.MAX_VALUE, Float.MAX_VALUE, intArrayOf(1, -32, -2), true)
+        test(0.0f, Float.MAX_VALUE, intArrayOf(1, 32, -2), false)
+        test(-3.14f, 3.14f, intArrayOf(1, 2, 3, 4, 20, 21, 22, -30), true)
+        test(-3.14f, 3.14f, (1..22).toList().toIntArray() + intArrayOf(30, 31), false)
+    }
+
+    @Test
     fun coerce() {
         BitArray(100).also {
             val c = FloatBounds(0, -9.1F, 4.0F)
@@ -159,12 +176,10 @@ class FloatBoundsTest : ConstraintTest() {
         fun testBounds(min: Float, max: Float) {
             val bounds = FloatBounds(0, min, max)
             val rng = Random(0)
-            val index = VariableIndex("")
             val variable = FloatVar("", mandatory = true, min = min, max = max, parent = Root(""))
-            index.add(variable)
             val values = InstancePermutation(32, BitArrayBuilder, rng).asSequence().take(100).map {
                 bounds.coerce(it, rng)
-                variable.valueOf(it, index)!!
+                variable.valueOf(it, 0)!!
             }.toList().toFloatArray()
             assertEquals(min, values.min()!!, 0.01f * (max - min).absoluteValue)
         }

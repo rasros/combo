@@ -62,10 +62,10 @@ class ImplicationDigraphTest {
 
         val id = ImplicationDigraph(problem)
 
-        for (i in 0 until problem.nbrVariables) {
+        for (i in 0 until problem.binarySize) {
             assertContentEquals((1 until (i + 1)).toList().toIntArray(),
                     id.toArray(i.toLiteral(true)).apply { sort() })
-            assertContentEquals(((i + 2)..problem.nbrVariables).toList().toIntArray().mapArray { -it }.apply { sort() },
+            assertContentEquals(((i + 2)..problem.binarySize).toList().toIntArray().mapArray { -it }.apply { sort() },
                     id.toArray(i.toLiteral(false)).apply { sort() })
         }
     }
@@ -82,8 +82,31 @@ class ImplicationDigraphTest {
         }.problem
         val id = ImplicationDigraph(problem)
         for (i in 0 until 10) {
-            val instance = BitArray(problem.nbrVariables).also { RandomSet().initialize(it, Tautology, Random, null) }
-            for (j in IntPermutation(problem.nbrVariables, Random)) {
+            val instance = BitArray(problem.binarySize).also { RandomSet().initialize(it, Tautology, Random, null) }
+            for (j in IntPermutation(problem.binarySize, Random)) {
+                val lit = instance.literal(j)
+                id.trueImplications(lit)?.run { instance.or(this) }
+                id.falseImplications(lit)?.run { instance.andNot(this) }
+            }
+            assertTrue(problem.satisfies(instance))
+        }
+    }
+
+    @Test
+    fun reverseImplications() {
+        TODO()
+        val problem = Model.model {
+            bool("x1")
+            model("x2") {
+                bool("x3")
+            }
+            bool("x4")
+            constraint { "x2" or "x4" }
+        }.problem
+        val id = ImplicationDigraph(problem)
+        for (i in 0 until 10) {
+            val instance = BitArray(problem.binarySize).also { RandomSet().initialize(it, Tautology, Random, null) }
+            for (j in IntPermutation(problem.binarySize, Random)) {
                 val lit = instance.literal(j)
                 id.trueImplications(lit)?.run { instance.or(this) }
                 id.falseImplications(lit)?.run { instance.andNot(this) }
@@ -101,8 +124,8 @@ class ImplicationDigraphTest {
         val id = ImplicationDigraph(problem)
 
         for (i in 0 until 10) {
-            val instance = BitArray(problem.nbrVariables).also { RandomSet().initialize(it, Tautology, Random, null) }
-            for (j in IntPermutation(problem.nbrVariables, Random)) {
+            val instance = BitArray(problem.binarySize).also { RandomSet().initialize(it, Tautology, Random, null) }
+            for (j in IntPermutation(problem.binarySize, Random)) {
                 val lit = instance.literal(j)
                 id.trueImplications(lit)?.run { instance.or(this) }
                 id.falseImplications(lit)?.run { instance.andNot(this) }

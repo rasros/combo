@@ -24,7 +24,7 @@ class AssignmentTest {
             val m = Model.model {
                 flag("f", 10)
             }
-            m.toAssignment(BitArray(1, IntArray(1))).getOrThrow("f")
+            m.toAssignment(BitArray(1, IntArray(1))).getOrThrow<Int>("f")
         }
         assertFailsWith(NoSuchElementException::class) {
             val m = Model.model {

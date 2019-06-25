@@ -39,7 +39,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         if (guess != null && (propAssumptions.isEmpty() || Conjunction(propAssumptions).satisfies(guess)) && problem.satisfies(guess))
             return guess
         val remap = createRemap(propAssumptions)
-        val nbrVariables = problem.nbrVariables - propAssumptions.size
+        val nbrVariables = problem.nbrBinaryVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
         return InstancePermutation(nbrVariables, instanceBuilder, randomSequence.next())
                 .asSequence()
@@ -56,7 +56,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
             return emptySequence()
         }
         val remap = createRemap(propAssumptions)
-        val nbrVariables = problem.nbrVariables - propAssumptions.size
+        val nbrVariables = problem.nbrBinaryVariables - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
         return InstancePermutation(nbrVariables, instanceBuilder, randomSequence.next())
                 .asSequence()
@@ -84,7 +84,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
 
     private fun createRemap(assumptions: IntCollection): IntArray {
         if (assumptions.isEmpty()) return EMPTY_INT_ARRAY
-        val nbrVariables = problem.nbrVariables - assumptions.size
+        val nbrVariables = problem.nbrBinaryVariables - assumptions.size
         val themap = IntArray(nbrVariables)
         var ix = 0
         val taken = IntHashSet(assumptions.size * 2, nullValue = -1)
@@ -98,7 +98,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
 
     private fun remapInstance(assumptions: IntCollection, instance: Instance, remap: IntArray): Instance {
         return if (assumptions.isNotEmpty()) {
-            val result = this.instanceBuilder.create(problem.nbrVariables)
+            val result = this.instanceBuilder.create(problem.nbrBinaryVariables)
             result.setAll(assumptions)
             for (i in instance.indices) {
                 result[remap[i]] = instance[i]

@@ -84,6 +84,13 @@ interface Constraint : Expression {
      */
     fun unitPropagation(unit: Literal): Constraint
 
+    fun unitPropagations(units: Literals): Constraint {
+        var c = this
+        for (lit in units)
+            c = c.unitPropagation(lit)
+        return c
+    }
+
     fun coerce(instance: MutableInstance, rng: Random)
 }
 

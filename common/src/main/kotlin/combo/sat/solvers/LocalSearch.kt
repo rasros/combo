@@ -44,7 +44,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     /**
      * Maximum number of steps for each of the [restarts].
      */
-    var maxSteps: Int = max(100, problem.nbrVariables)
+    var maxSteps: Int = max(100, problem.nbrBinaryVariables)
 
     /**
      * Chance of talking a random walk according to the WalkSAT algorithm.
@@ -61,7 +61,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
      * Keep a ring-buffer with blocked assignments during search. Size is always a power of 2. Sometimes called tabu
      * tenure.
      */
-    var tabuListSize: Int = Int.power2(min(problem.nbrVariables, 2))
+    var tabuListSize: Int = Int.power2(min(problem.nbrBinaryVariables, 2))
         set(value) {
             field = if (value == 0) 0
             else Int.power2(value)
@@ -90,7 +90,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
     /**
      * Maximum number of variables to consider during each search, set to [Int.MAX_VALUE] to disable.
      */
-    var maxConsideration: Int = max(20, problem.nbrVariables / 5)
+    var maxConsideration: Int = max(20, problem.nbrBinaryVariables / 5)
 
     /**
      * If true then perform unit propagation before solving when assumptions are used.
@@ -107,14 +107,14 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
         if (propagateAssumptions && assumptions.isNotEmpty()) {
             val units = IntHashSet()
             units.addAll(assumptions)
-            p = Problem(problem.unitPropagation(units, true), problem.nbrVariables)
+            p = Problem(problem.nbrBinaryVariables, problem.unitPropagation(units, true))
             assumption = Conjunction(units)
         } else {
             p = problem
             assumption = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
         }
 
-        val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrVariables))
+        val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrBinaryVariables))
 
         var bestValue = Float.POSITIVE_INFINITY
         var bestInstance: Instance? = null
@@ -130,7 +130,7 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
             if (guess != null && restart == 1) {
                 instance = guess
             } else {
-                instance = instanceBuilder.create(p.nbrVariables)
+                instance = instanceBuilder.create(p.nbrBinaryVariables)
                 initializer.initialize(instance, assumption, rng, function)
             }
             val validator = Validator(p, instance, assumption)
@@ -145,24 +145,24 @@ open class LocalSearchOptimizer<O : ObjectiveFunction>(val problem: Problem) : O
             var prevValue = function.value(instance)
             setReturnValue(prevValue)
 
-            if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || p.nbrVariables == 0))
+            if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || p.nbrBinaryVariables == 0))
                 return validator.instance
 
             for (step in 1..maxSteps) {
                 val n: Int
                 val ix: Int = if (pRandomWalk > rng.nextFloat()) {
                     if (validator.totalUnsatisfied > 0) validator.randomUnsatisfied(rng).literals.random(rng).toIx()
-                    else rng.nextInt(p.nbrVariables)
+                    else rng.nextInt(p.nbrBinaryVariables)
                 } else {
                     val itr: IntIterator = if (validator.totalUnsatisfied > 0) {
                         val literals = validator.randomUnsatisfied(rng).literals
                         n = min(adjustedMaxConsideration, literals.size)
                         literals.permutation(rng)
                     } else {
-                        n = min(adjustedMaxConsideration, p.nbrVariables)
-                        if (p.nbrVariables > adjustedMaxConsideration)
-                            OffsetIterator(1, IntPermutation(p.nbrVariables, rng).iterator())
-                        else (1..p.nbrVariables).iterator()
+                        n = min(adjustedMaxConsideration, p.nbrBinaryVariables)
+                        if (p.nbrBinaryVariables > adjustedMaxConsideration)
+                            OffsetIterator(1, IntPermutation(p.nbrBinaryVariables, rng).iterator())
+                        else (1..p.nbrBinaryVariables).iterator()
                     }
                     var maxSatImp = Int.MIN_VALUE
                     var maxOptImp = 0.0f

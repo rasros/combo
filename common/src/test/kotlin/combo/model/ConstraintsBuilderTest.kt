@@ -123,7 +123,7 @@ class ConstraintsBuilderTest {
     fun xor1() {
         with(ConstraintBuilder(index)) {
             val c = (vars[0] xor vars[2] xor vars[1]) as CNF
-            val p = Problem(c.disjunctions.toTypedArray(), 3)
+            val p = Problem(3, c.disjunctions.toTypedArray())
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
             assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b011 })))
             assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b101 })))
@@ -159,7 +159,7 @@ class ConstraintsBuilderTest {
         // ((a implies b) implies c)
         with(ConstraintBuilder(index)) {
             val c = (vars[0] implies vars[1] implies vars[2]) as CNF
-            val p = Problem(c.disjunctions.toTypedArray(), 3)
+            val p = Problem(3, c.disjunctions.toTypedArray())
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
             assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b011 })))
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b101 })))
@@ -190,7 +190,7 @@ class ConstraintsBuilderTest {
         // ((a equivalent b) equivalent c)
         with(ConstraintBuilder(index)) {
             val c = (vars[0] equivalent vars[1] equivalent vars[2]) as CNF
-            val p = Problem(c.disjunctions.toTypedArray(), 3)
+            val p = Problem(3, c.disjunctions.toTypedArray())
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
             assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b011 })))
             assertFalse(p.satisfies(BitArray(3, IntArray(1) { 0b101 })))
@@ -224,7 +224,7 @@ class ConstraintsBuilderTest {
     fun excludes() {
         with(ConstraintBuilder(index)) {
             val c = excludes(vars[0], !vars[1])
-            val p = Problem(arrayOf(c), 2)
+            val p = Problem(2, arrayOf(c))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b01))))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b10))))
@@ -236,7 +236,7 @@ class ConstraintsBuilderTest {
     fun exactly() {
         with(ConstraintBuilder(index)) {
             val c = exactly(2, arrayOf(vars[0], !vars[1]))
-            val p = Problem(arrayOf(c), 2)
+            val p = Problem(2, arrayOf(c))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b01))))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b10))))
@@ -248,7 +248,7 @@ class ConstraintsBuilderTest {
     fun atMost() {
         with(ConstraintBuilder(index)) {
             val c = atMost(1, arrayOf(!vars[1], vars[0]))
-            val p = Problem(arrayOf(c), 2)
+            val p = Problem(2, arrayOf(c))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b01))))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b10))))
@@ -260,7 +260,7 @@ class ConstraintsBuilderTest {
     fun atLeast() {
         with(ConstraintBuilder(index)) {
             val c = atLeast(2, arrayOf(vars[0], !vars[1]))
-            val p = Problem(arrayOf(c), 2)
+            val p = Problem(2, arrayOf(c))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b01))))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b10))))
@@ -272,7 +272,7 @@ class ConstraintsBuilderTest {
     fun reifiedEquivalent1() {
         with(ConstraintBuilder(index)) {
             val c = vars[0] reifiedEquivalent conjunction(vars[1], !vars[2])
-            val p = Problem(arrayOf(c), 3)
+            val p = Problem(3, arrayOf(c))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b101))))
@@ -288,7 +288,7 @@ class ConstraintsBuilderTest {
     fun reifiedEquivalent2() {
         with(ConstraintBuilder(index)) {
             val c = "0" reifiedEquivalent disjunction(vars[1], vars[2])
-            val p = Problem(arrayOf(c), 3)
+            val p = Problem(3, arrayOf(c))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b101))))
@@ -304,7 +304,7 @@ class ConstraintsBuilderTest {
     fun reifiedEquivalent3() {
         with(ConstraintBuilder(index)) {
             val c = !vars[2] reifiedEquivalent disjunction(vars[1], vars[0])
-            val p = Problem(arrayOf(c), 3)
+            val p = Problem(3, arrayOf(c))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b101))))
@@ -320,7 +320,7 @@ class ConstraintsBuilderTest {
     fun reifiedImplies1() {
         with(ConstraintBuilder(index)) {
             val c = vars[0] reifiedImplies conjunction(vars[1], !vars[2])
-            val p = Problem(arrayOf(c), 3)
+            val p = Problem(3, arrayOf(c))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b101))))
@@ -336,7 +336,7 @@ class ConstraintsBuilderTest {
     fun reifiedImplies2() {
         with(ConstraintBuilder(index)) {
             val c = "0" reifiedImplies disjunction(vars[1], vars[2])
-            val p = Problem(arrayOf(c), 3)
+            val p = Problem(3, arrayOf(c))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b101))))
@@ -352,7 +352,7 @@ class ConstraintsBuilderTest {
     fun reifiedImplies3() {
         with(ConstraintBuilder(index)) {
             val c = !vars[2] reifiedImplies disjunction(vars[1], vars[0])
-            val p = Problem(arrayOf(c), 3)
+            val p = Problem(3, arrayOf(c))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b011))))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b101))))
@@ -373,7 +373,7 @@ class ConstraintsBuilderTest {
             val c = (!c1 or (c2 and c3)) as CNF
             val instance = BitArray(6)
             instance[5] = true
-            assertTrue(Problem(c.disjunctions.toTypedArray(), 6).satisfies(instance))
+            assertTrue(Problem(6, c.disjunctions.toTypedArray()).satisfies(instance))
         }
     }
 
@@ -453,7 +453,7 @@ class ConstraintsBuilderTest {
         }
         with(ConstraintBuilder(index)) {
             val con = ((f and g) or ((a or b or !c) and d and e)) as CNF
-            val p = Problem(con.disjunctions.toTypedArray(), 7)
+            val p = Problem(7, con.disjunctions.toTypedArray())
 
             // Random sample
             assertTrue(p.satisfies(BitArray(7, IntArray(1) { 0b111111 })))
@@ -480,7 +480,7 @@ class ConstraintsBuilderTest {
         with(ConstraintBuilder(index)) {
             val con = (f and g) or ((a or b or !c) and d and e)
             val neg = (!con) as CNF
-            val p = Problem(neg.disjunctions.toTypedArray(), 7)
+            val p = Problem(7, neg.disjunctions.toTypedArray())
 
             // Random sample
             assertFalse(p.satisfies(BitArray(7, IntArray(1) { 0b111111 })))

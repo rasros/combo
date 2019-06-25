@@ -70,7 +70,7 @@ fun collectionOf(vararg array: Int): IntCollection {
     }
     return when {
         array.isEmpty() -> EmptyCollection
-        array.size == 1 -> IntList(intArrayOf(array[0]))
+        array.size == 1 -> SingletonIntCollection(array[0])
         doRange -> IntRangeSet(min, max)
         array.size > 20 -> IntHashSet().apply { addAll(array) }
         else -> IntList(array)
@@ -114,3 +114,22 @@ typealias IntEntry = Long
 fun IntEntry.key() = this.toInt()
 fun IntEntry.value() = (this ushr (Int.SIZE_BITS)).toInt()
 fun entry(key: Int, value: Int) = (value.toLong() shl Int.SIZE_BITS) or (key.toLong() and 0xFFFFFFFFL)
+
+class SingletonIntCollection(val value: Int) : IntCollection {
+    override val size: Int get() = 1
+    override fun copy() = SingletonIntCollection(value)
+    override fun contains(value: Int) = this.value == value
+    override fun map(transform: (Int) -> Int) = SingletonIntCollection(transform.invoke(value))
+    override fun iterator() = object : IntIterator() {
+        var consumed = false
+        override fun hasNext() = !consumed
+        override fun nextInt(): Int {
+            if (consumed) throw NoSuchElementException()
+            consumed = true
+            return value
+        }
+    }
+
+    override fun permutation(rng: Random) = iterator()
+    override fun random(rng: Random) = value
+}

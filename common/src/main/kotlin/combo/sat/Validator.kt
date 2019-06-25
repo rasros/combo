@@ -49,7 +49,7 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
         val assumptionImprovement =
                 if (literal.toIx() in assumptionIxs) improvementConst(ix, assumption, constraintCache.lastIndex)
                 else 0
-        return assumptionImprovement + problem.constraintsWith(ix).sumBy { constId ->
+        return assumptionImprovement + problem.constraining(ix).sumBy { constId ->
             val const = problem.constraints[constId]
             improvementConst(ix, const, constId)
         }
@@ -69,7 +69,7 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
         if (literal in instance) return
         if (literal.toIx() in assumptionIxs)
             updateConst(ix, assumption, constraintCache.lastIndex)
-        for (constId in problem.constraintsWith(ix)) {
+        for (constId in problem.constraining(ix)) {
             val const = problem.constraints[constId]
             updateConst(ix, const, constId)
         }

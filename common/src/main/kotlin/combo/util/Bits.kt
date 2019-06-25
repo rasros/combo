@@ -15,21 +15,33 @@ fun Int.Companion.power2(value: Int): Int {
     return x + 1
 }
 
-fun Int.Companion.msb(value: Int): Int {
-    assert(value >= 0)
-    var v = value
-    var r = 0
+private val DE_BRUIJN_POSITION_MSB = intArrayOf(
+        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
+        8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31)
 
-    while (v != 0) {
-        v = v shr 1
-        r++
-    }
-    return r
+fun Int.Companion.msb(value: Int): Int {
+    var x = value
+    x = x or (x ushr 1)
+    x = x or (x ushr 2)
+    x = x or (x ushr 4)
+    x = x or (x ushr 8)
+    x = x or (x ushr 16)
+    val i = 0x07C4ACDD
+    val i1 = (x * i) ushr 27
+    return DE_BRUIJN_POSITION_MSB[i1]
+}
+
+private val DE_BRUIJN_POSITION_LSB = intArrayOf(
+        0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+        31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9)
+
+fun Int.Companion.lsb(value: Int): Int {
+    return DE_BRUIJN_POSITION_LSB[((value and -value) * 0x077CB531) ushr 27]
 }
 
 fun Int.Companion.bitSize(value: Int): Int {
-    return if (value < 0) Int.msb(value.absoluteValue - 1)
-    else Int.msb(value)
+    return (if (value < 0) Int.msb(value.absoluteValue - 1)
+    else Int.msb(value)) + 1
 }
 
 /**

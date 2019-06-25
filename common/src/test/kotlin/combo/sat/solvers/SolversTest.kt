@@ -30,7 +30,7 @@ abstract class SolverTest {
 
     @Test
     fun emptyProblemSat() {
-        val solver = solver(Problem(arrayOf(), 0))
+        val solver = solver(Problem(0, arrayOf()))
         if (solver != null) {
             val instance = solver.witnessOrThrow()
             assertEquals(0, instance.size)
@@ -260,7 +260,7 @@ abstract class SolverTest {
 
     @Test
     fun sequenceSize() {
-        val p = Problem(arrayOf(), 4)
+        val p = Problem(4, arrayOf())
         val solver = solver(p)
         if (solver != null) {
             val toSet = solver.asSequence().take(200).toSet()

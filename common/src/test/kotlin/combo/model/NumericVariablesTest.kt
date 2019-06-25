@@ -70,16 +70,14 @@ class IntVarTest {
     @Test
     fun valueOf() {
         val f = IntVar("", false, Root(""), min = -1, max = 10)
-        val index = VariableIndex("")
-        index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertNull(f.valueOf(instance, index))
+        assertNull(f.valueOf(instance, 0))
         instance[0] = true
-        assertEquals(0, f.valueOf(instance, index))
+        assertEquals(0, f.valueOf(instance, 0))
         instance.setBits(1, f.nbrLiterals - 1, 4)
-        assertEquals(4, f.valueOf(instance, index))
+        assertEquals(4, f.valueOf(instance, 0))
         for (i in instance.indices) instance[i] = true
-        val actual = f.valueOf(instance, index)
+        val actual = f.valueOf(instance, 0)
         assertEquals(-1, actual)
     }
 
@@ -89,9 +87,9 @@ class IntVarTest {
         val index = VariableIndex("")
         index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertEquals(0, f.valueOf(instance, index))
+        assertEquals(0, f.valueOf(instance, 0))
         instance.setBits(0, f.nbrLiterals, 4)
-        assertEquals(4, f.valueOf(instance, index))
+        assertEquals(4, f.valueOf(instance, 0))
     }
 
     @Test
@@ -100,9 +98,9 @@ class IntVarTest {
         val index = VariableIndex("")
         index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertEquals(0, f.valueOf(instance, index))
+        assertEquals(0, f.valueOf(instance, 0))
         instance.setBits(0, f.nbrLiterals, 4)
-        assertEquals(4, f.valueOf(instance, index))
+        assertEquals(4, f.valueOf(instance, 0))
     }
 
     @Test
@@ -141,9 +139,9 @@ class IntLiteralTest {
             index.add(v)
             val instance = BitArray(index.nbrVariables)
             val set = IntHashSet()
-            v.value(value).toAssumption(index, set)
+            v.value(value).collectLiterals(index, set)
             Conjunction(set).coerce(instance, Random)
-            assertEquals(value, v.valueOf(instance, index))
+            assertEquals(value, v.valueOf(instance, index.indexOf(v)))
         }
 
         for (i in -10..10) testToLiteral(-10, 10, i)
@@ -161,7 +159,7 @@ class IntLiteralTest {
         index.add(a)
         fun test(literals: IntArray, value: Int) {
             val set = IntHashSet()
-            a.value(value).toAssumption(index, set)
+            a.value(value).collectLiterals(index, set)
             val arr = set.toArray().apply { sort() }
             assertContentEquals(literals.apply { sort() }, arr)
         }
@@ -204,36 +202,30 @@ class FloatVarTest {
     @Test
     fun valueOf() {
         val f = FloatVar("", false, Root(""), min = -1F, max = 10F)
-        val index = VariableIndex("")
-        index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertNull(f.valueOf(instance, index))
+        assertNull(f.valueOf(instance, 0))
         instance[0] = true
-        assertEquals(0F, f.valueOf(instance, index))
+        assertEquals(0F, f.valueOf(instance, 0))
         instance.setFloat(1, 4.5F)
-        assertEquals(4.5F, f.valueOf(instance, index))
+        assertEquals(4.5F, f.valueOf(instance, 0))
     }
 
     @Test
     fun valueOfMandatory() {
         val f = FloatVar("", true, Root(""), min = -1F, max = 10F)
-        val index = VariableIndex("")
-        index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertEquals(0F, f.valueOf(instance, index))
+        assertEquals(0F, f.valueOf(instance, 0))
         instance.setFloat(0, 4.5F)
-        assertEquals(4.5F, f.valueOf(instance, index))
+        assertEquals(4.5F, f.valueOf(instance, 0))
     }
 
     @Test
     fun valueOfMandatoryNonZero() {
         val f = FloatVar("", true, Root(""), min = 1F, max = 10F)
-        val index = VariableIndex("")
-        index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertEquals(0F, f.valueOf(instance, index))
+        assertEquals(0F, f.valueOf(instance, 0))
         instance.setFloat(0, 4F)
-        assertEquals(4F, f.valueOf(instance, index))
+        assertEquals(4F, f.valueOf(instance, 0))
     }
 
     @Test
@@ -286,9 +278,9 @@ class FloatLiteralTest {
             index.add(v)
             val instance = BitArray(index.nbrVariables)
             val set = IntHashSet()
-            v.value(value).toAssumption(index, set)
+            v.value(value).collectLiterals(index, set)
             Conjunction(set).coerce(instance, Random)
-            assertEquals(value.toBits(), v.valueOf(instance, index)!!.toBits())
+            assertEquals(value.toBits(), v.valueOf(instance, 0)!!.toBits())
         }
 
         for (i in -10..10) testToLiteral(-10F, 10F, i.toFloat())
@@ -309,9 +301,9 @@ class FloatLiteralTest {
             index.add(v)
             val instance = BitArray(index.nbrVariables)
             val set = IntHashSet()
-            v.value(value).toAssumption(index, set)
+            v.value(value).collectLiterals(index, set)
             Conjunction(set).coerce(instance, Random)
-            assertEquals(value.toBits(), v.valueOf(instance, index)!!.toBits())
+            assertEquals(value.toBits(), v.valueOf(instance, 0)!!.toBits())
         }
 
         for (i in -10..10) testToLiteral(-10F, 10F, i.toFloat())
@@ -355,29 +347,25 @@ class BitsVarTest {
     @Test
     fun valueOf() {
         val f = BitsVar("", false, Root(""), 10)
-        val index = VariableIndex("")
-        index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertNull(f.valueOf(instance, index))
+        assertNull(f.valueOf(instance, 0))
         instance[0] = true
-        assertEquals(BitArray(10), f.valueOf(instance, index))
+        assertEquals(BitArray(10), f.valueOf(instance, 0))
         instance[1] = true
-        assertEquals(BitArray(10).apply { this[0] = true }, f.valueOf(instance, index))
+        assertEquals(BitArray(10).apply { this[0] = true }, f.valueOf(instance, 0))
         instance[4] = true
-        assertEquals(BitArray(10).apply { this[0] = true; this[3] = true }, f.valueOf(instance, index))
+        assertEquals(BitArray(10).apply { this[0] = true; this[3] = true }, f.valueOf(instance, 0))
     }
 
     @Test
     fun valueOfMandatory() {
         val f = BitsVar("", true, Root(""), 10)
-        val index = VariableIndex("")
-        index.add(f)
         val instance = BitArray(f.nbrLiterals)
-        assertEquals(BitArray(10), f.valueOf(instance, index))
+        assertEquals(BitArray(10), f.valueOf(instance, 0))
         instance[0] = true
-        assertEquals(BitArray(10).apply { this[0] = true }, f.valueOf(instance, index))
+        assertEquals(BitArray(10).apply { this[0] = true }, f.valueOf(instance, 0))
         instance[3] = true
-        assertEquals(BitArray(10).apply { this[0] = true; this[3] = true }, f.valueOf(instance, index))
+        assertEquals(BitArray(10).apply { this[0] = true; this[3] = true }, f.valueOf(instance, 0))
     }
 
     @Test

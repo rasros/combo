@@ -28,7 +28,6 @@ import kotlin.random.Random
 import org.sat4j.minisat.core.Solver as Sat4J
 import org.sat4j.pb.ObjectiveFunction as Sat4JObjectiveFunction
 import org.sat4j.pb.SolverFactory as PBSolverFactory
-import org.sat4j.specs.TimeoutException as Sat4JTimeoutException
 
 /**
  * [Solver] and [Optimizer] of [LinearObjective] using the Sat4J SAT library. Using this requires an extra optional
@@ -84,7 +83,7 @@ class Sat4JSolver @JvmOverloads constructor(
     private fun setupSolver(solver: ISolver) {
 
         solver.setKeepSolverHot(true)
-        solver.newVar(problem.nbrVariables)
+        solver.newVar(problem.binarySize)
 
         try {
             for (c in problem.constraints)
@@ -140,7 +139,7 @@ class Sat4JSolver @JvmOverloads constructor(
         else solver.setTimeoutOnConflicts(Int.MAX_VALUE)
         // This disables Sat4j millisecond timeouts which spawns a thread for each solving
 
-        for (i in 1..problem.nbrVariables)
+        for (i in 1..problem.binarySize)
             solver.registerLiteral(i)
 
     }

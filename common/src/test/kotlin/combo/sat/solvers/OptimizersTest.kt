@@ -21,20 +21,20 @@ abstract class OptimizerTest {
         val instance = optimizer.optimizeOrThrow(function)
         assertTrue(p.satisfies(instance))
         val optValue = function.value(instance)
-        val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrVariables).toInt()).minBy {
-            val instance1 = BitArray(p.nbrVariables, intArrayOf(it))
+        val bruteForceLabelingIx = (0 until 2.0.pow(p.binarySize).toInt()).minBy {
+            val instance1 = BitArray(p.binarySize, intArrayOf(it))
             if (p.satisfies(instance1)) function.value(instance1)
             else Float.POSITIVE_INFINITY
         }
-        val bruteForceValue = function.value(BitArray(p.nbrVariables, intArrayOf(bruteForceLabelingIx!!)))
-        assertEquals(bruteForceValue, optValue, max(1.0f, 0.01f * p.nbrVariables), "Model $i")
+        val bruteForceValue = function.value(BitArray(p.binarySize, intArrayOf(bruteForceLabelingIx!!)))
+        assertEquals(bruteForceValue, optValue, max(1.0f, 0.01f * p.binarySize), "Model $i")
     }
 
     @Test
     fun interactiveObjective() {
         for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
             val rng = Random(i)
-            val function = InteractionObjective(FloatArray(p.nbrVariables) { rng.nextFloat() - 0.5f })
+            val function = InteractionObjective(FloatArray(p.binarySize) { rng.nextFloat() - 0.5f })
             optimizerTest(p, function, i)
         }
     }
@@ -42,7 +42,7 @@ abstract class OptimizerTest {
     @Test
     fun oneMaxObjective() {
         for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
-            val function = OneMaxObjective(p.nbrVariables)
+            val function = OneMaxObjective(p.binarySize)
             optimizerTest(p, function, i)
         }
     }
@@ -50,13 +50,13 @@ abstract class OptimizerTest {
     @Test
     fun jumpObjective() {
         for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
-            val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrVariables).toInt()).minBy {
-                val instance = BitArray(p.nbrVariables, intArrayOf(it))
-                if (p.satisfies(instance)) OneMaxObjective(p.nbrVariables).value(instance)
+            val bruteForceLabelingIx = (0 until 2.0.pow(p.binarySize).toInt()).minBy {
+                val instance = BitArray(p.binarySize, intArrayOf(it))
+                if (p.satisfies(instance)) OneMaxObjective(p.binarySize).value(instance)
                 else Float.POSITIVE_INFINITY
             }
-            val bruteForceValue = OneMaxObjective(p.nbrVariables).value(
-                    BitArray(p.nbrVariables, intArrayOf(bruteForceLabelingIx!!)))
+            val bruteForceValue = OneMaxObjective(p.binarySize).value(
+                    BitArray(p.binarySize, intArrayOf(bruteForceLabelingIx!!)))
             val function = JumpObjective(-bruteForceValue.toInt())
             optimizerTest(p, function, i)
         }
@@ -70,12 +70,12 @@ abstract class ObjectiveFunctionTest {
     @Test
     fun valueAndImprovement() {
         for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
-            val f = function(p.nbrVariables)
-            val instance = BitArray(p.nbrVariables)
+            val f = function(p.binarySize)
+            val instance = BitArray(p.binarySize)
             WordRandomSet().initialize(instance, Tautology, Random, null)
             val s = Validator(p, instance, Tautology)
             val v = f.value(instance)
-            val ix = Random.nextInt(p.nbrVariables)
+            val ix = Random.nextInt(p.binarySize)
             val imp = f.improvement(instance, ix)
             s.flip(ix)
             val nv = f.value(instance)

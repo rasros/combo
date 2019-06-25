@@ -3,11 +3,9 @@
 package combo.sat
 
 import combo.math.Vector
-import combo.util.assert
-import combo.util.bitCount
-import combo.util.key
-import combo.util.value
+import combo.util.*
 import kotlin.jvm.JvmName
+import kotlin.math.min
 
 
 /**
@@ -56,18 +54,6 @@ interface MutableInstance : Instance {
     operator fun set(ix: Int, value: Boolean)
     fun setWord(wordIx: Int, value: Int)
     fun clear()
-}
-
-fun Instance.nbrBits(wordIx: Int): Int {
-    return when {
-        size == 0 -> 0
-        wordIx == wordSize - 1 -> {
-            val s = size and 0x1F
-            if (s == 0) 32
-            else s
-        }
-        else -> 32
-    }
 }
 
 fun MutableInstance.and(inst: Instance) {
@@ -175,6 +161,37 @@ fun MutableInstance.setSignedInt(ix: Int, nbrBits: Int, value: Int) {
 fun MutableInstance.setFloat(ix: Int, value: Float) = setBits(ix, 32, value.toRawBits())
 fun Instance.getFloat(ix: Int) = Float.fromBits(getBits(ix, 32))
 
+/**
+ * Get first set bit (0-indexed) between index [from] to [until] (exclusive). Returns -1 on failure.
+ */
+fun Instance.getFirst(from: Int, until: Int): Int {
+    var i = from
+    var v: Int
+    var nbrBits: Int
+    do {
+        nbrBits = min(32, until - i)
+        v = getBits(i, nbrBits)
+        i += nbrBits
+    } while (v == 0 && i < until)
+    return if (v == 0) -1
+    else i - nbrBits - from + Int.lsb(v)
+}
+
+/**
+ * Get last set bit (0-indexed) between index [from] to [until] (exclusive). Returns -1 on failure.
+ */
+fun Instance.getLast(from: Int, until: Int): Int {
+    var i = until
+    var v: Int
+    do {
+        val nbrBits = min(32, i - from)
+        i -= nbrBits
+        v = getBits(i, nbrBits)
+    } while (v == 0 && i > from)
+    return if (v == 0) -1
+    else i - from + Int.msb(v)
+}
+
 fun Instance.deepEquals(other: Instance): Boolean {
     if (this === other) return true
     if (size != other.size) return false
@@ -187,16 +204,12 @@ fun Instance.deepToString() = when {
     else -> "[<$size>]"
 }
 
-/**
- * Optimized for constant loop unrolling.
- */
 infix fun Instance.dot(v: Vector): Float {
     var sum = 0.0f
     val itr = wordIterator()
     while (itr.hasNext()) {
         val e = itr.nextLong()
         var value = e.value()
-        if (value == 0) continue
         val wordIx = e.key()
         val ix = (wordIx shl 5)
         for (i in 0 until 32) {

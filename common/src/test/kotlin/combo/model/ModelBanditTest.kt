@@ -14,7 +14,7 @@ class ModelBanditTest {
     fun dtBandit() {
         // TODO this test does nothing yet
         val model = TestModels.MODEL1
-        val dtBandit = ModelBandit.treeBandit(model, ThompsonSampling(NormalPosterior))
+        val dtBandit = ModelBandit.decisionTreeBandit(model, ThompsonSampling(NormalPosterior))
         dtBandit.bandit.randomSeed = 0
         val rng = Random(1)
         for (i in 1..1000) {

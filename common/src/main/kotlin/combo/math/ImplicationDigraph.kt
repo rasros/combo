@@ -17,7 +17,7 @@ class ImplicationDigraph(val nbrVariables: Int, implications: Map<Int, IntArray>
     /**
      * This constructor calculates the initial edges in the graph.
      */
-    constructor(problem: Problem) : this(problem.nbrVariables, HashMap<Int, IntHashSet>().let { map ->
+    constructor(problem: Problem) : this(problem.binarySize, HashMap<Int, IntHashSet>().let { map ->
         for (constraint in problem.constraints) {
             if (constraint is Disjunction && constraint.size == 2) {
                 val array = constraint.literals.toArray()

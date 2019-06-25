@@ -53,17 +53,19 @@ class Model(val problem: Problem, val index: VariableIndex) {
     class Builder private constructor(val value: Value,
                                       val index: VariableIndex,
                                       private val constraints: MutableList<Constraint>,
-                                      @JvmSynthetic internal val units: IntHashSet) : Value by value {
+                                      @JvmSynthetic internal val units: IntHashSet)
+        : Value by value {
+
 
         constructor(variable: Variable<*>) : this(variable, VariableIndex(variable.name), ArrayList(), IntHashSet())
 
         fun build(): Model {
-            val problem = Problem(constraints.toTypedArray(), index.nbrVariables)
+            val problem = Problem(index.nbrVariables, constraints.toTypedArray())
             val reduced = problem.unitPropagation(units, true)
             units.remove(Int.MAX_VALUE)
             val finalConstraints = if (units.size > 0) reduced + Conjunction(collectionOf(*units.toArray()))
             else reduced
-            return Model(Problem(finalConstraints, index.nbrVariables), index)
+            return Model(Problem(index.nbrVariables, finalConstraints), index)
         }
 
         @JvmOverloads
@@ -84,9 +86,10 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 Alternative(name, mandatory, value, *values).also {
                     require(values.isNotEmpty())
                     addVariable(it)
-                    val firstOption = it.optionIx(0).toLiteral(index)
+                    val parent = if (mandatory) this@Builder.value else it
+                    val firstOption = it.optionAt(0).toLiteral(index)
                     val optionSet = IntRangeSet(firstOption, firstOption + it.values.size - 1)
-                    constraint { (if (mandatory) this@Builder.value else it) reifiedEquivalent Disjunction(optionSet) }
+                    constraint { parent reifiedEquivalent Disjunction(optionSet) }
                     constraint { Cardinality(optionSet, 1, Relation.LE) }
                 }
 
@@ -100,9 +103,33 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 Multiple(name, mandatory, value, *values).also {
                     require(values.isNotEmpty())
                     addVariable(it)
-                    val firstOption = it.optionIx(0).toLiteral(index)
+                    val parent = if (mandatory) this@Builder.value else it
+                    val firstOption = it.optionAt(0).toLiteral(index)
                     val optionSet = IntRangeSet(firstOption, firstOption + it.values.size - 1)
-                    constraint { (if (mandatory) this@Builder.value else it) reifiedEquivalent Disjunction(optionSet) }
+                    constraint { parent reifiedEquivalent Disjunction(optionSet) }
+                }
+
+        @JvmOverloads
+        fun <V> optionalOrdinal(name: String = Variable.defaultName(), vararg values: V) = ordinalHelper(name, false, values)
+
+        /**
+         * An ordinal variable has an intrinsic order among the values. As with alternative or multiple, this will
+         * internally add boolean variables equal to the number of values. In
+         */
+        @JvmOverloads
+        fun <V> ordinal(name: String = Variable.defaultName(), vararg values: V) = ordinalHelper(name, true, values)
+
+        private fun <V> ordinalHelper(name: String = Variable.defaultName(), mandatory: Boolean = false, values: Array<out V>) =
+                Ordinal(name, mandatory, value, *values).also {
+                    require(values.isNotEmpty())
+                    addVariable(it)
+                    val parent = if (mandatory) this@Builder.value else it
+                    val firstOption = it.optionAt(0).toLiteral(index)
+                    val optionSet = IntRangeSet(firstOption, firstOption + it.values.size - 1)
+                    constraint { parent reifiedEquivalent Disjunction(optionSet) }
+                    for (i in 1 until values.size) {
+                        constraint { it.optionAt(i) implies it.optionAt(i - 1) }
+                    }
                 }
 
         @JvmOverloads
@@ -187,7 +214,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
             when (exp) {
                 is Literal -> {
                     val set = IntHashSet()
-                    exp.toAssumption(index, set)
+                    exp.collectLiterals(index, set)
                     addConstraint(Conjunction(collectionOf(*set.toArray())))
                 }
                 is CNF -> exp.disjunctions.forEach { addConstraint(it) }

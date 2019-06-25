@@ -14,7 +14,6 @@ sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constr
             else constraint.cacheUpdate(cacheResult, newLit)
 
     override fun cache(instance: Instance) = constraint.cache(instance)
-
     override fun isUnit() = false
 }
 

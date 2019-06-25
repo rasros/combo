@@ -479,6 +479,83 @@ abstract class InstanceTest {
     }
 
     @Test
+    fun getFirst() {
+        val inst = builder.create(60)
+        assertEquals(-1, inst.getFirst(0, 60))
+        inst[10] = true
+        assertEquals(10, inst.getFirst(0, 60))
+        assertEquals(10, inst.getFirst(0, 11))
+        assertEquals(-1, inst.getFirst(0, 10))
+        assertEquals(-1, inst.getFirst(11, 60))
+        assertEquals(0, inst.getFirst(10, 60))
+        inst[50] = true
+        assertEquals(10, inst.getFirst(0, 60))
+    }
+
+    @Test
+    fun getFirstBig() {
+        val inst = builder.create(200)
+        inst[199] = true
+        assertEquals(199, inst.getFirst(0, 200))
+    }
+
+    @Test
+    fun getFistEvenWord() {
+        val inst1 = builder.create(32)
+        inst1[0] = true
+        assertEquals(0, inst1.getFirst(0, 1))
+        inst1[0] = false
+        inst1[31] = true
+        assertEquals(31, inst1.getFirst(0, 32))
+
+        val inst2 = builder.create(128)
+        inst2[0] = true
+        assertEquals(0, inst2.getFirst(0, 1))
+        inst2[0] = false
+        inst2[127] = true
+        assertEquals(63, inst2.getFirst(64, 128))
+    }
+
+    @Test
+    fun getLast() {
+        val inst = builder.create(60)
+        assertEquals(-1, inst.getLast(0, 60))
+        inst[10] = true
+        assertEquals(10, inst.getLast(0, 60))
+        assertEquals(10, inst.getLast(0, 11))
+        assertEquals(-1, inst.getLast(0, 10))
+        assertEquals(-1, inst.getLast(11, 60))
+        assertEquals(0, inst.getLast(10, 60))
+        inst[50] = true
+        assertEquals(50, inst.getLast(0, 60))
+    }
+
+    @Test
+    fun getLastBig() {
+        val inst = builder.create(200)
+        inst[199] = true
+        assertEquals(199, inst.getLast(0, 200))
+    }
+
+    @Test
+    fun getLastEvenWord() {
+        val inst1 = builder.create(32)
+        inst1[0] = true
+        assertEquals(0, inst1.getLast(0, 1))
+        inst1[0] = false
+        inst1[31] = true
+        assertEquals(31, inst1.getLast(0, 32))
+
+        val inst2 = builder.create(128)
+        inst2[0] = true
+        assertEquals(0, inst2.getLast(0, 1))
+        inst2[0] = false
+        inst2[127] = true
+        assertEquals(63, inst2.getLast(64, 128))
+    }
+
+
+    @Test
     fun hashCodeOrder() {
         val rng = Random
         val log2Size = 11

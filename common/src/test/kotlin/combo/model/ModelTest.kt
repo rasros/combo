@@ -36,15 +36,15 @@ class ModelTest {
     fun emptyModel() {
         val m1 = Model.model { }
         val m2 = Model.builder { }.build()
-        assertEquals(0, m1.problem.nbrVariables)
-        assertEquals(0, m2.problem.nbrVariables)
+        assertEquals(0, m1.problem.binarySize)
+        assertEquals(0, m2.problem.binarySize)
     }
 
     @Test
     fun model1() {
         with(TestModels.MODEL1) {
             assertEquals(7, index.asSequence().count())
-            assertEquals(13, problem.nbrVariables)
+            assertEquals(13, problem.binarySize)
 
             val solver = ModelSolver(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence(index["f3"]).toList()
@@ -60,7 +60,7 @@ class ModelTest {
     fun model2() {
         with(TestModels.MODEL2) {
             assertEquals(5, index.asSequence().count())
-            assertEquals(10, problem.nbrVariables)
+            assertEquals(10, problem.binarySize)
             assertNotNull(problem.constraints.find { c -> c is Conjunction && c.literals.size == 10 })
 
             val solver = ModelSolver(this, ExhaustiveSolver(problem))
@@ -76,7 +76,7 @@ class ModelTest {
     fun model3() {
         with(TestModels.MODEL3) {
             assertEquals(2, index.asSequence().count())
-            assertEquals(6, problem.nbrVariables)
+            assertEquals(6, problem.binarySize)
             assertNotNull(problem.constraints.find { c -> c is Conjunction && c.literals.size == 4 })
 
             val solver = ModelSolver(this, ExhaustiveSolver(problem))
@@ -92,7 +92,7 @@ class ModelTest {
     fun model4() {
         with(TestModels.MODEL4) {
             assertEquals(5, index.asSequence().count())
-            assertEquals(15, problem.nbrVariables)
+            assertEquals(15, problem.binarySize)
 
             val solver = ModelSolver(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence(
@@ -208,7 +208,7 @@ class ModelTest {
         with(TestModels.LARGE1) {
             assertEquals(4, index.asSequence().count())
             assertEquals(6, problem.constraints.size)
-            assertEquals(322, problem.nbrVariables)
+            assertEquals(322, problem.binarySize)
         }
     }
 
@@ -217,12 +217,12 @@ class ModelTest {
         with(TestModels.LARGE2) {
             assertEquals(55, index.asSequence().count())
             assertEquals(107, problem.constraints.size)
-            assertEquals(105, problem.nbrVariables)
+            assertEquals(105, problem.binarySize)
 
             val m1: Flag<*> = index.find("Cat 1")!!
             val m2: Multiple<*> = index.find("Cat 1 1")!!
             val con = Conjunction(collectionOf(!m1.toLiteral(index), m2.toLiteral(index)))
-            for (i in InstancePermutation(problem.nbrVariables, BitArrayBuilder, Random).asSequence().take(100)) {
+            for (i in InstancePermutation(problem.binarySize, BitArrayBuilder, Random).asSequence().take(100)) {
                 con.coerce(i, Random)
                 assertFalse(problem.satisfies(i), "$i")
             }
@@ -234,7 +234,7 @@ class ModelTest {
         with(TestModels.LARGE3) {
             assertEquals(500, index.asSequence().count())
             assertEquals(499, problem.constraints.size)
-            assertEquals(500, problem.nbrVariables)
+            assertEquals(500, problem.binarySize)
         }
     }
 
@@ -243,7 +243,7 @@ class ModelTest {
         with(TestModels.LARGE4) {
             assertEquals(500, index.asSequence().count())
             assertEquals(1000, problem.constraints.size)
-            assertEquals(500, problem.nbrVariables)
+            assertEquals(500, problem.binarySize)
         }
     }
 
@@ -252,8 +252,8 @@ class ModelTest {
         with(TestModels.NUMERIC1) {
             assertEquals(7, index.asSequence().count())
             assertEquals(11, problem.constraints.size)
-            assertEquals(103, problem.nbrVariables)
-            val instance = BitArray(problem.nbrVariables)
+            assertEquals(103, problem.binarySize)
+            val instance = BitArray(problem.binarySize)
             for (c in problem.constraints)
                 c.coerce(instance, Random)
             assertTrue(problem.satisfies(instance))
@@ -265,8 +265,8 @@ class ModelTest {
         with(TestModels.NUMERIC2) {
             assertEquals(3, index.asSequence().count())
             assertEquals(5, problem.constraints.size)
-            assertEquals(99, problem.nbrVariables)
-            val instance = BitArray(problem.nbrVariables)
+            assertEquals(99, problem.binarySize)
+            val instance = BitArray(problem.binarySize)
             for (c in problem.constraints)
                 c.coerce(instance, Random)
             assertTrue(problem.satisfies(instance))
@@ -278,8 +278,8 @@ class ModelTest {
         with(TestModels.NUMERIC3) {
             assertEquals(13, index.asSequence().count())
             assertEquals(20, problem.constraints.size)
-            assertEquals(435, problem.nbrVariables)
-            val instance = BitArray(problem.nbrVariables)
+            assertEquals(435, problem.binarySize)
+            val instance = BitArray(problem.binarySize)
             for (c in problem.constraints)
                 c.coerce(instance, Random)
             assertTrue(problem.satisfies(instance))

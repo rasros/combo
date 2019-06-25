@@ -2,8 +2,8 @@ package combo.model
 
 import combo.bandit.Bandit
 import combo.bandit.CombinatorialBandit
-import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.PredictionBandit
+import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.ga.GeneticAlgorithmBandit
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
@@ -30,7 +30,7 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
         fun <E : VarianceEstimator> combinatorialBandit(model: Model,
                                                         banditPolicy: BanditPolicy<E>,
                                                         solver: Solver =
-                                                                if (model.problem.nbrVariables <= 14) ExhaustiveSolver(model.problem)
+                                                                if (model.problem.binarySize <= 14) ExhaustiveSolver(model.problem)
                                                                 else LocalSearchSolver(model.problem),
                                                         limit: Int = 500): ModelBandit<CombinatorialBandit<E>> {
             val bandits = solver.asSequence().take(limit).toList().toTypedArray()
@@ -40,15 +40,18 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
 
         @JvmStatic
         @JvmOverloads
-        fun <E : VarianceEstimator> treeBandit(model: Model,
-                                               banditPolicy: BanditPolicy<E>,
-                                               solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
+        fun <E : VarianceEstimator> decisionTreeBandit(model: Model,
+                                                       banditPolicy: BanditPolicy<E>,
+                                                       solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
                                                    initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WordRandomSet())
                                                }).apply { pNew = 0.5f })
                 : PredictionModelBandit<DecisionTreeBandit<E>> {
             val bandit = DecisionTreeBandit(model.problem, banditPolicy, solver)
             return PredictionModelBandit(model, bandit)
         }
+
+        // TODO votingRandomForestBandit
+        // TODO competingRandomForestBandit
 
         /*
         @JvmStatic
@@ -108,7 +111,7 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
     private fun assumptionsLiterals(assumptions: Array<out Literal>): IntCollection {
         if (assumptions.isEmpty()) return EmptyCollection
         val set = IntHashSet()
-        assumptions.forEach { it.toAssumption(model.index, set) }
+        assumptions.forEach { it.collectLiterals(model.index, set) }
         return set
     }
 }

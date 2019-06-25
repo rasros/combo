@@ -10,7 +10,7 @@ import combo.sat.Instance
 class Assignment constructor(val instance: Instance, val index: VariableIndex) : Iterable<Assignment.VariableAssignment<*>> {
 
     fun asSequence(): Sequence<VariableAssignment<*>> = index.asSequence().mapNotNull {
-        val v = it.valueOf(instance, index)
+        val v = it.valueOf(instance, index.indexOf(it))
         if (v == null) null
         else VariableAssignment(it, v)
     }
@@ -37,11 +37,17 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex) :
     fun getDouble(variable: Variable<Double>): Double = getOrDefault(variable, 0.0)
     fun getFloat(variable: Variable<Float>): Float = getOrDefault(variable, 0.0f)
 
-    operator fun contains(name: String) = index.find<Variable<*>>(name)?.valueOf(instance, index) != null
-    operator fun contains(variable: Variable<*>) = variable.valueOf(instance, index) != null
+    operator fun contains(name: String) = index.find<Variable<*>>(name)?.let {
+        it.valueOf(instance, index.indexOf(it)) != null
+    } ?: false
 
-    operator fun <V> get(variable: Variable<V>): V? = variable.valueOf(instance, index)
-    operator fun <V> get(name: String): V? = index.find<Variable<V>>(name)?.valueOf(instance, index)
+    operator fun contains(variable: Variable<*>) = variable.valueOf(instance, index.indexOf(variable)) != null
+
+    operator fun <V> get(name: String): V? = index.find<Variable<V>>(name)?.let {
+        it.valueOf(instance, index.indexOf(it))
+    }
+
+    operator fun <V> get(variable: Variable<V>): V? = variable.valueOf(instance, index.indexOf(variable))
 
     fun <V> getOrThrow(variable: Variable<V>): V = get(variable)
             ?: throw NoSuchElementException("Variable $variable not found in assignment.")
@@ -69,5 +75,3 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex) :
         override fun toString() = "${variable.name}=$value"
     }
 }
-
-

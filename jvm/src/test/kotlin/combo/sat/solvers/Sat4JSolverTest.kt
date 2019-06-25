@@ -26,7 +26,7 @@ class Sat4JSolverTest : SolverTest() {
         }
         assertEquals(0, solver.asSequence().count())
         assertFailsWith(IterationsReachedException::class) {
-            solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.nbrVariables) { Random.nextNormal() }))
+            solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.binarySize) { Random.nextNormal() }))
         }
     }
 }

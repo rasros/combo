@@ -34,7 +34,7 @@ abstract class LinearOptimizerTest {
 
     @Test
     fun emptyProblemOptimize() {
-        val p = Problem(arrayOf(), 0)
+        val p = Problem(0)
         val optimizer = optimizer(p)
         if (optimizer != null) {
             val l = optimizer.optimizeOrThrow(LinearObjective(true, floatArrayOf()))
@@ -49,7 +49,7 @@ abstract class LinearOptimizerTest {
                 val unsatOptimizer = infeasibleOptimizer(p)
                 if (unsatOptimizer != null) {
                     assertFailsWith(ValidationException::class, "Model $i") {
-                        unsatOptimizer.optimizeOrThrow(LinearObjective(false, FloatArray(p.nbrVariables) { 0.0f }))
+                        unsatOptimizer.optimizeOrThrow(LinearObjective(false, FloatArray(p.binarySize) { 0.0f }))
                     }
                 }
             } catch (e: UnsatisfiableException) {
@@ -60,7 +60,7 @@ abstract class LinearOptimizerTest {
     @Test
     fun smallOptimizeFeasibility() {
         for (p in TestModels.SAT_PROBLEMS) {
-            optimizer(p)?.optimizeOrThrow(LinearObjective(false, FloatArray(p.nbrVariables) { 0.0f }))
+            optimizer(p)?.optimizeOrThrow(LinearObjective(false, FloatArray(p.binarySize) { 0.0f }))
         }
     }
 
@@ -69,7 +69,7 @@ abstract class LinearOptimizerTest {
         for ((i, p) in TestModels.SAT_PROBLEMS.withIndex()) {
             val optimizer = optimizer(p)
             if (optimizer != null) {
-                val weights = FloatArray(p.nbrVariables) { Random.nextNormal() }
+                val weights = FloatArray(p.binarySize) { Random.nextNormal() }
                 val obj = LinearObjective(false, weights)
                 val initial = optimizer.optimizeOrThrow(obj)
                 val actual = optimizer.optimizeOrThrow(obj, guess = initial.copy())
@@ -84,7 +84,7 @@ abstract class LinearOptimizerTest {
             val optimizer = optimizer(p)
             if (optimizer != null) {
                 val varianceEstimate = generateSequence {
-                    optimizer.optimizeOrThrow(LinearObjective(false, FloatArray(p.nbrVariables) { 1.0f }))
+                    optimizer.optimizeOrThrow(LinearObjective(false, FloatArray(p.binarySize) { 1.0f }))
                 }.map { it.sum().toFloat() }.take(20).sample(RunningVariance())
                 if (isComplete) assertEquals(0.0f, varianceEstimate.variance)
             }
@@ -100,7 +100,7 @@ abstract class LinearOptimizerTest {
                 optimizer1.randomSeed = 1
                 val optimizer2 = optimizer(p)!!
                 optimizer2.randomSeed = 1
-                val obj = LinearObjective(true, FloatArray(p.nbrVariables) { Random(0).nextNormal() })
+                val obj = LinearObjective(true, FloatArray(p.binarySize) { Random(0).nextNormal() })
                 val solutions1 = generateSequence { optimizer1.optimizeOrThrow(obj) }.take(10).toList()
                 val solutions2 = generateSequence { optimizer2.optimizeOrThrow(obj) }.take(10).toList()
                 assertContentEquals(solutions1, solutions2)
@@ -117,7 +117,7 @@ abstract class LinearOptimizerTest {
                 optimizer1.randomSeed = 1
                 val optimizer2 = optimizer(p)!!
                 optimizer2.randomSeed = 1
-                val obj = LinearObjective(false, FloatArray(p.nbrVariables) { Random(0).nextNormal() })
+                val obj = LinearObjective(false, FloatArray(p.binarySize) { Random(0).nextNormal() })
                 val solutions1 = generateSequence { optimizer1.optimizeOrThrow(obj) }.take(10).toList()
                 val solutions2 = generateSequence { optimizer2.optimizeOrThrow(obj) }.take(10).toList()
                 assertContentEquals(solutions1, solutions2)
@@ -140,33 +140,33 @@ abstract class LinearOptimizerTest {
         }
 
         with(MODEL1.problem) {
-            testOptimize(FloatArray(nbrVariables) { 1.0f }, this, false, 1.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { 1.0f }, this, true, 10.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { -1.0f }, this, false, -11.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { -1.0f }, this, true, 0.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { 0.0f }, this, true, 0.0f, 0.0f)
-            testOptimize(FloatArray(nbrVariables) { 0.0f }, this, false, 0.0f, 0.0f)
-            testOptimize(FloatArray(nbrVariables) { it.toFloat() }, this, true, 62.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { it.toFloat() }, this, false, 0.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { it.toFloat() * .1f }, this, true, 6.2f, 0.2f)
-            testOptimize(FloatArray(nbrVariables) { it.toFloat() * .1f }, this, false, 0.2f, 0.2f)
+            testOptimize(FloatArray(binarySize) { 1.0f }, this, false, 1.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { 1.0f }, this, true, 10.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { -1.0f }, this, false, -11.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { -1.0f }, this, true, 0.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { 0.0f }, this, true, 0.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { 0.0f }, this, false, 0.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { it.toFloat() }, this, true, 62.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { it.toFloat() }, this, false, 0.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { it.toFloat() * .1f }, this, true, 6.2f, 0.2f)
+            testOptimize(FloatArray(binarySize) { it.toFloat() * .1f }, this, false, 0.2f, 0.2f)
         }
 
         with(MODEL2.problem) {
-            testOptimize(FloatArray(nbrVariables) { 0.5f }, this, true, 1.0f, 0.0f)
-            testOptimize(FloatArray(nbrVariables) { 2.0f }, this, false, 4.0f, 0.0f)
-            testOptimize(FloatArray(nbrVariables) { -1.0f }, this, true, -2.0f, 0.0f)
-            testOptimize(FloatArray(nbrVariables) { -1.0f }, this, false, -2.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { 0.5f }, this, true, 1.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { 2.0f }, this, false, 4.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { -1.0f }, this, true, -2.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { -1.0f }, this, false, -2.0f, 0.0f)
         }
 
         with(MODEL3.problem) {
-            testOptimize(FloatArray(nbrVariables) { 1.0f }, this, true, 4.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { 1.0f }, this, false, 2.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { 1.0f }, this, true, 4.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { 1.0f }, this, false, 2.0f, 1.0f)
         }
 
         with(MODEL5.problem) {
-            testOptimize(FloatArray(nbrVariables) { 1.0f }, this, true, 8.0f, 1.0f)
-            testOptimize(FloatArray(nbrVariables) { 1.0f }, this, false, 1.0f, 0.0f)
+            testOptimize(FloatArray(binarySize) { 1.0f }, this, true, 8.0f, 1.0f)
+            testOptimize(FloatArray(binarySize) { 1.0f }, this, false, 1.0f, 0.0f)
         }
     }
 
@@ -181,12 +181,12 @@ abstract class LinearOptimizerTest {
             }
         }
         with(TestModels.LARGE_SAT_PROBLEMS[0]) {
-            testOptimize(FloatArray(nbrVariables) { -2.0f + it.toFloat() * 0.1f }, this, true, 2944.1f, 20.0f)
-            testOptimize(FloatArray(nbrVariables) { -2.0f + it.toFloat() * 0.1f }, this, false, 16.300001f, 10.0f)
+            testOptimize(FloatArray(binarySize) { -2.0f + it.toFloat() * 0.1f }, this, true, 2944.1f, 20.0f)
+            testOptimize(FloatArray(binarySize) { -2.0f + it.toFloat() * 0.1f }, this, false, 16.300001f, 10.0f)
         }
         with(TestModels.LARGE_SAT_PROBLEMS[2]) {
-            testOptimize(FloatArray(nbrVariables) { -2.0f + it.toFloat() * 0.1f }, this, true, 11475.0f, 10.0f)
-            testOptimize(FloatArray(nbrVariables) { -2.0f + it.toFloat() * 0.1f }, this, false, -21.0f, 2.0f)
+            testOptimize(FloatArray(binarySize) { -2.0f + it.toFloat() * 0.1f }, this, true, 11475.0f, 10.0f)
+            testOptimize(FloatArray(binarySize) { -2.0f + it.toFloat() * 0.1f }, this, false, -21.0f, 2.0f)
         }
     }
 
@@ -195,14 +195,14 @@ abstract class LinearOptimizerTest {
         for ((i, p) in TestModels.SAT_PROBLEMS.withIndex()) {
             val solver = optimizer(p)
             if (solver != null) {
-                val l = solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.nbrVariables)))
+                val l = solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.binarySize)))
                 val rng = Random(i.toLong())
                 val assumptions = IntList()
                 for (j in 0 until l.size) {
                     if (rng.nextBoolean())
                         assumptions.add(l.literal(j))
                 }
-                val restricted = solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.nbrVariables)), assumptions)
+                val restricted = solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.binarySize)), assumptions)
                 assertTrue(p.satisfies(restricted),
                         "Model $i, assumptions ${assumptions.joinToString(",")}")
                 assertTrue(Conjunction(assumptions).satisfies(restricted),
@@ -217,7 +217,7 @@ abstract class LinearOptimizerTest {
             val solver = infeasibleOptimizer(p)
             if (solver != null) {
                 assertFailsWith(ValidationException::class) {
-                    solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.nbrVariables)), assumptions)
+                    solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.binarySize)), assumptions)
                 }
             }
         }
@@ -253,21 +253,21 @@ abstract class LinearOptimizerTest {
         }
 
         with(TestModels.SAT_PROBLEMS[0]) {
-            testOptimize(collectionOf(2, -3, -6, -7), FloatArray(nbrVariables) { 1.0f }, this, true, 3.0f, 2.0f)
-            testOptimize(collectionOf(1, 5, 10), FloatArray(nbrVariables) { 1.0f }, this, false, 6.0f, 1.0f)
-            testOptimize(collectionOf(11, 8), FloatArray(nbrVariables) { 0.0f }, this, true, 0.0f, 0.0f)
-            testOptimize(collectionOf(5, -8, 10), FloatArray(nbrVariables) { 0.0f }, this, false, 0.0f, 0.0f)
-            testOptimize(collectionOf(2, 3, 5), FloatArray(nbrVariables) { it.toFloat() }, this, true, 62.0f, 1.0f)
-            testOptimize(collectionOf(8), FloatArray(nbrVariables) { it.toFloat() }, this, false, 16.0f, 3.0f)
-            testOptimize(collectionOf(11), FloatArray(nbrVariables) { it.toFloat() * .1f }, this, true, 5.2f, 1.0f)
-            testOptimize(collectionOf(-7, -6), FloatArray(nbrVariables) { it.toFloat() * .1f }, this, false, 0.0f, 0.1f)
+            testOptimize(collectionOf(2, -3, -6, -7), FloatArray(binarySize) { 1.0f }, this, true, 3.0f, 2.0f)
+            testOptimize(collectionOf(1, 5, 10), FloatArray(binarySize) { 1.0f }, this, false, 6.0f, 1.0f)
+            testOptimize(collectionOf(11, 8), FloatArray(binarySize) { 0.0f }, this, true, 0.0f, 0.0f)
+            testOptimize(collectionOf(5, -8, 10), FloatArray(binarySize) { 0.0f }, this, false, 0.0f, 0.0f)
+            testOptimize(collectionOf(2, 3, 5), FloatArray(binarySize) { it.toFloat() }, this, true, 62.0f, 1.0f)
+            testOptimize(collectionOf(8), FloatArray(binarySize) { it.toFloat() }, this, false, 16.0f, 3.0f)
+            testOptimize(collectionOf(11), FloatArray(binarySize) { it.toFloat() * .1f }, this, true, 5.2f, 1.0f)
+            testOptimize(collectionOf(-7, -6), FloatArray(binarySize) { it.toFloat() * .1f }, this, false, 0.0f, 0.1f)
         }
 
         with(TestModels.SAT_PROBLEMS[2]) {
-            testOptimize(collectionOf(4), FloatArray(nbrVariables) { 0.0f }, this, true, 0.0f, 0.0f)
-            testOptimize(collectionOf(4), FloatArray(nbrVariables) { 1.0f }, this, false, 3.0f, 1.0f)
-            testOptimize(collectionOf(-4), FloatArray(nbrVariables) { 0.0f }, this, true, 0.0f, 0.0f)
-            testOptimize(collectionOf(-4), FloatArray(nbrVariables) { 1.0f }, this, false, 2.0f, 1.0f)
+            testOptimize(collectionOf(4), FloatArray(binarySize) { 0.0f }, this, true, 0.0f, 0.0f)
+            testOptimize(collectionOf(4), FloatArray(binarySize) { 1.0f }, this, false, 3.0f, 1.0f)
+            testOptimize(collectionOf(-4), FloatArray(binarySize) { 0.0f }, this, true, 0.0f, 0.0f)
+            testOptimize(collectionOf(-4), FloatArray(binarySize) { 1.0f }, this, false, 2.0f, 1.0f)
         }
     }
 
@@ -276,7 +276,7 @@ abstract class LinearOptimizerTest {
         val solver = timeoutOptimizer(TestModels.LARGE_SAT_PROBLEMS[1])
         if (solver != null) {
             assertFailsWith(ValidationException::class) {
-                solver.optimizeOrThrow(LinearObjective(true, FloatArray(TestModels.LARGE_SAT_PROBLEMS[1].nbrVariables)))
+                solver.optimizeOrThrow(LinearObjective(true, FloatArray(TestModels.LARGE_SAT_PROBLEMS[1].binarySize)))
             }
         }
     }
