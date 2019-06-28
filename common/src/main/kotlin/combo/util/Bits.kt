@@ -19,7 +19,10 @@ private val DE_BRUIJN_POSITION_MSB = intArrayOf(
         0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
         8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31)
 
-fun Int.Companion.msb(value: Int): Int {
+/**
+ * Bit scan reverse for the most significant bit set.
+ */
+fun Int.Companion.bsr(value: Int): Int {
     var x = value
     x = x or (x ushr 1)
     x = x or (x ushr 2)
@@ -35,13 +38,16 @@ private val DE_BRUIJN_POSITION_LSB = intArrayOf(
         0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
         31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9)
 
-fun Int.Companion.lsb(value: Int): Int {
+/**
+ * Bit scan forward for the least significant bit set.
+ */
+fun Int.Companion.bsf(value: Int): Int {
     return DE_BRUIJN_POSITION_LSB[((value and -value) * 0x077CB531) ushr 27]
 }
 
 fun Int.Companion.bitSize(value: Int): Int {
-    return (if (value < 0) Int.msb(value.absoluteValue - 1)
-    else Int.msb(value)) + 1
+    return (if (value < 0) Int.bsr(value.absoluteValue - 1)
+    else Int.bsr(value)) + 1
 }
 
 /**

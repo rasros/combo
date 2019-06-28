@@ -174,7 +174,7 @@ fun Instance.getFirst(from: Int, until: Int): Int {
         i += nbrBits
     } while (v == 0 && i < until)
     return if (v == 0) -1
-    else i - nbrBits - from + Int.lsb(v)
+    else i - nbrBits - from + Int.bsf(v)
 }
 
 /**
@@ -189,7 +189,7 @@ fun Instance.getLast(from: Int, until: Int): Int {
         v = getBits(i, nbrBits)
     } while (v == 0 && i > from)
     return if (v == 0) -1
-    else i - from + Int.msb(v)
+    else i - from + Int.bsr(v)
 }
 
 fun Instance.deepEquals(other: Instance): Boolean {
