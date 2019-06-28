@@ -1,5 +1,3 @@
-@file:JvmName("LocksJvm")
-
 package combo.util
 
 actual typealias Condition = java.util.concurrent.locks.Condition
