@@ -72,6 +72,7 @@ class Sat4JSolver @JvmOverloads constructor(
      * Simplify weights with GCD before optimizing.
      */
     var gcdOptimize: Boolean = true
+    override val complete get() = true
 
     private val solverTL = ThreadLocal.withInitial {
         val solver: Sat4J<*> = if (problem.constraints.any { it is Linear }) PBSolverFactory.newLight() as Sat4J<*>
@@ -220,8 +221,6 @@ class Sat4JSolver @JvmOverloads constructor(
             pbSolver.reset()
         }
     }
-
-    override fun isComplete() = true
 
     private class TimeoutListener(val timeout: Long) : SearchListenerAdapter<ISolverService>() {
         private val end = timeout + millis()

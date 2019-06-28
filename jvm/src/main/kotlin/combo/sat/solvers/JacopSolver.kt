@@ -168,7 +168,7 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    override fun isComplete() = true
+    override val complete get() = true
 
     private val encoderTL = ThreadLocal.withInitial { ConstraintEncoder() }
 
