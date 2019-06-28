@@ -21,12 +21,12 @@ import kotlin.test.*
 
 abstract class SolverTest {
 
-    abstract fun solver(problem: Problem): Solver?
-    open fun pbSolver(problem: Problem): Solver? = solver(problem)
-    open fun numericSolver(problem: Problem): Solver? = solver(problem)
-    open fun largeSolver(problem: Problem): Solver? = solver(problem)
-    open fun unsatSolver(problem: Problem): Solver? = solver(problem)
-    open fun timeoutSolver(problem: Problem): Solver? = unsatSolver(problem)
+    abstract fun solver(problem: Problem, randomSeed: Int = 0): Solver?
+    open fun pbSolver(problem: Problem, randomSeed: Int = 0): Solver? = solver(problem)
+    open fun numericSolver(problem: Problem, randomSeed: Int = 0): Solver? = solver(problem)
+    open fun largeSolver(problem: Problem, randomSeed: Int = 0): Solver? = solver(problem)
+    open fun unsatSolver(problem: Problem, randomSeed: Int = 0): Solver? = solver(problem)
+    open fun timeoutSolver(problem: Problem, randomSeed: Int = 0): Solver? = unsatSolver(problem)
 
     @Test
     fun emptyProblemSat() {
@@ -100,10 +100,8 @@ abstract class SolverTest {
         for (p in SAT_PROBLEMS) {
             val solver = solver(p)
             if (solver != null) {
-                val solver1 = solver(p)!!
-                solver1.randomSeed = 1
-                val solver2 = solver(p)!!
-                solver2.randomSeed = 1
+                val solver1 = solver(p, 1)!!
+                val solver2 = solver(p, 1)!!
                 val solutions1 = solver1.asSequence().take(10).toList()
                 val solutions2 = solver2.asSequence().take(10).toList()
                 assertContentEquals(solutions1, solutions2)

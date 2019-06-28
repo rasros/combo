@@ -16,18 +16,9 @@ import kotlin.jvm.JvmOverloads
  */
 class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: Int = 20) : Solver {
 
-    override var randomSeed: Int
-        set(value) {
-            this.randomSequence = RandomSequence(value)
-        }
-        get() = randomSequence.randomSeed
+    override val randomSeed get() = baseSolver.randomSeed
+    override val timeout get() = baseSolver.timeout
     private var randomSequence = RandomSequence(nanos().toInt())
-
-    override var timeout: Long
-        get() = baseSolver.timeout
-        set(value) {
-            baseSolver.timeout = value
-        }
 
     /**
      * Chance of generating new instance regardless of whether there are any instances matching the assumptions.
@@ -64,18 +55,9 @@ class CachedSolver @JvmOverloads constructor(val baseSolver: Solver, maxSize: In
 class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         val baseOptimizer: Optimizer<O>, maxSize: Int = 20) : Optimizer<O> {
 
-    override var randomSeed: Int
-        set(value) {
-            this.randomSequence = RandomSequence(value)
-        }
-        get() = randomSequence.randomSeed
+    override val randomSeed get() = baseOptimizer.randomSeed
+    override val timeout get() = baseOptimizer.timeout
     private var randomSequence = RandomSequence(nanos().toInt())
-
-    override var timeout: Long
-        get() = baseOptimizer.timeout
-        set(value) {
-            baseOptimizer.timeout = value
-        }
 
     /**
      * Chance of generating new instance regardless of whether there are any instances matching the assumptions.
@@ -119,7 +101,8 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
 
         if (minV > function.lowerBound() && best != null && rng.nextFloat() < pNewWithGuess) {
             try {
-                val guessed = baseOptimizer.optimizeOrThrow(function, assumptions, guess ?: best!!.copy() as MutableInstance?)
+                val guessed = baseOptimizer.optimizeOrThrow(function, assumptions, guess
+                        ?: best!!.copy() as MutableInstance?)
                 val v = function.value(guessed)
                 if (v != minV)
                     buffer.add(rng, guessed)

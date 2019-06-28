@@ -80,7 +80,7 @@ class ExhaustiveSolver(val problem: Problem) : Solver, Optimizer<ObjectiveFuncti
         }
     }
 
-    override fun isComplete() = true
+    override val complete get() = true
 
     private fun createRemap(assumptions: IntCollection): IntArray {
         if (assumptions.isEmpty()) return EMPTY_INT_ARRAY

@@ -14,7 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 abstract class OptimizerTest {
-    abstract fun <O : ObjectiveFunction> optimizer(problem: Problem, function: O): Optimizer<O>
+    abstract fun <O : ObjectiveFunction> optimizer(problem: Problem, function: O, randomSeed: Int = 0): Optimizer<O>
 
     private fun optimizerTest(p: Problem, function: ObjectiveFunction, i: Int) {
         val optimizer = optimizer(p, function)

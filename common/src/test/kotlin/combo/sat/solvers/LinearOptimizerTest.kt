@@ -26,11 +26,10 @@ import kotlin.test.assertTrue
 
 abstract class LinearOptimizerTest {
 
-    open val isComplete: Boolean = false
-    abstract fun optimizer(problem: Problem): Optimizer<LinearObjective>?
-    open fun largeOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
-    open fun infeasibleOptimizer(problem: Problem): Optimizer<LinearObjective>? = optimizer(problem)
-    open fun timeoutOptimizer(problem: Problem): Optimizer<LinearObjective>? = infeasibleOptimizer(problem)
+    abstract fun optimizer(problem: Problem, randomSeed: Int = 0): Optimizer<LinearObjective>?
+    open fun largeOptimizer(problem: Problem, randomSeed: Int = 0): Optimizer<LinearObjective>? = optimizer(problem)
+    open fun infeasibleOptimizer(problem: Problem, randomSeed: Int = 0): Optimizer<LinearObjective>? = optimizer(problem)
+    open fun timeoutOptimizer(problem: Problem, randomSeed: Int = 0): Optimizer<LinearObjective>? = infeasibleOptimizer(problem)
 
     @Test
     fun emptyProblemOptimize() {
@@ -86,7 +85,7 @@ abstract class LinearOptimizerTest {
                 val varianceEstimate = generateSequence {
                     optimizer.optimizeOrThrow(LinearObjective(false, FloatArray(p.binarySize) { 1.0f }))
                 }.map { it.sum().toFloat() }.take(20).sample(RunningVariance())
-                if (isComplete) assertEquals(0.0f, varianceEstimate.variance)
+                if (optimizer.complete) assertEquals(0.0f, varianceEstimate.variance)
             }
         }
     }
@@ -96,10 +95,8 @@ abstract class LinearOptimizerTest {
         for (p in TINY_PROBLEMS) {
             val optimizer = optimizer(p)
             if (optimizer != null) {
-                val optimizer1 = optimizer(p)!!
-                optimizer1.randomSeed = 1
-                val optimizer2 = optimizer(p)!!
-                optimizer2.randomSeed = 1
+                val optimizer1 = optimizer(p, 1)!!
+                val optimizer2 = optimizer(p, 1)!!
                 val obj = LinearObjective(true, FloatArray(p.binarySize) { Random(0).nextNormal() })
                 val solutions1 = generateSequence { optimizer1.optimizeOrThrow(obj) }.take(10).toList()
                 val solutions2 = generateSequence { optimizer2.optimizeOrThrow(obj) }.take(10).toList()
@@ -113,10 +110,8 @@ abstract class LinearOptimizerTest {
         for (p in TINY_PROBLEMS) {
             val optimizer = optimizer(p)
             if (optimizer != null) {
-                val optimizer1 = optimizer(p)!!
-                optimizer1.randomSeed = 1
-                val optimizer2 = optimizer(p)!!
-                optimizer2.randomSeed = 1
+                val optimizer1 = optimizer(p, 1)!!
+                val optimizer2 = optimizer(p, 1)!!
                 val obj = LinearObjective(false, FloatArray(p.binarySize) { Random(0).nextNormal() })
                 val solutions1 = generateSequence { optimizer1.optimizeOrThrow(obj) }.take(10).toList()
                 val solutions2 = generateSequence { optimizer2.optimizeOrThrow(obj) }.take(10).toList()

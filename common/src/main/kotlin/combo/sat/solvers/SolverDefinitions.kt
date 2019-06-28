@@ -12,7 +12,7 @@ import kotlin.math.min
  * A solver can generate a random [witness] that satisfy the constraints and
  * iterate over the possible solutions with [asSequence].
  */
-interface Solver : Iterable<Instance> {
+interface Solver : Iterable<Instance>, SolverParameters {
 
     /**
      * Generates a random solution, ie. a witness.
@@ -50,23 +50,24 @@ interface Solver : Iterable<Instance> {
         return generateSequence { witness(assumptions) }
     }
 
+    val complete get() = false
+}
+
+interface SolverParameters {
     /**
      * Set the random seed to a specific value to have a reproducible algorithm.
      */
-    var randomSeed: Int
-
+    val randomSeed: Int
     /**
      * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
      */
-    var timeout: Long
-
-    fun isComplete() = false
+    val timeout: Long
 }
 
 /**
  * An optimizer minimizes an [ObjectiveFunction].
  */
-interface Optimizer<in O : ObjectiveFunction> {
+interface Optimizer<in O : ObjectiveFunction> : SolverParameters {
 
     /**
      * Minimize the [function], optionally with the additional constraints in [assumptions].
@@ -93,15 +94,7 @@ interface Optimizer<in O : ObjectiveFunction> {
      */
     fun optimizeOrThrow(function: O, assumptions: IntCollection = EmptyCollection, guess: MutableInstance? = null): Instance
 
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Int
-
-    /**
-     * The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
-     */
-    var timeout: Long
+    val complete get() = false
 }
 
 interface ObjectiveFunction {
