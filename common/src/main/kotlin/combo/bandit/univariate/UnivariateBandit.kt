@@ -1,25 +1,15 @@
 package combo.bandit.univariate
 
+import combo.bandit.BanditParameters
 import combo.bandit.ParallelMode
 import combo.math.DataSample
+import combo.math.VoidSample
 
 /**
  * A bandit optimizes an online binary decision problem. These bandits are uni-variate,
  * ie. there are is a single variable that changes.
  */
-interface UnivariateBandit<D> {
-
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Int
-
-    /**
-     * Whether the bandit should maximize or minimize the total rewards.
-     */
-    var maximize: Boolean
-
-    var rewards: DataSample
+interface UnivariateBandit<D> : BanditParameters {
 
     /**
      * Select the next bandit to use. Indexed from 0 to [nbrArms].

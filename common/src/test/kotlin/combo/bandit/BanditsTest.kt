@@ -20,7 +20,7 @@ abstract class BanditTest<B : Bandit<*>> {
 
     @Test
     fun emptyProblem() {
-        val p = Problem(arrayOf(), 0)
+        val p = Problem(0, arrayOf())
         val bandit = bandit(p, BanditType.random())
         val l = bandit.chooseOrThrow()
         assertEquals(0, l.size)
@@ -133,8 +133,8 @@ abstract class BanditTest<B : Bandit<*>> {
                 val instance = bandit.chooseOrThrow()
                 bandit.update(instance, BanditType.BINOMIAL.linearRewards(instance, Random))
             }
-            val list1 = (bandit as Bandit<Any>).exportData()
-            val list2 = (bandit as Bandit<Any>).exportData()
+            val list1 = (bandit as Bandit<BanditData>).exportData()
+            val list2 = (bandit as Bandit<BanditData>).exportData()
             if (list1 is Array<*>)
                 assertContentEquals(list1, list2 as Array<*>)
             else throw IllegalArgumentException("Update test with other types")
@@ -150,9 +150,9 @@ abstract class BanditTest<B : Bandit<*>> {
                 val instance = bandit.chooseOrThrow()
                 bandit.update(instance, BanditType.BINOMIAL.linearRewards(instance, Random))
             }
-            val list1 = (bandit as Bandit<Any>).exportData()
+            val list1 = (bandit as Bandit<BanditData>).exportData()
             val bandit2 = bandit(p, BanditType.BINOMIAL)
-            (bandit2 as Bandit<Any>).importData(list1)
+            (bandit2 as Bandit<BanditData>).importData(list1)
 
             assertNotNull(bandit2.choose())
         }
@@ -170,15 +170,15 @@ abstract class BanditTest<B : Bandit<*>> {
                 val instance2 = bandit1.chooseOrThrow()
                 bandit2.update(instance2, BanditType.NORMAL.linearRewards(instance2, Random))
             }
-            val list1 = (bandit1 as Bandit<Any>).exportData()
-            (bandit2 as Bandit<Any>).importData(list1)
+            val list1 = (bandit1 as Bandit<BanditData>).exportData()
+            (bandit2 as Bandit<BanditData>).importData(list1)
             assertNotNull(bandit2.choose())
         }
     }
 
     @Test
     fun relativeWeightImportance() {
-        val p = Problem(emptyArray(), 1)
+        val p = Problem(1, emptyArray())
         val inst0 = BitArray(1, intArrayOf(0))
         val inst1 = BitArray(1, intArrayOf(1))
         // This has a small chance of failure so we fix seed
@@ -194,16 +194,6 @@ abstract class BanditTest<B : Bandit<*>> {
             var count = 0
             for (i in 0 until 100)
                 if (bandit.chooseOrThrow()[0]) count++
-            if (count <= 50) {
-                val exportData = bandit.exportData()
-                if (exportData is Array<*>) {
-                    if (exportData[0] is InstanceData<*>)
-                        for ((i, e) in exportData as Array<InstanceData<*>>) {
-                            println(i)
-                            println(e)
-                        }
-                }
-            }
             assertTrue(count > 50, "$type")
         }
     }
@@ -215,7 +205,7 @@ abstract class PredictionBanditTest<B : PredictionBandit<*>> : BanditTest<B>() {
 
     @Test
     fun updatePrediction() {
-        val p = Problem(emptyArray(), 2)
+        val p = Problem(2, emptyArray())
         val instances = (0 until 4).asSequence().map { BitArray(2, intArrayOf(it)) }.toList()
         val rng = Random(0)
         for (type in BanditType.values()) {

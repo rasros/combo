@@ -1,6 +1,5 @@
 package combo.bandit.univariate
 
-import combo.math.DataSample
 import combo.util.ReadWriteLock
 import combo.util.ReentrantReadWriteLock
 import combo.util.read
@@ -32,21 +31,6 @@ class ConcurrentUnivariateBandit<D>(val base: UnivariateBandit<D>, val lock: Rea
 
     override fun importData(data: D, restructure: Boolean) = lock.write { base.importData(data, restructure) }
     override fun exportData() = lock.read { base.exportData() }
-    override var randomSeed: Int
-        get() = lock.read { base.randomSeed }
-        set(value) {
-            lock.write { base.randomSeed = value }
-        }
-    override var maximize: Boolean
-        get() = lock.read { base.maximize }
-        set(value) {
-            lock.write { base.maximize = value }
-        }
-    override var rewards: DataSample
-        get() = lock.read { base.rewards.copy() }
-        set(value) {
-            lock.write { base.rewards = value }
-        }
 
     override fun concurrent() = this
 }

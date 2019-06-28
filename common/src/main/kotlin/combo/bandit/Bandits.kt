@@ -1,9 +1,7 @@
 package combo.bandit
 
 import combo.math.DataSample
-import combo.math.VarianceEstimator
 import combo.sat.Instance
-import combo.sat.Literals
 import combo.sat.ValidationException
 import combo.util.EmptyCollection
 import combo.util.IntCollection
@@ -15,7 +13,7 @@ import kotlin.math.abs
  *
  * TODO further bandit explanation, rewards optimization, arms, choose/update loop, iid, stochastic non-adversial.
  */
-interface Bandit<D> {
+interface Bandit<D : BanditData> {
 
     /**
      * Generate the next instance to try out, throwing [ValidationException] on failure.
@@ -90,11 +88,15 @@ interface Bandit<D> {
     var maximize: Boolean
 }
 
+interface BanditData {
+    fun migrate(from: IntArray, to: IntArray): BanditData
+}
+
 /**
  * A [PredictionBandit] uses a machine learning model as part of the algorithm. This machine learning algorithm can also
  * be used to make predictions about an [Instance]. In addition, further
  */
-interface PredictionBandit<D> : Bandit<D> {
+interface PredictionBandit<D : BanditData> : Bandit<D> {
 
     /**
      * The total absolute error obtained on a prediction before update.
@@ -121,34 +123,20 @@ interface PredictionBandit<D> : Bandit<D> {
     }
 }
 
-/**
- * This class holds the data in the leaf nodes. The order of the literals in [setLiterals] is significant and cannot
- * be changed.
- */
-data class LiteralData<out E : VarianceEstimator>(val setLiterals: Literals, val data: E) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || other !is LiteralData<*>) return false
-        return setLiterals.contentEquals(other.setLiterals) && data == other.data
-    }
+interface BanditParameters {
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm. By default current system time.
+     */
+    val randomSeed: Int
 
-    override fun hashCode(): Int {
-        var result = setLiterals.hashCode()
-        result = 31 * result + data.hashCode()
-        return result
-    }
+    /**
+     * Whether the bandit should maximize or minimize the total rewards. By default true.
+     */
+    val maximize: Boolean
+
+    /**
+     * All rewards are added to this for inspecting how well the bandit performs. By default [VoidSample].
+     */
+    val rewards: DataSample
 }
 
-data class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || other !is InstanceData<*>) return false
-        return instance == other.instance && data == other.data
-    }
-
-    override fun hashCode(): Int {
-        var result = instance.hashCode()
-        result = 31 * result + data.hashCode()
-        return result
-    }
-}

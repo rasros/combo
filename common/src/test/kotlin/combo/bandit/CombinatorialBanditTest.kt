@@ -32,12 +32,12 @@ class CombinatorialBanditTest : BanditTest<CombinatorialBandit<*>>() {
         val solutions2 = ExhaustiveSolver(problem).asSequence().take(150).toList().toTypedArray()
 
         val bandit = CombinatorialBandit(solutions1, UCB1Normal())
-        bandit.importData(solutions2.map { InstanceData(it, RunningSquaredMeans()) }.toTypedArray(), true)
+        bandit.importData(InstancesData(solutions2.map { InstanceData(it, RunningSquaredMeans()) }), true)
         val postData = bandit.exportData()
 
         // Verify that data has been replaced by solutions2
-        assertEquals(150, postData.size)
-        for (d in postData)
+        assertEquals(150, postData.instances.size)
+        for (d in postData.instances)
             assertTrue(d.instance in solutions2)
     }
 
@@ -52,12 +52,12 @@ class CombinatorialBanditTest : BanditTest<CombinatorialBandit<*>>() {
             solutions1[0] = solutions2[0]
 
         val bandit = CombinatorialBandit(solutions1, UCB1())
-        bandit.importData(solutions2.map { InstanceData(it, BinarySum(0.5f, 10.0f)) }.toTypedArray(), false)
+        bandit.importData(InstancesData(solutions2.map { InstanceData(it, BinarySum(0.5f, 10.0f)) }), false)
         val postData = bandit.exportData()
 
         // Verify that data has not been replaced by solutions2
-        assertEquals(20, postData.size)
-        for (d in postData) {
+        assertEquals(20, postData.instances.size)
+        for (d in postData.instances) {
             assertTrue(d.instance in solutions1)
             if (d.instance in solutions2) {
                 assertTrue(d.data.nbrWeightedSamples >= 10.0f)

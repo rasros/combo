@@ -20,14 +20,8 @@ class MultiArmedBanditTest {
 
     @Test
     fun minimizeVsMaximize() {
-        val bandit1 = MultiArmedBandit(10, UCB1Tuned())
-        bandit1.rewards = FullSample()
-        bandit1.maximize = true
-        bandit1.randomSeed = 1
-        val bandit2 = MultiArmedBandit(10, UCB1Tuned())
-        bandit2.rewards = FullSample()
-        bandit2.maximize = false
-        bandit2.randomSeed = 2
+        val bandit1 = MultiArmedBandit(10, UCB1Tuned(), 1, true, FullSample())
+        val bandit2 = MultiArmedBandit(10, UCB1Tuned(), 2, false, FullSample())
 
         val rng = Random(1L)
         for (i in 1..100) {
@@ -45,10 +39,8 @@ class MultiArmedBanditTest {
 
     @Test
     fun randomSeedDeterministic() {
-        val bandit1 = MultiArmedBandit(10, ThompsonSampling(NormalPosterior))
-        val bandit2 = MultiArmedBandit(10, ThompsonSampling(NormalPosterior))
-        bandit1.randomSeed = 0
-        bandit2.randomSeed = 0
+        val bandit1 = MultiArmedBandit(10, ThompsonSampling(NormalPosterior), randomSeed = 0)
+        val bandit2 = MultiArmedBandit(10, ThompsonSampling(NormalPosterior), randomSeed = 0)
         val rng1 = Random(1L)
         val rng2 = Random(1L)
         val arms1 = generateSequence {
@@ -69,17 +61,14 @@ class MultiArmedBanditTest {
 
     @Test
     fun storeLoadStore() {
-        val bandit = MultiArmedBandit(20, EpsilonDecreasing())
+        val bandit = MultiArmedBandit(20, EpsilonDecreasing(), randomSeed = 1)
         for (i in 0 until 100) {
             val j = bandit.choose()
             bandit.update(j, BanditType.BINOMIAL.linearRewards(j.toFloat() / 20, 1, Random))
         }
         val list1 = bandit.exportData()
-        val bandit2 = MultiArmedBandit(20, EpsilonDecreasing())
+        val bandit2 = MultiArmedBandit(20, EpsilonDecreasing(), randomSeed = 1)
         bandit2.importData(list1)
-
-        bandit.randomSeed = 1
-        bandit2.randomSeed = 1
 
         assertEquals(bandit.choose(), bandit2.choose())
         assertEquals(list1.size, bandit2.exportData().size)

@@ -150,11 +150,11 @@ class UnivariatePosteriorsTest {
 
         val rng = Random(0)
         val posteriors = Array(experiments) { HierarchicalNormalPosterior(PooledVarianceEstimator(RunningVariance(0.0f, 0.02f, 0.02f))) }
-        val data = Array(experiments) {
-            val err = 10 * it.toFloat() + 0.5f
-            val pool = posteriors[it].pool
-            Array(weights.size) { i ->
-                RunningVariance(1 + i.toFloat(), err * dataPoints, dataPoints.toFloat()).also { pool.addArm(it) }
+        val data = Array(experiments) { i ->
+            val err = 10 * i.toFloat() + 0.5f
+            val pool = posteriors[i].pool
+            Array(weights.size) { j ->
+                RunningVariance(1 + j.toFloat(), err * dataPoints, dataPoints.toFloat()).also { pool.addArm(it) }
             }.also { pool.recalculate() }
         }
 
@@ -164,7 +164,7 @@ class UnivariatePosteriorsTest {
             }
         }
 
-        val means = samples.map { it.map { it.mean }.toTypedArray().asSequence().sample(RunningVariance()) }
+        val means = samples.map { s -> s.map { it.mean }.toTypedArray().asSequence().sample(RunningVariance()) }
         assertEquals((groups + 1) / 2.0f, means[0].mean, 0.1f)
         assertEquals((groups + 1) / 2.0f, means[1].mean, 0.1f)
         assertTrue(means[0].variance > means[1].variance)

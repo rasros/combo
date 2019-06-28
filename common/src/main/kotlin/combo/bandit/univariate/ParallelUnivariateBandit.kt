@@ -1,37 +1,15 @@
 package combo.bandit.univariate
 
 import combo.bandit.ParallelMode
-import combo.math.DataSample
 import combo.math.IntPermutation
 import combo.util.*
 import kotlin.math.min
 
 class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<D>>,
                                   val batchSize: IntRange,
-                                  val mode: ParallelMode) : UnivariateBandit<D> {
+                                  val mode: ParallelMode) : UnivariateBandit<D>, BanditParameters by bandits[0] {
 
-    override var randomSeed: Int
-        get() = bandits[0].randomSeed
-        set(value) {
-            for (b in bandits)
-                b.randomSeed = value
-            randomSequence = RandomSequence(randomSeed)
-        }
-    private var randomSequence = RandomSequence(nanos().toInt())
-
-    override var maximize: Boolean
-        get() = bandits[0].maximize
-        set(value) {
-            for (b in bandits)
-                b.maximize = value
-        }
-
-    override var rewards: DataSample
-        get() = bandits[0].rewards
-        set(value) {
-            for (b in bandits)
-                b.rewards = value.copy()
-        }
+    private var randomSequence = RandomSequence(randomSeed)
 
     // Batches of input where each update is within minBatchSize..maxBatchSize
     private val batches: Sink<BatchUpdate>? = when (mode) {
@@ -44,6 +22,11 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
         ParallelMode.NON_BLOCKING -> ConcurrentSink()
         ParallelMode.BLOCKING_SUPPORTED -> BlockingSink()
         ParallelMode.BOUNDED_QUEUE -> BoundedBlockingSink(batchSize.endInclusive)
+    }
+
+    init {
+        require(!batchSize.isEmpty()) { "Batchsize interval should not be empty." }
+        require(batchSize.first >= 0)
     }
 
     tailrec fun processUpdates(mayBlock: Boolean): Int {
@@ -118,11 +101,6 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
                 else 0
             }
         }
-    }
-
-    init {
-        require(!batchSize.isEmpty()) { "Batchsize interval should not be empty." }
-        require(batchSize.first >= 0)
     }
 
     override fun importData(data: D, restructure: Boolean) {
