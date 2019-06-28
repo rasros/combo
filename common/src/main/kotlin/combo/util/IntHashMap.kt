@@ -211,5 +211,5 @@ class IntHashMap private constructor(private var table: LongArray, size: Int, va
         return j
     }
 
-    override fun toString() = "IntHashMap($size)"
+    override fun toString() = entryIterator().asSequence().joinToString(", ", "{", "}") { "${it.key()}=${it.value()}" }
 }

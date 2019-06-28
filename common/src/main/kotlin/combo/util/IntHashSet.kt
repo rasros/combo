@@ -165,5 +165,5 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
         return j
     }
 
-    override fun toString() = "IntHashSet($size)"
+    override fun toString() = joinToString(", ", "[", "]")
 }

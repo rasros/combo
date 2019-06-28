@@ -83,5 +83,5 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
         return false
     }
 
-    override fun toString() = "IntList($size)"
+    override fun toString() = joinToString(", ", "[", "]")
 }

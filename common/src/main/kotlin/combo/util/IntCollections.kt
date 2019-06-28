@@ -52,6 +52,14 @@ interface MutableIntCollection : IntCollection {
     fun remove(value: Int): Boolean
 }
 
+operator fun IntCollection.plus(collection: IntCollection): IntCollection {
+    return mutableCopy().apply { addAll(collection) }
+}
+
+operator fun IntCollection.plus(value: Int): IntCollection {
+    return mutableCopy().apply { add(value) }
+}
+
 /**
  * Immutable collection. This may not contain 0.
  */
@@ -132,4 +140,5 @@ class SingletonIntCollection(val value: Int) : IntCollection {
 
     override fun permutation(rng: Random) = iterator()
     override fun random(rng: Random) = value
+    override fun toString() = "[$value]"
 }
