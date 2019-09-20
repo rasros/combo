@@ -1,6 +1,10 @@
 package combo.model
 
 import combo.sat.Instance
+import combo.sat.MutableInstance
+import combo.sat.set
+import combo.sat.setAll
+import combo.util.IntHashSet
 
 /**
  * This class represents an easy to use way of extracting typed variable values out of an [Instance]. This does not use
@@ -8,6 +12,16 @@ import combo.sat.Instance
  * used utilized through the [subAssignment] so that sub-models can be properly isolated.
  */
 class Assignment constructor(val instance: Instance, val index: VariableIndex) : Iterable<Assignment.VariableAssignment<*>> {
+
+    constructor(instance: MutableInstance, index: VariableIndex, values: Array<out Literal>) : this(instance.also {
+        val set = IntHashSet()
+        values.forEach {
+            if (it is Value) instance.set(it.toLiteral(index))
+            else it.collectLiterals(index, set)
+            instance.setAll(set)
+        }
+    }, index)
+
 
     fun asSequence(): Sequence<VariableAssignment<*>> = index.asSequence().mapNotNull {
         val v = it.valueOf(instance, index.indexOf(it))
@@ -70,6 +84,15 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex) :
     }
 
     override fun toString() = asSequence().joinToString(prefix = "{", postfix = "}")
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as Assignment
+        if (instance != other.instance) return false
+        return true
+    }
+
+    override fun hashCode() = instance.hashCode()
 
     data class VariableAssignment<V>(val variable: Variable<V>, val value: V) {
         override fun toString() = "${variable.name}=$value"
