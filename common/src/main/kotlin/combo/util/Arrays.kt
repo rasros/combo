@@ -30,6 +30,11 @@ inline fun IntArray.mapArray(transform: (Int) -> Int) =
             transform(this[it])
         }
 
+inline fun <T1, reified T2> Array<T1>.mapArray(transform: (T1) -> T2) =
+        Array(this.size) {
+            transform(this[it])
+        }
+
 inline fun FloatArray.mapArrayIndexed(transform: (Int, Float) -> Float) =
         FloatArray(this.size) {
             transform(it, this[it])
