@@ -2,7 +2,7 @@ package combo.sat
 
 import combo.sat.constraints.*
 import combo.util.IntHashSet
-import combo.util.IntList
+import combo.util.IntArrayList
 import combo.util.isNotEmpty
 import kotlin.math.min
 
@@ -16,7 +16,7 @@ class ImplicationDigraph(val nbrVariables: Int, implications: Map<Int, IntArray>
     /**
      * This constructor calculates the initial edges in the graph.
      */
-    constructor(problem: Problem) : this(problem.binarySize, HashMap<Int, IntHashSet>().let { map ->
+    constructor(problem: Problem) : this(problem.nbrVariables, HashMap<Int, IntHashSet>().let { map ->
         for (constraint in problem.constraints) {
             if (constraint is Disjunction && constraint.size == 2) {
                 val array = constraint.literals.toArray()
@@ -83,10 +83,10 @@ class ImplicationDigraph(val nbrVariables: Int, implications: Map<Int, IntArray>
         val root = IntArray(nbrVariables * 2)
 
         var components = 0
-        val stack = IntList()
+        val stack = IntArrayList()
 
         // This is a stack simulation to avoid recursion and stack overflow for large graphs (n>10000)
-        val callStack = IntList()
+        val callStack = IntArrayList()
 
         for (v in 0 until nbrVariables * 2) {
             if (visited[v]) continue

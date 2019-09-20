@@ -2,7 +2,7 @@
 
 package combo.sat
 
-import combo.util.IntList
+import combo.util.IntArrayList
 import kotlin.jvm.JvmName
 import kotlin.math.absoluteValue
 
@@ -24,7 +24,7 @@ operator fun Instance.contains(literal: Literal): Boolean = literal(literal.toIx
 fun Instance.literal(ix: Int) = ix.toLiteral(this[ix])
 
 fun Instance.toLiterals(): Literals {
-    val list = IntList()
+    val list = IntArrayList()
     val itr = iterator()
     while (itr.hasNext()) list.add(itr.nextInt().toLiteral(true))
     list.toArray()

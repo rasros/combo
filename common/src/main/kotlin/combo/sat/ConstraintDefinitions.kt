@@ -3,7 +3,7 @@ package combo.sat
 import combo.model.Proposition
 import combo.util.EmptyCollection
 import combo.util.IntCollection
-import combo.util.IntRangeSet
+import combo.util.IntRangeCollection
 import combo.util.bitCount
 import kotlin.math.min
 import kotlin.random.Random
@@ -50,8 +50,8 @@ interface Constraint : Expression {
      */
     fun cache(instance: Instance): Int {
         var sum = 0
-        if (literals is IntRangeSet) {
-            val lits = literals as IntRangeSet
+        if (literals is IntRangeCollection) {
+            val lits = literals as IntRangeCollection
             var ix = min(lits.min.toIx(), lits.max.toIx())
             val ints = (size shr 5) + if (size and 0x1F > 0) 1 else 0
             for (i in 0 until ints) {
@@ -83,13 +83,6 @@ interface Constraint : Expression {
      * Change the constraint based on the value of a unit literal.
      */
     fun unitPropagation(unit: Literal): Constraint
-
-    fun unitPropagations(units: Literals): Constraint {
-        var c = this
-        for (lit in units)
-            c = c.unitPropagation(lit)
-        return c
-    }
 
     fun coerce(instance: MutableInstance, rng: Random)
 }
