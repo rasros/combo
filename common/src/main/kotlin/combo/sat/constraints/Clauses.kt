@@ -15,16 +15,16 @@ class Disjunction(override val literals: IntCollection) : PropositionalConstrain
         assert(literals.isNotEmpty())
     }
 
-    override val priority: Int get() = 1000
+    override val priority: Int get() = 600 - literals.size
 
     override operator fun not() = Conjunction(literals.map { !it })
 
-    override fun violations(instance: Instance, cacheResult: Int) = if (cacheResult > 0 || literals.isEmpty()) 0 else 1
+    override fun violations(instance: Instance, cacheResult: Int) = if (cacheResult > 0) 0 else 1
 
     override fun offset(offset: Int) = Disjunction(literals.map { it.offset(offset) })
 
     override fun remap(from: Int, to: Int) =
-            Disjunction(collectionOf(*literals.mutableCopy().apply {
+            Disjunction(collectionOf(*literals.mutableCopy(nullValue = 0).apply {
                 val truth = from.toLiteral(true) in literals
                 remove(from.toLiteral(truth))
                 add(to.toLiteral(truth))
@@ -36,7 +36,7 @@ class Disjunction(override val literals: IntCollection) : PropositionalConstrain
             if (literals.size == 1) {
                 Empty
             } else {
-                val reducedLiterals = collectionOf(*literals.mutableCopy().apply { remove(!unit) }.toArray())
+                val reducedLiterals = collectionOf(*literals.mutableCopy(nullValue = 0).apply { remove(!unit) }.toArray())
                 val reducedConstraint: PropositionalConstraint =
                         if (reducedLiterals.size == 1) Conjunction(reducedLiterals)
                         else Disjunction(reducedLiterals)
@@ -71,7 +71,7 @@ class Conjunction(override val literals: IntCollection) : PropositionalConstrain
     override fun offset(offset: Int) = Conjunction(literals.map { it.offset(offset) })
 
     override fun remap(from: Int, to: Int) =
-            Conjunction(literals.mutableCopy().apply {
+            Conjunction(literals.mutableCopy(nullValue = 0).apply {
                 val truth = from.toLiteral(true) in literals
                 remove(from.toLiteral(truth))
                 add(to.toLiteral(truth))
@@ -81,14 +81,14 @@ class Conjunction(override val literals: IntCollection) : PropositionalConstrain
         if (!unit in literals) return Empty
         return if (unit in literals) {
             if (literals.size == 1) Tautology
-            else Conjunction(collectionOf(*literals.mutableCopy().apply { remove(unit) }.toArray()))
+            else Conjunction(collectionOf(*literals.mutableCopy(nullValue = 0).apply { remove(unit) }.toArray()))
         } else this
     }
 
     override fun isUnit() = true
 
     override fun coerce(instance: MutableInstance, rng: Random) {
-        if (literals is IntRangeSet) {
+        if (literals is IntRangeCollection) {
             var ix = min(literals.min.toIx(), literals.max.toIx())
             val ints = (literals.size shr 5) + if (size and 0x1F > 0) 1 else 0
             val value = if (literals.min > 0) -1 else 0
