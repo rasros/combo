@@ -8,44 +8,25 @@ import kotlin.jvm.JvmOverloads
  * This class sufficiently describes a SAT problem, with the constraints and a count of the number of variables. It also
  * holds an index of variable to constraints in [constraining].
  * @param constraints all constraints that the [Instance]s will be satisfied on.
- * @param encoders contain variable meta information used for encoding vectors for machine learning.
+ * @param auxiliary contain variable which are not part of the optimization but are used as constraints
  */
-class Problem @JvmOverloads constructor(val constraints: Array<out Constraint>, val encoders: Array<out VariableEncoder>) {
+class Problem @JvmOverloads constructor(val nbrVariables: Int, val constraints: Array<out Constraint>, val auxiliary: IntCollection) {
 
-    constructor(binarySize: Int, constraints: Array<out Constraint> = emptyArray()) : this(constraints, arrayOf(BitsEncoder(0, 0, binarySize)))
+    constructor(nbrVariables: Int, constraints: Array<out Constraint> = emptyArray()) : this(nbrVariables, constraints, EmptyCollection)
 
-    val nbrVariables get() = encoders.size
     val nbrConstraints get() = constraints.size
-    val vectorSize = encoders.sumBy { it.vectorSize }
-    val binarySize = encoders.sumBy { it.binarySize }
-
-    init {
-        assert(binarySize == encoders.sumBy { it.binarySize })
-    }
 
     private val constraintIndex: Map<Int, IntArray> = let {
-        val map = HashMap<Int, IntList>()
+        val map = HashMap<Int, IntArrayList>()
         for ((i, cons) in constraints.withIndex()) {
             for (lit in cons.literals) {
                 val ix = lit.toIx()
-                assert(ix < binarySize)
-                if (!map.containsKey(ix)) map[ix] = IntList()
+                assert(ix < nbrVariables)
+                if (!map.containsKey(ix)) map[ix] = IntArrayList()
                 map[ix]!!.add(i)
             }
         }
         map.mapValuesTo(HashMap()) { it.value.toArray() }
-    }
-
-    /**
-     * @param oneHot whether bits/categorical/boolean variables should be encoded as [0,1] or [-1,1]. Default true.
-     * @param normalize whether numerical variables should be normalized to [-1,1]. Default true.
-     */
-    @JvmOverloads
-    fun toVector(instance: Instance, oneHot: Boolean = true, normalize: Boolean = true): FloatArray {
-        val array = FloatArray(vectorSize)
-        for (variable in encoders)
-            variable.encode(array, instance, oneHot, normalize)
-        return array
     }
 
     /**
@@ -100,7 +81,8 @@ class Problem @JvmOverloads constructor(val constraints: Array<out Constraint>, 
                 val matching = constraining(unitId)
                 for (i in matching.indices) {
                     val reduced = copy[matching[i]].unitPropagation(unitLit)
-                    if (reduced is Empty) throw UnsatisfiableException("Unsatisfiable by unit propagation.")
+                    if (reduced is Empty)
+                        throw UnsatisfiableException("Unsatisfiable by unit propagation.")
                     copy[matching[i]] = reduced
                     if (reduced.isUnit())
                         if (reduced.unitLiterals().any { l -> addUnit(unitLiterals, l) }) unitConstraint.add(matching[i])
