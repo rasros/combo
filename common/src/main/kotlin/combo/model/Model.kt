@@ -3,7 +3,7 @@ package combo.model
 import combo.sat.*
 import combo.sat.constraints.*
 import combo.util.IntHashSet
-import combo.util.IntRangeSet
+import combo.util.IntRangeCollection
 import combo.util.MAX_VALUE32
 import combo.util.collectionOf
 import kotlin.jvm.JvmOverloads
@@ -17,8 +17,24 @@ annotation class ModelMarker
 
 class Model(val problem: Problem, val index: VariableIndex) {
 
+    fun denseAssignment(vararg literals: Literal) = Assignment(BitArray(problem.nbrVariables), index, literals)
+    fun sparseAssignment(vararg literals: Literal) = Assignment(SparseBitArray(problem.nbrVariables), index, literals)
     fun toAssignment(instance: Instance) = Assignment(instance, index)
     fun toAssignments(sequence: Sequence<Instance>) = sequence.map { toAssignment(it) }
+
+    operator fun get(name: String): Variable<*> = index[name]
+
+    operator fun get(name: String, value: Any): Literal {
+        val variable = index[name]
+        @Suppress("UNCHECKED_CAST")
+        return when (variable) {
+            is Select<*, *> -> (variable as Select<Any, *>).option(value)
+            is IntVar -> variable.value(value as Int)
+            is FloatVar -> variable.value(value as Float)
+            is BitsVar -> variable.value(value as Int)
+            else -> throw IllegalArgumentException("$variable is not multi-valued.")
+        }
+    }
 
     companion object {
 
@@ -27,7 +43,6 @@ class Model(val problem: Problem, val index: VariableIndex) {
         fun model(name: String = Variable.defaultName(), init: Builder.() -> Unit): Model {
             val root = Root(name)
             val builder = Builder(root)
-            builder.index.add(root)
             builder.units.add(Int.MAX_VALUE)
             init.invoke(builder)
             return builder.build()
@@ -43,7 +58,6 @@ class Model(val problem: Problem, val index: VariableIndex) {
         fun builder(name: String = Variable.defaultName(), init: Builder.() -> Unit): Builder {
             val root = Root(name)
             val builder = Builder(root)
-            builder.index.add(root)
             init.invoke(builder)
             return builder
         }
@@ -53,19 +67,56 @@ class Model(val problem: Problem, val index: VariableIndex) {
     class Builder private constructor(val value: Value,
                                       val index: VariableIndex,
                                       private val constraints: MutableList<Constraint>,
+                                      private val encoders: MutableMap<Variable<*>, UnindexedVariableEncoder<*>>,
+                                      private val auxiliary: MutableSet<Variable<*>>,
                                       @JvmSynthetic internal val units: IntHashSet)
         : Value by value {
 
 
-        constructor(variable: Variable<*>) : this(variable, VariableIndex(variable.name), ArrayList(), IntHashSet())
+        constructor(variable: Variable<*>) : this(variable, VariableIndex(variable), ArrayList(), HashMap(), HashSet(), IntHashSet())
 
         fun build(): Model {
-            val problem = Problem(index.nbrVariables, constraints.toTypedArray())
-            val reduced = problem.unitPropagation(units, true)
-            units.remove(Int.MAX_VALUE)
-            val finalConstraints = if (units.size > 0) reduced + Conjunction(collectionOf(*units.toArray()))
-            else reduced
-            return Model(Problem(index.nbrVariables, finalConstraints), index)
+
+            val constraints = let {
+                val problem = Problem(index.nbrVariables, constraints.toTypedArray())
+                val reduced = problem.unitPropagation(units, true)
+                units.remove(Int.MAX_VALUE)
+                if (units.size > 0) reduced + Conjunction(collectionOf(*units.toArray()))
+                else reduced
+            }
+
+            val auxiliary = let {
+                val set = IntHashSet(nullValue = -1)
+                for (v in auxiliary) {
+                    val ix = index.indexOf(v)
+                    for (j in 0 until v.nbrLiterals)
+                        set.add(ix + j)
+                }
+                set
+            }
+
+            /*val encoders = let {
+                val list = ArrayList<VariableEncoder<*>>()
+                val vars = index.variables().sortedBy { index.indexOf(it) }.toList()
+                var binaryIx = 0
+                var vectorIx = 0
+                for (v in vars) {
+                    val custom = encoders[v]
+                    val e: VariableEncoder<VectorMapping> = if (custom != null) {
+                        @Suppress("UNCHECKED_CAST")
+                        VariableEncoder(v.name, custom.mapping.map(binaryIx, vectorIx, index), custom.encoder as Encoder<VectorMapping>)
+                    } else {
+                        @Suppress("UNCHECKED_CAST")
+                        VariableEncoder(v.name, v.defaultMapping(binaryIx, vectorIx, index), v.defaultEncoder as Encoder<VectorMapping>)
+                    }
+                    binaryIx += e.mapping.binarySize
+                    vectorIx += e.mapping.vectorSize
+                    list.add(e)
+                }
+                list.toTypedArray()
+            }*/
+
+            return Model(Problem(index.nbrVariables, constraints, auxiliary), index)
         }
 
         @JvmOverloads
@@ -77,18 +128,18 @@ class Model(val problem: Problem, val index: VariableIndex) {
         }
 
         @JvmOverloads
-        fun <V> optionalAlternative(name: String = Variable.defaultName(), vararg values: V) = alternativeHelper(name, false, values)
+        fun <V> optionalNominal(name: String = Variable.defaultName(), vararg values: V) = nominalHelper(name, false, values)
 
         @JvmOverloads
-        fun <V> alternative(name: String = Variable.defaultName(), vararg values: V) = alternativeHelper(name, true, values)
+        fun <V> nominal(name: String = Variable.defaultName(), vararg values: V) = nominalHelper(name, true, values)
 
-        private fun <V> alternativeHelper(name: String = Variable.defaultName(), mandatory: Boolean = false, values: Array<out V>) =
-                Alternative(name, mandatory, value, *values).also {
+        private fun <V> nominalHelper(name: String = Variable.defaultName(), mandatory: Boolean = false, values: Array<out V>) =
+                Nominal(name, mandatory, value, *values).also {
                     require(values.isNotEmpty())
                     addVariable(it)
                     val parent = if (mandatory) this@Builder.value else it
                     val firstOption = it.optionAt(0).toLiteral(index)
-                    val optionSet = IntRangeSet(firstOption, firstOption + it.values.size - 1)
+                    val optionSet = IntRangeCollection(firstOption, firstOption + it.values.size - 1)
                     constraint { parent reifiedEquivalent Disjunction(optionSet) }
                     constraint { Cardinality(optionSet, 1, Relation.LE) }
                 }
@@ -105,31 +156,8 @@ class Model(val problem: Problem, val index: VariableIndex) {
                     addVariable(it)
                     val parent = if (mandatory) this@Builder.value else it
                     val firstOption = it.optionAt(0).toLiteral(index)
-                    val optionSet = IntRangeSet(firstOption, firstOption + it.values.size - 1)
+                    val optionSet = IntRangeCollection(firstOption, firstOption + it.values.size - 1)
                     constraint { parent reifiedEquivalent Disjunction(optionSet) }
-                }
-
-        @JvmOverloads
-        fun <V> optionalOrdinal(name: String = Variable.defaultName(), vararg values: V) = ordinalHelper(name, false, values)
-
-        /**
-         * An ordinal variable has an intrinsic order among the values. As with alternative or multiple, this will
-         * internally add boolean variables equal to the number of values. In
-         */
-        @JvmOverloads
-        fun <V> ordinal(name: String = Variable.defaultName(), vararg values: V) = ordinalHelper(name, true, values)
-
-        private fun <V> ordinalHelper(name: String = Variable.defaultName(), mandatory: Boolean = false, values: Array<out V>) =
-                Ordinal(name, mandatory, value, *values).also {
-                    require(values.isNotEmpty())
-                    addVariable(it)
-                    val parent = if (mandatory) this@Builder.value else it
-                    val firstOption = it.optionAt(0).toLiteral(index)
-                    val optionSet = IntRangeSet(firstOption, firstOption + it.values.size - 1)
-                    constraint { parent reifiedEquivalent Disjunction(optionSet) }
-                    for (i in 1 until values.size) {
-                        constraint { it.optionAt(i) implies it.optionAt(i - 1) }
-                    }
                 }
 
         @JvmOverloads
@@ -146,7 +174,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
                     val ix = index.indexOf(it)
                     val parent = if (mandatory) value else it
                     val offset = if (mandatory) 0 else 1
-                    val zeros = IntRangeSet((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+                    val zeros = IntRangeCollection((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
                     constraint { !parent reifiedImplies Conjunction(zeros) }
                     constraint { parent reifiedImplies IntBounds(ix + offset, min, max, it.nbrLiterals - offset) }
                 }
@@ -165,7 +193,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
                     val ix = index.indexOf(it)
                     val parent = if (mandatory) value else it
                     val offset = if (mandatory) 0 else 1
-                    val zeros = IntRangeSet((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+                    val zeros = IntRangeCollection((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
                     constraint { !parent reifiedImplies Conjunction(zeros) }
                     constraint { parent reifiedImplies FloatBounds(ix + offset, min, max) }
                 }
@@ -179,9 +207,10 @@ class Model(val problem: Problem, val index: VariableIndex) {
                     val ix = index.indexOf(it)
                     val parent = if (mandatory) value else it
                     val offset = if (mandatory) 0 else 1
-                    val zeros = IntRangeSet((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+                    val zeros = IntRangeCollection((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
                     constraint { !parent reifiedImplies Conjunction(zeros) }
                 }
+
 
         /**
          * Adds an optional sub-model. Every variable in the new model will be controlled by a [bool] named [name]. The
@@ -198,7 +227,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
         @JvmOverloads
         fun model(reifiedValue: Value, scopeName: String = reifiedValue.name, init: Builder.() -> Unit): Builder {
             require(index.contains(reifiedValue.canonicalVariable)) { "${reifiedValue.canonicalVariable} not found in model." }
-            val builder = Builder(reifiedValue, index.addChildScope(scopeName), constraints, units)
+            val builder = Builder(reifiedValue, index.addChildScope(scopeName, reifiedValue), constraints, encoders, auxiliary, units)
             if (!index.inScope(reifiedValue.canonicalVariable.name))
                 constraint { reifiedValue implies this@Builder.value }
             init.invoke(builder)
@@ -245,7 +274,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
             while (scopeQueue.isNotEmpty()) {
                 val nextScope = scopeQueue.removeAt(0)
                 val parent = parents.removeAt(0)
-                val scope = parent.addChildScope(nextScope.scopeName)
+                val scope = parent.addChildScope(nextScope.scopeName, nextScope.reifiedValue)
                 for (variable in nextScope.scopeVariables) scope.add(variable)
                 val childScopes = nextScope.children
                 val pre = scopeQueue.size
@@ -262,12 +291,15 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 } else c = c.offset(offset)
                 addConstraint(c)
             }
+
+            this.auxiliary.addAll(builder.auxiliary)
+            this.encoders.putAll(builder.encoders)
         }
 
         /**
          * Add a constraint to the model.
          * @param unitPropagation perform unit propagation simplification based on the current unit literals in the
-         * model. This might be turned off if the constraint is represented lazily as a huge [IntRangeSet] and
+         * model. This might be turned off if the constraint is represented lazily as a huge [IntRangeCollection] and
          * performing unit propagation will add a hole to the range which will expand the set to a concrete [IntHashSet].
          */
         @JvmOverloads
@@ -287,9 +319,34 @@ class Model(val problem: Problem, val index: VariableIndex) {
             constraints.add(prop)
         }
 
+        /**
+         * Add custom encoder for the variable. If the encoder changes the number of variables in the encoding from the
+         * default for the variable type then a [mapping] must be provided as well, or the encoder uses another mapping
+         * type.
+         */
+        @JvmOverloads
+        fun <V : VectorMapping> encoder(variable: Variable<*>, encoder: Encoder<V>,
+                                        @Suppress("UNCHECKED_CAST") mapping: MappingFunction<V> = { binaryIx: Int, vectorIx: Int ->
+                                            variable.defaultMapping(binaryIx, vectorIx, index) as V
+                                        } as MappingFunction<V>) {
+            require(index.contains(variable)) { "Could not find variable $variable in model." }
+            encoders[variable] = UnindexedVariableEncoder(encoder, mapping)
+        }
+
+        fun <V : Variable<*>> auxiliary(variable: V) = variable.also {
+            this.auxiliary.add(variable)
+            encoder(variable, VoidEncoder, object : MappingFunction<VectorMapping> {
+                override fun map(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) =
+                        object : VectorMapping by variable.defaultMapping(binaryIx, vectorIx, scopedIndex) {
+                            override val vectorSize get() = 0
+                        }
+            })
+        }
+
         override fun toString() = "Builder($name)"
     }
 
     override fun toString() = "Model(${index.scopeName})"
+    private class UnindexedVariableEncoder<V : VectorMapping>(val encoder: Encoder<V>, val mapping: MappingFunction<V>)
 }
 
