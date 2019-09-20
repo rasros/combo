@@ -1,4 +1,8 @@
+@file:JvmName("Locks")
+
 package combo.util
+
+import kotlin.jvm.JvmName
 
 expect interface Condition {
     fun await()
@@ -20,7 +24,6 @@ expect interface ReadWriteLock {
 
 expect class ReentrantLock() : Lock
 expect class ReentrantReadWriteLock() : ReadWriteLock
-
 
 inline fun <T> Lock.withLock(action: () -> T): T {
     lock()
