@@ -95,27 +95,6 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 set
             }
 
-            /*val encoders = let {
-                val list = ArrayList<VariableEncoder<*>>()
-                val vars = index.variables().sortedBy { index.indexOf(it) }.toList()
-                var binaryIx = 0
-                var vectorIx = 0
-                for (v in vars) {
-                    val custom = encoders[v]
-                    val e: VariableEncoder<VectorMapping> = if (custom != null) {
-                        @Suppress("UNCHECKED_CAST")
-                        VariableEncoder(v.name, custom.mapping.map(binaryIx, vectorIx, index), custom.encoder as Encoder<VectorMapping>)
-                    } else {
-                        @Suppress("UNCHECKED_CAST")
-                        VariableEncoder(v.name, v.defaultMapping(binaryIx, vectorIx, index), v.defaultEncoder as Encoder<VectorMapping>)
-                    }
-                    binaryIx += e.mapping.binarySize
-                    vectorIx += e.mapping.vectorSize
-                    list.add(e)
-                }
-                list.toTypedArray()
-            }*/
-
             return Model(Problem(index.nbrVariables, constraints, auxiliary), index)
         }
 
@@ -319,28 +298,8 @@ class Model(val problem: Problem, val index: VariableIndex) {
             constraints.add(prop)
         }
 
-        /**
-         * Add custom encoder for the variable. If the encoder changes the number of variables in the encoding from the
-         * default for the variable type then a [mapping] must be provided as well, or the encoder uses another mapping
-         * type.
-         */
-        @JvmOverloads
-        fun <V : VectorMapping> encoder(variable: Variable<*>, encoder: Encoder<V>,
-                                        @Suppress("UNCHECKED_CAST") mapping: MappingFunction<V> = { binaryIx: Int, vectorIx: Int ->
-                                            variable.defaultMapping(binaryIx, vectorIx, index) as V
-                                        } as MappingFunction<V>) {
-            require(index.contains(variable)) { "Could not find variable $variable in model." }
-            encoders[variable] = UnindexedVariableEncoder(encoder, mapping)
-        }
-
         fun <V : Variable<*>> auxiliary(variable: V) = variable.also {
             this.auxiliary.add(variable)
-            encoder(variable, VoidEncoder, object : MappingFunction<VectorMapping> {
-                override fun map(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) =
-                        object : VectorMapping by variable.defaultMapping(binaryIx, vectorIx, scopedIndex) {
-                            override val vectorSize get() = 0
-                        }
-            })
         }
 
         override fun toString() = "Builder($name)"
