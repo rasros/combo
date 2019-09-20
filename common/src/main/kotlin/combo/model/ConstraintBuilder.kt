@@ -9,6 +9,7 @@ import combo.sat.Tautology
 import combo.sat.constraints.*
 import combo.sat.constraints.Relation.*
 import combo.util.*
+import kotlin.math.absoluteValue
 
 /**
  * The class is intended to be used as part of the [Model.Builder] and not be instantiated directly (although it can).
@@ -63,7 +64,7 @@ class ConstraintBuilder(val index: VariableIndex) {
 
     fun linear(degree: Int, relation: Relation, weights: IntArray, variables: Array<out Value>): PropositionalConstraint {
 
-        val gcd = gcd(degree, gcdAll(*weights))
+        val gcd = gcd(degree.absoluteValue, gcdAll(*weights))
         val simplifiedDegree: Int
         val simplifiedWeights: IntArray
         if (gcd > 1) {
@@ -87,10 +88,6 @@ class ConstraintBuilder(val index: VariableIndex) {
     fun exactly(degree: Int, variables: Array<out Value>) = cardinality(degree, EQ, variables)
     fun atMost(degree: Int, variables: Array<out Value>) = cardinality(degree, LE, variables)
     fun atLeast(degree: Int, variables: Array<out Value>) = cardinality(degree, GE, variables)
-
-    fun exactly(degree: Int, weights: IntArray, variables: Array<out Value>) = linear(degree, EQ, weights, variables)
-    fun atMost(degree: Int, weights: IntArray, variables: Array<out Value>) = linear(degree, LE, weights, variables)
-    fun atLeast(degree: Int, weights: IntArray, variables: Array<out Value>) = linear(degree, GE, weights, variables)
 
     /**
      * Declares all [variables] to be mutually exclusive.
