@@ -1,17 +1,19 @@
 package combo.model
 
 import combo.util.ArrayQueue
+import combo.util.assert
 
 /**
  * This can be used to query the variables and child scopes defined as part of the model.
  * The [find] method searches for variables and [getChildScope] can be used to get a sub scope.
  */
 class VariableIndex private constructor(val scopeName: String,
-                                        private val parent: VariableIndex?,
+                                        val reifiedValue: Value,
+                                        val parent: VariableIndex?,
                                         private val index: MutableMap<Variable<*>, Int>,
                                         private val variableCounter: Counter) : Iterable<Variable<*>> {
 
-    constructor(scopeName: String) : this(scopeName, null, HashMap(), Counter())
+    constructor(reifiedValue: Value) : this(reifiedValue.name, reifiedValue, null, HashMap(), Counter())
 
     /**
      * All direct child scopes, see also [getChildScope].
@@ -22,6 +24,8 @@ class VariableIndex private constructor(val scopeName: String,
      * All sequence in the current scope only.
      */
     val scopeVariables: List<Variable<*>> = ArrayList()
+
+    fun variables(): Sequence<Variable<*>> = index.keys.asSequence()
 
     private val names = HashMap<String, Variable<*>>()
 
@@ -70,6 +74,7 @@ class VariableIndex private constructor(val scopeName: String,
     override fun iterator() = asSequence().iterator()
 
     fun add(variable: Variable<*>): Int {
+        assert(variable !is Root)
         if (index.containsKey(variable))
             throw IllegalArgumentException("Variable $variable already added.")
         if (names.containsKey(variable.name))
@@ -81,7 +86,7 @@ class VariableIndex private constructor(val scopeName: String,
         return variableCounter.count
     }
 
-    fun addChildScope(firstName: String) = VariableIndex(firstName, this, index, variableCounter).also {
+    fun addChildScope(scopeName: String, reifiedValue: Value) = VariableIndex(scopeName, reifiedValue, this, index, variableCounter).also {
         (children as MutableList).add(it)
     }
 
