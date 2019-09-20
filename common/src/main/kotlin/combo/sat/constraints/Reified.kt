@@ -7,7 +7,7 @@ import kotlin.random.Random
 
 sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constraint) : Constraint {
 
-    override val priority: Int get() = 1000
+    override val priority: Int get() = constraint.priority + literals.size
 
     override fun cacheUpdate(cacheResult: Int, newLit: Literal) =
             if (newLit.toIx() == literal.toIx()) cacheResult
@@ -68,12 +68,12 @@ class ReifiedEquivalent(literal: Literal, override val constraint: Propositional
         return when (constraint) {
             is Disjunction -> {
                 val c1 = constraint.literals.asSequence().map { Disjunction(collectionOf(literal, !it)) }
-                val c2 = sequenceOf(Disjunction(constraint.literals.mutableCopy().apply { add(!literal) }))
+                val c2 = sequenceOf(Disjunction(constraint.literals.mutableCopy(nullValue = 0).apply { add(!literal) }))
                 c1 + c2
             }
             is Conjunction -> {
                 val c1 = constraint.literals.asSequence().map { Disjunction(collectionOf(!literal, it)) }
-                val c2 = sequenceOf(Disjunction((constraint.literals.mutableCopy().map { !it }.apply { add(literal) })))
+                val c2 = sequenceOf(Disjunction((constraint.literals.mutableCopy(nullValue = 0).map { !it }.apply { add(literal) })))
                 c1 + c2
             }
             else -> throw IllegalArgumentException("Cannot convert arbitrary constraint to CNF.")

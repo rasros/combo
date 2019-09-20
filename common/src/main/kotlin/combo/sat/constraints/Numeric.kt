@@ -2,14 +2,13 @@ package combo.sat.constraints
 
 import combo.math.nextFloat
 import combo.sat.*
-import combo.util.IntRangeSet
+import combo.util.IntRangeCollection
 import combo.util.assert
 import combo.util.bitCount
 import kotlin.random.Random
 
-sealed class NumericConstraint(override val literals: IntRangeSet) : Constraint {
-
-    override val priority: Int get() = 200
+sealed class NumericConstraint(override val literals: IntRangeCollection) : Constraint {
+    override val priority: Int get() = 300
     override fun cacheUpdate(cacheResult: Int, newLit: Literal) = 0
     override fun cache(instance: Instance) = 0
     override fun isUnit() = false
@@ -17,10 +16,10 @@ sealed class NumericConstraint(override val literals: IntRangeSet) : Constraint 
     override fun remap(from: Int, to: Int) = throw UnsupportedOperationException()
 }
 
-class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericConstraint(literals) {
+class IntBounds(literals: IntRangeCollection, val min: Int, val max: Int) : NumericConstraint(literals) {
 
     constructor(ix: Int, min: Int, max: Int, nbrLiterals: Int) :
-            this(IntRangeSet(ix.toLiteral(true), (ix + nbrLiterals - 1).toLiteral(true)), min, max)
+            this(IntRangeCollection(ix.toLiteral(true), (ix + nbrLiterals - 1).toLiteral(true)), min, max)
 
     private fun isSigned() = min < 0 || max < 0
 
@@ -31,7 +30,6 @@ class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericCons
         val changedBits = coercedInt xor value
         return Int.bitCount(changedBits)
     }
-
 
     override fun offset(offset: Int) = IntBounds(literals.map { it + offset }, min, max)
 
@@ -44,7 +42,7 @@ class IntBounds(literals: IntRangeSet, val min: Int, val max: Int) : NumericCons
     override fun toString() = "IntBounds(${literals.min.toLiteral(true)} in $min:$max)"
 }
 
-class FloatBounds(literals: IntRangeSet, val min: Float, val max: Float) : NumericConstraint(literals) {
+class FloatBounds(literals: IntRangeCollection, val min: Float, val max: Float) : NumericConstraint(literals) {
 
     init {
         assert(min.isFinite())
@@ -52,7 +50,7 @@ class FloatBounds(literals: IntRangeSet, val min: Float, val max: Float) : Numer
         assert(max > min)
     }
 
-    constructor(ix: Int, min: Float, max: Float) : this(IntRangeSet(ix.toLiteral(true), (ix + 31).toLiteral(true)), min, max)
+    constructor(ix: Int, min: Float, max: Float) : this(IntRangeCollection(ix.toLiteral(true), (ix + 31).toLiteral(true)), min, max)
 
     private fun Float.coerceIn(minimumValue: Float, maximumValue: Float): Float {
         // We use the compareTo here rather than the '<' and '>' operators to make sure that -0.0f < 0.0f
