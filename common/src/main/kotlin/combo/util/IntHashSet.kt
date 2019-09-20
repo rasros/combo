@@ -90,7 +90,9 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
     }
 
     override fun add(value: Int): Boolean {
-        assert(value != nullValue)
+        assert(value != nullValue) {
+            ""
+        }
         if (table[linearProbe(value)] != nullValue)
             return false
 

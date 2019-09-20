@@ -42,6 +42,11 @@ interface IntCollection : Iterable<Int> {
     }
 }
 
+interface IntList : IntCollection {
+    operator fun get(index: Int): Int
+    fun indexOf(value: Int): Int
+}
+
 interface MutableIntCollection : IntCollection {
     override fun copy(): MutableIntCollection
     fun clear()
@@ -50,14 +55,15 @@ interface MutableIntCollection : IntCollection {
     fun addAll(values: IntArray) = values.fold(false) { any, it -> this.add(it) || any }
     fun addAll(values: Iterable<Int>) = values.fold(false) { any, it -> this.add(it) || any }
     fun remove(value: Int): Boolean
+    fun removeAll(values: Iterable<Int>) = values.fold(false) { any, it -> this.remove(it) || any }
 }
 
-operator fun IntCollection.plus(collection: IntCollection): IntCollection {
-    return mutableCopy().apply { addAll(collection) }
+operator fun MutableIntCollection.plus(collection: IntCollection): IntCollection {
+    return copy().apply { addAll(collection) }
 }
 
-operator fun IntCollection.plus(value: Int): IntCollection {
-    return mutableCopy().apply { add(value) }
+operator fun MutableIntCollection.plus(value: Int): MutableIntCollection {
+    return copy().apply { add(value) }
 }
 
 /**
@@ -79,21 +85,22 @@ fun collectionOf(vararg array: Int): IntCollection {
     return when {
         array.isEmpty() -> EmptyCollection
         array.size == 1 -> SingletonIntCollection(array[0])
-        doRange -> IntRangeSet(min, max)
+        doRange -> IntRangeCollection(min, max)
         array.size > 20 -> IntHashSet().apply { addAll(array) }
-        else -> IntList(array)
+        else -> IntArrayList(array)
     }
 }
 
+// TODO join/replace with plus
 fun unionCollection(a: IntCollection, value: Int): IntCollection {
-    return if (a is IntRangeSet && (value + 1 in a || value - 1 in a)) IntRangeSet(min(a.min, value), max(a.max, value))
-    else IntUnionCollection(a, IntList(intArrayOf(value)))
+    return if (a is IntRangeCollection && (value + 1 in a || value - 1 in a)) IntRangeCollection(min(a.min, value), max(a.max, value))
+    else IntUnionCollection(a, IntArrayList(intArrayOf(value)))
 }
 
-fun IntCollection.mutableCopy(): MutableIntCollection =
+fun IntCollection.mutableCopy(nullValue: Int): MutableIntCollection =
         when {
             this is MutableIntCollection -> this.copy()
-            else -> (if (this.size > 20) IntHashSet() else IntList()).apply {
+            else -> (if (this.size > 20) IntHashSet(nullValue = nullValue) else IntArrayList()).apply {
                 addAll(this@mutableCopy)
             }
         }

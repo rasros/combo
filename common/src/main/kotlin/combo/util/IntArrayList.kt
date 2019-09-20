@@ -3,7 +3,7 @@ package combo.util
 import combo.math.IntPermutation
 import kotlin.random.Random
 
-class IntList private constructor(private var array: IntArray, size: Int) : MutableIntCollection {
+class IntArrayList private constructor(private var array: IntArray, size: Int) : MutableIntCollection, IntList {
 
     constructor(initialSize: Int = 4) : this(IntArray(initialSize), 0)
     constructor(array: IntArray) : this(array, array.size)
@@ -11,7 +11,7 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
     override var size: Int = size
         private set
 
-    override fun copy() = IntList(array.copyOf(), size)
+    override fun copy() = IntArrayList(array.copyOf(), size)
 
     override fun clear() {
         size = 0
@@ -19,18 +19,18 @@ class IntList private constructor(private var array: IntArray, size: Int) : Muta
 
     override operator fun contains(value: Int) = indexOf(value) >= 0
 
-    operator fun get(index: Int) = array[index]
+    override operator fun get(index: Int) = array[index]
 
-    fun indexOf(ix: Int): Int {
+    override fun indexOf(value: Int): Int {
         for (i in 0 until size)
-            if (array[i] == ix) return i
+            if (array[i] == value) return i
         return -1
     }
 
     override fun toArray() = array.copyOfRange(0, size)
 
     override fun map(transform: (Int) -> Int) =
-            IntList(IntArray(size) { i ->
+            IntArrayList(IntArray(size) { i ->
                 transform(this.array[i])
             })
 

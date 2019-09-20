@@ -4,9 +4,9 @@ import combo.math.IntPermutation
 import kotlin.random.Random
 
 /**
- * Only map is implemented in [MutableIntCollection] and it only works for linear functions.
+ * A collection of all items between [min] and [max] (inclusive).
  */
-class IntRangeSet(val min: Int, val max: Int) : IntCollection {
+class IntRangeCollection(val min: Int, val max: Int) : IntList {
 
     init {
         assert(min <= max)
@@ -17,6 +17,16 @@ class IntRangeSet(val min: Int, val max: Int) : IntCollection {
 
     override fun contains(value: Int): Boolean = value in min..max
 
+    override fun indexOf(value: Int): Int {
+        if (value !in min..max) throw IndexOutOfBoundsException("Expected value in $this, got $value.")
+        return value - min
+    }
+
+    override fun get(index: Int): Int {
+        return if (index !in 0 until max - min) -1
+        else min + index
+    }
+
     override fun toArray(): IntArray {
         val array = IntArray(size)
         var k = 0
@@ -25,11 +35,11 @@ class IntRangeSet(val min: Int, val max: Int) : IntCollection {
         return array
     }
 
-    override fun map(transform: (Int) -> Int): IntRangeSet {
+    override fun map(transform: (Int) -> Int): IntRangeCollection {
         val min1 = transform.invoke(min)
         val max1 = transform.invoke(max)
-        return if (min1 < max1) IntRangeSet(min1, max1)
-        else IntRangeSet(max1, min1)
+        return if (min1 < max1) IntRangeCollection(min1, max1)
+        else IntRangeCollection(max1, min1)
     }
 
     override fun iterator() = (min..max).iterator()
@@ -51,7 +61,7 @@ class IntRangeSet(val min: Int, val max: Int) : IntCollection {
         return min + rng.nextInt(size)
     }
 
-    override fun copy() = IntRangeSet(min, max)
+    override fun copy() = IntRangeCollection(min, max)
 
     override fun toString() = "[$min..$max]"
 }

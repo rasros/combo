@@ -1,6 +1,6 @@
 package combo.math
 
-import combo.util.IntList
+import combo.util.IntArrayList
 import combo.util.assert
 import kotlin.random.Random
 
@@ -19,8 +19,8 @@ class AliasMethodSampler(probabilities: FloatArray) : DiscreteSampler {
         assert(probabilities.isNotEmpty())
         val n = probabilities.size
 
-        val underfull = IntList()
-        val overfull = IntList()
+        val underfull = IntArrayList()
+        val overfull = IntArrayList()
         for ((i, prob) in probabilities.withIndex()) {
             U[i] = n * prob
             if (U[i] < 1.0f) underfull.add(i)
