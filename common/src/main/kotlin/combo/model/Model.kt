@@ -15,26 +15,16 @@ import kotlin.jvm.JvmSynthetic
 @DslMarker
 annotation class ModelMarker
 
-class Model(val problem: Problem, val index: VariableIndex) {
+class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
 
-    fun denseAssignment(vararg literals: Literal) = Assignment(BitArray(problem.nbrVariables), index, literals)
-    fun sparseAssignment(vararg literals: Literal) = Assignment(SparseBitArray(problem.nbrVariables), index, literals)
-    fun toAssignment(instance: Instance) = Assignment(instance, index)
+    fun denseAssignment(vararg literals: Literal) = Assignment(BitArray(problem.nbrVariables), index, scope, literals)
+    fun sparseAssignment(vararg literals: Literal) = Assignment(SparseBitArray(problem.nbrVariables), index, scope, literals)
+    fun toAssignment(instance: Instance) = Assignment(instance, index, scope)
     fun toAssignments(sequence: Sequence<Instance>) = sequence.map { toAssignment(it) }
 
-    operator fun get(name: String): Variable<*> = index[name]
-
-    operator fun get(name: String, value: Any): Literal {
-        val variable = index[name]
-        @Suppress("UNCHECKED_CAST")
-        return when (variable) {
-            is Select<*, *> -> (variable as Select<Any, *>).option(value)
-            is IntVar -> variable.value(value as Int)
-            is FloatVar -> variable.value(value as Float)
-            is BitsVar -> variable.value(value as Int)
-            else -> throw IllegalArgumentException("$variable is not multi-valued.")
-        }
-    }
+    operator fun get(name: String): Variable<*, *> = scope[name]
+    operator fun <V> get(name: String, value: V) = scope.find<Variable<V, *>>(name)?.value(value)
+            ?: throw NoSuchElementException("Scope contains no variable with name $name.")
 
     companion object {
 
@@ -64,16 +54,15 @@ class Model(val problem: Problem, val index: VariableIndex) {
     }
 
     @ModelMarker
-    class Builder private constructor(val value: Value,
-                                      val index: VariableIndex,
+    class Builder private constructor(val index: VariableIndex,
+                                      val scope: Scope,
                                       private val constraints: MutableList<Constraint>,
-                                      private val encoders: MutableMap<Variable<*>, UnindexedVariableEncoder<*>>,
-                                      private val auxiliary: MutableSet<Variable<*>>,
+                                      private val auxiliary: MutableSet<Variable<*, *>>,
                                       @JvmSynthetic internal val units: IntHashSet)
-        : Value by value {
+        : Value by scope.reifiedValue {
 
 
-        constructor(variable: Variable<*>) : this(variable, VariableIndex(variable), ArrayList(), HashMap(), HashSet(), IntHashSet())
+        constructor(variable: Variable<*, *>) : this(VariableIndex(), Scope(variable), ArrayList(), HashSet(), IntHashSet())
 
         fun build(): Model {
 
@@ -95,7 +84,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 set
             }
 
-            return Model(Problem(index.nbrVariables, constraints, auxiliary), index)
+            return Model(Problem(index.nbrVariables, constraints, auxiliary), index, scope)
         }
 
         @JvmOverloads
@@ -113,13 +102,12 @@ class Model(val problem: Problem, val index: VariableIndex) {
         fun <V> nominal(name: String = Variable.defaultName(), vararg values: V) = nominalHelper(name, true, values)
 
         private fun <V> nominalHelper(name: String = Variable.defaultName(), mandatory: Boolean = false, values: Array<out V>) =
-                Nominal(name, mandatory, value, *values).also {
+                Nominal(name, if (mandatory) scope.reifiedValue else null, *values).also {
                     require(values.isNotEmpty())
                     addVariable(it)
-                    val parent = if (mandatory) this@Builder.value else it
-                    val firstOption = it.optionAt(0).toLiteral(index)
+                    val firstOption = it.values[0].toLiteral(index)
                     val optionSet = IntRangeCollection(firstOption, firstOption + it.values.size - 1)
-                    constraint { parent reifiedEquivalent Disjunction(optionSet) }
+                    constraint { it.reifiedValue reifiedEquivalent Disjunction(optionSet) }
                     constraint { Cardinality(optionSet, 1, Relation.LE) }
                 }
 
@@ -130,13 +118,12 @@ class Model(val problem: Problem, val index: VariableIndex) {
         fun <V> optionalMultiple(name: String = Variable.defaultName(), vararg values: V) = multipleHelper(name, false, values)
 
         private fun <V> multipleHelper(name: String, mandatory: Boolean, values: Array<out V>) =
-                Multiple(name, mandatory, value, *values).also {
+                Multiple(name, if (mandatory) scope.reifiedValue else null, *values).also {
                     require(values.isNotEmpty())
                     addVariable(it)
-                    val parent = if (mandatory) this@Builder.value else it
-                    val firstOption = it.optionAt(0).toLiteral(index)
+                    val firstOption = it.values[0].toLiteral(index)
                     val optionSet = IntRangeCollection(firstOption, firstOption + it.values.size - 1)
-                    constraint { parent reifiedEquivalent Disjunction(optionSet) }
+                    constraint { it.reifiedValue reifiedEquivalent Disjunction(optionSet) }
                 }
 
         @JvmOverloads
@@ -148,14 +135,13 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 max: Int = Int.MAX_VALUE) = intHelper(name, true, min, max)
 
         private fun intHelper(name: String, mandatory: Boolean, min: Int, max: Int) =
-                IntVar(name, mandatory, value, min, max).also {
+                IntVar(name, if (mandatory) scope.reifiedValue else null, min, max).also {
                     addVariable(it)
                     val ix = index.indexOf(it)
-                    val parent = if (mandatory) value else it
                     val offset = if (mandatory) 0 else 1
                     val zeros = IntRangeCollection((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
-                    constraint { !parent reifiedImplies Conjunction(zeros) }
-                    constraint { parent reifiedImplies IntBounds(ix + offset, min, max, it.nbrLiterals - offset) }
+                    constraint { !it.reifiedValue reifiedImplies Conjunction(zeros) }
+                    constraint { it.reifiedValue reifiedImplies IntBounds(ix + offset, min, max, it.nbrLiterals - offset) }
                 }
 
         @JvmOverloads
@@ -167,29 +153,26 @@ class Model(val problem: Problem, val index: VariableIndex) {
                   max: Float = MAX_VALUE32) = floatHelper(name, true, min, max)
 
         private fun floatHelper(name: String, mandatory: Boolean, min: Float, max: Float) =
-                FloatVar(name, mandatory, value, min, max).also {
+                FloatVar(name, if (mandatory) scope.reifiedValue else null, min, max).also {
                     addVariable(it)
                     val ix = index.indexOf(it)
-                    val parent = if (mandatory) value else it
                     val offset = if (mandatory) 0 else 1
                     val zeros = IntRangeCollection((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
-                    constraint { !parent reifiedImplies Conjunction(zeros) }
-                    constraint { parent reifiedImplies FloatBounds(ix + offset, min, max) }
+                    constraint { !it.reifiedValue reifiedImplies Conjunction(zeros) }
+                    constraint { it.reifiedValue reifiedImplies FloatBounds(ix + offset, min, max) }
                 }
 
         fun bits(name: String = Variable.defaultName(), nbrBits: Int) = bitsHelper(name, true, nbrBits)
         fun optionalBits(name: String = Variable.defaultName(), nbrBits: Int) = bitsHelper(name, false, nbrBits)
 
         private fun bitsHelper(name: String, mandatory: Boolean, nbrBits: Int) =
-                BitsVar(name, mandatory, value, nbrBits).also {
+                BitsVar(name, if (mandatory) scope.reifiedValue else null, nbrBits).also {
                     addVariable(it)
                     val ix = index.indexOf(it)
-                    val parent = if (mandatory) value else it
                     val offset = if (mandatory) 0 else 1
                     val zeros = IntRangeCollection((ix + it.nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
-                    constraint { !parent reifiedImplies Conjunction(zeros) }
+                    constraint { !it.reifiedValue reifiedImplies Conjunction(zeros) }
                 }
-
 
         /**
          * Adds an optional sub-model. Every variable in the new model will be controlled by a [bool] named [name]. The
@@ -206,9 +189,9 @@ class Model(val problem: Problem, val index: VariableIndex) {
         @JvmOverloads
         fun model(reifiedValue: Value, scopeName: String = reifiedValue.name, init: Builder.() -> Unit): Builder {
             require(index.contains(reifiedValue.canonicalVariable)) { "${reifiedValue.canonicalVariable} not found in model." }
-            val builder = Builder(reifiedValue, index.addChildScope(scopeName, reifiedValue), constraints, encoders, auxiliary, units)
-            if (!index.inScope(reifiedValue.canonicalVariable.name))
-                constraint { reifiedValue implies this@Builder.value }
+            val builder = Builder(index, scope.addChildScope(scopeName, reifiedValue), constraints, auxiliary, units)
+            if (!scope.inScope(reifiedValue.canonicalVariable.name))
+                constraint { reifiedValue implies this@Builder.scope.reifiedValue }
             init.invoke(builder)
             return builder
         }
@@ -217,7 +200,7 @@ class Model(val problem: Problem, val index: VariableIndex) {
          * Add a constraint through [ConstraintBuilder]. Note that only one constraint can be added.
          */
         fun constraint(init: ConstraintBuilder.() -> Expression) {
-            val builder = ConstraintBuilder(index)
+            val builder = ConstraintBuilder(scope, index)
             val exp = init.invoke(builder)
             when (exp) {
                 is Literal -> {
@@ -232,10 +215,11 @@ class Model(val problem: Problem, val index: VariableIndex) {
             }
         }
 
-        fun addVariable(variable: Variable<*>) {
+        fun addVariable(variable: Variable<*, *>) {
             require(variable.nbrLiterals > 0)
             index.add(variable)
-            if (!variable.mandatory) constraint { variable implies this@Builder.value }
+            scope.add(variable)
+            if (!variable.mandatory) constraint { variable implies this@Builder.scope.reifiedValue }
         }
 
         /**
@@ -243,10 +227,10 @@ class Model(val problem: Problem, val index: VariableIndex) {
          * with an offset and add them to this model. All variables from root will be added unmodified.
          */
         fun addModel(builder: Builder) {
-            val scopeQueue = ArrayList<VariableIndex>()
-            val parents = ArrayList<VariableIndex>()
-            scopeQueue.add(builder.index)
-            parents.add(this.index)
+            val scopeQueue = ArrayList<Scope>()
+            val parents = ArrayList<Scope>()
+            scopeQueue.add(builder.scope)
+            parents.add(this.scope)
 
             val offset = index.nbrVariables
 
@@ -254,7 +238,10 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 val nextScope = scopeQueue.removeAt(0)
                 val parent = parents.removeAt(0)
                 val scope = parent.addChildScope(nextScope.scopeName, nextScope.reifiedValue)
-                for (variable in nextScope.scopeVariables) scope.add(variable)
+                for (variable in nextScope.scopeVariables) {
+                    index.add(variable)
+                    scope.add(variable)
+                }
                 val childScopes = nextScope.children
                 val pre = scopeQueue.size
                 scopeQueue.addAll(childScopes)
@@ -266,13 +253,12 @@ class Model(val problem: Problem, val index: VariableIndex) {
                 if (Int.MAX_VALUE in c.literals || !Int.MAX_VALUE in c.literals) {
                     c = c.remap(Int.MAX_VALUE.toIx(), Int.MAX_VALUE.offset(-offset - 1))
                     c = c.offset(offset)
-                    c = c.remap(Int.MAX_VALUE.toIx(), value.toLiteral(index).toIx())
+                    c = c.remap(Int.MAX_VALUE.toIx(), scope.reifiedValue.toLiteral(index).toIx())
                 } else c = c.offset(offset)
                 addConstraint(c)
             }
 
             this.auxiliary.addAll(builder.auxiliary)
-            this.encoders.putAll(builder.encoders)
         }
 
         /**
@@ -298,14 +284,13 @@ class Model(val problem: Problem, val index: VariableIndex) {
             constraints.add(prop)
         }
 
-        fun <V : Variable<*>> auxiliary(variable: V) = variable.also {
+        fun <V : Variable<*, *>> auxiliary(variable: V) = variable.also {
             this.auxiliary.add(variable)
         }
 
         override fun toString() = "Builder($name)"
     }
 
-    override fun toString() = "Model(${index.scopeName})"
-    private class UnindexedVariableEncoder<V : VectorMapping>(val encoder: Encoder<V>, val mapping: MappingFunction<V>)
+    override fun toString() = "Model(${scope.scopeName})"
 }
 

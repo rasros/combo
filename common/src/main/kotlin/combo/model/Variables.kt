@@ -11,9 +11,10 @@ import kotlin.jvm.JvmName
  * be registered in the [Model] to be used. The easiest way of constructing them are through the various
  * methods in [Model.Builder], such as [Model.Builder.flag] or [Model.Builder.nominal] which will also add the
  * required constraints.
- * TODO refactor to remove parentValue
+ * @param V the type that sub options are parameterized by, [Nothing] for [Flag].
+ * @param T the type that is returned, often same as [V].
  */
-abstract class Variable<out T>(override val name: String) : Value {
+abstract class Variable<in V, out T>(override val name: String) : Value {
 
     companion object {
         fun defaultName() = "${"$"}x_${COUNTER.getAndIncrement()}"
@@ -21,62 +22,53 @@ abstract class Variable<out T>(override val name: String) : Value {
     }
 
     override fun toLiteral(rootIndex: VariableIndex) =
-            if (parentValue == this) rootIndex.indexOf(this).toLiteral(true)
-            else parentValue.toLiteral(rootIndex)
+            if (reifiedValue == this) rootIndex.indexOf(this).toLiteral(true)
+            else reifiedValue.toLiteral(rootIndex)
 
-    abstract val parentValue: Value
-    override val canonicalVariable: Variable<T> get() = this
+    /**
+     * The reified value is the value that governs whether the variable is set, it is usually itself or [Root].
+     */
+    abstract val reifiedValue: Value
+    override val canonicalVariable: Variable<V, T> get() = this
     abstract val nbrLiterals: Int
-    open val mandatory: Boolean get() = parentValue != this
+
+    abstract fun value(value: V): Literal
+
+    /**
+     *  If a variable is declared mandatory it will always be set to some value when the parent model is set.
+     *  As such it till not have a [reifiedValue]
+     */
+    val mandatory: Boolean get() = reifiedValue != this
 
     abstract fun valueOf(instance: Instance, rootIndex: Int): T?
-
-    abstract val defaultEncoder: Encoder<*>
-    abstract fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex): VectorMapping
 }
-
-fun reifiedLiteral(scopedIndex: VariableIndex) =
-        if (scopedIndex.isRoot) 0
-        else scopedIndex.reifiedValue.toLiteral(scopedIndex)
 
 /**
  * This is used for the top variable of the variable hierarchy. It does not take up any space in the optimization
  * problem.
  */
-class Root(name: String) : Variable<Unit>(name) {
+class Root(name: String) : Variable<Nothing, Unit>(name) {
     override val nbrLiterals get() = 0
     override fun valueOf(instance: Instance, rootIndex: Int) {}
     override fun toLiteral(rootIndex: VariableIndex) = Int.MAX_VALUE
     override fun toString() = "Root($name)"
-    override val parentValue get() = this
-    override val mandatory: Boolean get() = true
-    override val defaultEncoder: Encoder<*> get() = BitsEncoder
-    override fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) =
-            throw UnsupportedOperationException()
+    override val reifiedValue: Value get() = this
+    override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
 }
 
 /**
  * This is the simplest type of [Variable] that will either be a constant value when the corresponding binary value is
  * 1 or null otherwise. A [Flag] is named after feature flags, because they wrap a [value].
  */
-class Flag<out T> constructor(name: String, val value: T) : Variable<T>(name) {
+class Flag<out T> constructor(name: String, val value: T) : Variable<Nothing, T>(name) {
+
     override val nbrLiterals: Int get() = 1
     override fun toString() = "Flag($name)"
     override fun valueOf(instance: Instance, rootIndex: Int): T? {
         return if (instance[rootIndex]) value else null
     }
-
-    override val parentValue: Value get() = this
-    override val mandatory: Boolean get() = false
-    override val defaultEncoder: Encoder<*> get() = BitsEncoder
-    override fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) = object : VectorMapping {
-        override val binaryIx: Int get() = binaryIx
-        override val vectorIx: Int get() = vectorIx
-        override val binarySize: Int get() = 1
-        override val reifiedLiteral: Int get() = reifiedLiteral(scopedIndex)
-        override val indicatorVariable: Boolean get() = false
-        override fun toString() = "FlagMapping($name)"
-    }
+    override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
+    override val reifiedValue: Value get() = this
 }
 
 /**
@@ -84,30 +76,18 @@ class Flag<out T> constructor(name: String, val value: T) : Variable<T>(name) {
  * are mutually exclusive or not. For example, selecting a number of displayed items for a GUI item would be best served
  * as an [Nominal] because there can only a single number at a time.
  */
-sealed class Select<V, out T> constructor(name: String, mandatory: Boolean, parent: Value, val values: Array<out V>)
-    : Variable<T>(name) {
+sealed class Select<V, out T> constructor(name: String, parent: Value?, values: Array<out V>)
+    : Variable<V, T>(name) {
 
+    override val reifiedValue = parent ?: this
     override val nbrLiterals: Int = values.size + if (mandatory) 0 else 1
-    override val parentValue: Value = if (mandatory) parent else this
+    val values: Array<out Option<V>> = Array(values.size) { Option(this, it, values[it]) }
 
-    fun options(): Array<out Option<V>> = Array(values.size) { optionAt(it) }
-
-    fun optionAt(index: Int) = Option(this, index)
-
-    fun option(value: V): Option<V> {
+    override fun value(value: V): Option<V> {
         for (i in values.indices)
-            if (values[i] == value) return Option(this, i)
+            if (values[i] == value) return values[i]
         throw IllegalArgumentException("Value missing in variable $name. " +
                 "Expected to find $value in ${values.joinToString()}")
-    }
-
-    override fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) = object : VectorMapping {
-        override val binaryIx: Int get() = binaryIx
-        override val vectorIx: Int get() = vectorIx
-        override val binarySize: Int get() = nbrLiterals
-        override val reifiedLiteral: Int get() = if (indicatorVariable) binaryIx.toLiteral(true) else reifiedLiteral(scopedIndex)
-        override val indicatorVariable: Boolean get() = !mandatory
-        override fun toString() = "SelectMapping($name)"
     }
 }
 
@@ -115,7 +95,7 @@ sealed class Select<V, out T> constructor(name: String, mandatory: Boolean, pare
  * If a specific option in the [Select.values] array need to be used in a constraint, then use this to get a reference
  * to the corresponding optimization variable.
  */
-class Option<out V> constructor(override val canonicalVariable: Select<out V, *>, val valueIndex: Int) : Value {
+class Option<out V> constructor(override val canonicalVariable: Select<out V, *>, val valueIndex: Int, val value: V) : Value {
 
     init {
         require(valueIndex in canonicalVariable.values.indices) {
@@ -123,7 +103,6 @@ class Option<out V> constructor(override val canonicalVariable: Select<out V, *>
         }
     }
 
-    val value get() = canonicalVariable.values[valueIndex]
     override fun toLiteral(rootIndex: VariableIndex) = (rootIndex.indexOf(canonicalVariable) + valueIndex
             + if (canonicalVariable.mandatory) 0 else 1).toLiteral(true)
 
@@ -131,8 +110,8 @@ class Option<out V> constructor(override val canonicalVariable: Select<out V, *>
     override val name: String get() = canonicalVariable.name
 }
 
-class Multiple<V> constructor(name: String, mandatory: Boolean, parent: Value, vararg values: V)
-    : Select<V, List<V>>(name, mandatory, parent, values) {
+class Multiple<V> constructor(name: String, parent: Value?, vararg values: V)
+    : Select<V, List<V>>(name, parent, values) {
 
     override fun valueOf(instance: Instance, rootIndex: Int): List<V>? {
         if (!mandatory && !instance[rootIndex]) return null
@@ -143,7 +122,7 @@ class Multiple<V> constructor(name: String, mandatory: Boolean, parent: Value, v
             val value = instance.getFirst(offset + i, offset + values.size)
             if (value < 0) break
             i += value
-            ret.add(values[i])
+            ret.add(values[i].value)
             i++
         }
         if (!mandatory && instance[rootIndex] && ret.isEmpty())
@@ -154,11 +133,10 @@ class Multiple<V> constructor(name: String, mandatory: Boolean, parent: Value, v
     }
 
     override fun toString() = "Multiple($name)"
-    override val defaultEncoder: Encoder<*> get() = BitsEncoder
 }
 
-class Nominal<V> constructor(name: String, mandatory: Boolean, parent: Value, vararg values: V)
-    : Select<V, V>(name, mandatory, parent, values) {
+class Nominal<V> constructor(name: String, parent: Value?, vararg values: V)
+    : Select<V, V>(name, parent, values) {
 
     override fun valueOf(instance: Instance, rootIndex: Int): V? {
         if (!mandatory && !instance[rootIndex]) return null
@@ -167,10 +145,9 @@ class Nominal<V> constructor(name: String, mandatory: Boolean, parent: Value, va
         return if (value < 0) {
             if (mandatory) null
             else throw IllegalStateException("Inconsistent variable, should have something set for $this.")
-        } else values[value]
+        } else values[value].value
     }
 
     override fun toString() = "Nominal($name)"
-    override val defaultEncoder: Encoder<*> get() = NominalEncoder
 }
 

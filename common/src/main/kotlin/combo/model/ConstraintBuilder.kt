@@ -17,7 +17,9 @@ import kotlin.math.absoluteValue
  * extensions where [CNF] form would be inefficient, for example cardinality and reification.
  */
 @ModelMarker
-class ConstraintBuilder(val index: VariableIndex) {
+class ConstraintBuilder(val scope: Scope, val index: VariableIndex) {
+
+    fun String.not() = scope[this].not()
 
     infix fun Proposition.or(prop: Proposition) = or(this, prop)
     infix fun Proposition.and(prop: Proposition) = and(this, prop)
@@ -25,29 +27,29 @@ class ConstraintBuilder(val index: VariableIndex) {
     infix fun Proposition.equivalent(prop: Proposition) = (this implies prop) and (prop implies this)
     infix fun Proposition.xor(prop: Proposition) = (this or prop) and (!this or !prop)
 
-    infix fun Proposition.or(ref: String) = or(this, index.resolve(ref))
-    infix fun Proposition.and(ref: String) = and(this, index.resolve(ref))
-    infix fun Proposition.implies(ref: String) = !this or index.resolve(ref)
-    infix fun Proposition.equivalent(ref: String) = index.resolve(ref).let { (this implies it) and (it implies this) }
-    infix fun Proposition.xor(ref: String) = index.resolve(ref).let { (this or it) and (!this or !it) }
+    infix fun Proposition.or(ref: String) = or(this, scope.resolve(ref))
+    infix fun Proposition.and(ref: String) = and(this, scope.resolve(ref))
+    infix fun Proposition.implies(ref: String) = !this or scope.resolve(ref)
+    infix fun Proposition.equivalent(ref: String) = scope.resolve(ref).let { (this implies it) and (it implies this) }
+    infix fun Proposition.xor(ref: String) = scope.resolve(ref).let { (this or it) and (!this or !it) }
 
-    infix fun String.or(prop: Proposition) = or(index.resolve(this), prop)
-    infix fun String.and(prop: Proposition) = and(index.resolve(this), prop)
-    infix fun String.implies(prop: Proposition) = !index.resolve(this) or prop
-    infix fun String.equivalent(prop: Proposition) = with(index.resolve(this)) { (this implies prop) and (prop implies this) }
-    infix fun String.xor(prop: Proposition) = with(index.resolve(this)) { (this or prop) and (!this or !prop) }
+    infix fun String.or(prop: Proposition) = or(scope.resolve(this), prop)
+    infix fun String.and(prop: Proposition) = and(scope.resolve(this), prop)
+    infix fun String.implies(prop: Proposition) = !scope.resolve(this) or prop
+    infix fun String.equivalent(prop: Proposition) = with(scope.resolve(this)) { (this implies prop) and (prop implies this) }
+    infix fun String.xor(prop: Proposition) = with(scope.resolve(this)) { (this or prop) and (!this or !prop) }
 
-    infix fun String.or(ref: String) = or(index.resolve(this), index.resolve(ref))
-    infix fun String.and(ref: String) = and(index.resolve(this), index.resolve(ref))
-    infix fun String.implies(ref: String) = !index.resolve(this) or index.resolve(ref)
-    infix fun String.equivalent(ref: String) = with(index.resolve(this)) { index.resolve(ref).let { (this implies it) and (it implies this) } }
-    infix fun String.xor(ref: String) = with(index.resolve(this)) { index.resolve(ref).let { (this or it) and (!this or !it) } }
+    infix fun String.or(ref: String) = or(scope.resolve(this), scope.resolve(ref))
+    infix fun String.and(ref: String) = and(scope.resolve(this), scope.resolve(ref))
+    infix fun String.implies(ref: String) = !scope.resolve(this) or scope.resolve(ref)
+    infix fun String.equivalent(ref: String) = with(scope.resolve(this)) { scope.resolve(ref).let { (this implies it) and (it implies this) } }
+    infix fun String.xor(ref: String) = with(scope.resolve(this)) { scope.resolve(ref).let { (this or it) and (!this or !it) } }
 
     infix fun Value.reifiedImplies(constraint: Constraint) = ReifiedImplies(toLiteral(index), constraint)
     infix fun Value.reifiedEquivalent(constraint: PropositionalConstraint) = ReifiedEquivalent(toLiteral(index), constraint)
 
-    infix fun String.reifiedImplies(constraint: Constraint) = ReifiedImplies(index.resolve(this).toLiteral(index), constraint)
-    infix fun String.reifiedEquivalent(constraint: PropositionalConstraint) = ReifiedEquivalent(index.resolve(this).toLiteral(index), constraint)
+    infix fun String.reifiedImplies(constraint: Constraint) = ReifiedImplies(scope.resolve(this).toLiteral(index), constraint)
+    infix fun String.reifiedEquivalent(constraint: PropositionalConstraint) = ReifiedEquivalent(scope.resolve(this).toLiteral(index), constraint)
 
     fun disjunction(vararg variables: Value): PropositionalConstraint =
             if (variables.isEmpty()) Empty else Disjunction(toLiterals(variables))

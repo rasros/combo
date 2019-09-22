@@ -13,14 +13,14 @@ import kotlin.math.max
  * @param min smallest allowed value (inclusive)
  * @param max largest allowed value (inclusive)
  */
-class IntVar constructor(name: String, mandatory: Boolean, parent: Value, val min: Int, val max: Int)
-    : Variable<Int>(name) {
+class IntVar constructor(name: String, parent: Value?, val min: Int, val max: Int)
+    : Variable<Int, Int>(name) {
 
     init {
         require(max > min) { "Min should be greater than min." }
     }
 
-    override val parentValue: Value = if (mandatory) parent else this
+    override val reifiedValue = parent ?: this
 
     override val nbrLiterals: Int = let {
         val valueBits = max(Int.bitSize(max), Int.bitSize(min))
@@ -29,7 +29,7 @@ class IntVar constructor(name: String, mandatory: Boolean, parent: Value, val mi
         isSetBit + signedBit + valueBits
     }
 
-    fun value(value: Int): IntLiteral {
+    override fun value(value: Int): IntLiteral {
         require(value in min..max)
         return IntLiteral(this, value)
     }
@@ -46,19 +46,7 @@ class IntVar constructor(name: String, mandatory: Boolean, parent: Value, val mi
     }
 
     override fun toString() = "IntVar($name in $min:$max)"
-    override val defaultEncoder: Encoder<*> get() = IntEncoder
 
-    override fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) = object : IntMapping {
-        override val binaryIx: Int get() = binaryIx
-        override val vectorIx: Int get() = vectorIx
-        override val binarySize: Int get() = nbrLiterals
-        override val vectorSize: Int get() = if (mandatory) 1 else 2
-        override val reifiedLiteral: Int get() = if (indicatorVariable) binaryIx.toLiteral(true) else reifiedLiteral(scopedIndex)
-        override val indicatorVariable: Boolean get() = !this@IntVar.mandatory
-        override val min: Int get() = this@IntVar.min
-        override val max: Int get() = this@IntVar.max
-        override fun toString() = "IntVarMapping($binaryIx)"
-    }
 }
 
 class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Literal {
@@ -89,8 +77,8 @@ class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Liter
  * @param min smallest allowed value (inclusive)
  * @param max largest allowed value (inclusive)
  */
-class FloatVar constructor(name: String, mandatory: Boolean, parent: Value, val min: Float, val max: Float)
-    : Variable<Float>(name) {
+class FloatVar constructor(name: String, parent: Value?, val min: Float, val max: Float)
+    : Variable<Float, Float>(name) {
 
     init {
         require(max > min) { "Min should be greater than min." }
@@ -98,10 +86,10 @@ class FloatVar constructor(name: String, mandatory: Boolean, parent: Value, val 
         require(min >= -MAX_VALUE32)
     }
 
-    override val parentValue: Value = if (mandatory) parent else this
+    override val reifiedValue = parent ?: this
     override val nbrLiterals: Int = 32 + if (mandatory) 0 else 1
 
-    fun value(value: Float): FloatLiteral {
+    override fun value(value: Float): FloatLiteral {
         require(value in min..max)
         return FloatLiteral(this, value)
     }
@@ -113,19 +101,6 @@ class FloatVar constructor(name: String, mandatory: Boolean, parent: Value, val 
 
     override fun toString() = "FloatVar($name in $min:$max)"
 
-    override val defaultEncoder: Encoder<*> get() = FloatEncoder
-
-    override fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) = object : FloatMapping {
-        override val binaryIx: Int get() = binaryIx
-        override val vectorIx: Int get() = vectorIx
-        override val binarySize: Int get() = nbrLiterals
-        override val vectorSize: Int get() = if (mandatory) 1 else 2
-        override val reifiedLiteral: Int get() = if (indicatorVariable) binaryIx.toLiteral(true) else reifiedLiteral(scopedIndex)
-        override val indicatorVariable: Boolean get() = !this@FloatVar.mandatory
-        override val min: Float get() = this@FloatVar.min
-        override val max: Float get() = this@FloatVar.max
-        override fun toString() = "FloatVarMapping($binaryIx)"
-    }
 }
 
 class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) : Literal {
@@ -152,15 +127,14 @@ class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) :
 
 class BitsVar constructor(
         name: String,
-        mandatory: Boolean,
-        parent: Value,
-        val nbrBits: Int) : Variable<Instance>(name) {
+        parent: Value?,
+        val nbrBits: Int) : Variable<Int, Instance>(name) {
 
     init {
         require(nbrBits > 0) { "nbrBits must be > 0." }
     }
 
-    override val parentValue: Value = if (mandatory) parent else this
+    override val reifiedValue = parent ?: this
     override val nbrLiterals: Int get() = nbrBits + if (mandatory) 0 else 1
 
     override fun valueOf(instance: Instance, rootIndex: Int): Instance? {
@@ -175,20 +149,13 @@ class BitsVar constructor(
         }
     }
 
-    fun value(index: Int) = BitValue(this, index)
+    /**
+     * @param value is index of the bit field.
+     */
+    override fun value(value: Int) = BitValue(this, value)
 
     override fun toString(): String {
         return "BitsVar(nbrLiterals=$nbrBits)"
-    }
-
-    override val defaultEncoder: Encoder<*> get() = BitsEncoder
-    override fun defaultMapping(binaryIx: Int, vectorIx: Int, scopedIndex: VariableIndex) = object : VectorMapping {
-        override val binaryIx: Int get() = binaryIx
-        override val vectorIx: Int get() = vectorIx
-        override val binarySize: Int get() = nbrLiterals
-        override val reifiedLiteral: Int get() = if (indicatorVariable) binaryIx.toLiteral(true) else reifiedLiteral(scopedIndex)
-        override val indicatorVariable: Boolean get() = !mandatory
-        override fun toString() = "BitsVarMapping($name)"
     }
 }
 
