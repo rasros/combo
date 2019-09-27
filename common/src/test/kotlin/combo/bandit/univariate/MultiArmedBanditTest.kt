@@ -1,6 +1,6 @@
 package combo.bandit.univariate
 
-import combo.bandit.BanditType
+import combo.bandit.TestType
 import combo.math.FullSample
 import combo.test.assertContentEquals
 import kotlin.random.Random
@@ -29,8 +29,8 @@ class MultiArmedBanditTest {
             val i2 = bandit2.choose()
             val trials1 = (rng.nextInt(5) + 1)
             val trials2 = (rng.nextInt(5) + 1)
-            bandit1.update(i1, BanditType.BINOMIAL.linearRewards((i1 + 1).toFloat() / 12, trials1, rng), trials1.toFloat())
-            bandit2.update(i2, BanditType.BINOMIAL.linearRewards((i2 + 1).toFloat() / 12, trials2, rng), trials2.toFloat())
+            bandit1.update(i1, TestType.BINOMIAL.linearRewards((i1 + 1).toFloat() / 12, trials1, rng), trials1.toFloat())
+            bandit2.update(i2, TestType.BINOMIAL.linearRewards((i2 + 1).toFloat() / 12, trials2, rng), trials2.toFloat())
         }
         val sum1 = bandit1.rewards.values().sum()
         val sum2 = bandit2.rewards.values().sum()
@@ -45,12 +45,12 @@ class MultiArmedBanditTest {
         val rng2 = Random(1L)
         val arms1 = generateSequence {
             bandit1.choose().also {
-                bandit1.update(it, BanditType.NORMAL.linearRewards(it.toFloat(), 1, rng1))
+                bandit1.update(it, TestType.NORMAL.linearRewards(it.toFloat(), 1, rng1))
             }
         }.take(10).toList()
         val arm2 = generateSequence {
             bandit2.choose().also {
-                bandit2.update(it, BanditType.NORMAL.linearRewards(it.toFloat(), 1, rng2))
+                bandit2.update(it, TestType.NORMAL.linearRewards(it.toFloat(), 1, rng2))
             }
         }.take(10).toList()
         for (i in 0 until 10) {
@@ -64,7 +64,7 @@ class MultiArmedBanditTest {
         val bandit = MultiArmedBandit(20, EpsilonDecreasing(), randomSeed = 1)
         for (i in 0 until 100) {
             val j = bandit.choose()
-            bandit.update(j, BanditType.BINOMIAL.linearRewards(j.toFloat() / 20, 1, Random))
+            bandit.update(j, TestType.BINOMIAL.linearRewards(j.toFloat() / 20, 1, Random))
         }
         val list1 = bandit.exportData()
         val bandit2 = MultiArmedBandit(20, EpsilonDecreasing(), randomSeed = 1)

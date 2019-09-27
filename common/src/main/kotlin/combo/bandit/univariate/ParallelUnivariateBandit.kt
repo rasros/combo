@@ -19,13 +19,13 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
 
     // Batches of input where each update is within minBatchSize..maxBatchSize
     private val batches: Sink<BatchUpdate>? = when (mode) {
-        ParallelMode.NON_BLOCKING -> NonBlockingSink()
+        ParallelMode.NON_LOCKING -> NonBlockingSink()
         ParallelMode.LOCKING -> LockingSink()
         ParallelMode.BLOCKING -> null
     }
 
     private val input: Sink<UpdateEvent> = when (mode) {
-        ParallelMode.NON_BLOCKING -> NonBlockingSink()
+        ParallelMode.NON_LOCKING -> NonBlockingSink()
         ParallelMode.LOCKING -> LockingSink()
         ParallelMode.BLOCKING -> BlockingSink(batchSize.last)
     }
@@ -136,7 +136,7 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
         if (weights != null) require(weights.size == results.size) { "Arrays must be same length." }
         if (armIndices.isEmpty()) return
         val batchUpdate = BatchUpdate(armIndices, results, weights)
-        if (mode == ParallelMode.NON_BLOCKING && armIndices.size in batchSize)
+        if (mode == ParallelMode.NON_LOCKING && armIndices.size in batchSize)
             batches!!.add(batchUpdate)
         else if (batches == null)
             for (i in armIndices.indices)
