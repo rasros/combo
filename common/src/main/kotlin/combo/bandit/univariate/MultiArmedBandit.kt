@@ -1,7 +1,5 @@
 package combo.bandit.univariate
 
-import combo.bandit.BanditParameters
-import combo.bandit.ParallelMode
 import combo.math.DataSample
 import combo.math.VarianceEstimator
 import combo.math.VoidSample
@@ -10,27 +8,16 @@ import combo.util.RandomSequence
 import combo.util.nanos
 import kotlin.jvm.JvmOverloads
 
-class MultiArmedBanditParameters<E : VarianceEstimator>(
+/**
+ * A univariate bandit with fixed number of arms. It stores one estimator per arm.
+ */
+@Suppress("UNCHECKED_CAST")
+class MultiArmedBandit<E : VarianceEstimator> @JvmOverloads constructor(
         val nbrArms: Int,
         val banditPolicy: BanditPolicy<E>,
         override val randomSeed: Int = nanos().toInt(),
         override val maximize: Boolean = true,
-        override val rewards: DataSample = VoidSample) : BanditParameters
-
-/**
- * A bandit optimizes an online binary decision problem. These bandits are uni-variate,
- * ie. there are is a single variable that changes.
- */
-@Suppress("UNCHECKED_CAST")
-class MultiArmedBandit<E : VarianceEstimator>(private val parameters: MultiArmedBanditParameters<E>) : UnivariateBandit<List<E>>, BanditParameters by parameters {
-
-    @JvmOverloads
-    constructor(nbrArms: Int,
-                banditPolicy: BanditPolicy<E>,
-                randomSeed: Int = nanos().toInt(),
-                maximize: Boolean = true,
-                rewards: DataSample = VoidSample
-    ) : this(MultiArmedBanditParameters(nbrArms, banditPolicy, randomSeed, maximize, rewards))
+        override val rewards: DataSample = VoidSample) : UnivariateBandit<List<E>> {
 
     init {
         require(nbrArms > 0)
@@ -38,10 +25,7 @@ class MultiArmedBandit<E : VarianceEstimator>(private val parameters: MultiArmed
 
     private val randomSequence = RandomSequence(randomSeed)
     private val step = AtomicLong()
-    private var data: Array<VarianceEstimator> = Array(nbrArms) { banditPolicy.baseData().also { banditPolicy.addArm(it) } }
-
-    val nbrArms get() = parameters.nbrArms
-    val banditPolicy get() = parameters.banditPolicy
+    private val data: Array<VarianceEstimator> = Array(nbrArms) { banditPolicy.baseData().also { banditPolicy.addArm(it) } }
 
     /**
      * Select the next bandit to use. Indexed from 0 to [nbrArms].
@@ -69,19 +53,16 @@ class MultiArmedBandit<E : VarianceEstimator>(private val parameters: MultiArmed
     }
 
     /**
-     * Add historic data to the bandit, this can be used to stop and re-start the bandit. The array must be the same
-     * length as [nbrArms].
+     * The array must be the same length as [nbrArms].
      */
-    override fun importData(data: List<E>, restructure: Boolean) {
-        if (restructure) {
+    override fun importData(data: List<E>, replace: Boolean) {
+        require(data.size == nbrArms) { "Inconsistent array length with number of arms." }
+        if (replace) {
             for (i in 0 until nbrArms) {
                 banditPolicy.removeArm(this.data[i] as E)
-            }
-            this.data = Array(data.size) { e ->
-                data[e].also { banditPolicy.addArm(it) }
+                banditPolicy.addArm(data[i])
             }
         } else {
-            require(data.size == nbrArms) { "Inconsistent array length with number of arms." }
             for (i in 0 until nbrArms) {
                 banditPolicy.removeArm(this.data[i] as E)
                 this.data[i] = this.data[i].combine(data[i])
@@ -101,14 +82,23 @@ class MultiArmedBandit<E : VarianceEstimator>(private val parameters: MultiArmed
         return list
     }
 
-    override fun concurrent() = ConcurrentUnivariateBandit(this)
+    /**
+     * [nbrArms] and [banditPolicy] are mandatory.
+     */
+    class Builder<E : VarianceEstimator> {
+        private var nbrArms: Int? = null
+        private lateinit var banditPolicy: BanditPolicy<E>
+        private var randomSeed: Int = nanos().toInt()
+        private var maximize: Boolean = true
+        private var rewards: DataSample = VoidSample
 
-    override fun parallel(batchSize: IntRange, mode: ParallelMode, banditCopies: Int): ParallelUnivariateBandit<List<E>> {
-        val bandits = Array(banditCopies) {
-            MultiArmedBandit(nbrArms, banditPolicy.copy()).concurrent()
-        }
-        val export = exportData()
-        bandits.forEach { it.importData(export) }
-        return ParallelUnivariateBandit(bandits, batchSize, mode)
+        fun nbrArms(nbrArms: Int) = apply { this.nbrArms = nbrArms }
+        fun banditPolicy(banditPolicy: BanditPolicy<E>) = apply { this.banditPolicy = banditPolicy }
+        fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
+        fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
+        fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
+        fun parallel() = ParallelUnivariateBandit.Builder(this)
+        fun build() = MultiArmedBandit(nbrArms
+                ?: throw error("nbrArms must be set"), banditPolicy, randomSeed, maximize, rewards)
     }
 }

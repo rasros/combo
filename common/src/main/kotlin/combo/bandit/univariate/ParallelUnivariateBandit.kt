@@ -1,10 +1,16 @@
 package combo.bandit.univariate
 
+import combo.bandit.BanditParameters
 import combo.bandit.ParallelMode
+import combo.math.DataSample
 import combo.math.IntPermutation
+import combo.math.VarianceEstimator
 import combo.util.*
 import kotlin.math.min
 
+/**
+ * Univariate bandit that can be used in parallel. The [processUpdates] method must be called periodically.
+ */
 class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<D>>,
                                   val batchSize: IntRange,
                                   val mode: ParallelMode) : UnivariateBandit<D>, BanditParameters by bandits[0] {
@@ -13,15 +19,15 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
 
     // Batches of input where each update is within minBatchSize..maxBatchSize
     private val batches: Sink<BatchUpdate>? = when (mode) {
-        ParallelMode.NON_BLOCKING -> ConcurrentSink()
-        ParallelMode.BLOCKING_SUPPORTED -> BlockingSink()
-        ParallelMode.BOUNDED_QUEUE -> null
+        ParallelMode.NON_BLOCKING -> NonBlockingSink()
+        ParallelMode.LOCKING -> LockingSink()
+        ParallelMode.BLOCKING -> null
     }
 
     private val input: Sink<UpdateEvent> = when (mode) {
-        ParallelMode.NON_BLOCKING -> ConcurrentSink()
-        ParallelMode.BLOCKING_SUPPORTED -> BlockingSink()
-        ParallelMode.BOUNDED_QUEUE -> BoundedBlockingSink(batchSize.endInclusive)
+        ParallelMode.NON_BLOCKING -> NonBlockingSink()
+        ParallelMode.LOCKING -> LockingSink()
+        ParallelMode.BLOCKING -> BlockingSink(batchSize.last)
     }
 
     init {
@@ -29,10 +35,15 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
         require(batchSize.first >= 0)
     }
 
+    /**
+     * Handle updates added through [update] or [updateAll]
+     * @param mayBlock true if the caller should block until there are updates to handle
+     * @return number of data points processed
+     */
     tailrec fun processUpdates(mayBlock: Boolean): Int {
         if (batches == null) {
             // Limited delay mode, immediately process all events
-            val events = input.drain(if (mayBlock) batchSize.start else -1).toList()
+            val events = input.drain(if (mayBlock) batchSize.first else -1).toList()
             if (events.isEmpty()) return 0
             val indices = IntArray(events.size)
             val results = FloatArray(events.size)
@@ -56,7 +67,7 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
             } else {
 
                 // Otherwise fetch from input
-                val drain = if (mayBlock) input.drain(batchSize.start)
+                val drain = if (mayBlock) input.drain(batchSize.first)
                 else input.drain(-1)
                 val buffer = ArrayList<UpdateEvent>()
                 var size = 0
@@ -64,11 +75,11 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
                 drain.forEach {
                     size += it.size
                     buffer.add(it)
-                    while (size >= batchSize.endInclusive) {
+                    while (size >= batchSize.last) {
                         appended = true
-                        val indices = IntArray(batchSize.endInclusive)
-                        val results = FloatArray(batchSize.endInclusive)
-                        val weights = FloatArray(batchSize.endInclusive)
+                        val indices = IntArray(batchSize.last)
+                        val results = FloatArray(batchSize.last)
+                        val weights = FloatArray(batchSize.last)
                         var k = 0
                         for (i in 0 until buffer.size) {
                             val e = buffer.removeAt(buffer.lastIndex)
@@ -78,10 +89,10 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
                                 buffer.add(remaining)
                                 break
                             }
-                            if (k >= batchSize.endInclusive)
+                            if (k >= batchSize.last)
                                 break
                         }
-                        size -= batchSize.endInclusive
+                        size -= batchSize.last
                         batches.offer(BatchUpdate(indices, results, weights))
                     }
                 }
@@ -103,9 +114,9 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
         }
     }
 
-    override fun importData(data: D, restructure: Boolean) {
+    override fun importData(data: D, replace: Boolean) {
         for (b in bandits)
-            b.importData(data, restructure)
+            b.importData(data, replace)
     }
 
     override fun choose(): Int {
@@ -137,9 +148,6 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
     override fun update(armIndex: Int, result: Float, weight: Float) {
         input.add(SingleUpdate(armIndex, result, weight))
     }
-
-    override fun parallel(batchSize: IntRange, mode: ParallelMode, banditCopies: Int) = this
-    override fun concurrent() = this
 
     private interface UpdateEvent {
         fun collectTo(offset: Int, armIndices: IntArray, results: FloatArray, weights: FloatArray): UpdateEvent?
@@ -177,4 +185,51 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
 
         override val size: Int = armIndices.size
     }
+
+    class Builder<E : VarianceEstimator>(private val baseBuilder: MultiArmedBandit.Builder<E>) {
+        private var copies: Int = 2
+        private var mode: ParallelMode = ParallelMode.LOCKING
+        private var batchSize: IntRange = 1..50
+
+        fun copies(copies: Int) = apply { this.copies = copies }
+        fun mode(mode: ParallelMode) = apply { this.mode = mode }
+        fun batchSize(batchSize: IntRange) = apply { this.batchSize = batchSize }
+        fun nbrArms(nbrArms: Int) = apply { baseBuilder.nbrArms(nbrArms) }
+        fun banditPolicy(banditPolicy: BanditPolicy<E>) = apply { baseBuilder.banditPolicy(banditPolicy) }
+        fun randomSeed(randomSeed: Int) = apply { baseBuilder.randomSeed(randomSeed) }
+        fun maximize(maximize: Boolean) = apply { baseBuilder.maximize(maximize) }
+        fun rewards(rewards: DataSample) = apply { baseBuilder.rewards(rewards) }
+        fun build(): ParallelUnivariateBandit<List<E>> {
+            val base = baseBuilder.build()
+            val array = Array(copies) {
+                if (it == 0) ConcurrentUnivariateBandit(base)
+                else ConcurrentUnivariateBandit(baseBuilder.rewards(base.rewards.copy()).build())
+            }
+            return ParallelUnivariateBandit(array, batchSize, mode)
+        }
+    }
+}
+
+/**
+ * Protects the base methods in [UnivariateBandit] behind a read/write lock. All data will be protected behind the same
+ * lock so there will be lots of contention. [ParallelUnivariateBandit] can provide speedup at some cost to rewards.
+ */
+class ConcurrentUnivariateBandit<D>(val base: UnivariateBandit<D>, val lock: ReadWriteLock = ReentrantReadWriteLock())
+    : UnivariateBandit<D> by base {
+
+    fun tryChoose(): Int {
+        val locked = lock.readLock().tryLock()
+        if (!locked) return -1
+        try {
+            return base.choose()
+        } finally {
+            lock.readLock().unlock()
+        }
+    }
+
+    override fun choose() = lock.read { base.choose() }
+    override fun update(armIndex: Int, result: Float, weight: Float) = lock.write { base.update(armIndex, result, weight) }
+    override fun updateAll(armIndices: IntArray, results: FloatArray, weights: FloatArray?) = lock.write { base.updateAll(armIndices, results, weights) }
+    override fun importData(data: D, replace: Boolean) = lock.write { base.importData(data, replace) }
+    override fun exportData() = lock.read { base.exportData() }
 }
