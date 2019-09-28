@@ -30,7 +30,7 @@ object TestModels {
         arrayOf(CSP1).map { m -> m.problem }
     }
     val TINY_PROBLEMS: List<Problem> by lazy {
-        listOf(MODEL2.problem, MODEL3.problem, MODEL5.problem)
+        listOf(MODEL2.problem, MODEL3.problem)
     }
 
     val MODEL1 by lazy {

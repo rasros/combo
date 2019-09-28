@@ -400,7 +400,6 @@ class BitValueTest {
         val parent = Root("")
         val b = BitsVar("b", parent, 5)
         val index = VariableIndex()
-        index.add(parent)
         index.add(b)
         assertEquals(2, b.value(1).toLiteral(index))
     }

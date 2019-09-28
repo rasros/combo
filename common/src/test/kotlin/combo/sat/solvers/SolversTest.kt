@@ -12,9 +12,10 @@ import combo.model.TestModels.UNSAT_PROBLEMS
 import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.test.assertContentEquals
+import combo.util.IntArrayList
 import combo.util.IntCollection
-import combo.util.IntList
 import combo.util.collectionOf
+import combo.util.measureTimeMillis
 import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.*
@@ -125,7 +126,7 @@ abstract class SolverTest {
         val m = NUMERIC3
         val solver = numericSolver(m.problem)
         if (solver != null) {
-            val opt1 = m.index["opt1"] as IntVar
+            val opt1 = m["opt1"] as IntVar
 
             // First number is optional -100..100
             val intSet = solver.witnessOrThrow(collectionOf(m.index.indexOf(opt1).toLiteral(true)))
@@ -135,7 +136,7 @@ abstract class SolverTest {
             assertNull(NUMERIC3.toAssignment(intUnset)[opt1])
 
             // First number is optional -100..100
-            val opt2 = m.index["opt2"] as FloatVar
+            val opt2 = m["opt2"] as FloatVar
             val floatSet = solver.witnessOrThrow(collectionOf(m.index.indexOf(opt2).toLiteral(true)))
             assertTrue(NUMERIC3.toAssignment(floatSet)[opt2]!! in -0.1f..1.0f)
 
@@ -185,7 +186,7 @@ abstract class SolverTest {
             if (solver != null) {
                 val instance = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
-                val assumptions = IntList()
+                val assumptions = IntArrayList()
                 for (j in 0 until instance.size) {
                     if (rng.nextBoolean())
                         assumptions.add(instance.literal(j))
@@ -207,7 +208,7 @@ abstract class SolverTest {
             if (solver != null) {
                 val instance = solver.witnessOrThrow()
                 val rng = Random(i.toLong())
-                val assumptions = IntList()
+                val assumptions = IntArrayList()
                 for (j in 0 until instance.size) {
                     if (rng.nextBoolean())
                         assumptions.add(instance.literal(j))
@@ -270,8 +271,12 @@ abstract class SolverTest {
     fun timeoutWitness() {
         val solver = timeoutSolver(LARGE_SAT_PROBLEMS[1])
         if (solver != null) {
-            assertFailsWith(ValidationException::class) {
-                solver.witnessOrThrow()
+            try {
+                val t = measureTimeMillis {
+                    solver.witnessOrThrow()
+                }
+                assertTrue(t <= solver.timeout)
+            } catch (ignore: ValidationException) {
             }
         }
     }
@@ -280,7 +285,13 @@ abstract class SolverTest {
     fun timeoutSequence() {
         val solver = timeoutSolver(LARGE_SAT_PROBLEMS[1])
         if (solver != null) {
-            solver.asSequence().count()
+            var n = 0
+            val t = measureTimeMillis {
+                n = solver.asSequence().count()
+            }
+            if (n > 0) {
+                assertTrue(t <= solver.timeout)
+            }
         }
     }
 }
