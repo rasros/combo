@@ -5,38 +5,38 @@ import kotlin.test.assertEquals
 
 class BitsTest {
     @Test
-    fun msb() {
-        assertEquals(0, Int.msb(0))
-        assertEquals(0, Int.msb(1))
-        assertEquals(1, Int.msb(2))
-        assertEquals(1, Int.msb(3))
-        assertEquals(3, Int.msb(10))
-        assertEquals(5, Int.msb(32))
-        assertEquals(9, Int.msb(1023))
-        assertEquals(10, Int.msb(1024))
-        assertEquals(30, Int.msb(Int.MAX_VALUE))
-        assertEquals(31, Int.msb(Int.MIN_VALUE))
-        assertEquals(31, Int.msb(-1))
-        assertEquals(31, Int.msb(-1241))
-        assertEquals(31, Int.msb(-104192))
+    fun bsr() {
+        assertEquals(0, Int.bsr(0))
+        assertEquals(0, Int.bsr(1))
+        assertEquals(1, Int.bsr(2))
+        assertEquals(1, Int.bsr(3))
+        assertEquals(3, Int.bsr(10))
+        assertEquals(5, Int.bsr(32))
+        assertEquals(9, Int.bsr(1023))
+        assertEquals(10, Int.bsr(1024))
+        assertEquals(30, Int.bsr(Int.MAX_VALUE))
+        assertEquals(31, Int.bsr(Int.MIN_VALUE))
+        assertEquals(31, Int.bsr(-1))
+        assertEquals(31, Int.bsr(-1241))
+        assertEquals(31, Int.bsr(-104192))
     }
 
     @Test
-    fun lsb() {
-        assertEquals(0, Int.lsb(0))
-        assertEquals(0, Int.lsb(1))
-        assertEquals(1, Int.lsb(2))
-        assertEquals(0, Int.lsb(3))
-        assertEquals(1, Int.lsb(10))
-        assertEquals(5, Int.lsb(32))
-        assertEquals(0, Int.lsb(1023))
-        assertEquals(10, Int.lsb(1024))
-        assertEquals(0, Int.lsb(1025))
-        assertEquals(0, Int.lsb(Int.MAX_VALUE))
-        assertEquals(31, Int.lsb(Int.MIN_VALUE))
-        assertEquals(0, Int.lsb(-1))
-        assertEquals(3, Int.lsb(-1240))
-        assertEquals(8, Int.lsb(-104192))
+    fun bsf() {
+        assertEquals(0, Int.bsf(0))
+        assertEquals(0, Int.bsf(1))
+        assertEquals(1, Int.bsf(2))
+        assertEquals(0, Int.bsf(3))
+        assertEquals(1, Int.bsf(10))
+        assertEquals(5, Int.bsf(32))
+        assertEquals(0, Int.bsf(1023))
+        assertEquals(10, Int.bsf(1024))
+        assertEquals(0, Int.bsf(1025))
+        assertEquals(0, Int.bsf(Int.MAX_VALUE))
+        assertEquals(31, Int.bsf(Int.MIN_VALUE))
+        assertEquals(0, Int.bsf(-1))
+        assertEquals(3, Int.bsf(-1240))
+        assertEquals(8, Int.bsf(-104192))
     }
 
     @Test
