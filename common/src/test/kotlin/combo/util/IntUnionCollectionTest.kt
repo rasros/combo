@@ -11,7 +11,7 @@ class IntUnionCollectionTest {
 
     @Test
     fun createEmpty() {
-        val set = IntUnionCollection(IntHashSet(), IntList())
+        val set = IntUnionCollection(IntHashSet(), IntArrayList())
         assertEquals(0, set.size)
         assertFalse(set.contains(-1))
         assertFalse(set.contains(0))
@@ -22,7 +22,7 @@ class IntUnionCollectionTest {
 
     @Test
     fun emptyAndOne() {
-        val set = IntUnionCollection(IntRangeSet(0, 0), IntList())
+        val set = IntUnionCollection(IntRangeCollection(0, 0), IntArrayList())
         assertEquals(1, set.size)
         assertFalse(set.isEmpty())
         assertTrue(set.contains(0))
@@ -31,26 +31,26 @@ class IntUnionCollectionTest {
 
     @Test
     fun oneAndOne() {
-        val set = IntUnionCollection(IntList(intArrayOf(1)), IntList(intArrayOf(1)))
+        val set = IntUnionCollection(IntArrayList(intArrayOf(1)), IntArrayList(intArrayOf(1)))
         assertEquals(2, set.size)
         assertTrue(set.contains(1))
     }
 
     @Test
     fun toArray() {
-        val set = IntUnionCollection(IntRangeSet(10, 15), IntRangeSet(16, 19))
+        val set = IntUnionCollection(IntRangeCollection(10, 15), IntRangeCollection(16, 19))
         assertContentEquals((10..19).toList().toIntArray(), set.toArray())
     }
 
     @Test
     fun randomOnSingleton() {
-        val set = IntRangeSet(5, 5)
+        val set = IntRangeCollection(5, 5)
         assertEquals(5, set.random(Random))
     }
 
     @Test
     fun random() {
-        val col = IntUnionCollection(IntList(intArrayOf(0, 1, 2)), IntList(intArrayOf(3)))
+        val col = IntUnionCollection(IntArrayList(intArrayOf(0, 1, 2)), IntArrayList(intArrayOf(3)))
         val rng = Random(0)
         val set = generateSequence { col.random(rng) }.take(100).toSet()
         assertEquals(4, set.size)
@@ -58,7 +58,7 @@ class IntUnionCollectionTest {
 
     @Test
     fun copySame() {
-        val s1 = IntUnionCollection(IntList(IntArray(10) { it }), IntList(IntArray(10) { -it }))
+        val s1 = IntUnionCollection(IntArrayList(IntArray(10) { it }), IntArrayList(IntArray(10) { -it }))
         val s2 = s1.copy()
         assertEquals(s1.size, s2.size)
         for (i in s1) {
@@ -68,13 +68,13 @@ class IntUnionCollectionTest {
 
     @Test
     fun permutation() {
-        val s1 = IntUnionCollection(IntList(IntArray(10) { it }), IntList(IntArray(10) { -it }))
+        val s1 = IntUnionCollection(IntArrayList(IntArray(10) { it }), IntArrayList(IntArray(10) { -it }))
         val s2 = s1.permutation(Random).asSequence().toList()
         assertContentEquals(s1.toArray().also { it.sort() }, s2.toIntArray().also { it.sort() })
     }
 
     @Test
     fun emptyPermutation() {
-        assertEquals(0, IntUnionCollection(IntList(0), IntList(0)).permutation(Random).asSequence().count())
+        assertEquals(0, IntUnionCollection(IntArrayList(0), IntArrayList(0)).permutation(Random).asSequence().count())
     }
 }

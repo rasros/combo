@@ -18,13 +18,13 @@ class IntRangeCollection(val min: Int, val max: Int) : IntList {
     override fun contains(value: Int): Boolean = value in min..max
 
     override fun indexOf(value: Int): Int {
-        if (value !in min..max) throw IndexOutOfBoundsException("Expected value in $this, got $value.")
-        return value - min
+        return if (value in min..max) value - min
+        else -1
     }
 
     override fun get(index: Int): Int {
-        return if (index !in 0 until max - min) -1
-        else min + index
+        if (index in 0..(max - min)) return min + index
+        else throw IndexOutOfBoundsException("$index")
     }
 
     override fun toArray(): IntArray {
