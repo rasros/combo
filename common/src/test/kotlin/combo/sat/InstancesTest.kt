@@ -493,6 +493,14 @@ abstract class InstanceTest {
     }
 
     @Test
+    fun getFirstSingular() {
+        val inst = builder.create(1)
+        assertEquals(-1, inst.getFirst(0, 1))
+        inst[0] = true
+        assertEquals(0, inst.getFirst(0, 1))
+    }
+
+    @Test
     fun getFirstBig() {
         val inst = builder.create(200)
         inst[199] = true
