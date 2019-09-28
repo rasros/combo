@@ -10,10 +10,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class Sat4JSolverTest : SolverTest() {
-    override fun solver(problem: Problem) = Sat4JSolver(problem)
-    override fun timeoutSolver(problem: Problem) = Sat4JSolver(problem).apply { timeout = 1L; maxConflicts = 1 }
-    override fun pbSolver(problem: Problem) = Sat4JSolver(problem)
-    override fun numericSolver(problem: Problem) = null
+    override fun solver(problem: Problem, randomSeed: Int) = Sat4JSolver(problem).apply { this.randomSeed = randomSeed }
+    override fun timeoutSolver(problem: Problem, randomSeed: Int) = Sat4JSolver(problem).apply {
+        timeout = 1L; maxConflicts = 1; this.randomSeed = randomSeed
+    }
+
+    override fun pbSolver(problem: Problem, randomSeed: Int) = Sat4JSolver(problem).apply { this.randomSeed = randomSeed }
+    override fun numericSolver(problem: Problem, randomSeed: Int) = null
 
     @Test
     fun maxConflictsTimeout() {
@@ -26,14 +29,16 @@ class Sat4JSolverTest : SolverTest() {
         }
         assertEquals(0, solver.asSequence().count())
         assertFailsWith(IterationsReachedException::class) {
-            solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.binarySize) { Random.nextNormal() }))
+            solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.nbrVariables) { Random.nextNormal() }))
         }
     }
 }
 
 class Sat4JLinearOptimizerTest : LinearOptimizerTest() {
-    override val isComplete = true
-    override fun optimizer(problem: Problem) = Sat4JSolver(problem)
-    override fun timeoutOptimizer(problem: Problem) = Sat4JSolver(problem).apply { timeout = 1L; maxConflicts = 1 }
-    override fun largeOptimizer(problem: Problem) = null
+    override fun optimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem).apply { this.randomSeed = randomSeed }
+    override fun timeoutOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem).apply {
+        timeout = 1L; maxConflicts = 1; this.randomSeed = randomSeed
+    }
+
+    override fun largeOptimizer(problem: Problem, randomSeed: Int) = null
 }

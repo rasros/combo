@@ -16,35 +16,32 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ParallelSolverTest {
-
     private val solvers = arrayOf<(Problem) -> Solver>(
-            { p: Problem -> LocalSearchSolver(p) },
-            { p: Problem -> ExhaustiveSolver(p) },
-            { p: Problem -> CachedSolver(LocalSearchSolver(p)) },
-            { p: Problem -> JacopSolver(p) },
-            { p: Problem -> Sat4JSolver(p) }
-    )
-
+            { p: Problem -> LocalSearchSolver(p).apply { randomSeed = 0 } },
+            { p: Problem -> ExhaustiveSolver(p).apply { randomSeed = 0 } },
+            { p: Problem -> CachedSolver(LocalSearchSolver(p).apply { randomSeed = 0 }) },
+            { p: Problem -> JacopSolver(p).apply { randomSeed = 0 } },
+            { p: Problem -> Sat4JSolver(p).apply { randomSeed = 0 } })
 
     private val optimizers = arrayOf<(Problem) -> Optimizer<LinearObjective>>(
-            { p: Problem -> LocalSearchOptimizer(p) },
-            { p: Problem -> ExhaustiveSolver(p) },
-            { p: Problem -> CachedOptimizer(LocalSearchOptimizer(p)) },
-            { p: Problem -> JacopSolver(p) },
-            { p: Problem -> Sat4JSolver(p) })
+            { p: Problem -> LocalSearchOptimizer<LinearObjective>(p).apply { randomSeed = 0 } },
+            { p: Problem -> ExhaustiveSolver(p).apply { randomSeed = 0 } },
+            { p: Problem -> CachedOptimizer(LocalSearchOptimizer<LinearObjective>(p).apply { randomSeed = 0 }) },
+            { p: Problem -> JacopSolver(p).apply { randomSeed = 0 } },
+            { p: Problem -> Sat4JSolver(p).apply { randomSeed = 0 } })
 
     @Test
     fun parallelSolve() {
         val p = TestModels.SAT_PROBLEMS[0]
         for (solverCreator in solvers) {
-            val solver = solverCreator.invoke(p).apply { randomSeed = 0 }
+            val solver = solverCreator.invoke(p)
             val pool = Executors.newFixedThreadPool(10)
             try {
                 val list = ArrayList<Callable<Instance>>()
                 for (i in 0 until 50) {
                     list.add(Callable {
                         val assumptions = if (Random.nextBoolean()) EmptyCollection
-                        else collectionOf(Random.nextInt(p.binarySize).toLiteral(Random.nextBoolean()))
+                        else collectionOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
                         solver.witnessOrThrow(assumptions)
                     })
                 }
@@ -66,7 +63,7 @@ class ParallelSolverTest {
         val p = TestModels.SAT_PROBLEMS[1]
         val nbrSolutions = ExhaustiveSolver(p).asSequence().count()
         for (solverCreator in solvers) {
-            val solver = solverCreator.invoke(p).apply { randomSeed = 0 }
+            val solver = solverCreator.invoke(p)
             val pool = Executors.newFixedThreadPool(5)
             try {
                 val list = ArrayList<Callable<Set<Instance>>>()
@@ -91,16 +88,16 @@ class ParallelSolverTest {
     fun parallelOptimize() {
         val p = TestModels.SAT_PROBLEMS[3]
         for (solverCreator in optimizers) {
-            val optimizer = solverCreator.invoke(p).apply { randomSeed = 0 }
+            val optimizer = solverCreator.invoke(p)
             val pool = Executors.newFixedThreadPool(5)
             try {
                 val list = ArrayList<Callable<Instance>>()
                 for (i in 0 until 20)
                     list.add(Callable {
                         val assumptions = if (Random.nextBoolean()) EmptyCollection
-                        else collectionOf(Random.nextInt(p.binarySize).toLiteral(Random.nextBoolean()))
+                        else collectionOf(Random.nextInt(p.nbrVariables).toLiteral(Random.nextBoolean()))
                         optimizer.optimizeOrThrow(
-                                LinearObjective(true, FloatArray(p.binarySize) { Random.nextNormal() }),
+                                LinearObjective(true, FloatArray(p.nbrVariables) { Random.nextNormal() }),
                                 assumptions)
                     })
                 val instances = pool.invokeAll(list).map { it.get() }
