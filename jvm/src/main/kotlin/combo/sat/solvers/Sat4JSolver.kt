@@ -37,7 +37,7 @@ import org.sat4j.pb.SolverFactory as PBSolverFactory
  */
 class Sat4JSolver @JvmOverloads constructor(
         val problem: Problem,
-        val constraintHandler: (Constraint, ISolver) -> Nothing = { c, _ ->
+        val constraintHandler: (Constraint, ISolver) -> Unit = { c, _ ->
             throw UnsupportedOperationException("Constraint $c cannot be SAT encoded. " +
                     "Register custom constraint handler in order to handle extra constraints.")
         }) : Solver, Optimizer<LinearObjective> {
@@ -84,17 +84,17 @@ class Sat4JSolver @JvmOverloads constructor(
     private fun setupSolver(solver: ISolver) {
 
         solver.setKeepSolverHot(true)
-        solver.newVar(problem.binarySize)
+        solver.newVar(problem.nbrVariables)
 
         try {
             for (c in problem.constraints)
                 when (c) {
-                    is Disjunction -> solver.addClause(c.literals.toSat4JVec())
+                    is Disjunction -> solver.addClause(VecInt(c.literals.toArray()))
                     is Conjunction -> c.literals.forEach {
                         solver.addClause(VecInt(intArrayOf(it)))
                     }
                     is Cardinality -> {
-                        val cardLits = c.literals.toSat4JVec()
+                        val cardLits = VecInt(c.literals.toArray())
                         when (c.relation) {
                             GE -> solver.addAtLeast(cardLits, c.degree)
                             LE -> solver.addAtMost(cardLits, c.degree)
@@ -125,8 +125,8 @@ class Sat4JSolver @JvmOverloads constructor(
                         }
 
                     }
-                    is ReifiedEquivalent -> c.toCnf().forEach { solver.addClause(it.literals.toSat4JVec()) }
-                    is ReifiedImplies -> c.toCnf().forEach { solver.addClause(it.literals.toSat4JVec()) }
+                    is ReifiedEquivalent -> c.toCnf().forEach { solver.addClause(VecInt(it.literals.toArray())) }
+                    is ReifiedImplies -> c.toCnf().forEach { solver.addClause(VecInt(it.literals.toArray())) }
                     is Tautology -> {
                     }
                     is Empty -> throw UnsatisfiableException("Empty constraint in problem.")
@@ -140,7 +140,7 @@ class Sat4JSolver @JvmOverloads constructor(
         else solver.setTimeoutOnConflicts(Int.MAX_VALUE)
         // This disables Sat4j millisecond timeouts which spawns a thread for each solving
 
-        for (i in 1..problem.binarySize)
+        for (i in 1..problem.nbrVariables)
             solver.registerLiteral(i)
 
     }
@@ -158,7 +158,7 @@ class Sat4JSolver @JvmOverloads constructor(
             solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
         else solver.order.phaseSelectionStrategy = InitialGuessSelectionStrategy(guess)
 
-        val assumption = assumptions.toSat4JVec()
+        val assumption = VecInt(assumptions.toArray())
         try {
             if (solver.isSatisfiable(assumption)) return solver.model().toInstance()
             else throw UnsatisfiableException()
@@ -179,7 +179,7 @@ class Sat4JSolver @JvmOverloads constructor(
         solver.order.phaseSelectionStrategy = RandomLiteralSelectionStrategySeeded(randomSequence.next())
 
         val iterator = ModelIterator(solver)
-        val assumption = assumptions.toSat4JVec()
+        val assumption = VecInt(assumptions.toArray())
         val timeout = timeout
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
         return generateSequence {
@@ -187,6 +187,8 @@ class Sat4JSolver @JvmOverloads constructor(
                 if (timeout > 0L && millis() >= end) null
                 else if (!iterator.isSatisfiable(assumption)) null
                 else iterator.model().toInstance()
+            } catch (e: TimeoutException) {
+                null
             } catch (e: org.sat4j.specs.TimeoutException) {
                 null
             }
@@ -208,7 +210,7 @@ class Sat4JSolver @JvmOverloads constructor(
         pbSolver.objectiveFunction = Sat4JObjectiveFunction(variableLiterals, bigIntWeights)
         if (guess != null) pbSolver.order.phaseSelectionStrategy = InitialGuessSelectionStrategy(guess)
 
-        val assumption = assumptions.toSat4JVec()
+        val assumption = VecInt(assumptions.toArray())
         val pseudoOptDecorator = PseudoOptDecorator(pbSolver)
         val optimizer = OptToPBSATAdapter(pseudoOptDecorator)
         try {
@@ -248,8 +250,6 @@ class Sat4JSolver @JvmOverloads constructor(
         override fun updateVar(p: Int) {}
         override fun select(v: Int) = if (guess[v - 1]) posLit(v) else negLit(v)
     }
-
-    private fun IntCollection.toSat4JVec() = VecInt(this.toArray())
 
     private fun IntArray.toInstance(): Instance {
         val create = instanceBuilder.create(size)
