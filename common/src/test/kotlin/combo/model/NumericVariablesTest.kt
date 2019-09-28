@@ -16,20 +16,20 @@ class IntVarTest {
     @Test
     fun minEqMax() {
         assertFailsWith(IllegalArgumentException::class) {
-            IntVar(min = 0, max = 0, name = "", mandatory = true, parent = Root(""))
+            IntVar(min = 0, max = 0, name = "", parent = Root(""))
         }
     }
 
     @Test
     fun literalSize() {
-        assertEquals(3, IntVar("", true, Root(""), -4, 0).nbrLiterals)
-        assertEquals(3, IntVar("", true, Root(""), -4, 3).nbrLiterals)
-        assertEquals(2, IntVar("", true, Root(""), 0, 3).nbrLiterals)
-        assertEquals(2, IntVar("", true, Root(""), 0, 2).nbrLiterals)
+        assertEquals(3, IntVar("", Root(""), -4, 0).nbrLiterals)
+        assertEquals(3, IntVar("", Root(""), -4, 3).nbrLiterals)
+        assertEquals(2, IntVar("", Root(""), 0, 3).nbrLiterals)
+        assertEquals(2, IntVar("", Root(""), 0, 2).nbrLiterals)
 
-        assertEquals(5, IntVar("", true, Root(""), -10, 8).nbrLiterals)
-        assertEquals(5, IntVar("", true, Root(""), -16, 15).nbrLiterals)
-        assertEquals(5, IntVar("", true, Root(""), -10, 15).nbrLiterals)
+        assertEquals(5, IntVar("", Root(""), -10, 8).nbrLiterals)
+        assertEquals(5, IntVar("", Root(""), -16, 15).nbrLiterals)
+        assertEquals(5, IntVar("", Root(""), -10, 15).nbrLiterals)
     }
 
     @Test
@@ -39,20 +39,20 @@ class IntVarTest {
             val max = 32 + if (v.mandatory) 0 else 1
             assertTrue(v.nbrLiterals in min..max)
         }
-        limits(IntVar("", true, Root(""), Int.MIN_VALUE, Int.MAX_VALUE))
-        limits(IntVar("", true, Root(""), Int.MIN_VALUE, 0))
-        limits(IntVar("", true, Root(""), 0, Int.MAX_VALUE))
-        limits(IntVar("", true, Root(""), -1, Int.MAX_VALUE))
-        limits(IntVar("", false, Root(""), Int.MIN_VALUE, Int.MAX_VALUE))
-        limits(IntVar("", false, Root(""), Int.MIN_VALUE, 0))
-        limits(IntVar("", false, Root(""), 0, Int.MAX_VALUE))
-        limits(IntVar("", false, Root(""), -1, Int.MAX_VALUE))
+        limits(IntVar("", Root(""), Int.MIN_VALUE, Int.MAX_VALUE))
+        limits(IntVar("", Root(""), Int.MIN_VALUE, 0))
+        limits(IntVar("", Root(""), 0, Int.MAX_VALUE))
+        limits(IntVar("", Root(""), -1, Int.MAX_VALUE))
+        limits(IntVar("", null, Int.MIN_VALUE, Int.MAX_VALUE))
+        limits(IntVar("", null, Int.MIN_VALUE, 0))
+        limits(IntVar("", null, 0, Int.MAX_VALUE))
+        limits(IntVar("", null, -1, Int.MAX_VALUE))
     }
 
     @Test
     fun index() {
-        val f = IntVar("", false, Root(""), min = 0, max = 1)
-        val index = VariableIndex("")
+        val f = IntVar("", null, min = 0, max = 1)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
         assertEquals(2, f.nbrLiterals)
@@ -60,8 +60,8 @@ class IntVarTest {
 
     @Test
     fun indexMandatory() {
-        val f = IntVar("", true, Root(""), min = 0, max = 1)
-        val index = VariableIndex("")
+        val f = IntVar("", Root(""), min = 0, max = 1)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
         assertEquals(1, f.nbrLiterals)
@@ -69,7 +69,7 @@ class IntVarTest {
 
     @Test
     fun valueOf() {
-        val f = IntVar("", false, Root(""), min = -1, max = 10)
+        val f = IntVar("", null, min = -1, max = 10)
         val instance = BitArray(f.nbrLiterals)
         assertNull(f.valueOf(instance, 0))
         instance[0] = true
@@ -83,8 +83,8 @@ class IntVarTest {
 
     @Test
     fun valueOfMandatory() {
-        val f = IntVar("", true, Root(""), min = -1, max = 10)
-        val index = VariableIndex("")
+        val f = IntVar("", Root(""), min = -1, max = 10)
+        val index = VariableIndex()
         index.add(f)
         val instance = BitArray(f.nbrLiterals)
         assertEquals(0, f.valueOf(instance, 0))
@@ -94,8 +94,8 @@ class IntVarTest {
 
     @Test
     fun valueOfMandatoryNonZero() {
-        val f = IntVar("", true, Root(""), min = 1, max = 10)
-        val index = VariableIndex("")
+        val f = IntVar("", Root(""), min = 1, max = 10)
+        val index = VariableIndex()
         index.add(f)
         val instance = BitArray(f.nbrLiterals)
         assertEquals(0, f.valueOf(instance, 0))
@@ -105,17 +105,17 @@ class IntVarTest {
 
     @Test
     fun toLiteral() {
-        val f = IntVar("", false, Root(""), min = -1000, max = 100)
-        val index = VariableIndex("")
+        val f = IntVar("", null, min = -1000, max = 100)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(1, f.toLiteral(index))
     }
 
     @Test
     fun toLiteral2() {
-        val f = IntVar("", false, Root(""), min = -12489121, max = -41)
-        val index = VariableIndex("")
-        index.add(BitsVar("b", false, Root(""), 5))
+        val f = IntVar("", null, min = -12489121, max = -41)
+        val index = VariableIndex()
+        index.add(BitsVar("b", null, 5))
         index.add(f)
         assertEquals(7, f.toLiteral(index))
     }
@@ -125,7 +125,7 @@ class IntLiteralTest {
 
     @Test
     fun outOfBounds() {
-        val v = IntVar("v", false, Root(""), 1, 20)
+        val v = IntVar("v", null, 1, 20)
         assertFailsWith(IllegalArgumentException::class) {
             v.value(21)
         }
@@ -134,8 +134,8 @@ class IntLiteralTest {
     @Test
     fun toLiteral() {
         fun testToLiteral(min: Int, max: Int, value: Int) {
-            val v = IntVar("v", false, Root(""), min, max)
-            val index = VariableIndex("")
+            val v = IntVar("v", null, min, max)
+            val index = VariableIndex()
             index.add(v)
             val instance = BitArray(index.nbrVariables)
             val set = IntHashSet()
@@ -154,8 +154,8 @@ class IntLiteralTest {
 
     @Test
     fun toLiteralMandatory() {
-        val a = IntVar("a", true, Root(""), 0, 5)
-        val index = VariableIndex("")
+        val a = IntVar("a", Root(""), 0, 5)
+        val index = VariableIndex()
         index.add(a)
         fun test(literals: IntArray, value: Int) {
             val set = IntHashSet()
@@ -177,14 +177,14 @@ class FloatVarTest {
     @Test
     fun minEqMax() {
         assertFailsWith(IllegalArgumentException::class) {
-            FloatVar("", true, Root(""), min = 0F, max = 0F)
+            FloatVar("", Root(""), min = 0F, max = 0F)
         }
     }
 
     @Test
     fun index() {
-        val f = FloatVar("", false, Root(""), min = 0F, max = 1F)
-        val index = VariableIndex("")
+        val f = FloatVar("", null, min = 0F, max = 1F)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
         assertEquals(33, f.nbrLiterals)
@@ -192,8 +192,8 @@ class FloatVarTest {
 
     @Test
     fun indexMandatory() {
-        val f = FloatVar("", mandatory = true, parent = Root(""), min = 0F, max = 1F)
-        val index = VariableIndex("")
+        val f = FloatVar("", parent = Root(""), min = 0F, max = 1F)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
         assertEquals(32, f.nbrLiterals)
@@ -201,7 +201,7 @@ class FloatVarTest {
 
     @Test
     fun valueOf() {
-        val f = FloatVar("", false, Root(""), min = -1F, max = 10F)
+        val f = FloatVar("", null, min = -1F, max = 10F)
         val instance = BitArray(f.nbrLiterals)
         assertNull(f.valueOf(instance, 0))
         instance[0] = true
@@ -212,7 +212,7 @@ class FloatVarTest {
 
     @Test
     fun valueOfMandatory() {
-        val f = FloatVar("", true, Root(""), min = -1F, max = 10F)
+        val f = FloatVar("", Root(""), min = -1F, max = 10F)
         val instance = BitArray(f.nbrLiterals)
         assertEquals(0F, f.valueOf(instance, 0))
         instance.setFloat(0, 4.5F)
@@ -221,7 +221,7 @@ class FloatVarTest {
 
     @Test
     fun valueOfMandatoryNonZero() {
-        val f = FloatVar("", true, Root(""), min = 1F, max = 10F)
+        val f = FloatVar("", Root(""), min = 1F, max = 10F)
         val instance = BitArray(f.nbrLiterals)
         assertEquals(0F, f.valueOf(instance, 0))
         instance.setFloat(0, 4F)
@@ -230,17 +230,17 @@ class FloatVarTest {
 
     @Test
     fun toLiteral() {
-        val f = FloatVar("", false, Root(""), min = -1000.1F, max = 1000.0F)
-        val index = VariableIndex("")
+        val f = FloatVar("", null, min = -1000.1F, max = 1000.0F)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(1, f.toLiteral(index))
     }
 
     @Test
     fun toLiteral2() {
-        val f = FloatVar("", false, Root(""), min = 1F, max = 10F)
-        val index = VariableIndex("")
-        index.add(BitsVar("b", false, Root(""), 5))
+        val f = FloatVar("", null, min = 1F, max = 10F)
+        val index = VariableIndex()
+        index.add(BitsVar("b", null, 5))
         index.add(f)
         assertEquals(7, f.toLiteral(index))
     }
@@ -250,7 +250,7 @@ class FloatLiteralTest {
 
     @Test
     fun outOfBounds() {
-        val v = FloatVar("v", false, Root(""), 1F, 20F)
+        val v = FloatVar("v", null, 1F, 20F)
         assertFailsWith(IllegalArgumentException::class) {
             v.value(21F)
         }
@@ -258,7 +258,7 @@ class FloatLiteralTest {
 
     @Test
     fun nonFinite() {
-        val v = FloatVar("v", false, Root(""), 1F, 20F)
+        val v = FloatVar("v", null, 1F, 20F)
         assertFailsWith(IllegalArgumentException::class) {
             v.value(Float.NaN)
         }
@@ -273,8 +273,8 @@ class FloatLiteralTest {
     @Test
     fun toLiteral() {
         fun testToLiteral(min: Float, max: Float, value: Float) {
-            val v = FloatVar("v", false, Root(""), min, max)
-            val index = VariableIndex("")
+            val v = FloatVar("v", null, min, max)
+            val index = VariableIndex()
             index.add(v)
             val instance = BitArray(index.nbrVariables)
             val set = IntHashSet()
@@ -296,8 +296,8 @@ class FloatLiteralTest {
     @Test
     fun toLiteralMandatory() {
         fun testToLiteral(min: Float, max: Float, value: Float) {
-            val v = FloatVar("v", true, Root(""), min, max)
-            val index = VariableIndex("")
+            val v = FloatVar("v", Root(""), min, max)
+            val index = VariableIndex()
             index.add(v)
             val instance = BitArray(index.nbrVariables)
             val set = IntHashSet()
@@ -322,14 +322,14 @@ class BitsVarTest {
     @Test
     fun noBits() {
         assertFailsWith(IllegalArgumentException::class) {
-            BitsVar("", true, Root(""), 0)
+            BitsVar("", Root(""), 0)
         }
     }
 
     @Test
     fun index() {
-        val f = BitsVar("", false, Root(""), 1)
-        val index = VariableIndex("")
+        val f = BitsVar("", null, 1)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
         assertEquals(2, f.nbrLiterals)
@@ -337,8 +337,8 @@ class BitsVarTest {
 
     @Test
     fun indexMandatory() {
-        val f = BitsVar("", true, Root(""), 1)
-        val index = VariableIndex("")
+        val f = BitsVar("", Root(""), 1)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
         assertEquals(1, f.nbrLiterals)
@@ -346,7 +346,7 @@ class BitsVarTest {
 
     @Test
     fun valueOf() {
-        val f = BitsVar("", false, Root(""), 10)
+        val f = BitsVar("", null, 10)
         val instance = BitArray(f.nbrLiterals)
         assertNull(f.valueOf(instance, 0))
         instance[0] = true
@@ -359,7 +359,7 @@ class BitsVarTest {
 
     @Test
     fun valueOfMandatory() {
-        val f = BitsVar("", true, Root(""), 10)
+        val f = BitsVar("", Root(""), 10)
         val instance = BitArray(f.nbrLiterals)
         assertEquals(BitArray(10), f.valueOf(instance, 0))
         instance[0] = true
@@ -370,8 +370,8 @@ class BitsVarTest {
 
     @Test
     fun toLiteral() {
-        val f = BitsVar("", false, Root(""), 100)
-        val index = VariableIndex("")
+        val f = BitsVar("", null, 100)
+        val index = VariableIndex()
         index.add(f)
         assertEquals(1, f.toLiteral(index))
     }
@@ -381,7 +381,7 @@ class BitValueTest {
 
     @Test
     fun outOfBounds() {
-        val b = BitsVar("b", false, Root(""), 10)
+        val b = BitsVar("b", null, 10)
         assertFailsWith(IllegalArgumentException::class) {
             b.value(10)
         }
@@ -389,8 +389,8 @@ class BitValueTest {
 
     @Test
     fun toLiteral() {
-        val b = BitsVar("b", false, Root(""), 5)
-        val index = VariableIndex("")
+        val b = BitsVar("b", null, 5)
+        val index = VariableIndex()
         index.add(b)
         assertEquals(3, b.value(1).toLiteral(index))
     }
@@ -398,8 +398,8 @@ class BitValueTest {
     @Test
     fun toLiteralMandatory() {
         val parent = Root("")
-        val b = BitsVar("b", true, parent, 5)
-        val index = VariableIndex("")
+        val b = BitsVar("b", parent, 5)
+        val index = VariableIndex()
         index.add(parent)
         index.add(b)
         assertEquals(2, b.value(1).toLiteral(index))
@@ -407,9 +407,9 @@ class BitValueTest {
 
     @Test
     fun toLiteralNot() {
-        val b = BitsVar("b", false, Root(""), 10)
+        val b = BitsVar("b", null, 10)
         val v = b.value(2).not()
-        val index = VariableIndex("")
+        val index = VariableIndex()
         index.add(b)
         assertEquals(b, v.canonicalVariable)
         assertEquals(1, b.toLiteral(index))
@@ -419,9 +419,9 @@ class BitValueTest {
 
     @Test
     fun toLiteralMandatoryNot() {
-        val b = BitsVar("b", true, Root(""), 10)
+        val b = BitsVar("b", Root(""), 10)
         val v = b.value(9).not()
-        val index = VariableIndex("")
+        val index = VariableIndex()
         index.add(b)
         assertEquals(b, v.canonicalVariable)
         assertEquals(-10, v.toLiteral(index))

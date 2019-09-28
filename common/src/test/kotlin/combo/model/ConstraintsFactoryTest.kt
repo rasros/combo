@@ -12,25 +12,29 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class ConstraintsBuilderTest {
+class ConstraintsFactoryTest {
 
     private val vars = Array(6) { Flag("$it", true) }
-    private val index = VariableIndex("Root")
+    private val index = VariableIndex()
+    private val scope = RootScope(Root("Root"))
 
     init {
-        vars.forEach { index.add(it) }
+        vars.forEach {
+            index.add(it)
+            scope.add(it)
+        }
     }
 
     @Test
     fun conjunctionEmpty() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             assertTrue(conjunction() is Tautology)
         }
     }
 
     @Test
     fun conjunction() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val con = conjunction(vars[0], vars[1], !vars[3]) as Conjunction
             assertContentEquals(intArrayOf(-4, 1, 2), con.literals.toArray().apply { sort() })
         }
@@ -38,7 +42,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun conjunctionNegated() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val con = conjunction(!vars[3], vars[2], vars[4]).not() as Disjunction
             assertContentEquals(intArrayOf(-5, -3, 4), con.literals.toArray().apply { sort() })
         }
@@ -46,7 +50,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun disjunction() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val dis = disjunction(vars[0], vars[1], !vars[3])
             assertContentEquals(intArrayOf(-4, 1, 2), dis.literals.toArray().apply { sort() })
         }
@@ -54,14 +58,14 @@ class ConstraintsBuilderTest {
 
     @Test
     fun disjunctionEmpty() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             assertTrue(disjunction() is Empty)
         }
     }
 
     @Test
     fun disjunctionNegated() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val dis = disjunction(!vars[3], vars[2], vars[4]).not()
             assertContentEquals(intArrayOf(-5, -3, 4), dis.literals.toArray().apply { sort() })
         }
@@ -69,7 +73,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun disjunctionDuplicationHandled() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = (vars[0] or vars[0]) as Disjunction
             assertEquals(1, c.literals.size)
         }
@@ -77,7 +81,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun and1() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val con = (vars[0] and vars[2] and !vars[3]) as Conjunction
             assertContentEquals(intArrayOf(-4, 1, 3), con.literals.toArray().apply { sort() })
         }
@@ -85,7 +89,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun and2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val con1 = ("1" and "2") as Conjunction
             assertContentEquals(intArrayOf(2, 3), con1.literals.toArray().apply { sort() })
             val con2 = (vars[1] and "2") as Conjunction
@@ -99,7 +103,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun or1() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val dis = (vars[0] or vars[1] or !vars[3]) as Disjunction
             assertContentEquals(intArrayOf(-4, 1, 2), dis.literals.toArray().apply { sort() })
         }
@@ -107,7 +111,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun or2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val dis1 = ("1" or "2") as Disjunction
             assertContentEquals(intArrayOf(2, 3), dis1.literals.toArray().apply { sort() })
             val dis2 = (vars[1] or "2") as Disjunction
@@ -121,7 +125,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun xor1() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = (vars[0] xor vars[2] xor vars[1]) as CNF
             val p = Problem(3, c.disjunctions.toTypedArray())
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
@@ -138,7 +142,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun xor2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = (vars[0] xor !vars[1]) as CNF
             assertContentEquals(intArrayOf(-2, 1), c1.disjunctions[0].literals.toArray().apply { sort() })
             assertContentEquals(intArrayOf(-1, 2), c1.disjunctions[1].literals.toArray().apply { sort() })
@@ -157,7 +161,7 @@ class ConstraintsBuilderTest {
     @Test
     fun implies1() {
         // ((a implies b) implies c)
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = (vars[0] implies vars[1] implies vars[2]) as CNF
             val p = Problem(3, c.disjunctions.toTypedArray())
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
@@ -173,7 +177,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun implies2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = (vars[0] implies !vars[1]) as Disjunction
             assertContentEquals(intArrayOf(-2, -1), c1.literals.toArray().apply { sort() })
             val c2 = ("3" implies vars[1]) as Disjunction
@@ -188,7 +192,7 @@ class ConstraintsBuilderTest {
     @Test
     fun equivalent1() {
         // ((a equivalent b) equivalent c)
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = (vars[0] equivalent vars[1] equivalent vars[2]) as CNF
             val p = Problem(3, c.disjunctions.toTypedArray())
             assertTrue(p.satisfies(BitArray(3, IntArray(1) { 0b111 })))
@@ -204,7 +208,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun equivalent2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = (vars[0] equivalent !vars[1]) as CNF
             assertContentEquals(intArrayOf(-2, -1), c1.disjunctions[0].literals.toArray().apply { sort() })
             assertContentEquals(intArrayOf(1, 2), c1.disjunctions[1].literals.toArray().apply { sort() })
@@ -222,7 +226,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun excludes() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = excludes(vars[0], !vars[1])
             val p = Problem(2, arrayOf(c))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b11))))
@@ -234,8 +238,8 @@ class ConstraintsBuilderTest {
 
     @Test
     fun exactly() {
-        with(ConstraintBuilder(index)) {
-            val c = exactly(2, arrayOf(vars[0], !vars[1]))
+        with(ConstraintFactory(scope, index)) {
+            val c = exactly(2, vars[0], !vars[1])
             val p = Problem(2, arrayOf(c))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b01))))
@@ -246,8 +250,8 @@ class ConstraintsBuilderTest {
 
     @Test
     fun atMost() {
-        with(ConstraintBuilder(index)) {
-            val c = atMost(1, arrayOf(!vars[1], vars[0]))
+        with(ConstraintFactory(scope, index)) {
+            val c = atMost(1, !vars[1], vars[0])
             val p = Problem(2, arrayOf(c))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b01))))
@@ -258,8 +262,8 @@ class ConstraintsBuilderTest {
 
     @Test
     fun atLeast() {
-        with(ConstraintBuilder(index)) {
-            val c = atLeast(2, arrayOf(vars[0], !vars[1]))
+        with(ConstraintFactory(scope, index)) {
+            val c = atLeast(2, vars[0], !vars[1])
             val p = Problem(2, arrayOf(c))
             assertFalse(p.satisfies(BitArray(2, intArrayOf(0b11))))
             assertTrue(p.satisfies(BitArray(2, intArrayOf(0b01))))
@@ -270,7 +274,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun reifiedEquivalent1() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = vars[0] reifiedEquivalent conjunction(vars[1], !vars[2])
             val p = Problem(3, arrayOf(c))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
@@ -286,7 +290,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun reifiedEquivalent2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = "0" reifiedEquivalent disjunction(vars[1], vars[2])
             val p = Problem(3, arrayOf(c))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
@@ -302,7 +306,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun reifiedEquivalent3() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = !vars[2] reifiedEquivalent disjunction(vars[1], vars[0])
             val p = Problem(3, arrayOf(c))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
@@ -318,7 +322,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun reifiedImplies1() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = vars[0] reifiedImplies conjunction(vars[1], !vars[2])
             val p = Problem(3, arrayOf(c))
             assertFalse(p.satisfies(BitArray(3, intArrayOf(0b111))))
@@ -334,7 +338,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun reifiedImplies2() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = "0" reifiedImplies disjunction(vars[1], vars[2])
             val p = Problem(3, arrayOf(c))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
@@ -350,7 +354,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun reifiedImplies3() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c = !vars[2] reifiedImplies disjunction(vars[1], vars[0])
             val p = Problem(3, arrayOf(c))
             assertTrue(p.satisfies(BitArray(3, intArrayOf(0b111))))
@@ -366,7 +370,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun cnf() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = vars[0] or vars[2] or vars[3] or vars[4] or !vars[5]
             val c2 = vars[0] or vars[2]
             val c3 = vars[2] or vars[4]
@@ -379,7 +383,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun cnfToConjunction() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = vars[1] and vars[0]
             val c2 = vars[2] and vars[3]
             val c = c1 and c2
@@ -390,7 +394,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun cnfConjunctionDisjunction() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = vars[0] and vars[1]
             val c2 = vars[2] or vars[3]
             val c3 = (c1 and c2) as CNF
@@ -403,7 +407,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun cnfNegatedConjunctionDisjunction() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = vars[0] and vars[1]
             val c2 = vars[2] or vars[3]
             val c3 = c1 and c2
@@ -416,7 +420,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun cnfNegatedDisjunctions() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = vars[0] or vars[1]
             val c2 = vars[2] or vars[3]
             val neg = !(c1 and c2) as CNF
@@ -431,7 +435,7 @@ class ConstraintsBuilderTest {
 
     @Test
     fun cnfNegatedOredConjunctions() {
-        with(ConstraintBuilder(index)) {
+        with(ConstraintFactory(scope, index)) {
             val c1 = vars[0] and vars[1]
             val c2 = vars[2] and vars[3]
             val neg = !(c1 or c2) as CNF
@@ -448,10 +452,13 @@ class ConstraintsBuilderTest {
         val e = Flag("e", true)
         val f = Flag("f", true)
         val g = Flag("g", true)
-        val index = VariableIndex("").apply {
+        val index = VariableIndex().apply {
             add(a); add(b); add(c); add(d); add(e); add(f); add(g)
         }
-        with(ConstraintBuilder(index)) {
+        val scope = RootScope(Root("")).apply {
+            add(a); add(b); add(c); add(d); add(e); add(f); add(g)
+        }
+        with(ConstraintFactory(scope, index)) {
             val con = ((f and g) or ((a or b or !c) and d and e)) as CNF
             val p = Problem(7, con.disjunctions.toTypedArray())
 
@@ -474,10 +481,13 @@ class ConstraintsBuilderTest {
         val e = Flag("e", true)
         val f = Flag("f", true)
         val g = Flag("g", true)
-        val index = VariableIndex("").apply {
+        val index = VariableIndex().apply {
             add(a); add(b); add(c); add(d); add(e); add(f); add(g)
         }
-        with(ConstraintBuilder(index)) {
+        val scope = RootScope(Root("")).apply {
+            add(a); add(b); add(c); add(d); add(e); add(f); add(g)
+        }
+        with(ConstraintFactory(scope, index)) {
             val con = (f and g) or ((a or b or !c) and d and e)
             val neg = (!con) as CNF
             val p = Problem(7, neg.disjunctions.toTypedArray())

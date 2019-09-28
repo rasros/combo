@@ -72,7 +72,8 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex, v
     fun <V> getOrDefault(variable: Variable<*, V>, default: V): V = get(variable) ?: default
     fun <V> getOrDefault(name: String, default: V): V = get(name) ?: default
 
-    fun subAssignment(scopeName: String) = Assignment(instance, index, scope.getScope(scopeName))
+    fun subAssignment(scopeName: String) = Assignment(instance, index, scope.children.find { it.scopeName == scopeName }
+            ?: throw NoSuchElementException("Could not find child scope $scopeName"))
 
     fun toMap(): Map<Variable<*, *>, Any?> {
         val ret = HashMap<Variable<*, *>, Any?>()

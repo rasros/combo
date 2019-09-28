@@ -9,21 +9,21 @@ import combo.sat.constraints.Disjunction
 import combo.sat.constraints.Relation
 import combo.sat.solvers.ExhaustiveSolver
 import combo.test.assertContentEquals
+import combo.util.IntArrayList
 import combo.util.IntHashSet
-import combo.util.IntList
 import combo.util.isNotEmpty
 import kotlin.random.Random
 import kotlin.test.*
 
 class ProblemTest {
     private val problem = Problem(
-            6, arrayOf(Disjunction(IntList(intArrayOf(1, 2, 3))),
-                    Disjunction(IntList(intArrayOf(-1, -3))),
-                    Disjunction(IntList(intArrayOf(5, 6))),
-                    Disjunction(IntList(intArrayOf(-1, -2, -3, -5))),
-                    Conjunction(IntList(intArrayOf(3))),
-                    Cardinality(IntList(intArrayOf(3, 4)), 1, Relation.LE)
-            ))
+            6, arrayOf(Disjunction(IntArrayList(intArrayOf(1, 2, 3))),
+            Disjunction(IntArrayList(intArrayOf(-1, -3))),
+            Disjunction(IntArrayList(intArrayOf(5, 6))),
+            Disjunction(IntArrayList(intArrayOf(-1, -2, -3, -5))),
+            Conjunction(IntArrayList(intArrayOf(3))),
+            Cardinality(IntArrayList(intArrayOf(3, 4)), 1, Relation.LE)
+    ))
 
     @Test
     fun unitPropagationReduction() {
@@ -38,7 +38,7 @@ class ProblemTest {
         val units = IntHashSet()
         var reducedConstraints = problem.unitPropagation(units, returnConstraints = true)
         if (units.isNotEmpty()) reducedConstraints += Conjunction(units)
-        val reducedProblem = Problem(problem.binarySize, reducedConstraints)
+        val reducedProblem = Problem(problem.nbrVariables, reducedConstraints)
         val solutions2 = ExhaustiveSolver(reducedProblem).asSequence(units).toSet()
         val unitsSentence = Conjunction(units)
         val constraints: MutableList<Constraint> = reducedProblem.constraints.toMutableList()
@@ -58,7 +58,7 @@ class ProblemTest {
     @Test
     fun unitPropagationUnsat() {
         assertFailsWith(UnsatisfiableException::class) {
-            Problem(1, arrayOf(Disjunction(IntList(intArrayOf(1))), Disjunction(IntList(intArrayOf(-1))))).unitPropagation()
+            Problem(1, arrayOf(Disjunction(IntArrayList(intArrayOf(1))), Disjunction(IntArrayList(intArrayOf(-1))))).unitPropagation()
         }
     }
 
@@ -66,29 +66,29 @@ class ProblemTest {
     fun randomPropagation() {
         val rng = Random.Default
         val p = TestModels.LARGE2.problem
-        val perm = IntPermutation(p.binarySize, rng)
-        val lits = (0 until rng.nextBinomial(0.7f, p.binarySize)).asSequence()
+        val perm = IntPermutation(p.nbrVariables, rng)
+        val lits = (0 until rng.nextBinomial(0.7f, p.nbrVariables)).asSequence()
                 .map { perm.encode(it) }
                 .map { it.toLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }
         val constraints: Array<Constraint> = p.constraints.toList().toTypedArray()
-        val p2 = Problem(p.binarySize, constraints + Conjunction(IntList(lits)))
+        val p2 = Problem(p.nbrVariables, constraints + Conjunction(IntArrayList(lits)))
         val reduced = try {
             val units = IntHashSet().apply { addAll(lits) }
             var reduced = p.unitPropagation(units)
             if (units.isNotEmpty()) reduced += Conjunction(units)
-            Problem(p.binarySize, reduced)
+            Problem(p.nbrVariables, reduced)
         } catch (e: UnsatisfiableException) {
             return
         }
-        InstancePermutation(p.binarySize, BitArrayBuilder, rng).iterator().asSequence().take(100).forEach {
+        InstancePermutation(p.nbrVariables, BitArrayBuilder, rng).iterator().asSequence().take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }
 
     @Test
     fun satisfies() {
-        val constraints = arrayOf(Cardinality(IntList(intArrayOf(1, 2, 3)), 1, Relation.LE))
+        val constraints = arrayOf(Cardinality(IntArrayList(intArrayOf(1, 2, 3)), 1, Relation.LE))
         val problem = Problem(3, constraints)
         assertFalse(problem.satisfies(BitArray(3, IntArray(1) { 0b110 })))
         assertTrue(problem.satisfies(BitArray(3, IntArray(1) { 0b000 })))
@@ -97,16 +97,13 @@ class ProblemTest {
 
     @Test
     fun clauseMatch() {
-        val constraints:Array<out Constraint> = arrayOf(
-                Disjunction(IntList(intArrayOf(1, 2, 3))),
-                Conjunction(IntList(intArrayOf(-1))))
+        val constraints: Array<out Constraint> = arrayOf(
+                Disjunction(IntArrayList(intArrayOf(1, 2, 3))),
+                Conjunction(IntArrayList(intArrayOf(-1))))
         val problem = Problem(3, constraints)
         assertContentEquals(intArrayOf(0, 1), problem.constraining(0))
         assertContentEquals(intArrayOf(0), problem.constraining(1))
         assertContentEquals(intArrayOf(0), problem.constraining(2))
     }
-
-
-    // TODO tests on encoders
 }
 

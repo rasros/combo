@@ -6,7 +6,7 @@ import combo.sat.not
 import combo.util.IntHashSet
 
 /**
- * A logic expression can be used as part of a 0th order logic expression in [combo.model.ConstraintBuilder].
+ * A logic expression can be used as part of a 0th order logic expression in [combo.model.ConstraintFactory].
  * In addition to being an expression, it can be negated.
  */
 interface Proposition : Expression {

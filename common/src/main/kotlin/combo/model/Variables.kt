@@ -3,7 +3,12 @@
 package combo.model
 
 import combo.sat.*
+import combo.sat.constraints.Cardinality
+import combo.sat.constraints.Disjunction
+import combo.sat.constraints.ReifiedEquivalent
+import combo.sat.constraints.Relation
 import combo.util.AtomicInt
+import combo.util.IntRangeCollection
 import kotlin.jvm.JvmName
 
 /**
@@ -41,6 +46,8 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
     val mandatory: Boolean get() = reifiedValue != this
 
     abstract fun valueOf(instance: Instance, rootIndex: Int): T?
+
+    open fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> = emptySequence()
 }
 
 /**
@@ -50,10 +57,11 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
 class Root(name: String) : Variable<Nothing, Unit>(name) {
     override val nbrLiterals get() = 0
     override fun valueOf(instance: Instance, rootIndex: Int) {}
-    override fun toLiteral(rootIndex: VariableIndex) = Int.MAX_VALUE
+    override fun toLiteral(rootIndex: VariableIndex) = error("Root cannot be used in an expression. " +
+            "This is likely caused by using a mandatory variable defined in the root scope in an expression.")
     override fun toString() = "Root($name)"
     override val reifiedValue: Value get() = this
-    override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
+    override fun value(value: Nothing) = error("Root cannot be used as a value.")
 }
 
 /**
@@ -61,12 +69,10 @@ class Root(name: String) : Variable<Nothing, Unit>(name) {
  * 1 or null otherwise. A [Flag] is named after feature flags, because they wrap a [value].
  */
 class Flag<out T> constructor(name: String, val value: T) : Variable<Nothing, T>(name) {
-
     override val nbrLiterals: Int get() = 1
     override fun toString() = "Flag($name)"
-    override fun valueOf(instance: Instance, rootIndex: Int): T? {
-        return if (instance[rootIndex]) value else null
-    }
+    override fun valueOf(instance: Instance, rootIndex: Int) = if (instance[rootIndex]) value else null
+    override fun toLiteral(rootIndex: VariableIndex) = rootIndex.indexOf(this).toLiteral(true)
     override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
     override val reifiedValue: Value get() = this
 }
@@ -79,35 +85,34 @@ class Flag<out T> constructor(name: String, val value: T) : Variable<Nothing, T>
 sealed class Select<V, out T> constructor(name: String, parent: Value?, values: Array<out V>)
     : Variable<V, T>(name) {
 
+    init {
+        require(values.isNotEmpty())
+    }
+
     override val reifiedValue = parent ?: this
     override val nbrLiterals: Int = values.size + if (mandatory) 0 else 1
-    val values: Array<out Option<V>> = Array(values.size) { Option(this, it, values[it]) }
+    val values: Array<out Option> = Array(values.size) { Option(it, values[it]) }
 
-    override fun value(value: V): Option<V> {
+    override fun value(value: V): Option {
         for (i in values.indices)
-            if (values[i] == value) return values[i]
+            if (values[i].value == value) return values[i]
         throw IllegalArgumentException("Value missing in variable $name. " +
-                "Expected to find $value in ${values.joinToString()}")
-    }
-}
-
-/**
- * If a specific option in the [Select.values] array need to be used in a constraint, then use this to get a reference
- * to the corresponding optimization variable.
- */
-class Option<out V> constructor(override val canonicalVariable: Select<out V, *>, val valueIndex: Int, val value: V) : Value {
-
-    init {
-        require(valueIndex in canonicalVariable.values.indices) {
-            "Option with index=$valueIndex is out of bound with $name."
-        }
+                "Expected to find $value in ${values.joinToString(prefix = "[", postfix = "]") { it.value.toString() }}")
     }
 
-    override fun toLiteral(rootIndex: VariableIndex) = (rootIndex.indexOf(canonicalVariable) + valueIndex
-            + if (canonicalVariable.mandatory) 0 else 1).toLiteral(true)
+    /**
+     * If a specific option in the [Select.values] array need to be used in a constraint, then use this to get a reference
+     * to the corresponding optimization variable.
+     */
+    inner class Option constructor(val valueIndex: Int, val value: V) : Value {
+        override val canonicalVariable: Select<V, T> get() = this@Select
 
-    override fun toString() = "Option($name=$value)"
-    override val name: String get() = canonicalVariable.name
+        override fun toLiteral(rootIndex: VariableIndex) = (rootIndex.indexOf(canonicalVariable) + valueIndex
+                + if (canonicalVariable.mandatory) 0 else 1).toLiteral(true)
+
+        override fun toString() = "Option($name=$value)"
+        override val name: String get() = canonicalVariable.name
+    }
 }
 
 class Multiple<V> constructor(name: String, parent: Value?, vararg values: V)
@@ -125,11 +130,18 @@ class Multiple<V> constructor(name: String, parent: Value?, vararg values: V)
             ret.add(values[i].value)
             i++
         }
-        if (!mandatory && instance[rootIndex] && ret.isEmpty())
+        return if (!mandatory && instance[rootIndex] && ret.isEmpty())
             throw IllegalStateException("Inconsistent instance, should have something set for $this.")
         else if (ret.isEmpty())
-            return null
-        else return ret
+            null
+        else ret
+    }
+
+    override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
+        val firstOption = values[0].toLiteral(index)
+        val optionSet = IntRangeCollection(firstOption, firstOption + values.size - 1)
+        return if (reifiedValue is Root) sequenceOf(Disjunction(optionSet))
+        else sequenceOf(ReifiedEquivalent(reifiedValue.toLiteral(index), Disjunction(optionSet)))
     }
 
     override fun toString() = "Multiple($name)"
@@ -146,6 +158,15 @@ class Nominal<V> constructor(name: String, parent: Value?, vararg values: V)
             if (mandatory) null
             else throw IllegalStateException("Inconsistent variable, should have something set for $this.")
         } else values[value].value
+    }
+
+    override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
+        val firstOption = values[0].toLiteral(index)
+        val optionSet = IntRangeCollection(firstOption, firstOption + values.size - 1)
+        return sequenceOf(
+                if (reifiedValue is Root) Disjunction(optionSet)
+                else ReifiedEquivalent(reifiedValue.toLiteral(index), Disjunction(optionSet)),
+                Cardinality(optionSet, 1, Relation.LE))
     }
 
     override fun toString() = "Nominal($name)"

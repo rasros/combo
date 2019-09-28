@@ -42,7 +42,7 @@ abstract class ConstraintTest {
     }
 
     fun randomCoerce(constraint: Constraint): List<Instance> {
-        val rng = Random.Default
+        val rng = Random
         for (i in constraint.literals) require(i.toIx() <= 4)
         val list = ArrayList<Instance>()
         for (instance in InstancePermutation(5, BitArrayBuilder, rng)) {

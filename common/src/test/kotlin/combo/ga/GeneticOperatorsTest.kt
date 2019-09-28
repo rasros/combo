@@ -1,6 +1,5 @@
 package combo.ga
 
-import combo.sat.ImplicationDigraph
 import combo.math.IntPermutation
 import combo.model.TestModels
 import combo.model.TestModels.MODEL1
@@ -20,7 +19,7 @@ data class ExpandedCandidates(val candidates: ValidatorCandidates,
 fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCandidates {
     val instanceBuilder = BitArrayBuilder
     val instances = Array(nbrStates) {
-        val instance = instanceBuilder.create(problem.binarySize)
+        val instance = instanceBuilder.create(problem.nbrVariables)
         WordRandomSet().initialize(instance, Tautology, rng, null)
         Validator(problem, instance, Tautology)
     }

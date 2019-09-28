@@ -17,9 +17,9 @@ import kotlin.math.absoluteValue
  * extensions where [CNF] form would be inefficient, for example cardinality and reification.
  */
 @ModelMarker
-class ConstraintBuilder(val scope: Scope, val index: VariableIndex) {
+class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
 
-    fun String.not() = scope[this].not()
+    operator fun String.not() = scope.resolve(this).not()
 
     infix fun Proposition.or(prop: Proposition) = or(this, prop)
     infix fun Proposition.and(prop: Proposition) = and(this, prop)
@@ -57,7 +57,7 @@ class ConstraintBuilder(val scope: Scope, val index: VariableIndex) {
     fun conjunction(vararg variables: Value): PropositionalConstraint =
             if (variables.isEmpty()) Tautology else Conjunction(toLiterals(variables))
 
-    fun cardinality(degree: Int, relation: Relation, variables: Array<out Value>): PropositionalConstraint {
+    fun cardinality(degree: Int, relation: Relation, vararg variables: Value): PropositionalConstraint {
         val literals = toLiterals(variables)
         if (relation.isTautology(0, literals.size, degree)) return Tautology
         if (relation.isEmpty(0, literals.size, degree)) return Empty
@@ -87,14 +87,14 @@ class ConstraintBuilder(val scope: Scope, val index: VariableIndex) {
         return linear
     }
 
-    fun exactly(degree: Int, variables: Array<out Value>) = cardinality(degree, EQ, variables)
-    fun atMost(degree: Int, variables: Array<out Value>) = cardinality(degree, LE, variables)
-    fun atLeast(degree: Int, variables: Array<out Value>) = cardinality(degree, GE, variables)
+    fun exactly(degree: Int, vararg variables: Value) = cardinality(degree, EQ, *variables)
+    fun atMost(degree: Int, vararg variables: Value) = cardinality(degree, LE, *variables)
+    fun atLeast(degree: Int, vararg variables: Value) = cardinality(degree, GE, *variables)
 
     /**
      * Declares all [variables] to be mutually exclusive.
      */
-    fun excludes(vararg variables: Value) = cardinality(1, LE, variables)
+    fun excludes(vararg variables: Value) = cardinality(1, LE, *variables)
 
     fun or(vararg propositions: Proposition): Proposition {
         val literals = IntHashSet()

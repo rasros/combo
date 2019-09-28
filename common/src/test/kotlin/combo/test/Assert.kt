@@ -38,7 +38,7 @@ fun assertContentEquals(expected: LongArray, actual: LongArray, message: String?
             ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }
 
-fun assertContentEquals(expected: List<*>, actual: List<*>, message: String? = null) {
+inline fun <reified T> assertContentEquals(expected: List<T>, actual: List<T>, message: String? = null) {
     assertTrue(expected.toTypedArray().contentEquals(actual.toTypedArray()), message
             ?: "Expected \n${actual.joinToString(",", "<", ">")} to equal \n${expected.joinToString(",", "<", ">")}")
 }

@@ -50,7 +50,7 @@ class CNFTest {
         // = (!a V c V d V e V f) and (!b V c V d V f)
         val cnf1 = CNF(listOf(Disjunction(collectionOf(1, 2)), Disjunction(collectionOf(3, 4))))
         val cnf2 = CNF(listOf(Disjunction(collectionOf(-1, 5, 6)), Disjunction(collectionOf(-2, 4, 6))))
-        ConstraintBuilder(VariableIndex("")).and(cnf1, cnf2)
+        ConstraintFactory(RootScope(Root("")), VariableIndex()).and(cnf1, cnf2)
         val cnf3 = cnf1.distribute(cnf2)
         assertContentEquals(intArrayOf(-1, 3, 4, 5, 6), cnf3.disjunctions[0].literals.toArray().apply { sort() })
         assertContentEquals(intArrayOf(-2, 3, 4, 6), cnf3.disjunctions[1].literals.toArray().apply { sort() })

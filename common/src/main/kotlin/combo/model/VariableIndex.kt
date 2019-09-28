@@ -2,7 +2,11 @@ package combo.model
 
 import combo.util.assert
 
-class VariableIndex {
+/**
+ * Contains mappings from variable to the index they have in optimization problems.
+ * Variables can be iterated in declaration order.
+ */
+class VariableIndex : Iterable<Variable<*,*>> {
 
     private val index: MutableMap<Variable<*, *>, Int> = LinkedHashMap()
 
@@ -22,11 +26,7 @@ class VariableIndex {
             if (variable is Root) throw IllegalArgumentException("Root variable cannot be referenced.")
             else index[variable] ?: throw NoSuchElementException("Variable $variable not found.")
 
-    /**
-     * Variables in declaration order.
-     */
-    fun variables(): List<Variable<*, *>> = index.keys.toList()
-
     operator fun contains(variable: Variable<*, *>): Boolean = index.containsKey(variable)
 
+    override fun iterator(): Iterator<Variable<*, *>>  = index.keys.iterator()
 }

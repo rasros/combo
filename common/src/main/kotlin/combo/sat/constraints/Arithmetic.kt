@@ -16,11 +16,11 @@ import kotlin.random.Random
  */
 class Linear(override val literals: IntHashMap, val weights: IntArray, val degree: Int, val relation: Relation) : PropositionalConstraint {
 
-    override val priority: Int get() = 500
+    override val priority: Int get() = 500 - literals.size
 
     val lowerBound = weights.sumBy { min(0, it) }
     val upperBound = weights.sumBy { max(0, it) }
-    val average = max(1, weights.sumBy { it.absoluteValue } / weights.size)
+    private val average = max(1, weights.sumBy { it.absoluteValue } / weights.size)
 
     init {
         assert(weights.size == literals.size)
@@ -137,7 +137,7 @@ class Linear(override val literals: IntHashMap, val weights: IntArray, val degre
  */
 class Cardinality(override val literals: IntCollection, val degree: Int, val relation: Relation) : PropositionalConstraint {
 
-    override val priority: Int get() = 500
+    override val priority: Int get() = 400 - literals.size
 
     init {
         assert(degree >= 0)
@@ -151,7 +151,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
     override fun offset(offset: Int) = Cardinality(literals.map { it.offset(offset) }, degree, relation)
 
     override fun remap(from: Int, to: Int) =
-            Cardinality(collectionOf(*literals.mutableCopy().apply {
+            Cardinality(collectionOf(*literals.mutableCopy(nullValue = 0).apply {
                 val truth = from.toLiteral(true) in literals
                 remove(from.toLiteral(truth))
                 add(to.toLiteral(truth))
@@ -161,7 +161,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
         val match = unit in literals
         return if (match || !unit in literals) {
 
-            val copy = literals.mutableCopy().apply { if (match) remove(unit) else remove(!unit) }
+            val copy = literals.mutableCopy(nullValue = 0).apply { if (match) remove(unit) else remove(!unit) }
             val d = degree - if (match) 1 else 0
 
             return if (relation.isEmpty(0, copy.size, d)) Empty

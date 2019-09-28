@@ -1,10 +1,11 @@
 package combo.model
 
 import combo.sat.*
-import combo.util.IntHashSet
-import combo.util.MAX_VALUE32
-import combo.util.assert
-import combo.util.bitSize
+import combo.sat.constraints.Conjunction
+import combo.sat.constraints.FloatBounds
+import combo.sat.constraints.IntBounds
+import combo.sat.constraints.ReifiedImplies
+import combo.util.*
 import kotlin.math.max
 
 /**
@@ -43,6 +44,16 @@ class IntVar constructor(name: String, parent: Value?, val min: Int, val max: In
             instance.getBits(rootIndex + offset, nbrLiterals - offset)
         assert((mandatory && value == 0) || value in min..max)
         return value
+    }
+
+    override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
+        val ix = index.indexOf(this)
+        val offset = if (mandatory) 0 else 1
+        val zeros = IntRangeCollection((ix + nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+        return if (reifiedValue is Root) sequenceOf(IntBounds(ix + offset, min, max, nbrLiterals - offset))
+        else sequenceOf(
+                ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)),
+                ReifiedImplies(reifiedValue.toLiteral(index), IntBounds(ix + offset, min, max, nbrLiterals - offset)))
     }
 
     override fun toString() = "IntVar($name in $min:$max)"
@@ -99,6 +110,16 @@ class FloatVar constructor(name: String, parent: Value?, val min: Float, val max
         return Float.fromBits(instance.getBits(rootIndex + if (mandatory) 0 else 1, 32))
     }
 
+    override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
+        val ix = index.indexOf(this)
+        val offset = if (mandatory) 0 else 1
+        val zeros = IntRangeCollection((ix + nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+        return if (reifiedValue is Root) sequenceOf(FloatBounds(ix + offset, min, max))
+        else sequenceOf(
+                ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)),
+                ReifiedImplies(reifiedValue.toLiteral(index), FloatBounds(ix + offset, min, max)))
+    }
+
     override fun toString() = "FloatVar($name in $min:$max)"
 
 }
@@ -153,6 +174,14 @@ class BitsVar constructor(
      * @param value is index of the bit field.
      */
     override fun value(value: Int) = BitValue(this, value)
+
+    override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
+        if (reifiedValue is Root) return emptySequence()
+        val ix = index.indexOf(this)
+        val offset = if (mandatory) 0 else 1
+        val zeros = IntRangeCollection((ix + nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+        return sequenceOf(ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)))
+    }
 
     override fun toString(): String {
         return "BitsVar(nbrLiterals=$nbrBits)"

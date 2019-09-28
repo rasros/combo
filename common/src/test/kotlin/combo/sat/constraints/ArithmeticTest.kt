@@ -156,7 +156,7 @@ class LinearTest : ConstraintTest() {
     @Test
     fun coerceIntRange() {
         BitArray(100).also {
-            val c = Cardinality(IntRangeSet(39, 56), 0, NE)
+            val c = Cardinality(IntRangeCollection(39, 56), 0, NE)
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
             assertTrue(it.getBits(38, 18) != 0)
@@ -165,14 +165,14 @@ class LinearTest : ConstraintTest() {
 
         BitArray(100).also {
             for (i in it.indices) it[i] = true
-            val c = Cardinality(IntRangeSet(1, 100), 10, LT)
+            val c = Cardinality(IntRangeCollection(1, 100), 10, LT)
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
             assertEquals(9, it.iterator().asSequence().count())
         }
 
         BitArray(199).also {
-            val c = Cardinality(IntRangeSet(-10, -1), 2, GE)
+            val c = Cardinality(IntRangeCollection(-10, -1), 2, GE)
             for (i in 0 until 10) it[i] = true
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
@@ -202,7 +202,7 @@ class CardinalityTest : ConstraintTest() {
     @Test
     fun satisfiesBlank() {
         val instance = SparseBitArray(4)
-        assertTrue(Cardinality(IntList(intArrayOf(1, -2, 3)), 1, LE).satisfies(instance))
+        assertTrue(Cardinality(IntArrayList(intArrayOf(1, -2, 3)), 1, LE).satisfies(instance))
         assertEquals(0, Cardinality(collectionOf(1, -2, 3), 1, LE).violations(instance))
     }
 
@@ -278,7 +278,7 @@ class CardinalityTest : ConstraintTest() {
 
     @Test
     fun updateCache() {
-        val c = Cardinality(IntList(intArrayOf(1, -2, 3)), 1, EQ)
+        val c = Cardinality(IntArrayList(intArrayOf(1, -2, 3)), 1, EQ)
         for (k in 0 until 16) {
             val instance = BitArray(4, IntArray(1) { k })
             randomCacheUpdates(instance, c)
@@ -287,7 +287,7 @@ class CardinalityTest : ConstraintTest() {
 
     @Test
     fun unitPropagationNone() {
-        val a = Cardinality(IntList(intArrayOf(1, 5, 6)), 1, LE)
+        val a = Cardinality(IntArrayList(intArrayOf(1, 5, 6)), 1, LE)
         assertContentEquals(a.literals.toArray().apply { sort() }, a.unitPropagation(2).literals.toArray().apply { sort() })
         assertContentEquals(a.literals.toArray().apply { sort() }, a.unitPropagation(4).literals.toArray().apply { sort() })
         assertContentEquals(a.literals.toArray().apply { sort() }, a.unitPropagation(8).literals.toArray().apply { sort() })
@@ -336,7 +336,7 @@ class CardinalityTest : ConstraintTest() {
     @Test
     fun coerceIntRange() {
         BitArray(100).also {
-            val c = Cardinality(IntRangeSet(39, 56), 0, NE)
+            val c = Cardinality(IntRangeCollection(39, 56), 0, NE)
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
             assertTrue(it.getBits(38, 18) != 0)
@@ -345,14 +345,14 @@ class CardinalityTest : ConstraintTest() {
 
         BitArray(100).also {
             for (i in it.indices) it[i] = true
-            val c = Cardinality(IntRangeSet(1, 100), 10, LT)
+            val c = Cardinality(IntRangeCollection(1, 100), 10, LT)
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
             assertEquals(9, it.iterator().asSequence().count())
         }
 
         BitArray(199).also {
-            val c = Cardinality(IntRangeSet(-10, -1), 2, GE)
+            val c = Cardinality(IntRangeCollection(-10, -1), 2, GE)
             for (i in 0 until 10) it[i] = true
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
@@ -505,7 +505,7 @@ class RelationTest {
 
             val c = if (lowerBound == 0) {
                 if (degree < 0) return
-                Cardinality(IntRangeSet(1, 4), degree, relation)
+                Cardinality(IntRangeCollection(1, 4), degree, relation)
             } else Linear(IntHashMap().apply {
                 this[1] = 0; this[2] = 1; this[3] = 2; this[4] = 3
             }, weights, degree, relation)
