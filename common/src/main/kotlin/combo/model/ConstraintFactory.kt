@@ -19,8 +19,6 @@ import kotlin.math.absoluteValue
 @ModelMarker
 class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
 
-    operator fun String.not() = scope.resolve(this).not()
-
     infix fun Proposition.or(prop: Proposition) = or(this, prop)
     infix fun Proposition.and(prop: Proposition) = and(this, prop)
     infix fun Proposition.implies(prop: Proposition) = !this or prop
@@ -33,6 +31,7 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
     infix fun Proposition.equivalent(ref: String) = scope.resolve(ref).let { (this implies it) and (it implies this) }
     infix fun Proposition.xor(ref: String) = scope.resolve(ref).let { (this or it) and (!this or !it) }
 
+    operator fun String.not() = scope.resolve(this).not()
     infix fun String.or(prop: Proposition) = or(scope.resolve(this), prop)
     infix fun String.and(prop: Proposition) = and(scope.resolve(this), prop)
     infix fun String.implies(prop: Proposition) = !scope.resolve(this) or prop
@@ -45,18 +44,43 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
     infix fun String.equivalent(ref: String) = with(scope.resolve(this)) { scope.resolve(ref).let { (this implies it) and (it implies this) } }
     infix fun String.xor(ref: String) = with(scope.resolve(this)) { scope.resolve(ref).let { (this or it) and (!this or !it) } }
 
+    /**
+     * The constraint must be true if the value is true, but not vice versa.
+     */
     infix fun Value.reifiedImplies(constraint: Constraint) = ReifiedImplies(toLiteral(index), constraint)
+
+    /**
+     * The constraint must be true if the value is true, and vice versa. The constraint must be a proposition which
+     * can be negated.
+     */
     infix fun Value.reifiedEquivalent(constraint: PropositionalConstraint) = ReifiedEquivalent(toLiteral(index), constraint)
 
+    /**
+     * The constraint must be true if the value is true, but not vice versa.
+     */
     infix fun String.reifiedImplies(constraint: Constraint) = ReifiedImplies(scope.resolve(this).toLiteral(index), constraint)
+
+    /**
+     * The constraint must be true if the value is true, and vice versa. The constraint must be a proposition which
+     * can be negated.
+     */
     infix fun String.reifiedEquivalent(constraint: PropositionalConstraint) = ReifiedEquivalent(scope.resolve(this).toLiteral(index), constraint)
 
+    /**
+     * Any of the variable must be true, logical or.
+     */
     fun disjunction(vararg variables: Value): PropositionalConstraint =
             if (variables.isEmpty()) Empty else Disjunction(toLiterals(variables))
 
+    /**
+     * All of the variable must be true, logical and.
+     */
     fun conjunction(vararg variables: Value): PropositionalConstraint =
             if (variables.isEmpty()) Tautology else Conjunction(toLiterals(variables))
 
+    /**
+     * Specify a relation between the number of variables that are true.
+     */
     fun cardinality(degree: Int, relation: Relation, vararg variables: Value): PropositionalConstraint {
         val literals = toLiterals(variables)
         if (relation.isTautology(0, literals.size, degree)) return Tautology
@@ -64,6 +88,10 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
         return Cardinality(literals, degree, relation)
     }
 
+    /**
+     * Specify a relation with weights that are multiplied with variables.
+     * x1*w1 + x2*w2 ... + xn*wn [relation] [degree],
+     */
     fun linear(degree: Int, relation: Relation, weights: IntArray, variables: Array<out Value>): PropositionalConstraint {
 
         val gcd = gcd(degree.absoluteValue, gcdAll(*weights))
@@ -87,15 +115,29 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
         return linear
     }
 
+    /**
+     * Precisely this number of variables must be true.
+     */
     fun exactly(degree: Int, vararg variables: Value) = cardinality(degree, EQ, *variables)
+
+    /**
+     * At most this number of variables must be true (defined with less than equal).
+     */
     fun atMost(degree: Int, vararg variables: Value) = cardinality(degree, LE, *variables)
+
+    /**
+     * At least this number of variables must be true (defined with greater than equal).
+     */
     fun atLeast(degree: Int, vararg variables: Value) = cardinality(degree, GE, *variables)
 
     /**
-     * Declares all [variables] to be mutually exclusive.
+     * Declares variables to be mutually exclusive.
      */
     fun excludes(vararg variables: Value) = cardinality(1, LE, *variables)
 
+    /**
+     * Join propositions with logical or to [CNF] form.
+     */
     fun or(vararg propositions: Proposition): Proposition {
         val literals = IntHashSet()
         var ands: ArrayList<CNF>? = null
@@ -131,6 +173,9 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
         }
     }
 
+    /**
+     * Join propositions with logical and to [CNF] form.
+     */
     fun and(vararg propositions: Proposition): Proposition {
         if (propositions.size <= 1) {
             return or(*propositions)
