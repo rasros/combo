@@ -5,14 +5,11 @@ import combo.util.*
 import kotlin.jvm.JvmOverloads
 
 /**
- * This class sufficiently describes a SAT problem, with the constraints and a count of the number of variables. It also
- * holds an index of variable to constraints in [constraining].
- * @param constraints all constraints that the [Instance]s will be satisfied on.
- * @param auxiliary contain variable which are not part of the optimization but are used as constraints
+ * This class sufficiently describes a constraint satisfaction problem.
+ * @param nbrVariables Number of binary variables the problem has.
+ * @param constraints All constraints that the [Instance]s will be satisfied on.
  */
-class Problem @JvmOverloads constructor(val nbrVariables: Int, val constraints: Array<out Constraint>, val auxiliary: IntCollection) {
-
-    constructor(nbrVariables: Int, constraints: Array<out Constraint> = emptyArray()) : this(nbrVariables, constraints, EmptyCollection)
+class Problem @JvmOverloads constructor(val nbrVariables: Int, val constraints: Array<out Constraint> = emptyArray()) {
 
     val nbrConstraints get() = constraints.size
 
