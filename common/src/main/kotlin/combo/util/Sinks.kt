@@ -15,7 +15,7 @@ interface Sink<T> {
     }
 
     /**
-     * Returns an element from the sink if there is one, otherwise null.
+     * Returns an element from the sink if there is one, otherwise null. Will not block.
      */
     fun remove(): T?
 
@@ -25,7 +25,7 @@ interface Sink<T> {
     fun drain(min: Int = -1): Iterable<T>
 }
 
-class BoundedBlockingSink<T>(arraySize: Int) : Sink<T> {
+class BlockingSink<T>(arraySize: Int) : Sink<T> {
 
     private val lock = ReentrantLock()
     @Suppress("UNCHECKED_CAST")
@@ -88,7 +88,7 @@ class BoundedBlockingSink<T>(arraySize: Int) : Sink<T> {
     }
 }
 
-class BlockingSink<T> : Sink<T> {
+class LockingSink<T> : Sink<T> {
 
     private var tail: Node<T>? = null
     private val lock = ReentrantLock()
@@ -142,7 +142,7 @@ class BlockingSink<T> : Sink<T> {
     }
 }
 
-class ConcurrentSink<T> : Sink<T> {
+class NonBlockingSink<T> : Sink<T> {
 
     private val tail: AtomicReference<Node<T>?> = AtomicReference(null)
 
