@@ -1,7 +1,7 @@
 package combo.sat.constraints
 
 import combo.sat.*
-import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.optimizers.ExhaustiveSolver
 import combo.test.assertContentEquals
 import combo.util.IntArrayList
 import combo.util.collectionOf

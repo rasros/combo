@@ -7,7 +7,7 @@ import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Conjunction
 import combo.sat.constraints.Disjunction
 import combo.sat.constraints.Relation
-import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.optimizers.ExhaustiveSolver
 import combo.test.assertContentEquals
 import combo.util.IntArrayList
 import combo.util.IntHashSet

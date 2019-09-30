@@ -10,16 +10,16 @@ class VariableIndex : Iterable<Variable<*,*>> {
 
     private val index: MutableMap<Variable<*, *>, Int> = LinkedHashMap()
 
-    var nbrVariables: Int = 0
+    var nbrLiterals: Int = 0
         private set
 
     fun add(variable: Variable<*, *>): Int {
         assert(variable !is Root)
         if (index.containsKey(variable))
             throw IllegalArgumentException("Variable $variable already added.")
-        index[variable] = nbrVariables
-        nbrVariables += variable.nbrLiterals
-        return nbrVariables
+        index[variable] = nbrLiterals
+        nbrLiterals += variable.nbrLiterals
+        return nbrLiterals
     }
 
     fun indexOf(variable: Variable<*, *>): Int =

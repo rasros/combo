@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import combo.math.toIntArray
 import combo.sat.*
@@ -30,48 +30,32 @@ import org.sat4j.pb.ObjectiveFunction as Sat4JObjectiveFunction
 import org.sat4j.pb.SolverFactory as PBSolverFactory
 
 /**
- * [Solver] and [Optimizer] of [LinearObjective] using the Sat4J SAT library. Using this requires an extra optional
- * dependency, like so in gradle: compile "org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5"
- * The internal solver is re-used for [witness] and [asSequence] and kept as [ThreadLocal]. For [optimize] a new one
- * is created for each call due to limitations in Sat4J.
+ * [Optimizer] of [LinearObjective] using the Sat4J SAT library. Using this requires an extra optional
+ * dependency. The internal solver is re-used for [witness] and [asSequence] and kept as thread local.
+ * For [optimize] a new one is created for each call due to limitations in Sat4J.
+ * @param problem the problem contains the [Constraint]s and the number of variables.
+ * @param randomSeed Set the random seed to a specific value to have a reproducible algorithm.
+ * @param timeout The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+ * @param instanceBuilder Determines the [Instance] that will be created for solving.
+ * @param maxConflicts Solver aborts after this number of conflicts are reached.
+ * @param delta Precision with which to convert objective function into integer constraints.
+ * @param gcdSimplify Simplify weights with greatest common divisor before optimizing.
  */
 class Sat4JSolver @JvmOverloads constructor(
         val problem: Problem,
+        override val randomSeed: Int = nanos().toInt(),
+        override val timeout: Long = -1L,
+        val instanceBuilder: InstanceBuilder = BitArrayBuilder,
+        val maxConflicts: Int = 0,
+        val delta: Float = 0.01f,
+        val gcdSimplify: Boolean = true,
         val constraintHandler: (Constraint, ISolver) -> Unit = { c, _ ->
             throw UnsupportedOperationException("Constraint $c cannot be SAT encoded. " +
                     "Register custom constraint handler in order to handle extra constraints.")
-        }) : Solver, Optimizer<LinearObjective> {
+        }) : Optimizer<LinearObjective> {
 
-    override var randomSeed: Int
-        set(value) {
-            this.randomSequence = RandomSequence(value)
-        }
-        get() = randomSequence.randomSeed
-    private var randomSequence = RandomSequence(nanos().toInt())
+    private val randomSequence = RandomSequence(nanos().toInt())
 
-    override var timeout: Long = -1L
-
-    /**
-     * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
-     */
-    var instanceBuilder: InstanceBuilder = BitArrayBuilder
-
-    /**
-     * Solver aborts after this number of conflicts are reached.
-     */
-    var maxConflicts: Int = 0
-
-    /**
-     * Precision with which to convert floating point constraint and objective function into integer constraints.
-     * See [toIntArray]
-     */
-    var delta: Float = 0.01f
-
-    /**
-     * Simplify weights with GCD before optimizing.
-     */
-    var gcdOptimize: Boolean = true
     override val complete get() = true
 
     private val solverTL = ThreadLocal.withInitial {
@@ -201,7 +185,7 @@ class Sat4JSolver @JvmOverloads constructor(
 
         if (timeout > 0L) pbSolver.setSearchListener(TimeoutListener(timeout))
 
-        val intWeights = function.weights.toIntArray(delta, gcdOptimize)
+        val intWeights = function.weights.toIntArray(delta, gcdSimplify)
         val bigIntWeights = Vec(Array<BigInteger>(function.weights.size) {
             val i = if (function.maximize) -intWeights[it] else intWeights[it]
             valueOf(i.toLong())

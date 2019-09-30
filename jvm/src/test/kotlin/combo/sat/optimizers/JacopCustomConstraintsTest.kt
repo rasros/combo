@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import combo.sat.Literals
 import combo.sat.toBoolean

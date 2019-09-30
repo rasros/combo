@@ -1,6 +1,5 @@
 package combo.bandit.univariate
 
-import combo.bandit.BanditParameters
 import combo.bandit.ParallelMode
 import combo.math.DataSample
 import combo.math.IntPermutation
@@ -13,7 +12,7 @@ import kotlin.math.min
  */
 class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<D>>,
                                   val batchSize: IntRange,
-                                  val mode: ParallelMode) : UnivariateBandit<D>, BanditParameters by bandits[0] {
+                                  val mode: ParallelMode) : UnivariateBandit<D> {
 
     private var randomSequence = RandomSequence(randomSeed)
 
@@ -34,6 +33,10 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
         require(!batchSize.isEmpty()) { "Batchsize interval should not be empty." }
         require(batchSize.first >= 0)
     }
+
+    override val randomSeed: Int get() = bandits[0].randomSeed
+    override val maximize: Boolean get() = bandits[0].maximize
+    override val rewards: DataSample get() = bandits[0].rewards
 
     /**
      * Handle updates added through [update] or [updateAll]

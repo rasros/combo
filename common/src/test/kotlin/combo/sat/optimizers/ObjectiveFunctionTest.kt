@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import combo.math.nextNormal
 import combo.math.times
@@ -12,57 +12,6 @@ import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
-
-abstract class OptimizerTest {
-    abstract fun <O : ObjectiveFunction> optimizer(problem: Problem, function: O, randomSeed: Int = 0): Optimizer<O>
-
-    private fun optimizerTest(p: Problem, function: ObjectiveFunction, i: Int) {
-        val optimizer = optimizer(p, function)
-        val instance = optimizer.optimizeOrThrow(function)
-        assertTrue(p.satisfies(instance))
-        val optValue = function.value(instance)
-        val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrVariables).toInt()).minBy {
-            val instance1 = BitArray(p.nbrVariables, intArrayOf(it))
-            if (p.satisfies(instance1)) function.value(instance1)
-            else Float.POSITIVE_INFINITY
-        }
-        val bruteForceValue = function.value(BitArray(p.nbrVariables, intArrayOf(bruteForceLabelingIx!!)))
-        assertEquals(bruteForceValue, optValue, max(1.0f, 0.01f * p.nbrVariables), "Model $i")
-    }
-
-    @Test
-    fun interactiveObjective() {
-        for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
-            val rng = Random(i)
-            val function = InteractionObjective(FloatArray(p.nbrVariables) { rng.nextFloat() - 0.5f })
-            optimizerTest(p, function, i)
-        }
-    }
-
-    @Test
-    fun oneMaxObjective() {
-        for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
-            val function = OneMaxObjective(p.nbrVariables)
-            optimizerTest(p, function, i)
-        }
-    }
-
-    @Test
-    fun jumpObjective() {
-        for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
-            val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrVariables).toInt()).minBy {
-                val instance = BitArray(p.nbrVariables, intArrayOf(it))
-                if (p.satisfies(instance)) OneMaxObjective(p.nbrVariables).value(instance)
-                else Float.POSITIVE_INFINITY
-            }
-            val bruteForceValue = OneMaxObjective(p.nbrVariables).value(
-                    BitArray(p.nbrVariables, intArrayOf(bruteForceLabelingIx!!)))
-            val function = JumpObjective(-bruteForceValue.toInt())
-            optimizerTest(p, function, i)
-        }
-    }
-}
-
 
 abstract class ObjectiveFunctionTest {
     abstract fun function(nbrVariables: Int): ObjectiveFunction

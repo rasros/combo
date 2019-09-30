@@ -10,11 +10,7 @@ import combo.bandit.glm.NormalVariance
 import combo.bandit.glm.VarianceFunction
 import combo.bandit.univariate.BanditPolicy
 import combo.math.*
-import combo.sat.ImplicationConstraintCoercer
-import combo.sat.ImplicationDigraph
-import combo.sat.WeightSet
-import combo.sat.WordRandomSet
-import combo.sat.solvers.*
+import combo.sat.optimizers.*
 import combo.util.EmptyCollection
 import combo.util.IntCollection
 import combo.util.IntHashSet
@@ -28,12 +24,13 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
         @JvmStatic
         @JvmOverloads
         fun <E : VarianceEstimator> listBandit(model: Model,
-                                                        banditPolicy: BanditPolicy<E>,
-                                                        solver: Solver =
-                                                                if (model.problem.nbrVariables <= 14) ExhaustiveSolver(model.problem)
-                                                                else LocalSearchSolver(model.problem),
-                                                        limit: Int = 500): ModelBandit<ListBandit<E>> {
-            val bandits = solver.asSequence().take(limit).toList().toTypedArray()
+                                               banditPolicy: BanditPolicy<E>,
+                                               optimizer: Optimizer<SatObjective> =
+                                                       if (model.problem.nbrVariables <= 14) ExhaustiveSolver(model.problem)
+                                                       else LocalSearch.Builder(model.problem).build(),
+                                               limit: Int = 500): ModelBandit<ListBandit<E>> {
+            val bandits = if (optimizer.complete) optimizer.asSequence().take(limit).toList().toTypedArray()
+            else optimizer.asSequence().distinct().take(limit).toList().toTypedArray()
             val bandit = ListBandit(bandits, banditPolicy)
             return ModelBandit(model, bandit)
         }
@@ -42,11 +39,10 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
         @JvmOverloads
         fun <E : VarianceEstimator> decisionTreeBandit(model: Model,
                                                        banditPolicy: BanditPolicy<E>,
-                                                       solver: Solver = CachedSolver(LocalSearchSolver(model.problem).apply {
-                                                           initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WordRandomSet())
-                                                       }).apply { pNew = 0.5f })
+                                                       optimizer: Optimizer<SatObjective> = LocalSearch.Builder(model.problem)
+                                                               .restarts(1).cached().pNew(1.0f).build())
                 : PredictionModelBandit<DecisionTreeBandit<E>> {
-            val bandit = DecisionTreeBandit(model.problem, banditPolicy, solver)
+            val bandit = DecisionTreeBandit(model.problem, banditPolicy, optimizer)
             return PredictionModelBandit(model, bandit)
         }
 
@@ -59,11 +55,9 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
                          family: VarianceFunction = NormalVariance,
                          link: Transform = family.canonicalLink(),
                          regularization: Loss = SquaredLoss,
-                         linearOptimizer: Optimizer<LinearObjective> =
-                              CachedOptimizer(LocalSearchOptimizer<LinearObjective>(model.problem).apply {
-                                  restarts = 1
-                                  initializer = ImplicationConstraintCoercer(model.problem, ImplicationDigraph(problem), WeightSet(0.2f))
-                              }).apply { this.pNew = 0.5f })
+                         optimizer: Optimizer<LinearObjective> =
+                                 CachedOptimizer(LocalSearch.Builder(model.problem)
+                                         .restarts(1).cached().build()))
                 : ModelBandit<ListBandit<VarianceEstimator>> {
             TODO()
         }

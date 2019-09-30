@@ -1,8 +1,9 @@
 package combo.sat
 
+import combo.model.Variable
 import combo.sat.constraints.*
-import combo.util.IntHashSet
 import combo.util.IntArrayList
+import combo.util.IntHashSet
 import combo.util.isNotEmpty
 import kotlin.math.min
 
@@ -11,7 +12,7 @@ import kotlin.math.min
  * This is a recursive free implementation of the Simple_SC algorithm by Esko Nuutilas,
  * see http://www.cs.hut.fi/~enu/thesis.html
  */
-class ImplicationDigraph(val nbrVariables: Int, implications: Map<Int, IntArray>) {
+class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntArray>) {
 
     /**
      * This constructor calculates the initial edges in the graph.

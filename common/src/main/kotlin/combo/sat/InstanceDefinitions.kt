@@ -12,7 +12,7 @@ import kotlin.math.min
  * An instance is used by the solvers to find a valid truth assignment. There are two basic implementations:
  * 1) [BitArray] will suit most applications, and [SparseBitArray] will work better for [Problem]s with
  * sparse solutions. The [InstanceBuilder] class is used to create the [Instance]s in a generic way by eg. an
- * [combo.sat.solvers.Optimizer].
+ * [combo.sat.optimizers.Optimizer].
  *
  * Equals and hashCode are defined through actual assignment values.
  */

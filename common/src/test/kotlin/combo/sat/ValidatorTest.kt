@@ -2,7 +2,7 @@ package combo.sat
 
 import combo.model.TestModels
 import combo.sat.constraints.Conjunction
-import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.optimizers.ExhaustiveSolver
 import combo.util.collectionOf
 import kotlin.random.Random
 import kotlin.test.*

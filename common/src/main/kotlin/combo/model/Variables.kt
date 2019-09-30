@@ -41,9 +41,8 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
 
     /**
      *  If a variable is declared mandatory it will always be set to some value when the parent model is set.
-     *  As such it till not have a [reifiedValue]
      */
-    val mandatory: Boolean get() = reifiedValue != this
+    open val mandatory: Boolean get() = reifiedValue != this
 
     abstract fun valueOf(instance: Instance, rootIndex: Int): T?
 

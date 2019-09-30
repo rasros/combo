@@ -1,4 +1,4 @@
-package combo.sat.solvers
+package combo.sat.optimizers
 
 import combo.math.toIntArray
 import combo.sat.*
@@ -17,39 +17,29 @@ import kotlin.math.ceil
 import kotlin.random.Random
 
 /**
- * [Solver] and [Optimizer] of [LinearObjective] using the JaCoP constraint satisfactory problem (CSP) library.
+ * [Optimizer] of [LinearObjective] using the JaCoP constraint satisfactory problem (CSP) library.
+ * Using this requires an extra optional dependency. It can be used in parallel from multiple threads, the solver is
+ * protected internally with thread local.
+ *
+ * @param problem the problem contains the [Constraint]s and the number of variables.
+ * @param randomSeed Set the random seed to a specific value to have a reproducible algorithm.
+ * @param timeout The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
+ * @param instanceBuilder Determines the [Instance] that will be created for solving.
+ * @param delta Precision with which to convert objective function into integer constraints.
+ * @param gcdSimplify Simplify weights with greatest common divisor before optimizing.
  */
 class JacopSolver @JvmOverloads constructor(
         val problem: Problem,
+        override val randomSeed: Int = nanos().toInt(),
+        override val timeout: Long= -1L,
+        val instanceBuilder: InstanceBuilder = BitArrayBuilder,
+        val delta: Float= 0.01f,
+        val gcdSimplify: Boolean = true,
         val constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Unit = { _, _, _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
-        }) : Solver, Optimizer<LinearObjective> {
+        }) : Optimizer<LinearObjective> {
 
-    override var randomSeed: Int
-        set(value) {
-            this.randomSequence = RandomSequence(value)
-        }
-        get() = randomSequence.randomSeed
-    private var randomSequence = RandomSequence(nanos().toInt())
-
-    override var timeout: Long = -1L
-
-    /**
-     * Determines the [Instance] that will be created for solving, for very sparse problems use
-     * [SparseBitArrayBuilder] otherwise [BitArrayBuilder].
-     */
-    var instanceBuilder: InstanceBuilder = BitArrayBuilder
-
-    /**
-     * Precision with which to convert objective function into integer constraints.
-     * See [toIntArray]
-     */
-    var delta: Float = 0.01f
-
-    /**
-     * Simplify weights with greatest common divisor before optimizing.
-     */
-    var gcdOptimize: Boolean = true
+    private val randomSequence = RandomSequence(nanos().toInt())
 
     private inner class ConstraintEncoder {
         val store = Store()
@@ -233,7 +223,7 @@ class JacopSolver @JvmOverloads constructor(
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
                 val cost = IntVar(store, Int.MIN_VALUE, Int.MAX_VALUE)
-                val lin = LinearInt(vars, function.weights.toIntArray(delta, gcdOptimize).apply {
+                val lin = LinearInt(vars, function.weights.toIntArray(delta, gcdSimplify).apply {
                     if (function.maximize) transformArray { -it }
                 }, "=", cost)
                 store.impose(lin)

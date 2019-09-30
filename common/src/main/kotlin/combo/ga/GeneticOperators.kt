@@ -1,7 +1,7 @@
 package combo.ga
 
 import combo.math.*
-import combo.sat.ImplicationDigraph
+import combo.sat.TransitiveImplications
 import combo.sat.literal
 import combo.util.assert
 import combo.util.transformArray
@@ -115,7 +115,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator<Candidate
 }
 
 /**
- * Always eliminate oldest candidate. For non-stationary ([combo.sat.solvers.ObjectiveFunction] changes over time)
+ * Always eliminate oldest candidate. For non-stationary ([combo.sat.optimizers.ObjectiveFunction] changes over time)
  * problems this can be a good strategy.
  */
 class OldestElimination : SelectionOperator<Candidates> {
@@ -174,14 +174,14 @@ class RateMutationOperator(val mutationRate: MutationRate) : MutationOperator<Va
     }
 }
 
-class PropagatingMutator(val mutationRate: MutationRate, val implicationDigraph: ImplicationDigraph) : MutationOperator<ValidatorCandidates> {
+class PropagatingMutator(val mutationRate: MutationRate, val transitiveImplications: TransitiveImplications) : MutationOperator<ValidatorCandidates> {
     override fun mutate(target: Int, candidates: ValidatorCandidates, rng: Random) {
         val instance = candidates.instances[target]
         val rate = mutationRate.rate(instance.size, rng)
         var index = rng.nextGeometric(rate) - 1
         while (index < instance.size) {
             instance.flip(index)
-            implicationDigraph.propagate(instance.literal(index), instance)
+            transitiveImplications.propagate(instance.literal(index), instance)
             index += rng.nextGeometric(rate)
         }
     }

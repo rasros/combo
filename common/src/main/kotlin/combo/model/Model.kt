@@ -72,12 +72,12 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
 
         fun build(): Model {
             val constraints = let {
-                val problem = Problem(index.nbrVariables, constraints.toTypedArray())
+                val problem = Problem(index.nbrLiterals, constraints.toTypedArray())
                 val reduced = problem.unitPropagation(units as IntHashSet, true)
                 if (units.size > 0) reduced + Conjunction(collectionOf(*units.toArray()))
                 else reduced
             }
-            return Model(Problem(index.nbrVariables, constraints), index, scope)
+            return Model(Problem(index.nbrLiterals, constraints), index, scope)
         }
 
         fun bool(name: String = Variable.defaultName()) = flag(name, true)

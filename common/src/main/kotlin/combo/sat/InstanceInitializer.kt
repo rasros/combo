@@ -6,13 +6,41 @@ import combo.math.nextNormal
 import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Disjunction
 import combo.sat.constraints.Relation
-import combo.sat.solvers.LinearObjective
-import combo.sat.solvers.ObjectiveFunction
+import combo.sat.optimizers.LinearObjective
+import combo.sat.optimizers.ObjectiveFunction
 import kotlin.jvm.JvmOverloads
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.random.Random
+
+enum class InitializerType {
+
+    /**
+     * Used for linear objective only. It makes a guess based on the weight of each variable.
+     */
+    WEIGHT_MAX,
+
+    /**
+     * Using uniformly random guess.
+     */
+    RANDOM,
+
+    /**
+     * Starts with random guess and the coerces each constraint in order to be satisfied.
+     */
+    COERCE,
+
+    /**
+     * Starts with random guess, then follows implications, and then coerces constraints to be satisfied.
+     */
+    PROPAGATE_COERCE,
+
+    /**
+     * Starts with WEIGHT_MAX then applies PROPAGATE_COERCE.
+     */
+    WEIGHT_MAX_PROPAGATE_COERCE
+}
 
 interface InstanceInitializer<in O : ObjectiveFunction?> {
     fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: O)
@@ -22,8 +50,7 @@ class ConstraintCoercer<in O : ObjectiveFunction?>(val problem: Problem, val ran
 
     private val prioritizedConstraints = problem.constraints.copyOf().apply {
         sortWith(Comparator { a, b ->
-            if (a.priority == b.priority) a.literals.size.compareTo(b.literals.size)
-            else a.priority.compareTo(b.priority)
+            a.priority.compareTo(b.priority)
         })
     }
 
@@ -31,12 +58,11 @@ class ConstraintCoercer<in O : ObjectiveFunction?>(val problem: Problem, val ran
         randomizer.initialize(mi, assumption, rng, function)
         assumption.coerce(mi, rng)
         for (c in prioritizedConstraints) c.coerce(mi, rng)
-        assumption.coerce(mi, rng)
     }
 }
 
 class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Problem,
-                                                              val implicationDigraph: ImplicationDigraph,
+                                                              val transitiveImplications: TransitiveImplications,
                                                               val randomizer: InstanceInitializer<O>) : InstanceInitializer<O> {
 
     private fun is2sat(constraint: Constraint) = (constraint is Disjunction && constraint.literals.size == 2) ||
@@ -45,8 +71,7 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
 
     val complexConstraints = problem.constraints.filter { !is2sat(it) }.toTypedArray().apply {
         sortWith(Comparator { a, b ->
-            if (a.priority == b.priority) a.literals.size.compareTo(b.literals.size)
-            else a.priority.compareTo(b.priority)
+            a.priority.compareTo(b.priority)
         })
     }
 
@@ -55,7 +80,7 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
         assumption.coerce(mi, rng)
         for (i in IntPermutation(problem.nbrVariables, rng)) {
             val lit = mi.literal(i)
-            implicationDigraph.propagate(lit, mi)
+            transitiveImplications.propagate(lit, mi)
         }
         for (c in complexConstraints)
             c.coerce(mi, rng)
@@ -70,8 +95,8 @@ object NoInitializer : InstanceInitializer<ObjectiveFunction?> {
 class WeightSet @JvmOverloads constructor(val noiseStd: Float = 0.5f) : InstanceInitializer<LinearObjective> {
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: LinearObjective) {
         for (i in mi.indices) {
-            mi[i] = if (function.maximize) function.weights[i] + rng.nextNormal(0.0f, noiseStd) >= 0
-            else function.weights[i] + rng.nextNormal(0.0f, noiseStd) < 0
+            mi[i] = if (function.maximize) rng.nextNormal(function.weights[i], noiseStd) >= 0.0f
+            else rng.nextNormal(function.weights[i], noiseStd) < 0.0f
         }
     }
 }

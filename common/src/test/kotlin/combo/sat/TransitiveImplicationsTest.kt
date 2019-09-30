@@ -10,7 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class ImplicationDigraphTest {
+class TransitiveImplicationsTest {
 
     @Test
     fun unsatisfiedByImplicationDigraph() {
@@ -23,12 +23,12 @@ class ImplicationDigraphTest {
             impose { !f1 or !f2 }
         }.problem
 
-        assertFailsWith(UnsatisfiableException::class) { ImplicationDigraph(problem) }
+        assertFailsWith(UnsatisfiableException::class) { TransitiveImplications(problem) }
     }
 
     @Test
     fun simpleGraph() {
-        val id = ImplicationDigraph(10, mapOf(
+        val id = TransitiveImplications(10, mapOf(
                 1 to intArrayOf(2, 6, 8),
                 2 to intArrayOf(3, 1),
                 3 to intArrayOf(4, 2),
@@ -60,7 +60,7 @@ class ImplicationDigraphTest {
                 next = next.model("$k") {}
         }.problem
 
-        val id = ImplicationDigraph(problem)
+        val id = TransitiveImplications(problem)
 
         for (i in 0 until problem.nbrVariables) {
             assertContentEquals((1 until (i + 1)).toList().toIntArray(),
@@ -80,7 +80,7 @@ class ImplicationDigraphTest {
             bool("x4")
             impose { "x2" or "x4" }
         }.problem
-        val id = ImplicationDigraph(problem)
+        val id = TransitiveImplications(problem)
         for (i in 0 until 10) {
             val instance = BitArray(problem.nbrVariables).also { RandomSet().initialize(it, Tautology, Random, null) }
             for (j in IntPermutation(problem.nbrVariables, Random)) {
@@ -98,7 +98,7 @@ class ImplicationDigraphTest {
             nominal(values = *Array(100) { it })
         }.problem
         val card = problem.constraints.first { it is Cardinality }
-        val id = ImplicationDigraph(problem)
+        val id = TransitiveImplications(problem)
 
         for (i in 0 until 10) {
             val instance = BitArray(problem.nbrVariables).also { RandomSet().initialize(it, Tautology, Random, null) }

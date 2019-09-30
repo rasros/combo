@@ -47,7 +47,7 @@ interface Candidates {
 
 /**
  * Using [Validator] to wrap [MutableInstance] so that it is fast to calculate the number of violated constraints.
- * This is used for optimizing with [combo.sat.solvers.GeneticAlgorithmOptimizer].
+ * This is used for optimizing with [combo.sat.optimizers.GeneticAlgorithmOptimizer].
  */
 class ValidatorCandidates(override val instances: Array<Validator>, val origins: IntArray, val scores: FloatArray)
     : Candidates {
