@@ -1,6 +1,5 @@
 package combo.sat
 
-import combo.model.Variable
 import combo.sat.constraints.*
 import combo.util.IntArrayList
 import combo.util.IntHashSet
@@ -17,7 +16,7 @@ class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntAr
     /**
      * This constructor calculates the initial edges in the graph.
      */
-    constructor(problem: Problem) : this(problem.nbrVariables, HashMap<Int, IntHashSet>().let { map ->
+    constructor(problem: Problem) : this(problem.nbrValues, HashMap<Int, IntHashSet>().let { map ->
         for (constraint in problem.constraints) {
             if (constraint is Disjunction && constraint.size == 2) {
                 val array = constraint.literals.toArray()

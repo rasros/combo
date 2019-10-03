@@ -50,21 +50,21 @@ import kotlin.math.min
 class GeneticAlgorithm(val problem: Problem,
                        override val randomSeed: Int = nanos().toInt(),
                        override val timeout: Long = -1L,
-                       val candidateSize: Int = max(20, min(problem.nbrVariables * 5, 300)),
+                       val candidateSize: Int = max(20, min(problem.nbrValues * 5, 300)),
                        val instanceBuilder: InstanceBuilder = BitArrayBuilder,
                        val initializer: InstanceInitializer<*> = ConstraintCoercer(problem, WordRandomSet()),
                        val restarts: Int = 1,
                        val restartKeeps: Float = 0.2f,
-                       val maxSteps: Int = max(500, problem.nbrVariables),
+                       val maxSteps: Int = max(500, problem.nbrValues),
                        val eps: Float = 1E-4f,
-                       val stallSteps: Int = max(50, problem.nbrVariables / 4),
+                       val stallSteps: Int = max(50, problem.nbrValues / 4),
                        val selection: SelectionOperator<Candidates> = TournamentSelection(max(2, candidateSize / 10)),
                        val elimination: SelectionOperator<Candidates> = TournamentElimination(max(2, candidateSize / 5)),
                        val recombination: RecombinationOperator<ValidatorCandidates> = KPointRecombination(1),
                        val recombinationProbability: Float = 1.0f,
                        val mutation: MutationOperator<ValidatorCandidates> = FixedMutation(),
                        val mutationProbability: Float = 1.0f,
-                       val guessMutator: MutationOperator<ValidatorCandidates> = RateMutationOperator(FastGAMutation(problem.nbrVariables)),
+                       val guessMutator: MutationOperator<ValidatorCandidates> = RateMutationOperator(FastGAMutation(problem.nbrValues)),
                        val penalty: PenaltyFunction = SquaredPenalty(),
                        val propagateAssumptions: Boolean = true,
                        val scoreSample: DataSample = VoidSample,
@@ -84,7 +84,7 @@ class GeneticAlgorithm(val problem: Problem,
         if (propagateAssumptions && assumptions.isNotEmpty()) {
             val units = IntHashSet()
             units.addAll(assumptions)
-            p = Problem(problem.nbrVariables, problem.unitPropagation(units, true))
+            p = Problem(problem.nbrValues, problem.unitPropagation(units, true))
             assumption = Conjunction(units)
         } else {
             p = problem
@@ -97,7 +97,7 @@ class GeneticAlgorithm(val problem: Problem,
             val validators: Array<Validator> = Array(candidateSize) {
                 if (guess != null) Validator(p, guess.copy(), assumption)
                 else {
-                    val instance = instanceBuilder.create(p.nbrVariables)
+                    val instance = instanceBuilder.create(p.nbrValues)
                     @Suppress("UNCHECKED_CAST")
                     (initializer as InstanceInitializer<ObjectiveFunction>).initialize(instance, assumption, rng, function)
                     Validator(p, instance, assumption)
@@ -170,7 +170,7 @@ class GeneticAlgorithm(val problem: Problem,
                 if (i in keep) {
                     candidates.update(i, 1, candidates.scores[i])
                 } else {
-                    val newInstance = instanceBuilder.create(p.nbrVariables)
+                    val newInstance = instanceBuilder.create(p.nbrValues)
                     @Suppress("UNCHECKED_CAST")
                     (initializer as InstanceInitializer<ObjectiveFunction>).initialize(newInstance, assumption, rng, function)
                     candidates.instances[i] = Validator(p, newInstance, assumption)
@@ -201,13 +201,13 @@ class GeneticAlgorithm(val problem: Problem,
     class Builder(val problem: Problem) {
         private var randomSeed: Int = nanos().toInt()
         private var timeout: Long = -1L
-        private var candidateSize: Int = max(20, min(problem.nbrVariables * 5, 300))
+        private var candidateSize: Int = max(20, min(problem.nbrValues * 5, 300))
         private var instanceBuilder: InstanceBuilder = BitArrayBuilder
         private var restarts: Int = 1
         private var restartKeeps: Float = 0.2f
-        private var maxSteps: Int = max(500, problem.nbrVariables)
+        private var maxSteps: Int = max(500, problem.nbrValues)
         private var eps: Float = 1E-4f
-        private var stallSteps: Int = max(50, problem.nbrVariables / 4)
+        private var stallSteps: Int = max(50, problem.nbrValues / 4)
         private var selection: SelectionOperator<Candidates> = TournamentSelection(max(2, candidateSize / 10))
         private var elimination: SelectionOperator<Candidates> = TournamentElimination(max(2, candidateSize / 5))
         private var recombination: RecombinationOperator<ValidatorCandidates> = KPointRecombination(1)

@@ -6,10 +6,10 @@ import kotlin.jvm.JvmOverloads
 
 /**
  * This class sufficiently describes a constraint satisfaction problem.
- * @param nbrVariables Number of binary variables the problem has.
+ * @param nbrValues Number of binary variables the problem has.
  * @param constraints All constraints that the [Instance]s will be satisfied on.
  */
-class Problem @JvmOverloads constructor(val nbrVariables: Int, val constraints: Array<out Constraint> = emptyArray()) {
+class Problem @JvmOverloads constructor(val nbrValues: Int, val constraints: Array<out Constraint> = emptyArray()) {
 
     val nbrConstraints get() = constraints.size
 
@@ -18,7 +18,7 @@ class Problem @JvmOverloads constructor(val nbrVariables: Int, val constraints: 
         for ((i, cons) in constraints.withIndex()) {
             for (lit in cons.literals) {
                 val ix = lit.toIx()
-                assert(ix < nbrVariables)
+                assert(ix < nbrValues)
                 if (!map.containsKey(ix)) map[ix] = IntArrayList()
                 map[ix]!!.add(i)
             }

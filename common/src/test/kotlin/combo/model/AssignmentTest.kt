@@ -1,7 +1,7 @@
 package combo.model
 
 import combo.sat.BitArray
-import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.optimizers.ExhaustiveSolver
 import combo.test.assertContentEquals
 import combo.util.MIN_VALUE32
 import kotlin.test.*
@@ -225,7 +225,7 @@ class AssignmentTest {
     @Test
     fun asSequence() {
         val m = TestModels.MODEL1
-        val solver = ModelSolver(m, ExhaustiveSolver(m.problem))
+        val solver = ModelOptimizer(m, ExhaustiveSolver(m.problem))
         val a = solver.witnessOrThrow(m.scope.find<Multiple<Int>>("m1")!!.value(4))
         val iterated = a.asSequence().toList()
         assertTrue(iterated.size >= 2)

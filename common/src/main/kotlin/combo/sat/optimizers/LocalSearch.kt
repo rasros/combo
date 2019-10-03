@@ -66,14 +66,14 @@ class LocalSearch(val problem: Problem,
         if (propagateAssumptions && assumptions.isNotEmpty()) {
             val units = IntHashSet()
             units.addAll(assumptions)
-            p = Problem(problem.nbrVariables, problem.unitPropagation(units, true))
+            p = Problem(problem.nbrValues, problem.unitPropagation(units, true))
             assumption = Conjunction(units)
         } else {
             p = problem
             assumption = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
         }
 
-        val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrVariables))
+        val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrValues))
 
         var bestValue = Float.POSITIVE_INFINITY
         var bestInstance: Instance? = null
@@ -89,7 +89,7 @@ class LocalSearch(val problem: Problem,
             if (guess != null) {
                 instance = guess
             } else {
-                instance = instanceBuilder.create(p.nbrVariables)
+                instance = instanceBuilder.create(p.nbrValues)
                 @Suppress("UNCHECKED_CAST")
                 (initializer as InstanceInitializer<ObjectiveFunction>).initialize(instance, assumption, rng, function)
             }
@@ -105,24 +105,24 @@ class LocalSearch(val problem: Problem,
             var prevValue = function.value(instance)
             setReturnValue(prevValue)
 
-            if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || p.nbrVariables == 0))
+            if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || p.nbrValues == 0))
                 return validator.instance
 
             for (step in 1..maxSteps) {
                 val n: Int
                 val ix: Int = if (pRandomWalk > rng.nextFloat()) {
                     if (validator.totalUnsatisfied > 0) validator.randomUnsatisfied(rng).literals.random(rng).toIx()
-                    else rng.nextInt(p.nbrVariables)
+                    else rng.nextInt(p.nbrValues)
                 } else {
                     val itr: IntIterator = if (validator.totalUnsatisfied > 0) {
                         val literals = validator.randomUnsatisfied(rng).literals
                         n = min(adjustedMaxConsideration, literals.size)
                         literals.permutation(rng)
                     } else {
-                        n = min(adjustedMaxConsideration, p.nbrVariables)
-                        if (p.nbrVariables > adjustedMaxConsideration)
-                            OffsetIterator(1, IntPermutation(p.nbrVariables, rng).iterator())
-                        else (1..p.nbrVariables).iterator()
+                        n = min(adjustedMaxConsideration, p.nbrValues)
+                        if (p.nbrValues > adjustedMaxConsideration)
+                            OffsetIterator(1, IntPermutation(p.nbrValues, rng).iterator())
+                        else (1..p.nbrValues).iterator()
                     }
                     var maxSatImp = Int.MIN_VALUE
                     var maxOptImp = 0.0f

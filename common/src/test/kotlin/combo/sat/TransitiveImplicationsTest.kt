@@ -62,10 +62,10 @@ class TransitiveImplicationsTest {
 
         val id = TransitiveImplications(problem)
 
-        for (i in 0 until problem.nbrVariables) {
+        for (i in 0 until problem.nbrValues) {
             assertContentEquals((1 until (i + 1)).toList().toIntArray(),
                     id.toArray(i.toLiteral(true)).apply { sort() })
-            assertContentEquals(((i + 2)..problem.nbrVariables).toList().toIntArray().mapArray { -it }.apply { sort() },
+            assertContentEquals(((i + 2)..problem.nbrValues).toList().toIntArray().mapArray { -it }.apply { sort() },
                     id.toArray(i.toLiteral(false)).apply { sort() })
         }
     }
@@ -82,8 +82,8 @@ class TransitiveImplicationsTest {
         }.problem
         val id = TransitiveImplications(problem)
         for (i in 0 until 10) {
-            val instance = BitArray(problem.nbrVariables).also { RandomSet().initialize(it, Tautology, Random, null) }
-            for (j in IntPermutation(problem.nbrVariables, Random)) {
+            val instance = BitArray(problem.nbrValues).also { RandomSet().initialize(it, Tautology, Random, null) }
+            for (j in IntPermutation(problem.nbrValues, Random)) {
                 val lit = instance.literal(j)
                 id.trueImplications(lit)?.run { instance.or(this) }
                 id.falseImplications(lit)?.run { instance.andNot(this) }
@@ -101,8 +101,8 @@ class TransitiveImplicationsTest {
         val id = TransitiveImplications(problem)
 
         for (i in 0 until 10) {
-            val instance = BitArray(problem.nbrVariables).also { RandomSet().initialize(it, Tautology, Random, null) }
-            for (j in IntPermutation(problem.nbrVariables, Random)) {
+            val instance = BitArray(problem.nbrValues).also { RandomSet().initialize(it, Tautology, Random, null) }
+            for (j in IntPermutation(problem.nbrValues, Random)) {
                 val lit = instance.literal(j)
                 id.trueImplications(lit)?.run { instance.or(this) }
                 id.falseImplications(lit)?.run { instance.andNot(this) }

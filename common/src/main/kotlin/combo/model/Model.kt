@@ -13,15 +13,43 @@ import kotlin.jvm.JvmOverloads
  */
 class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
 
+    private val reifiedLiterals: IntArray = IntArray(problem.nbrValues)
+    // TODO could be a range with binary search
+    // like so : private data class ReifiedLiteral(val index: Int, val range: IntRange)
+
+    init {
+        fun Value.toIndex() = if (this is Root) 0 else this.toLiteral(index)
+        for ((variable, parent) in scope.asSequenceWithScope()) {
+            val ix = index.indexOf(variable)
+
+            val offset = if (variable.mandatory) {
+                0
+            } else {
+                reifiedLiterals[ix] = parent.reifiedValue.toIndex()
+                1
+            }
+            for (i in offset until variable.nbrValues) {
+                reifiedLiterals[ix + i] = variable.reifiedValue.toIndex()
+            }
+        }
+    }
+
+    val nbrVariables: Int get() = index.nbrVariables
+
+    /**
+     * Which literal is the parent value of the given value [index], 0 for the root.
+     */
+    fun reifiedLiteral(valueIndex: Int) = reifiedLiterals[valueIndex]
+
     /**
      * Create an assignment based on setting the literals provided.
      */
-    fun denseAssignment(vararg literals: Literal) = Assignment(BitArray(problem.nbrVariables), index, scope, literals)
+    fun denseAssignment(vararg literals: Literal) = Assignment(BitArray(problem.nbrValues), index, scope, literals)
 
     /**
      * Create a sparse assignment based on setting the literals provided.
      */
-    fun sparseAssignment(vararg literals: Literal) = Assignment(SparseBitArray(problem.nbrVariables), index, scope, literals)
+    fun sparseAssignment(vararg literals: Literal) = Assignment(SparseBitArray(problem.nbrValues), index, scope, literals)
 
     /**
      * Wrap [Instance] to [Assignment].
@@ -213,7 +241,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * variable itself.
          */
         fun addVariable(variable: Variable<*, *>) = apply {
-            require(variable.nbrLiterals > 0)
+            require(variable.nbrValues > 0)
             index.add(variable)
             scope.add(variable)
             val parentValue = this@ModelBuilder.scope.reifiedValue

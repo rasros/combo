@@ -7,7 +7,7 @@ import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Conjunction
 import combo.sat.constraints.Relation
 import combo.sat.not
-import combo.sat.solvers.ExhaustiveSolver
+import combo.sat.optimizers.ExhaustiveSolver
 import combo.util.collectionOf
 import kotlin.random.Random
 import kotlin.test.*
@@ -35,16 +35,16 @@ class ModelTest {
     @Test
     fun emptyModel() {
         val m1 = Model.model { }
-        assertEquals(0, m1.problem.nbrVariables)
+        assertEquals(0, m1.problem.nbrValues)
     }
 
     @Test
     fun model1() {
         with(TestModels.MODEL1) {
             assertEquals(7, scope.asSequence().count())
-            assertEquals(13, problem.nbrVariables)
+            assertEquals(13, problem.nbrValues)
 
-            val solver = ModelSolver(this, ExhaustiveSolver(problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence(this["f3"]).toList()
             assignments.forEach {
                 assertTrue(it.contains("f3"))
@@ -58,10 +58,10 @@ class ModelTest {
     fun model2() {
         with(TestModels.MODEL2) {
             assertEquals(5, scope.asSequence().count())
-            assertEquals(10, problem.nbrVariables)
+            assertEquals(10, problem.nbrValues)
             assertNotNull(problem.constraints.find { c -> c is Conjunction && c.literals.size == 10 })
 
-            val solver = ModelSolver(this, ExhaustiveSolver(problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence().toList()
             assertEquals(1, assignments.size)
             assertEquals(2, assignments[0].toMap().size)
@@ -74,10 +74,10 @@ class ModelTest {
     fun model3() {
         with(TestModels.MODEL3) {
             assertEquals(2, scope.asSequence().count())
-            assertEquals(6, problem.nbrVariables)
+            assertEquals(6, problem.nbrValues)
             assertNotNull(problem.constraints.find { c -> c is Conjunction && c.literals.size == 4 })
 
-            val solver = ModelSolver(this, ExhaustiveSolver(problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence()
             assignments.forEach {
                 assertEquals("c", it.getString("alt1"))
@@ -90,9 +90,9 @@ class ModelTest {
     fun model4() {
         with(TestModels.MODEL4) {
             assertEquals(5, scope.asSequence().count())
-            assertEquals(15, problem.nbrVariables)
+            assertEquals(15, problem.nbrValues)
 
-            val solver = ModelSolver(this, ExhaustiveSolver(problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence(
                     scope.find<Nominal<Int>>("a1")!!.value(2),
                     !this["m1"])
@@ -115,7 +115,7 @@ class ModelTest {
             assertEquals("sub4", scope.children.first().children.first().children.first().children.first().asSequence().first().name)
             assertEquals("r2", scope.children.last().scopeName)
 
-            val solver = ModelSolver(this, ExhaustiveSolver(problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence()
             assignments.forEach {
                 assertTrue(it.contains("f1") || it.contains("sub4"))
@@ -130,9 +130,9 @@ class ModelTest {
             assertEquals(12, scope.asSequence().count())
             assertEquals(6, problem.constraints.size)
             assertEquals(Relation.values().size - 1,
-                    problem.constraints.filter { it is Cardinality }.map { (it as Cardinality).relation }.toSet().size)
+                    problem.constraints.filterIsInstance<Cardinality>().map { it.relation }.toSet().size)
 
-            val solver = ModelSolver(this, ExhaustiveSolver(problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence(this["0"], this["2"], this["5"], this["8"])
             assignments.forEach {
                 assertFalse(it.contains("1"))
@@ -147,7 +147,7 @@ class ModelTest {
             assertEquals(4, scope.asSequence().count())
             assertEquals(3, problem.constraints.size)
 
-            val solver = ModelSolver(this, ExhaustiveSolver(this.problem))
+            val solver = ModelOptimizer(this, ExhaustiveSolver(this.problem))
 
             val assignments1 = solver.asSequence(this["f2"]).map { it.toMap() }.toList()
             assertEquals(1, assignments1.size)
@@ -206,7 +206,7 @@ class ModelTest {
         with(TestModels.LARGE1) {
             assertEquals(4, scope.asSequence().count())
             assertEquals(6, problem.constraints.size)
-            assertEquals(322, problem.nbrVariables)
+            assertEquals(322, problem.nbrValues)
         }
     }
 
@@ -215,12 +215,12 @@ class ModelTest {
         with(TestModels.LARGE2) {
             assertEquals(55, scope.asSequence().count())
             assertEquals(107, problem.constraints.size)
-            assertEquals(555, problem.nbrVariables)
+            assertEquals(555, problem.nbrValues)
 
             val m1: Flag<*> = scope.find("Cat 1")!!
             val m2: Multiple<*> = scope.find("Cat 1 1")!!
             val con = Conjunction(collectionOf(!m1.toLiteral(index), m2.toLiteral(index)))
-            for (i in InstancePermutation(problem.nbrVariables, BitArrayBuilder, Random).asSequence().take(100)) {
+            for (i in InstancePermutation(problem.nbrValues, BitArrayBuilder, Random).asSequence().take(100)) {
                 con.coerce(i, Random)
                 assertFalse(problem.satisfies(i), "$i")
             }
@@ -232,7 +232,7 @@ class ModelTest {
         with(TestModels.LARGE3) {
             assertEquals(500, scope.asSequence().count())
             assertEquals(499, problem.constraints.size)
-            assertEquals(500, problem.nbrVariables)
+            assertEquals(500, problem.nbrValues)
         }
     }
 
@@ -241,7 +241,7 @@ class ModelTest {
         with(TestModels.LARGE4) {
             assertEquals(500, scope.asSequence().count())
             assertEquals(1000, problem.constraints.size)
-            assertEquals(500, problem.nbrVariables)
+            assertEquals(500, problem.nbrValues)
         }
     }
 
@@ -250,8 +250,8 @@ class ModelTest {
         with(TestModels.NUMERIC1) {
             assertEquals(7, scope.asSequence().count())
             assertEquals(11, problem.constraints.size)
-            assertEquals(103, problem.nbrVariables)
-            val instance = BitArray(problem.nbrVariables)
+            assertEquals(103, problem.nbrValues)
+            val instance = BitArray(problem.nbrValues)
             for (c in problem.constraints)
                 c.coerce(instance, Random)
             assertTrue(problem.satisfies(instance))
@@ -263,8 +263,8 @@ class ModelTest {
         with(TestModels.NUMERIC2) {
             assertEquals(3, scope.asSequence().count())
             assertEquals(5, problem.constraints.size)
-            assertEquals(99, problem.nbrVariables)
-            val instance = BitArray(problem.nbrVariables)
+            assertEquals(99, problem.nbrValues)
+            val instance = BitArray(problem.nbrValues)
             for (c in problem.constraints)
                 c.coerce(instance, Random)
             assertTrue(problem.satisfies(instance))
@@ -276,8 +276,8 @@ class ModelTest {
         with(TestModels.NUMERIC3) {
             assertEquals(13, scope.asSequence().count())
             assertEquals(20, problem.constraints.size)
-            assertEquals(435, problem.nbrVariables)
-            val instance = BitArray(problem.nbrVariables)
+            assertEquals(435, problem.nbrValues)
+            val instance = BitArray(problem.nbrValues)
             for (c in problem.constraints)
                 c.coerce(instance, Random)
             assertTrue(problem.satisfies(instance))

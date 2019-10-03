@@ -38,7 +38,7 @@ class ProblemTest {
         val units = IntHashSet()
         var reducedConstraints = problem.unitPropagation(units, returnConstraints = true)
         if (units.isNotEmpty()) reducedConstraints += Conjunction(units)
-        val reducedProblem = Problem(problem.nbrVariables, reducedConstraints)
+        val reducedProblem = Problem(problem.nbrValues, reducedConstraints)
         val solutions2 = ExhaustiveSolver(reducedProblem).asSequence(units).toSet()
         val unitsSentence = Conjunction(units)
         val constraints: MutableList<Constraint> = reducedProblem.constraints.toMutableList()
@@ -66,22 +66,22 @@ class ProblemTest {
     fun randomPropagation() {
         val rng = Random.Default
         val p = TestModels.LARGE2.problem
-        val perm = IntPermutation(p.nbrVariables, rng)
-        val lits = (0 until rng.nextBinomial(0.7f, p.nbrVariables)).asSequence()
+        val perm = IntPermutation(p.nbrValues, rng)
+        val lits = (0 until rng.nextBinomial(0.7f, p.nbrValues)).asSequence()
                 .map { perm.encode(it) }
                 .map { it.toLiteral(rng.nextBoolean()) }
                 .toList().toIntArray().apply { sort() }
         val constraints: Array<Constraint> = p.constraints.toList().toTypedArray()
-        val p2 = Problem(p.nbrVariables, constraints + Conjunction(IntArrayList(lits)))
+        val p2 = Problem(p.nbrValues, constraints + Conjunction(IntArrayList(lits)))
         val reduced = try {
             val units = IntHashSet().apply { addAll(lits) }
             var reduced = p.unitPropagation(units)
             if (units.isNotEmpty()) reduced += Conjunction(units)
-            Problem(p.nbrVariables, reduced)
+            Problem(p.nbrValues, reduced)
         } catch (e: UnsatisfiableException) {
             return
         }
-        InstancePermutation(p.nbrVariables, BitArrayBuilder, rng).iterator().asSequence().take(100).forEach {
+        InstancePermutation(p.nbrValues, BitArrayBuilder, rng).iterator().asSequence().take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }

@@ -7,7 +7,7 @@ import kotlin.test.assertFalse
 class BoundedBlockSinkTest {
     @Test
     fun offerRejectsOverflow() {
-        val s = BoundedBlockingSink<Int>(10)
+        val s = BlockingSink<Int>(10)
         for (i in 1..10)
             s.add(i)
         assertFalse(s.offer(0))
@@ -15,7 +15,7 @@ class BoundedBlockSinkTest {
 
     @Test
     fun drainConsumes() {
-        val s = BoundedBlockingSink<Int>(10)
+        val s = BlockingSink<Int>(10)
         for (i in 1..10)
             s.add(i)
         assertEquals(10, s.drain().toList().size)
@@ -24,7 +24,7 @@ class BoundedBlockSinkTest {
 
     @Test
     fun addAfterDrain() {
-        val s = BoundedBlockingSink<Int>(10)
+        val s = BlockingSink<Int>(10)
         for (i in 1..10)
             s.add(i)
         assertEquals(10, s.drain().toList().size)

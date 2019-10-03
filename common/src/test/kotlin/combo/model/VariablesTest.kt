@@ -15,7 +15,7 @@ class BoolVarTest {
         val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
-        assertEquals(1, f.nbrLiterals)
+        assertEquals(1, f.nbrValues)
     }
 
     @Test
@@ -101,7 +101,7 @@ class NominalTest {
         val index = VariableIndex()
         index.add(a)
         assertEquals(0, index.indexOf(a))
-        assertEquals(4, a.nbrLiterals)
+        assertEquals(4, a.nbrValues)
     }
 
     @Test
@@ -110,7 +110,7 @@ class NominalTest {
         val index = VariableIndex()
         index.add(a)
         assertEquals(0, index.indexOf(a))
-        assertEquals(3, a.nbrLiterals)
+        assertEquals(3, a.nbrValues)
     }
 
     @Test
@@ -169,7 +169,7 @@ class MultipleTest {
         val index = VariableIndex()
         index.add(a)
         assertEquals(0, index.indexOf(a))
-        assertEquals(4, a.nbrLiterals)
+        assertEquals(4, a.nbrValues)
     }
 
     @Test
@@ -178,7 +178,7 @@ class MultipleTest {
         val index = VariableIndex()
         index.add(a)
         assertEquals(0, index.indexOf(a))
-        assertEquals(3, a.nbrLiterals)
+        assertEquals(3, a.nbrValues)
     }
 
     @Test

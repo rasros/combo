@@ -23,7 +23,7 @@ class IntVar constructor(name: String, parent: Value?, val min: Int, val max: In
 
     override val reifiedValue = parent ?: this
 
-    override val nbrLiterals: Int = let {
+    override val nbrValues: Int = let {
         val valueBits = max(Int.bitSize(max), Int.bitSize(min))
         val isSetBit = if (mandatory) 0 else 1
         val signedBit = if (min < 0) 1 else 0
@@ -40,8 +40,8 @@ class IntVar constructor(name: String, parent: Value?, val min: Int, val max: In
     override fun valueOf(instance: Instance, rootIndex: Int): Int? {
         if (!mandatory && !instance[rootIndex]) return null
         val offset = if (mandatory) 0 else 1
-        val value = if (isSigned()) instance.getSignedInt(rootIndex + offset, nbrLiterals - offset) else
-            instance.getBits(rootIndex + offset, nbrLiterals - offset)
+        val value = if (isSigned()) instance.getSignedInt(rootIndex + offset, nbrValues - offset) else
+            instance.getBits(rootIndex + offset, nbrValues - offset)
         assert((mandatory && value == 0) || value in min..max)
         return value
     }
@@ -49,11 +49,11 @@ class IntVar constructor(name: String, parent: Value?, val min: Int, val max: In
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
         val ix = index.indexOf(this)
         val offset = if (mandatory) 0 else 1
-        val zeros = IntRangeCollection((ix + nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
-        return if (reifiedValue is Root) sequenceOf(IntBounds(ix + offset, min, max, nbrLiterals - offset))
+        val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
+        return if (reifiedValue is Root) sequenceOf(IntBounds(ix + offset, min, max, nbrValues - offset))
         else sequenceOf(
                 ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)),
-                ReifiedImplies(reifiedValue.toLiteral(index), IntBounds(ix + offset, min, max, nbrLiterals - offset)))
+                ReifiedImplies(reifiedValue.toLiteral(index), IntBounds(ix + offset, min, max, nbrValues - offset)))
     }
 
     override fun toString() = "IntVar($name in $min:$max)"
@@ -72,7 +72,7 @@ class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Liter
         } else 0
 
         var k = value
-        for (i in offset until canonicalVariable.nbrLiterals) {
+        for (i in offset until canonicalVariable.nbrValues) {
             val kix = ix + i
             set.add(kix.toLiteral(k and 1 == 1))
             k = k ushr 1
@@ -98,7 +98,7 @@ class FloatVar constructor(name: String, parent: Value?, val min: Float, val max
     }
 
     override val reifiedValue = parent ?: this
-    override val nbrLiterals: Int = 32 + if (mandatory) 0 else 1
+    override val nbrValues: Int = 32 + if (mandatory) 0 else 1
 
     override fun value(value: Float): FloatLiteral {
         require(value in min..max)
@@ -113,7 +113,7 @@ class FloatVar constructor(name: String, parent: Value?, val min: Float, val max
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
         val ix = index.indexOf(this)
         val offset = if (mandatory) 0 else 1
-        val zeros = IntRangeCollection((ix + nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+        val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return if (reifiedValue is Root) sequenceOf(FloatBounds(ix + offset, min, max))
         else sequenceOf(
                 ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)),
@@ -136,7 +136,7 @@ class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) :
         } else 0
 
         var k = value.toRawBits()
-        for (i in offset until canonicalVariable.nbrLiterals) {
+        for (i in offset until canonicalVariable.nbrValues) {
             val kix = ix + i
             set.add(kix.toLiteral(k and 1 == 1))
             k = k ushr 1
@@ -156,7 +156,7 @@ class BitsVar constructor(
     }
 
     override val reifiedValue = parent ?: this
-    override val nbrLiterals: Int get() = nbrBits + if (mandatory) 0 else 1
+    override val nbrValues: Int get() = nbrBits + if (mandatory) 0 else 1
 
     override fun valueOf(instance: Instance, rootIndex: Int): Instance? {
         if (!mandatory && !instance[rootIndex]) return null
@@ -179,7 +179,7 @@ class BitsVar constructor(
         if (reifiedValue is Root) return emptySequence()
         val ix = index.indexOf(this)
         val offset = if (mandatory) 0 else 1
-        val zeros = IntRangeCollection((ix + nbrLiterals - 1).toLiteral(false), (ix + offset).toLiteral(false))
+        val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return sequenceOf(ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)))
     }
 

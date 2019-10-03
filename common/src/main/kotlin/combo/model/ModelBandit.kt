@@ -1,76 +1,14 @@
 package combo.model
 
 import combo.bandit.Bandit
-import combo.bandit.ListBandit
 import combo.bandit.PredictionBandit
-import combo.bandit.dt.DecisionTreeBandit
-import combo.bandit.ga.GeneticAlgorithmBandit
-import combo.bandit.ga.GeneticAlgorithmBanditParameters
-import combo.bandit.glm.NormalVariance
-import combo.bandit.glm.VarianceFunction
-import combo.bandit.univariate.BanditPolicy
-import combo.math.*
-import combo.sat.optimizers.*
+import combo.math.DataSample
 import combo.util.EmptyCollection
 import combo.util.IntCollection
 import combo.util.IntHashSet
 import kotlin.jvm.JvmOverloads
-import kotlin.jvm.JvmStatic
 
 open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
-
-    companion object {
-
-        @JvmStatic
-        @JvmOverloads
-        fun <E : VarianceEstimator> listBandit(model: Model,
-                                               banditPolicy: BanditPolicy<E>,
-                                               optimizer: Optimizer<SatObjective> =
-                                                       if (model.problem.nbrVariables <= 14) ExhaustiveSolver(model.problem)
-                                                       else LocalSearch.Builder(model.problem).build(),
-                                               limit: Int = 500): ModelBandit<ListBandit<E>> {
-            val bandits = if (optimizer.complete) optimizer.asSequence().take(limit).toList().toTypedArray()
-            else optimizer.asSequence().distinct().take(limit).toList().toTypedArray()
-            val bandit = ListBandit(bandits, banditPolicy)
-            return ModelBandit(model, bandit)
-        }
-
-        @JvmStatic
-        @JvmOverloads
-        fun <E : VarianceEstimator> decisionTreeBandit(model: Model,
-                                                       banditPolicy: BanditPolicy<E>,
-                                                       optimizer: Optimizer<SatObjective> = LocalSearch.Builder(model.problem)
-                                                               .restarts(1).cached().pNew(1.0f).build())
-                : PredictionModelBandit<DecisionTreeBandit<E>> {
-            val bandit = DecisionTreeBandit(model.problem, banditPolicy, optimizer)
-            return PredictionModelBandit(model, bandit)
-        }
-
-        // TODO votingRandomForestBandit
-        // TODO competingRandomForestBandit
-
-        @JvmStatic
-        @JvmOverloads
-        fun linearBandit(model: Model,
-                         family: VarianceFunction = NormalVariance,
-                         link: Transform = family.canonicalLink(),
-                         regularization: Loss = SquaredLoss,
-                         optimizer: Optimizer<LinearObjective> =
-                                 CachedOptimizer(LocalSearch.Builder(model.problem)
-                                         .restarts(1).cached().build()))
-                : ModelBandit<ListBandit<VarianceEstimator>> {
-            TODO()
-        }
-
-        @JvmStatic
-        @JvmOverloads
-        fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model,
-                                                           parameters: GeneticAlgorithmBanditParameters<E>)
-                : ModelBandit<GeneticAlgorithmBandit<E>> {
-            val bandit = GeneticAlgorithmBandit(parameters)
-            return ModelBandit(model, bandit)
-        }
-    }
 
     fun choose(vararg assumptions: Literal): Assignment? {
         val instance = bandit.choose(assumptionsLiterals(assumptions))

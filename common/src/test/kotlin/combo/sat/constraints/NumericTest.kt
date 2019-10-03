@@ -13,7 +13,7 @@ import kotlin.test.*
 
 class IntBoundsTest : ConstraintTest() {
 
-    private fun nbrLiterals(min: Int, max: Int) = IntVar("", Root(""), min, max).nbrLiterals
+    private fun nbrLiterals(min: Int, max: Int) = IntVar("", Root(""), min, max).nbrValues
 
     private fun violations(min: Int, max: Int, value: Int): Int {
         val nbrLiterals = nbrLiterals(min, max)

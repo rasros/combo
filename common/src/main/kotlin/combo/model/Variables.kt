@@ -27,15 +27,15 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
     }
 
     override fun toLiteral(rootIndex: VariableIndex) =
-            if (reifiedValue == this) rootIndex.indexOf(this).toLiteral(true)
-            else reifiedValue.toLiteral(rootIndex)
+            if (mandatory) reifiedValue.toLiteral(rootIndex)
+            else rootIndex.indexOf(this).toLiteral(true)
 
     /**
      * The reified value is the value that governs whether the variable is set, it is usually itself or [Root].
      */
     abstract val reifiedValue: Value
     override val canonicalVariable: Variable<V, T> get() = this
-    abstract val nbrLiterals: Int
+    abstract val nbrValues: Int
 
     abstract fun value(value: V): Literal
 
@@ -54,7 +54,7 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
  * problem.
  */
 class Root(name: String) : Variable<Nothing, Unit>(name) {
-    override val nbrLiterals get() = 0
+    override val nbrValues get() = 0
     override fun valueOf(instance: Instance, rootIndex: Int) {}
     override fun toLiteral(rootIndex: VariableIndex) = error("Root cannot be used in an expression. " +
             "This is likely caused by using a mandatory variable defined in the root scope in an expression.")
@@ -68,7 +68,7 @@ class Root(name: String) : Variable<Nothing, Unit>(name) {
  * 1 or null otherwise. A [Flag] is named after feature flags, because they wrap a [value].
  */
 class Flag<out T> constructor(name: String, val value: T) : Variable<Nothing, T>(name) {
-    override val nbrLiterals: Int get() = 1
+    override val nbrValues: Int get() = 1
     override fun toString() = "Flag($name)"
     override fun valueOf(instance: Instance, rootIndex: Int) = if (instance[rootIndex]) value else null
     override fun toLiteral(rootIndex: VariableIndex) = rootIndex.indexOf(this).toLiteral(true)
@@ -77,7 +77,7 @@ class Flag<out T> constructor(name: String, val value: T) : Variable<Nothing, T>
 }
 
 /**
- * A [Select] can be either [Nominal], [Ordinal], or [Multiple], depending on whether the options in the [values]
+ * A [Select] can be either [Nominal], or [Multiple], depending on whether the options in the [values]
  * are mutually exclusive or not. For example, selecting a number of displayed items for a GUI item would be best served
  * as an [Nominal] because there can only a single number at a time.
  */
@@ -89,7 +89,7 @@ sealed class Select<V, out T> constructor(name: String, parent: Value?, values: 
     }
 
     override val reifiedValue = parent ?: this
-    override val nbrLiterals: Int = values.size + if (mandatory) 0 else 1
+    override val nbrValues: Int = values.size + if (mandatory) 0 else 1
     val values: Array<out Option> = Array(values.size) { Option(it, values[it]) }
 
     override fun value(value: V): Option {

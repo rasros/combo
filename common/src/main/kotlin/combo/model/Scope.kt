@@ -112,7 +112,9 @@ interface Scope : Iterable<Variable<*, *>> {
      * All variables in the current scope and all scopes below this, including all child scopes. The sequence is
      * iterated in depth-first order using a stack.
      */
-    fun asSequence(): Sequence<Variable<*, *>> {
+    fun asSequence(): Sequence<Variable<*, *>> = asSequenceWithScope().map { it.first }
+
+    fun asSequenceWithScope(): Sequence<Pair<Variable<*, *>, Scope>> {
         val stack = ArrayList<Scope>()
 
         var i = 0
@@ -120,14 +122,14 @@ interface Scope : Iterable<Variable<*, *>> {
 
         run {
             val currentVars = current.scopeVariables
-            while (i < currentVars.size && currentVars[i].nbrLiterals <= 0)
+            while (i < currentVars.size && currentVars[i].nbrValues <= 0)
                 i++
             stack.addAll(this.children)
         }
 
         return generateSequence {
             var scopeVars = current.scopeVariables
-            while (i < scopeVars.size && scopeVars[i].nbrLiterals <= 0)
+            while (i < scopeVars.size && scopeVars[i].nbrValues <= 0)
                 i++
 
             while (i >= current.scopeVariables.size && stack.isNotEmpty()) {
@@ -136,18 +138,18 @@ interface Scope : Iterable<Variable<*, *>> {
                 i = 0
                 scopeVars = current.scopeVariables
                 // Advance over empty variables (unit and reference)
-                while (i < scopeVars.size && scopeVars[i].nbrLiterals <= 0)
+                while (i < scopeVars.size && scopeVars[i].nbrValues <= 0)
                     i++
             }
 
             // Return next variable or terminate with null
             scopeVars = current.scopeVariables
-            if (i < scopeVars.size) scopeVars[i++]
+            if (i < scopeVars.size) scopeVars[i++] to current
             else null
         }
     }
 
-    fun scopesAsSequence(): Sequence<Scope> {
+    fun asSequenceOfScope(): Sequence<Scope> {
         val stack = ArrayList<Scope>()
         stack.add(this)
         return generateSequence {
@@ -161,7 +163,7 @@ interface Scope : Iterable<Variable<*, *>> {
     }
 
     fun add(variable: Variable<*, *>) {
-        assert(variable.nbrLiterals > 0)
+        assert(variable.nbrValues > 0)
         require(!names.containsKey(variable.name)) {
             "Variable with name ${variable.name} already exists in scope $scopeName."
         }

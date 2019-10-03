@@ -78,7 +78,7 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: O) {
         randomizer.initialize(mi, assumption, rng, function)
         assumption.coerce(mi, rng)
-        for (i in IntPermutation(problem.nbrVariables, rng)) {
+        for (i in IntPermutation(problem.nbrValues, rng)) {
             val lit = mi.literal(i)
             transitiveImplications.propagate(lit, mi)
         }

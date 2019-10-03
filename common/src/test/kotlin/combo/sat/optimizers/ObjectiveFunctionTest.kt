@@ -19,12 +19,12 @@ abstract class ObjectiveFunctionTest {
     @Test
     fun valueAndImprovement() {
         for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
-            val f = function(p.nbrVariables)
-            val instance = BitArray(p.nbrVariables)
+            val f = function(p.nbrValues)
+            val instance = BitArray(p.nbrValues)
             WordRandomSet().initialize(instance, Tautology, Random, null)
             val s = Validator(p, instance, Tautology)
             val v = f.value(instance)
-            val ix = Random.nextInt(p.nbrVariables)
+            val ix = Random.nextInt(p.nbrValues)
             val imp = f.improvement(instance, ix)
             s.flip(ix)
             val nv = f.value(instance)
