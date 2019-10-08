@@ -1,9 +1,7 @@
 package combo.bandit.univariate
 
 import combo.bandit.ParallelMode
-import combo.math.BinaryEstimator
 import combo.math.BucketSample
-import combo.math.VarianceEstimator
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -17,14 +15,12 @@ class ParallelUnivariateBanditTest {
     fun dataShouldNotBeDuplicated() {
         for (mode in ParallelMode.values()) {
             for (copies in 1..5) {
-                val bandit = MultiArmedBandit.Builder<VarianceEstimator>()
-                        .nbrArms(10)
-                        .banditPolicy(ThompsonSampling(NormalPosterior))
+                val bandit = MultiArmedBandit.Builder(10, ThompsonSampling(NormalPosterior))
+                        .rewards(BucketSample())
                         .parallel()
                         .copies(copies)
                         .mode(mode)
                         .batchSize(1..20)
-                        .rewards(BucketSample())
                         .build()
 
                 assertEquals(0, bandit.processUpdates(false))
@@ -51,14 +47,12 @@ class ParallelUnivariateBanditTest {
 
     @Test
     fun blockingModeWithinBatchSize() {
-        val bandit = MultiArmedBandit.Builder<BinaryEstimator>()
-                .nbrArms(2)
-                .banditPolicy(ThompsonSampling(BinomialPosterior))
+        val bandit = MultiArmedBandit.Builder(2, ThompsonSampling(BinomialPosterior))
+                .rewards(BucketSample())
                 .parallel()
                 .copies(2)
                 .mode(ParallelMode.BLOCKING)
                 .batchSize(15..15)
-                .rewards(BucketSample())
                 .build()
 
         val cdl1 = CountDownLatch(1)
@@ -85,14 +79,12 @@ class ParallelUnivariateBanditTest {
     @Test
     fun lockingModeGrowsBiggerThanBatchSize() {
 
-        val bandit = MultiArmedBandit.Builder<VarianceEstimator>()
-                .nbrArms(10)
-                .banditPolicy(ThompsonSampling(NormalPosterior))
+        val bandit = MultiArmedBandit.Builder(10, ThompsonSampling(NormalPosterior))
+                .rewards(BucketSample())
                 .parallel()
                 .copies(2)
                 .mode(ParallelMode.LOCKING)
                 .batchSize(1..20)
-                .rewards(BucketSample())
                 .build()
 
         val rng = Random
@@ -108,14 +100,12 @@ class ParallelUnivariateBanditTest {
 
     @Test
     fun nonBlockingDoesNotBlock() {
-        val bandit = MultiArmedBandit.Builder<VarianceEstimator>()
-                .nbrArms(10)
-                .banditPolicy(ThompsonSampling(NormalPosterior))
+        val bandit = MultiArmedBandit.Builder(10, ThompsonSampling(NormalPosterior))
+                .rewards(BucketSample())
                 .parallel()
                 .copies(2)
-                .mode(ParallelMode.NON_BLOCKING)
+                .mode(ParallelMode.NON_LOCKING)
                 .batchSize(2..3)
-                .rewards(BucketSample())
                 .build()
         for (i in 0 until 100)
             bandit.update(Random.nextInt(10), Random.nextFloat())
