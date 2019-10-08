@@ -5,6 +5,9 @@ package combo.util
 import kotlin.jvm.JvmName
 import kotlin.math.absoluteValue
 
+/**
+ * Closest power of 2, e.g. power2(5) = 8, power2(9) = 16
+ */
 fun Int.Companion.power2(value: Int): Int {
     var x = value - 1
     x = x or (x shr 1)
