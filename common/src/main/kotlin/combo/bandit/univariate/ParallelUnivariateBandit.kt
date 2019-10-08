@@ -9,6 +9,9 @@ import kotlin.math.min
 
 /**
  * Univariate bandit that can be used in parallel. The [processUpdates] method must be called periodically.
+ * @param bandits Each bandit is protected by a lock that will be tested for in sequence in choose.
+ * @param batchSize Updates will be grouped into batches with this size to avoid contention.
+ * @param mode Type of parallelization attempted.
  */
 class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<D>>,
                                   val batchSize: IntRange,
@@ -194,14 +197,15 @@ class ParallelUnivariateBandit<D>(val bandits: Array<ConcurrentUnivariateBandit<
         private var mode: ParallelMode = ParallelMode.LOCKING
         private var batchSize: IntRange = 1..50
 
+        /** Each bandit is protected by a lock that will be tested for in sequence in choose. */
         fun copies(copies: Int) = apply { this.copies = copies }
+
+        /** Type of parallelization attempted. */
         fun mode(mode: ParallelMode) = apply { this.mode = mode }
+
+        /** Updates will be grouped into batches with this size to avoid contention. */
         fun batchSize(batchSize: IntRange) = apply { this.batchSize = batchSize }
-        fun nbrArms(nbrArms: Int) = apply { baseBuilder.nbrArms(nbrArms) }
-        fun banditPolicy(banditPolicy: BanditPolicy<E>) = apply { baseBuilder.banditPolicy(banditPolicy) }
-        fun randomSeed(randomSeed: Int) = apply { baseBuilder.randomSeed(randomSeed) }
-        fun maximize(maximize: Boolean) = apply { baseBuilder.maximize(maximize) }
-        fun rewards(rewards: DataSample) = apply { baseBuilder.rewards(rewards) }
+
         fun build(): ParallelUnivariateBandit<List<E>> {
             val base = baseBuilder.build()
             val array = Array(copies) {

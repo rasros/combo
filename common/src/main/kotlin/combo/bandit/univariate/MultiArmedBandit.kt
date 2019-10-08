@@ -82,23 +82,15 @@ class MultiArmedBandit<E : VarianceEstimator> @JvmOverloads constructor(
         return list
     }
 
-    /**
-     * [nbrArms] and [banditPolicy] are mandatory.
-     */
-    class Builder<E : VarianceEstimator> {
-        private var nbrArms: Int? = null
-        private lateinit var banditPolicy: BanditPolicy<E>
+    class Builder<E : VarianceEstimator>(val nbrArms: Int, val banditPolicy: BanditPolicy<E>) {
         private var randomSeed: Int = nanos().toInt()
         private var maximize: Boolean = true
         private var rewards: DataSample = VoidSample
 
-        fun nbrArms(nbrArms: Int) = apply { this.nbrArms = nbrArms }
-        fun banditPolicy(banditPolicy: BanditPolicy<E>) = apply { this.banditPolicy = banditPolicy }
         fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
         fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
         fun parallel() = ParallelUnivariateBandit.Builder(this)
-        fun build() = MultiArmedBandit(nbrArms
-                ?: throw error("nbrArms must be set"), banditPolicy, randomSeed, maximize, rewards)
+        fun build() = MultiArmedBandit(nbrArms, banditPolicy, randomSeed, maximize, rewards)
     }
 }

@@ -1,12 +1,12 @@
 package combo.bandit.univariate
 
-import combo.bandit.BanditParameters
+import combo.math.DataSample
 
 /**
  * A bandit optimizes an online decision problem, the bandit problem. The problem is to find the best arm of the
  * available arms.
  */
-interface UnivariateBandit<D> : BanditParameters {
+interface UnivariateBandit<D> {
 
     /**
      * Select the next bandit to use.
@@ -30,4 +30,19 @@ interface UnivariateBandit<D> : BanditParameters {
      * continues optimizing through the [importData] function. The order of the returned array must be maintained.
      */
     fun exportData(): D
+
+    /**
+     * Set the random seed to a specific value to have a reproducible algorithm. By default current system time.
+     */
+    val randomSeed: Int
+
+    /**
+     * Whether the bandit should maximize or minimize the total rewards. By default true.
+     */
+    val maximize: Boolean
+
+    /**
+     * All rewards are added to this for inspecting how well the bandit performs. By default [combo.math.VoidSample].
+     */
+    val rewards: DataSample
 }
