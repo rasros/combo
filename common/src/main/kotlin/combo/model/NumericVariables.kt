@@ -1,11 +1,11 @@
 package combo.model
 
 import combo.sat.*
-import combo.sat.constraints.Conjunction
-import combo.sat.constraints.FloatBounds
-import combo.sat.constraints.IntBounds
-import combo.sat.constraints.ReifiedImplies
-import combo.util.*
+import combo.sat.constraints.*
+import combo.util.IntHashSet
+import combo.util.IntRangeCollection
+import combo.util.MAX_VALUE32
+import combo.util.bitSize
 import kotlin.math.max
 
 /**
@@ -14,18 +14,16 @@ import kotlin.math.max
  * @param min smallest allowed value (inclusive)
  * @param max largest allowed value (inclusive)
  */
-class IntVar constructor(name: String, parent: Value?, val min: Int, val max: Int)
+class IntVar constructor(name: String, override val optional: Boolean, override val parent: Value, val min: Int, val max: Int)
     : Variable<Int, Int>(name) {
 
     init {
         require(max > min) { "Min should be greater than min." }
     }
 
-    override val reifiedValue = parent ?: this
-
     override val nbrValues: Int = let {
         val valueBits = max(Int.bitSize(max), Int.bitSize(min))
-        val isSetBit = if (mandatory) 0 else 1
+        val isSetBit = if (optional) 1 else 0
         val signedBit = if (min < 0) 1 else 0
         isSetBit + signedBit + valueBits
     }
@@ -35,20 +33,20 @@ class IntVar constructor(name: String, parent: Value?, val min: Int, val max: In
         return IntLiteral(this, value)
     }
 
-    private fun isSigned() = min < 0
+    fun isSigned() = min < 0
 
-    override fun valueOf(instance: Instance, rootIndex: Int): Int? {
-        if (!mandatory && !instance[rootIndex]) return null
-        val offset = if (mandatory) 0 else 1
-        val value = if (isSigned()) instance.getSignedInt(rootIndex + offset, nbrValues - offset) else
-            instance.getBits(rootIndex + offset, nbrValues - offset)
-        assert((mandatory && value == 0) || value in min..max)
+    override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Int? {
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        val offset = if (optional) 1 else 0
+        val value = if (isSigned()) instance.getSignedInt(index + offset, nbrValues - offset) else
+            instance.getBits(index + offset, nbrValues - offset)
+        if (value !in min..max) error("Int value $name out of bounds.")
         return value
     }
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
         val ix = index.indexOf(this)
-        val offset = if (mandatory) 0 else 1
+        val offset = if (optional) 1 else 0
         val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return if (reifiedValue is Root) sequenceOf(IntBounds(ix + offset, min, max, nbrValues - offset))
         else sequenceOf(
@@ -66,7 +64,7 @@ class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Liter
 
     override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
         val ix = index.indexOf(canonicalVariable)
-        val offset = if (!canonicalVariable.mandatory) {
+        val offset = if (canonicalVariable.optional) {
             set.add(ix.toLiteral(true))
             1
         } else 0
@@ -88,31 +86,34 @@ class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Liter
  * @param min smallest allowed value (inclusive)
  * @param max largest allowed value (inclusive)
  */
-class FloatVar constructor(name: String, parent: Value?, val min: Float, val max: Float)
+class FloatVar constructor(name: String, override val optional: Boolean, override val parent: Value, val min: Float, val max: Float)
     : Variable<Float, Float>(name) {
 
     init {
         require(max > min) { "Min should be greater than min." }
-        require(max <= MAX_VALUE32)
-        require(min >= -MAX_VALUE32)
+        // In javascript min/max are 64-bit so could be set to larger values
+        require(max <= MAX_VALUE32) { "FloatVar overflow $name $max." }
+        require(min >= -MAX_VALUE32) { "FloatVar overflow $name $min." }
     }
 
-    override val reifiedValue = parent ?: this
-    override val nbrValues: Int = 32 + if (mandatory) 0 else 1
+    override val nbrValues: Int = 32 + if (optional) 1 else 0
 
     override fun value(value: Float): FloatLiteral {
         require(value in min..max)
         return FloatLiteral(this, value)
     }
 
-    override fun valueOf(instance: Instance, rootIndex: Int): Float? {
-        if (!mandatory && !instance[rootIndex]) return null
-        return Float.fromBits(instance.getBits(rootIndex + if (mandatory) 0 else 1, 32))
+    override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Float? {
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        val offset = if (optional) 1 else 0
+        val value = Float.fromBits(instance.getBits(index + offset, 32))
+        if (value !in min..max) error("Int value $name out of bounds.")
+        return value
     }
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
         val ix = index.indexOf(this)
-        val offset = if (mandatory) 0 else 1
+        val offset = if (optional) 1 else 0
         val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return if (reifiedValue is Root) sequenceOf(FloatBounds(ix + offset, min, max))
         else sequenceOf(
@@ -130,7 +131,7 @@ class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) :
 
     override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
         val ix = index.indexOf(canonicalVariable)
-        val offset = if (!canonicalVariable.mandatory) {
+        val offset = if (canonicalVariable.optional) {
             set.add(ix.toLiteral(true))
             1
         } else 0
@@ -146,25 +147,22 @@ class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) :
     override fun toString() = "FloatLiteral($name=$value)"
 }
 
-class BitsVar constructor(
-        name: String,
-        parent: Value?,
-        val nbrBits: Int) : Variable<Int, Instance>(name) {
+class BitsVar constructor(name: String, override val optional: Boolean, override val parent: Value, val nbrBits: Int)
+    : Variable<Int, Instance>(name) {
 
     init {
         require(nbrBits > 0) { "nbrBits must be > 0." }
     }
 
-    override val reifiedValue = parent ?: this
-    override val nbrValues: Int get() = nbrBits + if (mandatory) 0 else 1
+    override val nbrValues: Int get() = nbrBits + if (optional) 1 else 0
 
-    override fun valueOf(instance: Instance, rootIndex: Int): Instance? {
-        if (!mandatory && !instance[rootIndex]) return null
+    override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Instance? {
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
         return BitArray(nbrBits).apply {
-            var offset = if (mandatory) 0 else 1
+            var offset = if (optional) 1 else 0
             for (i in field.indices) {
                 val nbrBits = if (i == field.lastIndex) nbrBits and 0x1F else 32
-                field[i] = instance.getBits(rootIndex + offset, nbrBits)
+                field[i] = instance.getBits(index + offset, nbrBits)
                 offset += nbrBits
             }
         }
@@ -178,7 +176,7 @@ class BitsVar constructor(
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
         if (reifiedValue is Root) return emptySequence()
         val ix = index.indexOf(this)
-        val offset = if (mandatory) 0 else 1
+        val offset = if (optional) 1 else 0
         val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return sequenceOf(ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)))
     }
@@ -194,7 +192,7 @@ class BitValue constructor(override val canonicalVariable: BitsVar, val bitIndex
         require(bitIndex in 0 until canonicalVariable.nbrBits) { "BitValue with index=$bitIndex is out of bound with $name." }
     }
 
-    override fun toLiteral(rootIndex: VariableIndex) = (rootIndex.indexOf(canonicalVariable) + bitIndex + if (canonicalVariable.mandatory) 0 else 1).toLiteral(true)
+    override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.indexOf(canonicalVariable) + bitIndex + if (canonicalVariable.optional) 1 else 0).toLiteral(true)
 
     override fun toString() = "BitValue($name=$bitIndex)"
 

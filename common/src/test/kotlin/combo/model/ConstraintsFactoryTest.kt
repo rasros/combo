@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 class ConstraintsFactoryTest {
 
-    private val vars = Array(6) { Flag("$it", true) }
+    private val vars = Array(6) { Flag("$it", true, Root("")) }
     private val index = VariableIndex()
     private val scope = RootScope(Root("Root"))
 
@@ -445,13 +445,13 @@ class ConstraintsFactoryTest {
 
     @Test
     fun cnfLarge() {
-        val a = Flag("a", true)
-        val b = Flag("b", true)
-        val c = Flag("c", true)
-        val d = Flag("d", true)
-        val e = Flag("e", true)
-        val f = Flag("f", true)
-        val g = Flag("g", true)
+        val a = Flag("a", true, Root(""))
+        val b = Flag("b", true, Root(""))
+        val c = Flag("c", true, Root(""))
+        val d = Flag("d", true, Root(""))
+        val e = Flag("e", true, Root(""))
+        val f = Flag("f", true, Root(""))
+        val g = Flag("g", true, Root(""))
         val index = VariableIndex().apply {
             add(a); add(b); add(c); add(d); add(e); add(f); add(g)
         }
@@ -474,13 +474,13 @@ class ConstraintsFactoryTest {
 
     @Test
     fun cnfLargeNegated() {
-        val a = Flag("a", true)
-        val b = Flag("b", true)
-        val c = Flag("c", true)
-        val d = Flag("d", true)
-        val e = Flag("e", true)
-        val f = Flag("f", true)
-        val g = Flag("g", true)
+        val a = Flag("a", true, Root(""))
+        val b = Flag("b", true, Root(""))
+        val c = Flag("c", true, Root(""))
+        val d = Flag("d", true, Root(""))
+        val e = Flag("e", true, Root(""))
+        val f = Flag("f", true, Root(""))
+        val g = Flag("g", true, Root(""))
         val index = VariableIndex().apply {
             add(a); add(b); add(c); add(d); add(e); add(f); add(g)
         }

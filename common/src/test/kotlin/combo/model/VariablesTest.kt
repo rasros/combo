@@ -7,11 +7,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
-class BoolVarTest {
+class FlagTest {
 
     @Test
     fun index() {
-        val f = Flag("", true)
+        val f = Flag("", true, Root(""))
         val index = VariableIndex()
         index.add(f)
         assertEquals(0, index.indexOf(f))
@@ -20,16 +20,16 @@ class BoolVarTest {
 
     @Test
     fun valueOf() {
-        val f = Flag("", true)
+        val f = Flag("", true, Root(""))
         val instance = BitArray(1)
-        assertNull(f.valueOf(instance, 0))
+        assertNull(f.valueOf(instance, 0, 0))
         instance[0] = true
-        assertEquals(true, f.valueOf(instance, 0))
+        assertEquals(true, f.valueOf(instance, 0, 0))
     }
 
     @Test
     fun toLiteral() {
-        val f = Flag("f", 1)
+        val f = Flag("f", 1, Root(""))
         val index = VariableIndex()
         index.add(f)
         assertEquals(1, f.toLiteral(index))
@@ -37,9 +37,9 @@ class BoolVarTest {
 
     @Test
     fun toLiteral2() {
-        val f = Flag("f", 1)
+        val f = Flag("f", 1, Root(""))
         val index = VariableIndex()
-        index.add(BitsVar("b", null, 5))
+        index.add(BitsVar("b", true, Root(""), 5))
         index.add(f)
         assertEquals(7, f.toLiteral(index))
     }
@@ -49,31 +49,33 @@ class OptionTest {
 
     @Test
     fun missingOptionTest() {
-        val o = Multiple("o", null, 1.0, 2.0, 3.0)
+        val o = Multiple("o", true, Root(""), 1.0, 2.0, 3.0)
         assertFailsWith(IllegalArgumentException::class) {
             o.value(1.2)
         }
     }
 
     @Test
-    fun toLiteral() {
-        val a = Nominal("a", null, 1.0, 2.0, 2.5)
+    fun toLiteralOptional() {
+        val parent = Flag("f", true, Root(""))
+        val a = Nominal("a", true, parent, 1.0, 2.0, 2.5)
         val index = VariableIndex()
+        index.add(parent)
         index.add(a)
-        assertEquals(3, a.value(2.0).toLiteral(index))
+        assertEquals(4, a.value(2.0).toLiteral(index))
     }
 
     @Test
     fun toLiteralMandatory() {
-        val a = Nominal("a", Root(""), 1.0, 2.0, 2.5)
+        val a = Nominal("a", false, Root(""), 1.0, 2.0, 2.5)
         val index = VariableIndex()
         index.add(a)
         assertEquals(2, a.value(2.0).toLiteral(index))
     }
 
     @Test
-    fun toLiteralNot() {
-        val a = Nominal("a", null, 1.0, 2.0, 3.0)
+    fun toLiteralOptionalNot() {
+        val a = Nominal("a", true, Root(""), 1.0, 2.0, 3.0)
         val index = VariableIndex()
         index.add(a)
         val o = a.value(1.0).not()
@@ -84,7 +86,7 @@ class OptionTest {
 
     @Test
     fun toLiteralMandatoryNot() {
-        val a = Nominal("a", Root(""), 1.0, 2.0, 3.0)
+        val a = Nominal("a", false, Root(""), 1.0, 2.0, 3.0)
         val index = VariableIndex()
         index.add(a)
         val o = a.value(1.0).not()
@@ -96,76 +98,83 @@ class OptionTest {
 class NominalTest {
 
     @Test
-    fun index() {
-        val a = Nominal("a", null, 1, 2, 3)
+    fun indexOptional() {
+        val n = Nominal("n", true, Root(""), 1, 2, 3)
         val index = VariableIndex()
-        index.add(a)
-        assertEquals(0, index.indexOf(a))
-        assertEquals(4, a.nbrValues)
+        index.add(n)
+        assertEquals(0, index.indexOf(n))
+        assertEquals(4, n.nbrValues)
     }
 
     @Test
     fun indexMandatory() {
-        val a = Nominal("a", Root(""), 1, 2, 3)
+        val n = Nominal("n", false, Root(""), 1, 2, 3)
         val index = VariableIndex()
-        index.add(a)
-        assertEquals(0, index.indexOf(a))
-        assertEquals(3, a.nbrValues)
+        index.add(n)
+        assertEquals(0, index.indexOf(n))
+        assertEquals(3, n.nbrValues)
     }
 
     @Test
-    fun valueOf() {
-        val a = Nominal("a", null, "a", "b", "c", "d")
-        val instance = BitArray(5)
-        assertNull(a.valueOf(instance, 0))
+    fun valueOfOptional() {
+        val parent = Flag("f", 1, Root(""))
+        val n = Nominal("n", true, parent, "a", "b", "c", "d")
+        val instance = BitArray(6)
         instance[0] = true
+        assertNull(n.valueOf(instance, 1, 1))
+        instance[1] = true
         assertFailsWith(IllegalStateException::class) {
-            a.valueOf(instance, 0)
+            n.valueOf(instance, 1, 1)
         }
-        instance[2] = true
-        assertEquals("b", a.valueOf(instance, 0))
+        instance[3] = true
+        assertEquals("b", n.valueOf(instance, 1, 1))
     }
 
     @Test
     fun valueOfMandatory() {
-        val a = Nominal("a", Root(""), "a", "b", "c", "d")
+        val n = Nominal("n", false, Root(""), "a", "b", "c", "d")
         val instance = BitArray(4)
-        assertNull(a.valueOf(instance, 0))
+        assertFailsWith<IllegalStateException> {
+            assertNull(n.valueOf(instance, 0, 0))
+        }
         instance[1] = true
-        assertEquals("b", a.valueOf(instance, 0))
+        assertEquals("b", n.valueOf(instance, 0, 0))
     }
 
     @Test
-    fun toLiteral() {
-        val f = Nominal("a", null, "a", "b", "c")
+    fun toLiteralOptional() {
+        val n = Nominal("n", true, Root(""), "a", "b", "c")
         val index = VariableIndex()
-        index.add(f)
-        assertEquals(1, f.toLiteral(index))
+        index.add(n)
+        assertEquals(1, n.toLiteral(index))
     }
 
     @Test
     fun toLiteralMandatory() {
-        val f = Nominal("a", Root(""), "a", "b", "c")
+        val n = Nominal("n", false, Root(""), "a", "b", "c")
         val index = VariableIndex()
-        index.add(f)
-        assertFailsWith(Exception::class) { f.toLiteral(index) }
+        index.add(n)
+        assertFailsWith(Exception::class) { n.toLiteral(index) }
     }
 
     @Test
     fun toLiteral2() {
-        val f = Nominal("", null, 1, 2, 3, 4, 5, 6, 7)
+        val root = Root("root")
+        val parent = Flag("p", true, root)
+        val n = Nominal("n", true, parent, null, 1, 2, 3, 4, 5, 6, 7)
         val index = VariableIndex()
-        index.add(BitsVar("b", null, 5))
-        index.add(f)
-        assertEquals(7, f.toLiteral(index))
+        index.add(parent)
+        index.add(BitsVar("b", false, root, 5))
+        index.add(n)
+        assertEquals(7, n.toLiteral(index))
     }
 }
 
 class MultipleTest {
 
     @Test
-    fun index() {
-        val a = Multiple("a", null, 1, 2, 3)
+    fun indexOptional() {
+        val a = Multiple("a", true, Root(""), 1, 2, 3)
         val index = VariableIndex()
         index.add(a)
         assertEquals(0, index.indexOf(a))
@@ -174,7 +183,7 @@ class MultipleTest {
 
     @Test
     fun indexMandatory() {
-        val a = Multiple("a", Root(""), 1, 2, 3)
+        val a = Multiple("a", false, Root(""), 1, 2, 3)
         val index = VariableIndex()
         index.add(a)
         assertEquals(0, index.indexOf(a))
@@ -182,40 +191,42 @@ class MultipleTest {
     }
 
     @Test
-    fun valueOf() {
-        val a = Multiple("a", null, "a", "b", "c", "d")
+    fun valueOfOptional() {
+        val a = Multiple("a", true, Root(""), "a", "b", "c", "d")
         val instance = BitArray(5)
-        assertNull(a.valueOf(instance, 0))
+        assertNull(a.valueOf(instance, 0, 0))
         instance[0] = true
         assertFailsWith(IllegalStateException::class) {
-            a.valueOf(instance, 0)
+            a.valueOf(instance, 0, 0)
         }
         instance[2] = true
-        assertContentEquals(listOf("b"), a.valueOf(instance, 0)!!)
+        assertContentEquals(listOf("b"), a.valueOf(instance, 0, 0)!!)
         instance[1] = true
-        assertContentEquals(listOf("a", "b"), a.valueOf(instance, 0)!!)
+        assertContentEquals(listOf("a", "b"), a.valueOf(instance, 0, 0)!!)
         instance[3] = true
-        assertContentEquals(listOf("a", "b", "c"), a.valueOf(instance, 0)!!)
+        assertContentEquals(listOf("a", "b", "c"), a.valueOf(instance, 0, 0)!!)
     }
 
     @Test
     fun valueOfMandatory() {
-        val a = Multiple("a", Root(""), "a", "b", "c", "d")
+        val a = Multiple("a", false, Root(""), "a", "b", "c", "d")
         val index = VariableIndex()
         index.add(a)
         val instance = BitArray(4)
-        assertNull(a.valueOf(instance, 0))
+        assertFailsWith<IllegalStateException> {
+            a.valueOf(instance, 0, 0)
+        }
         instance[1] = true
-        assertContentEquals(listOf("b"), a.valueOf(instance, 0)!!)
+        assertContentEquals(listOf("b"), a.valueOf(instance, 0, 0)!!)
         instance[0] = true
-        assertContentEquals(listOf("a", "b"), a.valueOf(instance, 0)!!)
+        assertContentEquals(listOf("a", "b"), a.valueOf(instance, 0, 0)!!)
         instance[2] = true
-        assertContentEquals(listOf("a", "b", "c"), a.valueOf(instance, 0)!!)
+        assertContentEquals(listOf("a", "b", "c"), a.valueOf(instance, 0, 0)!!)
     }
 
     @Test
-    fun toLiteral() {
-        val f = Multiple("a", null, "a", "b", "c")
+    fun toLiteralOptional() {
+        val f = Multiple("a", true, Root(""), "a", "b", "c")
         val index = VariableIndex()
         index.add(f)
         assertEquals(1, f.toLiteral(index))
@@ -223,7 +234,7 @@ class MultipleTest {
 
     @Test
     fun toLiteralMandatory() {
-        val f = Multiple("a", Root(""), "a", "b", "c")
+        val f = Multiple("a", false, Root(""), "a", "b", "c")
         val index = VariableIndex()
         index.add(f)
         assertFailsWith(Exception::class) { assertEquals(Int.MAX_VALUE, f.toLiteral(index)) }
@@ -231,11 +242,10 @@ class MultipleTest {
 
     @Test
     fun toLiteral2() {
-        val f = Multiple("", null, 1, 2, 3, 4, 5, 6, 7)
+        val f = Multiple("", true, Root(""), 1, 2, 3, 4, 5, 6, 7)
         val index = VariableIndex()
-        index.add(BitsVar("b", null, 5))
+        index.add(BitsVar("b", true, Root(""), 5))
         index.add(f)
         assertEquals(7, f.toLiteral(index))
     }
 }
-

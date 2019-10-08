@@ -8,7 +8,7 @@ class ChildScope<out D : Scope> internal constructor(override val scopeName: Str
     override fun toString() = "ChildScope($scopeName)"
     override val children: List<ChildScope<ChildScope<D>>> = ArrayList()
     override val names: Map<String, Variable<*, *>> = HashMap()
-    override val scopeVariables: List<Variable<*, *>> = ArrayList()
+    override val variables: List<Variable<*, *>> = ArrayList()
     override val isRoot: Boolean get() = false
     override fun addScope(scopeName: String, reifiedValue: Value) = ChildScope(scopeName, reifiedValue, this).also {
         (children as MutableList).add(it)
@@ -21,7 +21,7 @@ class RootScope(override val reifiedValue: Value) : Scope {
     override val parent: Nothing get() = throw NoSuchElementException()
     override val children: List<ChildScope<RootScope>> = ArrayList()
     override val names: Map<String, Variable<*, *>> = HashMap()
-    override val scopeVariables: List<Variable<*, *>> = ArrayList()
+    override val variables: List<Variable<*, *>> = ArrayList()
     override val isRoot: Boolean get() = true
     override fun addScope(scopeName: String, reifiedValue: Value) = ChildScope(scopeName, reifiedValue, this).also {
         (children as MutableList).add(it)
@@ -39,7 +39,7 @@ interface Scope : Iterable<Variable<*, *>> {
     val parent: Scope
     val children: List<Scope>
     val names: Map<String, Variable<*, *>>
-    val scopeVariables: List<Variable<*, *>>
+    val variables: List<Variable<*, *>>
     val isRoot: Boolean
 
     /**
@@ -121,35 +121,35 @@ interface Scope : Iterable<Variable<*, *>> {
         var current: Scope = this
 
         run {
-            val currentVars = current.scopeVariables
+            val currentVars = current.variables
             while (i < currentVars.size && currentVars[i].nbrValues <= 0)
                 i++
             stack.addAll(this.children)
         }
 
         return generateSequence {
-            var scopeVars = current.scopeVariables
+            var scopeVars = current.variables
             while (i < scopeVars.size && scopeVars[i].nbrValues <= 0)
                 i++
 
-            while (i >= current.scopeVariables.size && stack.isNotEmpty()) {
+            while (i >= current.variables.size && stack.isNotEmpty()) {
                 current = stack.removeAt(stack.lastIndex)
                 stack.addAll(current.children)
                 i = 0
-                scopeVars = current.scopeVariables
+                scopeVars = current.variables
                 // Advance over empty variables (unit and reference)
                 while (i < scopeVars.size && scopeVars[i].nbrValues <= 0)
                     i++
             }
 
             // Return next variable or terminate with null
-            scopeVars = current.scopeVariables
+            scopeVars = current.variables
             if (i < scopeVars.size) scopeVars[i++] to current
             else null
         }
     }
 
-    fun asSequenceOfScope(): Sequence<Scope> {
+    fun scopesAsSequence(): Sequence<Scope> {
         val stack = ArrayList<Scope>()
         stack.add(this)
         return generateSequence {
@@ -168,7 +168,7 @@ interface Scope : Iterable<Variable<*, *>> {
             "Variable with name ${variable.name} already exists in scope $scopeName."
         }
         (names as MutableMap)[variable.name] = variable
-        (scopeVariables as MutableList).add(variable)
+        (variables as MutableList).add(variable)
     }
 
     fun addScope(scopeName: String, reifiedValue: Value): Scope

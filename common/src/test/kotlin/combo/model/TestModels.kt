@@ -9,29 +9,19 @@ import kotlin.random.Random
 
 object TestModels {
 
+    val MODELS: List<Model> by lazy { listOf(MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7) }
+    val LARGE_MODELS: List<Model> by lazy { listOf(LARGE1, LARGE2, LARGE3) }
+    val UNSAT_MODELS: List<Model> by lazy { listOf(UNSAT1, UNSAT2, UNSAT3, UNSAT4) }
+    val NUMERIC_MODELS: List<Model> by lazy { listOf(NUMERIC1, NUMERIC2, NUMERIC3) }
+    val CSP_MODELS: List<Model> by lazy { listOf(CSP1) }
+    val TINY_MODELS: List<Model> by lazy { listOf(MODEL2, MODEL3) }
 
-    val SAT_PROBLEMS: List<Problem> by lazy {
-        arrayOf(MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7)
-                .map { m -> m.problem }
-    }
-    val UNSAT_PROBLEMS: List<Problem> by lazy {
-        arrayOf(UNSAT1, UNSAT2, UNSAT3, UNSAT4)
-                .map { m -> m.problem }
-    }
-    val LARGE_SAT_PROBLEMS: List<Problem>  by lazy {
-        arrayOf(LARGE1, LARGE2, LARGE3, LARGE4)
-                .map { m -> m.problem }
-    }
-    val NUMERIC_PROBLEMS: List<Problem>  by lazy {
-        arrayOf(NUMERIC1, NUMERIC2, NUMERIC3)
-                .map { m -> m.problem }
-    }
-    val PB_PROBLEMS: List<Problem>  by lazy {
-        arrayOf(CSP1).map { m -> m.problem }
-    }
-    val TINY_PROBLEMS: List<Problem> by lazy {
-        listOf(MODEL2.problem, MODEL3.problem)
-    }
+    val SAT_PROBLEMS: List<Problem> by lazy { MODELS.map { m -> m.problem } }
+    val UNSAT_PROBLEMS: List<Problem> by lazy { UNSAT_MODELS.map { m -> m.problem } }
+    val LARGE_PROBLEMS: List<Problem> by lazy { LARGE_MODELS.map { m -> m.problem } }
+    val NUMERIC_PROBLEMS: List<Problem> by lazy { NUMERIC_MODELS.map { m -> m.problem } }
+    val CSP_PROBLEMS: List<Problem> by lazy { CSP_MODELS.map { m -> m.problem } }
+    val TINY_PROBLEMS: List<Problem> by lazy { TINY_MODELS.map { m -> m.problem } }
 
     val MODEL1 by lazy {
         Model.model("All Round Basic") {
@@ -239,7 +229,7 @@ object TestModels {
     val NUMERIC1 by lazy {
         Model.model("Ints in hierarchy") {
             optionalInt("int1", -1, 1)
-            int("int2", 0, 1)
+            int("int2", 2, 3)
             optionalInt("int3", 0, Int.MAX_VALUE)
             model {
                 optionalInt("int4")
@@ -263,14 +253,14 @@ object TestModels {
             optionalInt("int1", min = -100, max = 100)
             int("int2", min = -10, max = 0)
             optionalFloat("float1", min = -0.1f, max = 1.0f)
-            float("float2",min = -0.1f, max = 1.0f)
+            float("float2", min = 0.0f, max = 1.0f)
             optionalBits(nbrBits = 10)
             bits(nbrBits = 100)
             model {
-                optionalInt("int3", min = -100, max = 100)
+                optionalInt("int3", min = -10, max = 100)
                 int("int4")
                 optionalFloat("float3", min = -0.1f, max = 1.0f)
-                float("float4",min = -0.1f, max = 1.0f)
+                float("float4", min = -0.1f, max = 1.0f)
                 optionalBits(nbrBits = 10)
                 bits(nbrBits = 100)
             }

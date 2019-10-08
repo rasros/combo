@@ -11,7 +11,7 @@ class VariableIndex : Iterable<Variable<*, *>> {
     private val index: MutableMap<Variable<*, *>, Int> = LinkedHashMap()
     private val variables = ArrayList<Variable<*, *>>()
 
-    var nbrLiterals: Int = 0
+    var nbrValues: Int = 0
         private set
 
     val nbrVariables: Int get() = index.size
@@ -19,10 +19,10 @@ class VariableIndex : Iterable<Variable<*, *>> {
     fun add(variable: Variable<*, *>): Int {
         assert(variable !is Root)
         require(!index.containsKey(variable)) { "Variable $variable already added." }
-        index[variable] = nbrLiterals
+        index[variable] = nbrValues
         variables.add(variable)
-        nbrLiterals += variable.nbrValues
-        return nbrLiterals
+        nbrValues += variable.nbrValues
+        return nbrValues
     }
 
     fun variable(variableIndex: Int) = variables[variableIndex]

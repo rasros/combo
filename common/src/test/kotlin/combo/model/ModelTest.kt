@@ -47,6 +47,7 @@ class ModelTest {
             val solver = ModelOptimizer(this, ExhaustiveSolver(problem))
             val assignments = solver.asSequence(this["f3"]).toList()
             assignments.forEach {
+                assertTrue(it.contains("f2"))
                 assertTrue(it.contains("f3"))
                 assertTrue(it.contains("alt1"))
                 assertEquals("d", it.getString("alt2"))
@@ -276,7 +277,7 @@ class ModelTest {
         with(TestModels.NUMERIC3) {
             assertEquals(13, scope.asSequence().count())
             assertEquals(20, problem.constraints.size)
-            assertEquals(435, problem.nbrValues)
+            assertEquals(408, problem.nbrValues)
             val instance = BitArray(problem.nbrValues)
             for (c in problem.constraints)
                 c.coerce(instance, Random)

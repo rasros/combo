@@ -13,33 +13,7 @@ import kotlin.jvm.JvmOverloads
  */
 class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
 
-    private val reifiedLiterals: IntArray = IntArray(problem.nbrValues)
-    // TODO could be a range with binary search
-    // like so : private data class ReifiedLiteral(val index: Int, val range: IntRange)
-
-    init {
-        fun Value.toIndex() = if (this is Root) 0 else this.toLiteral(index)
-        for ((variable, parent) in scope.asSequenceWithScope()) {
-            val ix = index.indexOf(variable)
-
-            val offset = if (variable.mandatory) {
-                0
-            } else {
-                reifiedLiterals[ix] = parent.reifiedValue.toIndex()
-                1
-            }
-            for (i in offset until variable.nbrValues) {
-                reifiedLiterals[ix + i] = variable.reifiedValue.toIndex()
-            }
-        }
-    }
-
     val nbrVariables: Int get() = index.nbrVariables
-
-    /**
-     * Which literal is the parent value of the given value [index], 0 for the root.
-     */
-    fun reifiedLiteral(valueIndex: Int) = reifiedLiterals[valueIndex]
 
     /**
      * Create an assignment based on setting the literals provided.
@@ -100,12 +74,12 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
 
         fun build(): Model {
             val constraints = let {
-                val problem = Problem(index.nbrLiterals, constraints.toTypedArray())
+                val problem = Problem(index.nbrValues, constraints.toTypedArray())
                 val reduced = problem.unitPropagation(units as IntHashSet, true)
                 if (units.size > 0) reduced + Conjunction(collectionOf(*units.toArray()))
                 else reduced
             }
-            return Model(Problem(index.nbrLiterals, constraints), index, scope)
+            return Model(Problem(index.nbrValues, constraints), index, scope)
         }
 
         fun bool(name: String = Variable.defaultName()) = flag(name, true)
@@ -114,7 +88,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Wraps an object which is defined when the underlying variable is true.
          */
         fun <V> flag(name: String = Variable.defaultName(), value: V) =
-                Flag(name, value).apply {
+                Flag(name, value, scope.reifiedValue).apply {
                     addVariable(this)
                 }
 
@@ -122,7 +96,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Only one of the provided values can be defined, with an indicator variable.
          */
         fun <V> optionalNominal(name: String = Variable.defaultName(), vararg values: V) =
-                Nominal(name, null, *values).also {
+                Nominal(name, true, scope.reifiedValue, *values).also {
                     addVariable(it)
                 }
 
@@ -130,7 +104,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Only one of the provided values can be defined.
          */
         fun <V> nominal(name: String = Variable.defaultName(), vararg values: V) =
-                Nominal(name, scope.reifiedValue, *values).also {
+                Nominal(name, false, scope.reifiedValue, *values).also {
                     addVariable(it)
                 }
 
@@ -138,7 +112,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Any of the provided values can be defined in a [List].
          */
         fun <V> multiple(name: String = Variable.defaultName(), vararg values: V) =
-                Multiple(name, scope.reifiedValue, *values).also {
+                Multiple(name, false, scope.reifiedValue, *values).also {
                     addVariable(it)
                 }
 
@@ -146,7 +120,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Any of the provided values can be defined in a [List], with an indicator variable.
          */
         fun <V> optionalMultiple(name: String = Variable.defaultName(), vararg values: V) =
-                Multiple(name, null, *values).also {
+                Multiple(name, true, scope.reifiedValue, *values).also {
                     addVariable(it)
                 }
 
@@ -154,7 +128,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Integer value with specified bounds, with an indicator variable.
          */
         fun optionalInt(name: String = Variable.defaultName(), min: Int = Int.MIN_VALUE, max: Int = Int.MAX_VALUE) =
-                IntVar(name, null, min, max).also {
+                IntVar(name, true, scope.reifiedValue, min, max).also {
                     addVariable(it)
                 }
 
@@ -162,7 +136,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Integer value with specified bounds.
          */
         fun int(name: String = Variable.defaultName(), min: Int = Int.MIN_VALUE, max: Int = Int.MAX_VALUE) =
-                IntVar(name, scope.reifiedValue, min, max).also {
+                IntVar(name, false, scope.reifiedValue, min, max).also {
                     addVariable(it)
                 }
 
@@ -170,7 +144,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Float value with specified bounds, with an indicator variable.
          */
         fun optionalFloat(name: String = Variable.defaultName(), min: Float = -MAX_VALUE32, max: Float = MAX_VALUE32) =
-                FloatVar(name, null, min, max).also {
+                FloatVar(name, true, scope.reifiedValue, min, max).also {
                     addVariable(it)
                 }
 
@@ -178,7 +152,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * Float value with specified bounds.
          */
         fun float(name: String = Variable.defaultName(), min: Float = -MAX_VALUE32, max: Float = MAX_VALUE32) =
-                FloatVar(name, scope.reifiedValue, min, max).also {
+                FloatVar(name, false, scope.reifiedValue, min, max).also {
                     addVariable(it)
                 }
 
@@ -187,7 +161,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * @param nbrBits number of bits in the bit field.
          */
         fun bits(name: String = Variable.defaultName(), nbrBits: Int) =
-                BitsVar(name, scope.reifiedValue, nbrBits).also {
+                BitsVar(name, false, scope.reifiedValue, nbrBits).also {
                     addVariable(it)
                 }
 
@@ -196,7 +170,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          * @param nbrBits number of bits in the bit field.
          */
         fun optionalBits(name: String = Variable.defaultName(), nbrBits: Int) =
-                BitsVar(name, null, nbrBits).also {
+                BitsVar(name, true, scope.reifiedValue, nbrBits).also {
                     addVariable(it)
                 }
 
@@ -245,7 +219,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
             index.add(variable)
             scope.add(variable)
             val parentValue = this@ModelBuilder.scope.reifiedValue
-            if (!variable.mandatory && parentValue !is Root)
+            if (variable.optional && parentValue !is Root)
                 impose { variable implies parentValue }
             variable.implicitConstraints(scope, index).forEach {
                 addConstraint(it)
@@ -272,7 +246,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
                     }
                 } else next.reifiedValue
                 parent.model(rv, next.scopeName) {
-                    next.scopeVariables.forEach { addVariable(it) }
+                    next.variables.forEach { addVariable(it) }
                     next.children.forEach {
                         scopes.add(it)
                         definedIn.add(this)
