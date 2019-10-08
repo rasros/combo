@@ -9,11 +9,10 @@ import kotlin.random.Random
 
 sealed class NumericConstraint(override val literals: IntRangeCollection) : Constraint {
     override val priority: Int get() = 300
-    override fun cacheUpdate(cacheResult: Int, newLit: Literal) = 0
+    override fun cacheUpdate(cacheResult: Int, newLit: Int) = 0
     override fun cache(instance: Instance) = 0
     override fun isUnit() = false
-    override fun unitPropagation(unit: Literal) = this
-    override fun remap(from: Int, to: Int) = throw UnsupportedOperationException()
+    override fun unitPropagation(unit: Int) = this
 }
 
 class IntBounds(literals: IntRangeCollection, val min: Int, val max: Int) : NumericConstraint(literals) {
@@ -31,15 +30,13 @@ class IntBounds(literals: IntRangeCollection, val min: Int, val max: Int) : Nume
         return Int.bitCount(changedBits)
     }
 
-    override fun offset(offset: Int) = IntBounds(literals.map { it + offset }, min, max)
-
     override fun coerce(instance: MutableInstance, rng: Random) {
         val coerced = rng.nextInt(min, if (max == Int.MAX_VALUE) max else max + 1)
         if (isSigned()) instance.setSignedInt(literals.min.toIx(), literals.size, coerced)
         else instance.setBits(literals.min.toIx(), literals.size, coerced)
     }
 
-    override fun toString() = "IntBounds(${literals.min.toLiteral(true)} in $min:$max)"
+    override fun toString() = "IntBounds(${literals.min} in $min:$max)"
 }
 
 class FloatBounds(literals: IntRangeCollection, val min: Float, val max: Float) : NumericConstraint(literals) {
@@ -66,8 +63,6 @@ class FloatBounds(literals: IntRangeCollection, val min: Float, val max: Float) 
         val changedBits = coercedBits xor valueBits
         return Int.bitCount(changedBits)
     }
-
-    override fun offset(offset: Int) = FloatBounds(literals.map { it + offset }, min, max)
 
     override fun coerce(instance: MutableInstance, rng: Random) {
         val coerced = rng.nextFloat(min, max)

@@ -21,16 +21,7 @@ class Disjunction(override val literals: IntCollection) : PropositionalConstrain
 
     override fun violations(instance: Instance, cacheResult: Int) = if (cacheResult > 0) 0 else 1
 
-    override fun offset(offset: Int) = Disjunction(literals.map { it.offset(offset) })
-
-    override fun remap(from: Int, to: Int) =
-            Disjunction(collectionOf(*literals.mutableCopy(nullValue = 0).apply {
-                val truth = from.toLiteral(true) in literals
-                remove(from.toLiteral(truth))
-                add(to.toLiteral(truth))
-            }.toArray()))
-
-    override fun unitPropagation(unit: Literal): PropositionalConstraint {
+    override fun unitPropagation(unit: Int): PropositionalConstraint {
         return if (unit in literals) Tautology
         else if (!unit in literals) {
             if (literals.size == 1) {
@@ -50,7 +41,7 @@ class Disjunction(override val literals: IntCollection) : PropositionalConstrain
             instance.set(literals.random(rng))
     }
 
-    override fun toString() = literals.joinToString(", ", "Disjunction(", ")") { it.toString() }
+    override fun toString() = "Disjunction($literals)"
 }
 
 /**
@@ -68,16 +59,7 @@ class Conjunction(override val literals: IntCollection) : PropositionalConstrain
 
     override fun violations(instance: Instance, cacheResult: Int) = literals.size - cacheResult
 
-    override fun offset(offset: Int) = Conjunction(literals.map { it.offset(offset) })
-
-    override fun remap(from: Int, to: Int) =
-            Conjunction(literals.mutableCopy(nullValue = 0).apply {
-                val truth = from.toLiteral(true) in literals
-                remove(from.toLiteral(truth))
-                add(to.toLiteral(truth))
-            })
-
-    override fun unitPropagation(unit: Literal): PropositionalConstraint {
+    override fun unitPropagation(unit: Int): PropositionalConstraint {
         if (!unit in literals) return Empty
         return if (unit in literals) {
             if (literals.size == 1) Tautology
@@ -102,5 +84,5 @@ class Conjunction(override val literals: IntCollection) : PropositionalConstrain
         } else for (lit in literals) instance.set(lit)
     }
 
-    override fun toString() = literals.joinToString(", ", "Conjunction(", ")") { it.toString() }
+    override fun toString() = "Conjunction($literals)"
 }

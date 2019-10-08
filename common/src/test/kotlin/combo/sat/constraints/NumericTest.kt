@@ -13,7 +13,7 @@ import kotlin.test.*
 
 class IntBoundsTest : ConstraintTest() {
 
-    private fun nbrLiterals(min: Int, max: Int) = IntVar("", Root(""), min, max).nbrValues
+    private fun nbrLiterals(min: Int, max: Int) = IntVar("", false, Root(""), min, max).nbrValues
 
     private fun violations(min: Int, max: Int, value: Int): Int {
         val nbrLiterals = nbrLiterals(min, max)
@@ -89,8 +89,8 @@ class IntBoundsTest : ConstraintTest() {
         fun testBounds(ix: Int, min: Int, max: Int) {
             for (i in 1..1000) {
                 val coercedInstances = randomCoerce(IntBounds(ix, min, max, nbrLiterals(min, max)))
-                val variable = IntVar("", parent = Root(""), min = min, max = max)
-                val values = coercedInstances.map { variable.valueOf(it, ix)!! }
+                val variable = IntVar("", false, Root(""), min, max)
+                val values = coercedInstances.map { variable.valueOf(it, ix, 0)!! }
                 if (min in values && max in values) return
                 assertTrue(values.max()!! <= max)
                 assertTrue(values.min()!! >= min)
@@ -159,10 +159,10 @@ class FloatBoundsTest : ConstraintTest() {
         fun testBounds(ix: Int, min: Float, max: Float) {
             val bounds = FloatBounds(ix, min, max)
             val rng = Random(0)
-            val variable = FloatVar("", min = min, max = max, parent = Root(""))
+            val variable = FloatVar("", false, Root(""), min, max)
             val values = InstancePermutation(32 + ix, BitArrayBuilder, rng).asSequence().take(100).map {
                 bounds.coerce(it, rng)
-                variable.valueOf(it, ix)!!
+                variable.valueOf(it, ix, 0)!!
             }.toList().toFloatArray()
             assertEquals(min, values.min()!!, 0.01f * (max - min).absoluteValue)
         }

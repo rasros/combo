@@ -27,7 +27,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
 
     override val randomSeed get() = baseOptimizer.randomSeed
     override val timeout get() = baseOptimizer.timeout
-    private val randomSequence = RandomSequence(nanos().toInt())
+    private val randomSequence = RandomSequence(randomSeed)
 
     private val buffer = RandomCache<Instance>(maxSize)
 

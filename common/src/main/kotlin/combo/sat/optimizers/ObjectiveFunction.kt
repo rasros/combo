@@ -50,9 +50,9 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
     override fun lowerBound() = lowerBound
     override fun upperBound() = upperBound
 
-    override fun improvement(instance: MutableInstance, ix: Literal): Float {
+    override fun improvement(instance: MutableInstance, ix: Int): Float {
         val literal = !instance.literal(ix)
-        return if (literal in instance) 0.0f
+        return if (instance.literal(literal.toIx()) == literal) 0.0f
         else {
             val w = weights[literal.toIx()].let { if (instance[literal.toIx()]) it else -it }
             if (maximize) -w else w
@@ -64,7 +64,7 @@ object SatObjective : LinearObjective(false, EMPTY_FLOAT_ARRAY) {
     override fun value(instance: Instance) = 0.0f
     override fun lowerBound() = 0.0f
     override fun upperBound() = 0.0f
-    override fun improvement(instance: MutableInstance, ix: Literal) = 0.0f
+    override fun improvement(instance: MutableInstance, ix: Int) = 0.0f
 }
 
 /**

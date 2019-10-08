@@ -66,7 +66,7 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
 
     override fun set(ix: Int, value: Boolean) {
         val literal = ix.toLiteral(value)
-        if (literal in instance) return
+        if (instance.literal(literal.toIx()) == literal) return
         if (literal.toIx() in assumptionIxs)
             updateConst(ix, assumption, constraintCache.lastIndex)
         for (constId in problem.constraining(ix)) {

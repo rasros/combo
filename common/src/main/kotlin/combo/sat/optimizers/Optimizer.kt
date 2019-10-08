@@ -1,7 +1,6 @@
 package combo.sat.optimizers
 
 import combo.sat.Instance
-import combo.sat.Literal
 import combo.sat.MutableInstance
 import combo.sat.ValidationException
 import combo.util.EmptyCollection

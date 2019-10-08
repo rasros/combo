@@ -41,14 +41,14 @@ class LocalSearch(val problem: Problem,
                   override val randomSeed: Int = nanos().toInt(),
                   override val timeout: Long = -1L,
                   val restarts: Int = 5,
-                  val maxSteps: Int = 100,
+                  val maxSteps: Int = max(100, problem.nbrValues),
                   val pRandomWalk: Float = 0.8f,
                   val pRandomWalkDecay: Float = 0.95f,
-                  tabuListSize: Int = 8,
+                  tabuListSize: Int = Int.power2(min(problem.nbrValues, 2)),
                   val instanceBuilder: InstanceBuilder = BitArrayBuilder,
                   val initializer: InstanceInitializer<*> = ConstraintCoercer(problem, WordRandomSet()),
                   val eps: Float = 1E-4f,
-                  val maxConsideration: Int = 50,
+                  val maxConsideration: Int = max(20, problem.nbrValues / 5),
                   val propagateAssumptions: Boolean = true,
                   val transitiveImplications: TransitiveImplications? = null) : Optimizer<ObjectiveFunction> {
 
@@ -189,16 +189,16 @@ class LocalSearch(val problem: Problem,
         private var randomSeed: Int = nanos().toInt()
         private var timeout: Long = -1L
         private var restarts: Int = 5
-        private var maxSteps: Int = 100
+        private var maxSteps: Int = max(100, problem.nbrValues)
         private var pRandomWalk: Float = 0.8f
         private var pRandomWalkDecay: Float = 0.95f
-        private var tabuListSize: Int = 10
+        private var tabuListSize: Int = Int.power2(min(problem.nbrValues, 2))
         private var instanceBuilder: InstanceBuilder = BitArrayBuilder
         private var eps: Float = 1E-4f
-        private var maxConsideration: Int = 50
+        private var maxConsideration: Int = max(20, problem.nbrValues / 5)
         private var propagateAssumptions: Boolean = true
 
-        private var propagateFlips: Boolean = true
+        private var propagateFlips: Boolean = false
         private var initializerType: InitializerType = InitializerType.PROPAGATE_COERCE
         private var initializerBias: Float = 0.5f
         private var initializerNoise: Float = 0.5f

@@ -18,7 +18,7 @@ abstract class ObjectiveFunctionTest {
 
     @Test
     fun valueAndImprovement() {
-        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val f = function(p.nbrValues)
             val instance = BitArray(p.nbrValues)
             WordRandomSet().initialize(instance, Tautology, Random, null)

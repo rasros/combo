@@ -5,11 +5,11 @@ import combo.util.*
 import kotlin.math.min
 import kotlin.random.Random
 
-sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constraint) : Constraint {
+sealed class ReifiedConstraint(val literal: Int, open val constraint: Constraint) : Constraint {
 
     override val priority: Int get() = constraint.priority + literals.size
 
-    override fun cacheUpdate(cacheResult: Int, newLit: Literal) =
+    override fun cacheUpdate(cacheResult: Int, newLit: Int) =
             if (newLit.toIx() == literal.toIx()) cacheResult
             else constraint.cacheUpdate(cacheResult, newLit)
 
@@ -21,7 +21,7 @@ sealed class ReifiedConstraint(val literal: Literal, open val constraint: Constr
  * ReifiedEquivalent encodes the constraint [literal] <=> [constraint]. That is, the constraint is satisfied when both the
  * [constraint] and [literal] is satisfied or when neither of them are.
  */
-class ReifiedEquivalent(literal: Literal, override val constraint: PropositionalConstraint) : ReifiedConstraint(literal, constraint), PropositionalConstraint {
+class ReifiedEquivalent(literal: Int, override val constraint: PropositionalConstraint) : ReifiedConstraint(literal, constraint), PropositionalConstraint {
 
     init {
         assert(constraint.literals.isNotEmpty())
@@ -31,19 +31,14 @@ class ReifiedEquivalent(literal: Literal, override val constraint: Propositional
     override val literals: IntCollection = unionCollection(constraint.literals, literal)
 
     override operator fun not() = ReifiedEquivalent(!literal, constraint)
-    override fun offset(offset: Int) = ReifiedEquivalent(literal.offset(offset), constraint.offset(offset))
-
-    override fun remap(from: Int, to: Int) =
-            if (literal.toIx() == from) ReifiedEquivalent(to.toLiteral(literal.toBoolean()), constraint)
-            else ReifiedEquivalent(literal, constraint.remap(from, to))
 
     override fun violations(instance: Instance, cacheResult: Int): Int {
         val constraintViolations = constraint.violations(instance, cacheResult)
-        return if (literal in instance) min(1, constraintViolations)
+        return if (instance.literal(literal.toIx()) == literal) min(1, constraintViolations)
         else return if (constraintViolations == 0) 1 else 0
     }
 
-    override fun unitPropagation(unit: Literal): PropositionalConstraint {
+    override fun unitPropagation(unit: Int): PropositionalConstraint {
         return when (unit) {
             literal -> constraint
             !literal -> constraint.not()
@@ -60,7 +55,7 @@ class ReifiedEquivalent(literal: Literal, override val constraint: Propositional
     }
 
     override fun coerce(instance: MutableInstance, rng: Random) {
-        if (literal in instance) constraint.coerce(instance, rng)
+        if (instance.literal(literal.toIx()) == literal) constraint.coerce(instance, rng)
         else if (constraint.satisfies(instance)) instance.set(literal)
     }
 
@@ -87,7 +82,7 @@ class ReifiedEquivalent(literal: Literal, override val constraint: Propositional
  * ReifiedImplies encodes the constraint [literal] => [constraint]. This is also known as the IfThen constraint, i.e.
  * if [literal] then [constraint].
  */
-class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstraint(literal, constraint) {
+class ReifiedImplies(literal: Int, constraint: Constraint) : ReifiedConstraint(literal, constraint) {
 
     init {
         assert(constraint.literals.isNotEmpty())
@@ -96,18 +91,12 @@ class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstrai
 
     override val literals: IntCollection = unionCollection(constraint.literals, literal)
 
-    override fun offset(offset: Int) = ReifiedImplies(literal.offset(offset), constraint.offset(offset))
-
-    override fun remap(from: Int, to: Int) =
-            if (literal.toIx() == from) ReifiedImplies(to.toLiteral(literal.toBoolean()), constraint)
-            else ReifiedImplies(literal, constraint.remap(from, to))
-
     override fun violations(instance: Instance, cacheResult: Int): Int {
-        return if (literal in instance) min(1, constraint.violations(instance, cacheResult))
+        return if (instance.literal(literal.toIx()) == literal) min(1, constraint.violations(instance, cacheResult))
         else 0
     }
 
-    override fun unitPropagation(unit: Literal): Constraint {
+    override fun unitPropagation(unit: Int): Constraint {
         return when {
             unit == literal -> constraint
             unit.toIx() == literal.toIx() -> Tautology
@@ -124,7 +113,7 @@ class ReifiedImplies(literal: Literal, constraint: Constraint) : ReifiedConstrai
     }
 
     override fun coerce(instance: MutableInstance, rng: Random) {
-        if (literal in instance) constraint.coerce(instance, rng)
+        if (instance.literal(literal.toIx()) == literal) constraint.coerce(instance, rng)
     }
 
     fun toCnf(): Sequence<Disjunction> {

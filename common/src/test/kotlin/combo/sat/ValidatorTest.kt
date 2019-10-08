@@ -57,7 +57,7 @@ class ValidatorTest {
 
     @Test
     fun flip() {
-        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val instance = BitArray(p.nbrValues)
             WordRandomSet().initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)
@@ -72,7 +72,7 @@ class ValidatorTest {
 
     @Test
     fun flipMany() {
-        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val instance = BitArray(p.nbrValues)
             WordRandomSet().initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)
@@ -86,7 +86,7 @@ class ValidatorTest {
 
     @Test
     fun improvementNoChange() {
-        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val instance = BitArrayBuilder.create(p.nbrValues)
             WordRandomSet().initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)
@@ -100,7 +100,7 @@ class ValidatorTest {
 
     @Test
     fun improvement() {
-        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val instance = BitArrayBuilder.create(p.nbrValues)
             WordRandomSet(0.1f).initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)

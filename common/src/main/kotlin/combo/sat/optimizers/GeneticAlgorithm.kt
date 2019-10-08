@@ -71,7 +71,7 @@ class GeneticAlgorithm(val problem: Problem,
                        val minScoreSample: DataSample = VoidSample)
     : Optimizer<ObjectiveFunction> {
 
-    private var randomSequence = RandomSequence(nanos().toInt())
+    private var randomSequence = RandomSequence(randomSeed)
 
     override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: MutableInstance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE

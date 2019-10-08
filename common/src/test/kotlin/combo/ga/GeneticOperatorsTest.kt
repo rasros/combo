@@ -19,7 +19,7 @@ data class ExpandedCandidates(val candidates: ValidatorCandidates,
 fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCandidates {
     val instanceBuilder = BitArrayBuilder
     val instances = Array(nbrStates) {
-        val instance = instanceBuilder.create(problem.nbrVariables)
+        val instance = instanceBuilder.create(problem.nbrValues)
         WordRandomSet().initialize(instance, Tautology, rng, null)
         Validator(problem, instance, Tautology)
     }
@@ -122,7 +122,7 @@ abstract class RecombinationOperatorTest {
 
     @Test
     fun testDifference() {
-        for (p in TestModels.SAT_PROBLEMS + TestModels.UNSAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.SAT_PROBLEMS + TestModels.UNSAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val rng = Random
             val popSize = 10
             val (candidates, _) = createCandidates(p, popSize, rng)
@@ -163,7 +163,7 @@ abstract class SelectionOperatorTest {
 
     @Test
     fun totalSpread() {
-        for (p in TestModels.SAT_PROBLEMS + TestModels.UNSAT_PROBLEMS + TestModels.LARGE_SAT_PROBLEMS) {
+        for (p in TestModels.SAT_PROBLEMS + TestModels.UNSAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
             val rng = Random(1)
             val n = 10
             val (candidates, _) = createCandidates(p, n, rng)
@@ -270,5 +270,5 @@ class FixedMutationOperatorTest : MutationOperatorTest() {
 }
 
 class PropagatingMutatorTest : MutationOperatorTest() {
-    override fun mutationOperator(problem: Problem) = PropagatingMutator(FixedRateMutation(1), ImplicationDigraph(problem))
+    override fun mutationOperator(problem: Problem) = PropagatingMutator(FixedRateMutation(1), TransitiveImplications(problem))
 }

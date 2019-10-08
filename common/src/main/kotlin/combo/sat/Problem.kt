@@ -51,7 +51,7 @@ class Problem @JvmOverloads constructor(val nbrValues: Int, val constraints: Arr
     @JvmOverloads
     fun unitPropagation(unitLiterals: IntHashSet = IntHashSet(), returnConstraints: Boolean = false): Array<Constraint> {
 
-        fun addUnit(units: IntHashSet, unit: Literal): Boolean {
+        fun addUnit(units: IntHashSet, unit: Int): Boolean {
             if (units.contains(!unit)) throw UnsatisfiableException("Unsatisfiable by unit propagation.", literal = unit)
             else return units.add(unit)
         }

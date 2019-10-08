@@ -1,5 +1,6 @@
 package combo.sat.constraints
 
+import combo.model.IntVar
 import combo.sat.*
 import combo.sat.constraints.Relation.*
 import combo.util.*
@@ -29,7 +30,7 @@ class Linear(override val literals: IntHashMap, val weights: IntArray, val degre
 
     override operator fun not() = Linear(literals, weights, degree, !relation)
 
-    override fun cacheUpdate(cacheResult: Int, newLit: Literal) = cacheResult +
+    override fun cacheUpdate(cacheResult: Int, newLit: Int) = cacheResult +
             if (newLit in literals) weights[literals[newLit]] else -weights[literals[!newLit]]
 
     override fun cache(instance: Instance): Int {
@@ -37,7 +38,7 @@ class Linear(override val literals: IntHashMap, val weights: IntArray, val degre
         for (entry in literals.entryIterator()) {
             val lit = entry.key()
             val index = entry.value()
-            if (instance.contains(lit)) sum += weights[index]
+            if (instance.literal(lit.toIx()) == lit) sum += weights[index]
         }
         return sum
     }
@@ -49,16 +50,7 @@ class Linear(override val literals: IntHashMap, val weights: IntArray, val degre
         else approximateViolations.coerceAtMost(literals.size)
     }
 
-    override fun offset(offset: Int) = Linear(literals.map { it.offset(offset) }, weights, degree, relation)
-
-    override fun remap(from: Int, to: Int) =
-            Linear(literals.copy().apply {
-                val truth = from.toLiteral(true) in literals
-                val value = remove(from.toLiteral(truth))
-                add(entry(to.toLiteral(truth), value))
-            }, weights, degree, relation)
-
-    override fun unitPropagation(unit: Literal): PropositionalConstraint {
+    override fun unitPropagation(unit: Int): PropositionalConstraint {
         val ix1 = literals[unit, -1]
         val ix2 = literals[!unit, -1]
         return if (ix1 >= 0 || ix2 >= 0) {
@@ -148,16 +140,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
 
     override fun violations(instance: Instance, cacheResult: Int) = relation.violations(cacheResult, degree).coerceAtMost(literals.size)
 
-    override fun offset(offset: Int) = Cardinality(literals.map { it.offset(offset) }, degree, relation)
-
-    override fun remap(from: Int, to: Int) =
-            Cardinality(collectionOf(*literals.mutableCopy(nullValue = 0).apply {
-                val truth = from.toLiteral(true) in literals
-                remove(from.toLiteral(truth))
-                add(to.toLiteral(truth))
-            }.toArray()), degree, relation)
-
-    override fun unitPropagation(unit: Literal): PropositionalConstraint {
+    override fun unitPropagation(unit: Int): PropositionalConstraint {
         val match = unit in literals
         return if (match || !unit in literals) {
 
@@ -218,6 +201,36 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
     }
 
     override fun toString() = literals.joinToString(", ", "Cardinality(", " ${relation.operator} $degree)") { it.toString() }
+}
+
+class CardinalityVar(valueLiterals: IntCollection, val degreeVar: IntVar, val varIndex: Int, val parentLiteral: Int, val relation: Relation) : PropositionalConstraint {
+
+    override val priority: Int get() = 400 - literals.size
+    override val literals: IntUnionCollection
+
+    init {
+        assert(valueLiterals.isNotEmpty())
+        val l = varIndex.toLiteral(true)
+        val degreeLiterals = IntRangeCollection(l, l + degreeVar.nbrValues)
+        literals = if (parentLiteral == 0) IntUnionCollection(valueLiterals, degreeLiterals)
+        else IntUnionCollection(valueLiterals, IntUnionCollection(degreeLiterals, collectionOf(parentLiteral)))
+    }
+
+    override operator fun not() = CardinalityVar(literals.a, degreeVar, varIndex, parentLiteral, !relation)
+
+    // TODO unitPropagation by having a units as field
+
+    override fun violations(instance: Instance, cacheResult: Int): Int {
+        val degree = degreeVar.valueOf(instance, varIndex, parentLiteral) ?: return 0
+        return relation.violations(cacheResult, degree).coerceAtMost(literals.a.size)
+    }
+
+    override fun coerce(instance: MutableInstance, rng: Random) {
+        val degree = degreeVar.valueOf(instance, varIndex, parentLiteral) ?: return
+        Cardinality(literals.a, degree, relation).coerce(instance, rng)
+    }
+
+    override fun toString() = literals.a.joinToString(", ", "CardinalityVar(", " ${relation.operator} $varIndex)") { it.toString() }
 }
 
 enum class Relation(val operator: String) {

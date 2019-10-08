@@ -20,16 +20,6 @@ interface Constraint : Expression {
 
     val priority: Int
 
-    /**
-     * Offsets all the variable indices used by the literals in the constraint to the new ones given by [offset].
-     */
-    fun offset(offset: Int): Constraint
-
-    /**
-     * Change the index of [from] to the specified vaule [to].
-     */
-    fun remap(from: Int, to: Int): Constraint
-
     fun isUnit(): Boolean = size == 1
     fun unitLiterals(): Literals = literals.toArray()
 
@@ -42,7 +32,7 @@ interface Constraint : Expression {
      * Update the cached result with the changing literal [newLit]. This method can only be called if the literal is
      * contained in [literals].
      */
-    fun cacheUpdate(cacheResult: Int, newLit: Literal) = cacheResult + if (newLit in literals) 1 else -1
+    fun cacheUpdate(cacheResult: Int, newLit: Int) = cacheResult + if (newLit in literals) 1 else -1
 
     /**
      * Calculate the cached result of satisfy value. This will be updated with the [cacheUpdate] and used in the
@@ -63,7 +53,7 @@ interface Constraint : Expression {
             return sum
         }
         for (lit in literals.iterator()) {
-            if (instance.contains(lit)) sum++
+            if (instance.literal(lit.toIx()) == lit) sum++
         }
         return sum
     }
@@ -82,7 +72,7 @@ interface Constraint : Expression {
     /**
      * Change the constraint based on the value of a unit literal.
      */
-    fun unitPropagation(unit: Literal): Constraint
+    fun unitPropagation(unit: Int): Constraint
 
     fun coerce(instance: MutableInstance, rng: Random)
 }
@@ -91,9 +81,7 @@ interface Constraint : Expression {
  * A logic constraint can be negated "for free" without increasing the cost solving.
  */
 interface PropositionalConstraint : Constraint {
-    override fun offset(offset: Int): PropositionalConstraint
-    override fun remap(from: Int, to: Int): PropositionalConstraint
-    override fun unitPropagation(unit: Literal): PropositionalConstraint
+    override fun unitPropagation(unit: Int): PropositionalConstraint = this
     fun not(): PropositionalConstraint
 }
 
@@ -104,10 +92,8 @@ object Empty : PropositionalConstraint, Proposition {
     override val priority: Int get() = 0
     override val literals get() = EmptyCollection
     override fun violations(instance: Instance, cacheResult: Int) = Int.MAX_VALUE
-    override fun offset(offset: Int) = this
-    override fun remap(from: Int, to: Int) = this
     override operator fun not() = Tautology
-    override fun unitPropagation(unit: Literal) = this
+    override fun unitPropagation(unit: Int) = this
     override fun coerce(instance: MutableInstance, rng: Random) {}
     override fun toString() = "Empty"
 }
@@ -119,10 +105,8 @@ object Tautology : PropositionalConstraint, Proposition {
     override val priority: Int get() = 0
     override val literals get() = EmptyCollection
     override fun violations(instance: Instance, cacheResult: Int) = 0
-    override fun offset(offset: Int) = this
-    override fun remap(from: Int, to: Int) = this
     override operator fun not() = Empty
-    override fun unitPropagation(unit: Literal) = this
+    override fun unitPropagation(unit: Int) = this
     override fun coerce(instance: MutableInstance, rng: Random) {}
     override fun toString() = "Tautology"
 }
