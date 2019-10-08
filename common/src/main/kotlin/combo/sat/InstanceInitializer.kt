@@ -117,7 +117,8 @@ class WordRandomSet(val start: Int, val steps: Int) : InstanceInitializer<Object
     constructor(pBias: Float = .5f) : this(if (pBias > 0.5f) 0 else -1, min(sqrt(1 / min(pBias, 1 - pBias)).roundToInt(), 8))
 
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
-        val ints = (mi.size shr 5) + if (mi.size and 0x1F > 0) 1 else 0
+        val misaligned = mi.size and 0x1F > 0
+        val ints = (mi.size shr 5) + if (misaligned) 1 else 0
         var offset = 0
         for (i in 0 until ints) {
             var k = start
@@ -131,7 +132,7 @@ class WordRandomSet(val start: Int, val steps: Int) : InstanceInitializer<Object
                 }
             }
             if (k == 0) continue
-            if (i == ints - 1) {
+            if (i == ints - 1 && misaligned) {
                 val nbrBits = mi.size and 0x1F
                 mi.setBits(offset, nbrBits, k and (-1 shl nbrBits).inv())
             } else mi.setBits(offset, 32, k)
@@ -143,7 +144,7 @@ class WordRandomSet(val start: Int, val steps: Int) : InstanceInitializer<Object
 /**
  * Useful for very sparse problems where [pBias] is close to 0.
  */
-class GeometricRandomSet(val pBias: Float) : InstanceInitializer<ObjectiveFunction?> {
+class GeometricRandomSet(val pBias: Float = 0.5f) : InstanceInitializer<ObjectiveFunction?> {
     override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
         var index = rng.nextGeometric(pBias) - 1
         while (index < mi.size) {
