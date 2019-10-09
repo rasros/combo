@@ -3,32 +3,32 @@ package combo.util
 import kotlin.random.Random
 import kotlin.test.*
 
-class CircleBufferTest {
+class FloatCircleBufferTest {
 
     @Test
     fun addToSize() {
-        val cq = CircleBuffer<Int>(2)
+        val cq = FloatCircleBuffer(2)
         assertEquals(0, cq.size)
-        cq.add(1)
+        cq.add(1.0f)
         assertEquals(1, cq.size)
-        cq.add(2)
+        cq.add(2.0f)
         assertEquals(2, cq.size)
     }
 
     @Test
     fun addOverflow() {
-        val aq = CircleBuffer<Int>(2)
-        aq.add(1)
-        aq.add(2)
-        aq.add(3)
-        assertFalse(aq.contains(1))
-        assertTrue(aq.contains(2))
-        assertTrue(aq.contains(3))
+        val aq = FloatCircleBuffer(2)
+        aq.add(1.0f)
+        aq.add(2.0f)
+        aq.add(3.0f)
+        assertFalse(aq.contains(1.0f))
+        assertTrue(aq.contains(2.0f))
+        assertTrue(aq.contains(3.0f))
     }
 
     @Test
     fun empty() {
-        val cq = CircleBuffer<String>(10)
+        val cq = FloatCircleBuffer(10)
         assertFalse(cq.iterator().hasNext())
         assertFailsWith(NoSuchElementException::class) {
             cq.iterator().next()
