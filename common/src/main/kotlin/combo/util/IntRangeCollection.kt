@@ -63,5 +63,5 @@ class IntRangeCollection(val min: Int, val max: Int) : IntList {
 
     override fun copy() = IntRangeCollection(min, max)
 
-    override fun toString() = "[$min..$max]"
+    override fun toString() = "[$min:$max]"
 }

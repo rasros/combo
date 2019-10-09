@@ -91,7 +91,6 @@ fun collectionOf(vararg array: Int): IntCollection {
     }
 }
 
-// TODO join/replace with plus
 fun unionCollection(a: IntCollection, value: Int): IntCollection {
     return if (a is IntRangeCollection && (value + 1 in a || value - 1 in a)) IntRangeCollection(min(a.min, value), max(a.max, value))
     else IntUnionCollection(a, IntArrayList(intArrayOf(value)))
