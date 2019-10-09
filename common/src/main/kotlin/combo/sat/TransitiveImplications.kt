@@ -8,10 +8,10 @@ import kotlin.math.min
 
 /**
  * This class calculates the transitive closure of a graph in adjacency list form.
- * This is a recursive free implementation of the Simple_SC algorithm by Esko Nuutilas,
+ * This is a recursion-free implementation of the Simple_SC algorithm by Esko Nuutilas,
  * see http://www.cs.hut.fi/~enu/thesis.html
  */
-class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntArray>) {
+class TransitiveImplications(val nbrValues: Int, implications: Map<Int, IntArray>) {
 
     /**
      * This constructor calculates the initial edges in the graph.
@@ -46,8 +46,13 @@ class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntAr
         map.mapValues { it.value.toArray() }
     })
 
-    private val trueImplications = arrayOfNulls<SparseBitArray?>(nbrVariables * 2)
-    private val falseImplications = arrayOfNulls<SparseBitArray?>(nbrVariables * 2)
+    // Using a different encoding here for literals, so that literal can be used as array index.
+    // -1 = 0
+    // 1  = 1
+    // -2 = 2
+    // 2  = 3
+    private val trueImplications = arrayOfNulls<SparseBitArray?>(nbrValues * 2)
+    private val falseImplications = arrayOfNulls<SparseBitArray?>(nbrValues * 2)
 
     fun trueImplications(literal: Int) = trueImplications[toArrayIndex(literal)]
     fun falseImplications(literal: Int) = falseImplications[toArrayIndex(literal)]
@@ -69,18 +74,18 @@ class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntAr
             val ix = toArrayIndex(from)
             for (to in edges) {
                 if (to.toBoolean()) {
-                    if (trueImplications[ix] == null) trueImplications[ix] = SparseBitArray(nbrVariables)
+                    if (trueImplications[ix] == null) trueImplications[ix] = SparseBitArray(nbrValues)
                     trueImplications[ix]!![to.toIx()] = true
                 } else {
-                    if (falseImplications[ix] == null) falseImplications[ix] = SparseBitArray(nbrVariables)
+                    if (falseImplications[ix] == null) falseImplications[ix] = SparseBitArray(nbrValues)
                     falseImplications[ix]!![to.toIx()] = true
                 }
             }
         }
 
-        val visited = BooleanArray(nbrVariables * 2)
-        val component = IntArray(nbrVariables * 2) { -1 }
-        val root = IntArray(nbrVariables * 2)
+        val visited = BooleanArray(nbrValues * 2)
+        val component = IntArray(nbrValues * 2) { -1 }
+        val root = IntArray(nbrValues * 2)
 
         var components = 0
         val stack = IntArrayList()
@@ -88,7 +93,7 @@ class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntAr
         // This is a stack simulation to avoid recursion and stack overflow for large graphs (n>10000)
         val callStack = IntArrayList()
 
-        for (v in 0 until nbrVariables * 2) {
+        for (v in 0 until nbrValues * 2) {
             if (visited[v]) continue
             callStack.add(v)
             callStack.add(0)
@@ -144,9 +149,9 @@ class TransitiveImplications(val nbrVariables: Int, implications: Map<Int, IntAr
     }
 
     private fun addImplications(to: Int, from: Int) {
-        if (trueImplications[to] == null && trueImplications[from] != null) trueImplications[to] = SparseBitArray(nbrVariables)
+        if (trueImplications[to] == null && trueImplications[from] != null) trueImplications[to] = SparseBitArray(nbrValues)
         if (trueImplications[from] != null) trueImplications[to]!!.or(trueImplications[from]!!)
-        if (falseImplications[to] == null && falseImplications[from] != null) falseImplications[to] = SparseBitArray(nbrVariables)
+        if (falseImplications[to] == null && falseImplications[from] != null) falseImplications[to] = SparseBitArray(nbrValues)
         if (falseImplications[from] != null) falseImplications[to]!!.or(falseImplications[from]!!)
     }
 

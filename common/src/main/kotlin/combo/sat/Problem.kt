@@ -29,16 +29,16 @@ class Problem @JvmOverloads constructor(val nbrValues: Int, val constraints: Arr
     /**
      * Returns the index into the [constraints] array of all constraints with the given variable.
      */
-    fun constraining(binaryVarIx: Int) = constraintIndex[binaryVarIx] ?: EMPTY_INT_ARRAY
+    fun constraining(valueIx: Int) = constraintIndex[valueIx] ?: EMPTY_INT_ARRAY
 
     /**
-     * This method is intended for testing, solvers use [Validator]s instead.
+     * This method is intended for testing, solvers use [Validator] instead.
      * @return true if all constraints are satisfied.
      */
     fun satisfies(instance: Instance) = constraints.all { it.satisfies(instance) }
 
     /**
-     * This method is intended for testing, solvers use [Validator]s instead.
+     * This method is intended for testing, solvers use [Validator] instead.
      * @return sum of all constraint violations, this will be 0 if the problem is satisfied.
      */
     fun violations(instance: Instance) = constraints.sumBy { it.violations(instance) }

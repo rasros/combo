@@ -11,11 +11,11 @@ class VariableIndexTest {
         val v1 = Flag("a", true, Root(""))
         index.add(v1)
         assertEquals(1, index.nbrValues)
-        assertEquals(0, index.indexOf(v1))
+        assertEquals(0, index.valueIndexOf(v1))
         val v2 = Nominal("a", true, Root(""), 1, 2, 3)
         index.add(v2)
         assertEquals(5, index.nbrValues)
-        assertEquals(1, index.indexOf(v2))
+        assertEquals(1, index.valueIndexOf(v2))
     }
 
 }

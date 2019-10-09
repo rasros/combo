@@ -60,7 +60,7 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
     }
 }
 
-object SatObjective : LinearObjective(false, EMPTY_FLOAT_ARRAY) {
+object SatObjective : ObjectiveFunction {
     override fun value(instance: Instance) = 0.0f
     override fun lowerBound() = 0.0f
     override fun upperBound() = 0.0f

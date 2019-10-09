@@ -14,7 +14,7 @@ class FlagTest {
         val f = Flag("", true, Root(""))
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(1, f.nbrValues)
     }
 
@@ -102,7 +102,7 @@ class NominalTest {
         val n = Nominal("n", true, Root(""), 1, 2, 3)
         val index = VariableIndex()
         index.add(n)
-        assertEquals(0, index.indexOf(n))
+        assertEquals(0, index.valueIndexOf(n))
         assertEquals(4, n.nbrValues)
     }
 
@@ -111,7 +111,7 @@ class NominalTest {
         val n = Nominal("n", false, Root(""), 1, 2, 3)
         val index = VariableIndex()
         index.add(n)
-        assertEquals(0, index.indexOf(n))
+        assertEquals(0, index.valueIndexOf(n))
         assertEquals(3, n.nbrValues)
     }
 
@@ -177,7 +177,7 @@ class MultipleTest {
         val a = Multiple("a", true, Root(""), 1, 2, 3)
         val index = VariableIndex()
         index.add(a)
-        assertEquals(0, index.indexOf(a))
+        assertEquals(0, index.valueIndexOf(a))
         assertEquals(4, a.nbrValues)
     }
 
@@ -186,7 +186,7 @@ class MultipleTest {
         val a = Multiple("a", false, Root(""), 1, 2, 3)
         val index = VariableIndex()
         index.add(a)
-        assertEquals(0, index.indexOf(a))
+        assertEquals(0, index.valueIndexOf(a))
         assertEquals(3, a.nbrValues)
     }
 

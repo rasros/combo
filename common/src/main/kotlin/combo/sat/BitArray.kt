@@ -13,7 +13,7 @@ object BitArrayBuilder : InstanceBuilder {
 class BitArray constructor(override val size: Int, val field: IntArray) : MutableInstance {
 
     // Note this code uses a lot of bit shifts. The most common being masking by 0x1F and shifting right by 5.
-    //  - shifting by 5 is equivalent to dividing by 32 which gives the int to in field to access
+    //  - shifting by 5 is equivalent to dividing by 32 which gives the int-field to access
     //  - ix and 0x1F is equivalent to modulus by 32 which gives the bit in a specific int
     // Hence these two operations is used in get/set
 

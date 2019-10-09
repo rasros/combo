@@ -1,37 +1,30 @@
 package combo.sat
 
+import combo.util.EmptyCollection
+import combo.util.IntCollection
 import combo.util.IntHashSet
+import combo.util.isEmpty
 import kotlin.random.Random
 
 /**
- * This contains cached information about satisfied constraints during search.
+ * This contains cached information about satisfied constraints used during search by search-based methods,
+ * [combo.sat.optimizers.GeneticAlgorithm] and [combo.sat.optimizers.LocalSearch].
  */
 class Validator(val problem: Problem, val instance: MutableInstance, val assumption: Constraint) :
         MutableInstance, Instance by instance {
 
-
-    private fun rebuildIndex() {
-        totalUnsatisfied = 0
-        unsatisfied.clear()
-        for ((constId, const) in problem.constraints.withIndex()) {
-            constraintCache[constId] = const.cache(instance)
-            totalUnsatisfied += const.violations(this, constraintCache[constId]).also {
-                if (it > 0) unsatisfied.add(constId)
-            }
-        }
-        constraintCache[constraintCache.lastIndex] = assumption.cache(instance)
-        totalUnsatisfied += assumption.violations(this, constraintCache.last()).also {
-            if (it > 0) unsatisfied.add(constraintCache.lastIndex)
-        }
-    }
-
     var totalUnsatisfied: Int = 0
         private set
 
-    private val assumptionIxs = IntHashSet(nullValue = -1).apply {
-        assumption.literals.forEach { add(it.toIx()) }
-    }
+    private val assumptionIxs: IntCollection =
+            if (assumption.literals.isEmpty()) EmptyCollection
+            else IntHashSet(nullValue = -1).apply {
+                assumption.literals.forEach { add(it.toIx()) }
+            }
     private val unsatisfied = IntHashSet(nullValue = -1)
+
+    // TODO replace with map from int to int, and in combination let constraint cache value approach 0 for validation
+    // TODO then join with unsatisfied
     private val constraintCache = IntArray(problem.nbrConstraints + 1)
 
     init {
@@ -98,5 +91,20 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
     override fun clear() {
         instance.clear()
         rebuildIndex()
+    }
+
+    private fun rebuildIndex() {
+        totalUnsatisfied = 0
+        unsatisfied.clear()
+        for ((constId, const) in problem.constraints.withIndex()) {
+            constraintCache[constId] = const.cache(instance)
+            totalUnsatisfied += const.violations(this, constraintCache[constId]).also {
+                if (it > 0) unsatisfied.add(constId)
+            }
+        }
+        constraintCache[constraintCache.lastIndex] = assumption.cache(instance)
+        totalUnsatisfied += assumption.violations(this, constraintCache.last()).also {
+            if (it > 0) unsatisfied.add(constraintCache.lastIndex)
+        }
     }
 }

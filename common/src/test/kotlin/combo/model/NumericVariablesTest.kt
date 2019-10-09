@@ -54,7 +54,7 @@ class IntVarTest {
         val f = IntVar("", true, Root(""), min = 0, max = 1)
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(2, f.nbrValues)
     }
 
@@ -63,7 +63,7 @@ class IntVarTest {
         val f = IntVar("", false, Root(""), min = 0, max = 1)
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(1, f.nbrValues)
     }
 
@@ -145,7 +145,7 @@ class IntLiteralTest {
             val set = IntHashSet()
             v.value(value).collectLiterals(index, set)
             Conjunction(set).coerce(instance, Random)
-            assertEquals(value, v.valueOf(instance, index.indexOf(v), 0))
+            assertEquals(value, v.valueOf(instance, index.valueIndexOf(v), 0))
         }
 
         for (i in -10..10) testToLiteral(-10, 10, i)
@@ -190,7 +190,7 @@ class FloatVarTest {
         val f = FloatVar("", true, Root(""), 0f, 1f)
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(33, f.nbrValues)
     }
 
@@ -199,7 +199,7 @@ class FloatVarTest {
         val f = FloatVar("", false, Root(""), 0f, 1f)
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(32, f.nbrValues)
     }
 
@@ -341,7 +341,7 @@ class BitsVarTest {
         val f = BitsVar("", true, Root(""), 1)
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(2, f.nbrValues)
     }
 
@@ -350,7 +350,7 @@ class BitsVarTest {
         val f = BitsVar("", false, Root(""), 1)
         val index = VariableIndex()
         index.add(f)
-        assertEquals(0, index.indexOf(f))
+        assertEquals(0, index.valueIndexOf(f))
         assertEquals(1, f.nbrValues)
     }
 

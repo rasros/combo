@@ -168,18 +168,18 @@ abstract class OptimizerTest {
         val opt1 = m["int1"] as IntVar
 
         // First number is optional -100..100
-        val intSet = optimizer.witnessOrThrow(collectionOf(m.index.indexOf(opt1).toLiteral(true)))
+        val intSet = optimizer.witnessOrThrow(collectionOf(m.index.valueIndexOf(opt1).toLiteral(true)))
         assertTrue(TestModels.NUMERIC3.toAssignment(intSet)[opt1]!! in -100..100)
 
-        val intUnset = optimizer.witnessOrThrow(collectionOf(m.index.indexOf(opt1).toLiteral(false)))
+        val intUnset = optimizer.witnessOrThrow(collectionOf(m.index.valueIndexOf(opt1).toLiteral(false)))
         assertNull(TestModels.NUMERIC3.toAssignment(intUnset)[opt1])
 
         // First number is optional -0.1..1.0f
         val opt2 = m["float1"] as FloatVar
-        val floatSet = optimizer.witnessOrThrow(collectionOf(m.index.indexOf(opt2).toLiteral(true)))
+        val floatSet = optimizer.witnessOrThrow(collectionOf(m.index.valueIndexOf(opt2).toLiteral(true)))
         assertTrue(TestModels.NUMERIC3.toAssignment(floatSet)[opt2]!! in -0.1f..1.0f)
 
-        val floatUnset = optimizer.witnessOrThrow(collectionOf(m.index.indexOf(opt2).toLiteral(false)))
+        val floatUnset = optimizer.witnessOrThrow(collectionOf(m.index.valueIndexOf(opt2).toLiteral(false)))
         assertNull(TestModels.NUMERIC3.toAssignment(floatUnset)[opt2])
     }
 
