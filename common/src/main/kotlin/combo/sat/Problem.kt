@@ -77,12 +77,19 @@ class Problem @JvmOverloads constructor(val nbrValues: Int, val constraints: Arr
                 val unitId = unitLit.toIx()
                 val matching = constraining(unitId)
                 for (i in matching.indices) {
-                    val reduced = copy[matching[i]].unitPropagation(unitLit)
+                    if (i == constraintId) continue
+                    val constraintI = copy[matching[i]]
+                    val reduced = constraintI.unitPropagation(unitLit)
                     if (reduced is Empty)
                         throw UnsatisfiableException("Unsatisfiable by unit propagation.")
                     copy[matching[i]] = reduced
-                    if (reduced.isUnit())
-                        if (reduced.unitLiterals().any { l -> addUnit(unitLiterals, l) }) unitConstraint.add(matching[i])
+                    if (reduced.isUnit()) {
+                        var anyNew = false
+                        for (lit in reduced.unitLiterals())
+                            anyNew = addUnit(unitLiterals, lit) || anyNew
+                        if (anyNew)
+                            unitConstraint.add(matching[i])
+                    }
                 }
             }
         }
