@@ -4,10 +4,10 @@
   "description": "A package for constrained online multi-variate bandit optimization (combo)",
   "main": "index.js",
   "dependencies": {
-    "kotlin": "^1.3.0"
+    "kotlin": "^1.3.50"
   },
   "devDependencies": {
-    "qunit": "^2.7.1"
+    "qunit": "^2.9.2"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

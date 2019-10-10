@@ -11,6 +11,11 @@ dependencies {
     compile libraries.kotlin_stdlib_jdk
     testCompile libraries.kotlin_test_junit
 
+    compileOnly("org.nd4j:nd4j-native-platform:1.0.0-beta5")
+    testCompile("org.nd4j:nd4j-native-platform:1.0.0-beta5")
+    compileOnly("org.deeplearning4j:deeplearning4j-nn:1.0.0-beta5")
+    testCompile("org.deeplearning4j:deeplearning4j-nn:1.0.0-beta5")
+
     compileOnly("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
     testCompile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
 

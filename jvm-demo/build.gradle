@@ -11,8 +11,6 @@ dependencies {
     testCompile libraries.kotlin_test_junit
     compile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
     compile("org.jacop:jacop:4.6.0")
-
-    compile group: 'de.bwaldvogel', name: 'liblinear', version: '2.21'
 }
 
 

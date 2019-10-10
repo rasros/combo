@@ -3,3 +3,4 @@
 **/.idea
 js/node_modules
 jvm/out
+jvm-demo/out/
