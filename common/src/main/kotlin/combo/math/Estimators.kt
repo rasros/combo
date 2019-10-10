@@ -43,7 +43,7 @@ interface MeanEstimator : VarianceEstimator {
     override val variance: Float
         get() = mean
 
-    override fun copy(): VarianceEstimator
+    override fun copy(): MeanEstimator
 }
 
 /**
@@ -132,7 +132,7 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
  * @param beta strength of the update. For finite samples n the optimal parameter can be set to: beta = 2/n+1.
  * Default n is 99.
  */
-class ExponentialDecayVariance(var beta: Float = 0.02f, mean: Float = 0.0f, variance: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
+class ExponentialDecayVariance(val beta: Float = 0.02f, mean: Float = 0.0f, variance: Float = 0.0f, nbrWeightedSamples: Float = 0.0f)
     : VarianceEstimator {
 
     constructor(window: Int) : this(2.0f / (window + 1.0f))
