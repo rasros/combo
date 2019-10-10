@@ -27,7 +27,7 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
     }
 
     override fun toLiteral(variableIndex: VariableIndex) =
-            if (optional) variableIndex.indexOf(this).toLiteral(true)
+            if (optional) variableIndex.valueIndexOf(this).toLiteral(true)
             else parent.toLiteral(variableIndex)
 
     fun parentLiteral(variableIndex: VariableIndex) =
@@ -78,7 +78,7 @@ class Flag<out T> constructor(name: String, val value: T, override val parent: V
     override val nbrValues: Int get() = 1
     override fun toString() = "Flag($name)"
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int) = if (instance[index]) value else null
-    override fun toLiteral(variableIndex: VariableIndex) = variableIndex.indexOf(this).toLiteral(true)
+    override fun toLiteral(variableIndex: VariableIndex) = variableIndex.valueIndexOf(this).toLiteral(true)
     override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
     override val optional: Boolean get() = true
 }
@@ -112,7 +112,7 @@ sealed class Select<V, out T> constructor(name: String, override val optional: B
     inner class Option constructor(val valueIndex: Int, val value: V) : Value {
         override val canonicalVariable: Select<V, T> get() = this@Select
 
-        override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.indexOf(canonicalVariable) + valueIndex
+        override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.valueIndexOf(canonicalVariable) + valueIndex
                 + if (optional) 1 else 0).toLiteral(true)
 
         override fun toString() = "Option($name=$value)"

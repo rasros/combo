@@ -251,7 +251,7 @@ class ModelTest {
         with(TestModels.NUMERIC1) {
             assertEquals(7, scope.asSequence().count())
             assertEquals(11, problem.constraints.size)
-            assertEquals(103, problem.nbrValues)
+            assertEquals(104, problem.nbrValues)
             val instance = BitArray(problem.nbrValues)
             for (c in problem.constraints)
                 c.coerce(instance, Random)

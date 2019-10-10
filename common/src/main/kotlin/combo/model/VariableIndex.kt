@@ -26,12 +26,13 @@ class VariableIndex : Iterable<Variable<*, *>> {
     }
 
     fun variable(variableIndex: Int) = variables[variableIndex]
+    fun indexOf(variable: Variable<*, *>) = variables.indexOf(variable)
 
     fun variableWithValue(valueIndex: Int): Variable<*, *> {
         TODO("Implement with binary search")
     }
 
-    fun indexOf(variable: Variable<*, *>): Int =
+    fun valueIndexOf(variable: Variable<*, *>): Int =
             if (variable is Root) throw IllegalArgumentException("Root variable cannot be referenced.")
             else index[variable] ?: throw NoSuchElementException("Variable $variable not found.")
 

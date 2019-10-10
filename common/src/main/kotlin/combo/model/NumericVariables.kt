@@ -1,11 +1,11 @@
 package combo.model
 
 import combo.sat.*
-import combo.sat.constraints.*
-import combo.util.IntHashSet
-import combo.util.IntRangeCollection
-import combo.util.MAX_VALUE32
-import combo.util.bitSize
+import combo.sat.constraints.Conjunction
+import combo.sat.constraints.FloatBounds
+import combo.sat.constraints.IntBounds
+import combo.sat.constraints.ReifiedImplies
+import combo.util.*
 import kotlin.math.max
 
 /**
@@ -40,12 +40,12 @@ class IntVar constructor(name: String, override val optional: Boolean, override 
         val offset = if (optional) 1 else 0
         val value = if (isSigned()) instance.getSignedInt(index + offset, nbrValues - offset) else
             instance.getBits(index + offset, nbrValues - offset)
-        if (value !in min..max) error("Int value $name out of bounds.")
+        assert(value in min..max)
         return value
     }
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
-        val ix = index.indexOf(this)
+        val ix = index.valueIndexOf(this)
         val offset = if (optional) 1 else 0
         val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return if (reifiedValue is Root) sequenceOf(IntBounds(ix + offset, min, max, nbrValues - offset))
@@ -63,7 +63,7 @@ class IntLiteral(override val canonicalVariable: IntVar, val value: Int) : Liter
     override val name: String get() = canonicalVariable.name
 
     override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
-        val ix = index.indexOf(canonicalVariable)
+        val ix = index.valueIndexOf(canonicalVariable)
         val offset = if (canonicalVariable.optional) {
             set.add(ix.toLiteral(true))
             1
@@ -107,12 +107,13 @@ class FloatVar constructor(name: String, override val optional: Boolean, overrid
         if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
         val offset = if (optional) 1 else 0
         val value = Float.fromBits(instance.getBits(index + offset, 32))
-        if (value !in min..max) error("Int value $name out of bounds.")
+        //assert(value in min..max)
+        // TODO can round over min/max for javascript when casting double to float
         return value
     }
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
-        val ix = index.indexOf(this)
+        val ix = index.valueIndexOf(this)
         val offset = if (optional) 1 else 0
         val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return if (reifiedValue is Root) sequenceOf(FloatBounds(ix + offset, min, max))
@@ -130,7 +131,7 @@ class FloatLiteral(override val canonicalVariable: FloatVar, val value: Float) :
     override val name: String get() = canonicalVariable.name
 
     override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
-        val ix = index.indexOf(canonicalVariable)
+        val ix = index.valueIndexOf(canonicalVariable)
         val offset = if (canonicalVariable.optional) {
             set.add(ix.toLiteral(true))
             1
@@ -175,7 +176,7 @@ class BitsVar constructor(name: String, override val optional: Boolean, override
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
         if (reifiedValue is Root) return emptySequence()
-        val ix = index.indexOf(this)
+        val ix = index.valueIndexOf(this)
         val offset = if (optional) 1 else 0
         val zeros = IntRangeCollection((ix + nbrValues - 1).toLiteral(false), (ix + offset).toLiteral(false))
         return sequenceOf(ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)))
@@ -192,7 +193,7 @@ class BitValue constructor(override val canonicalVariable: BitsVar, val bitIndex
         require(bitIndex in 0 until canonicalVariable.nbrBits) { "BitValue with index=$bitIndex is out of bound with $name." }
     }
 
-    override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.indexOf(canonicalVariable) + bitIndex + if (canonicalVariable.optional) 1 else 0).toLiteral(true)
+    override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.valueIndexOf(canonicalVariable) + bitIndex + if (canonicalVariable.optional) 1 else 0).toLiteral(true)
 
     override fun toString() = "BitValue($name=$bitIndex)"
 

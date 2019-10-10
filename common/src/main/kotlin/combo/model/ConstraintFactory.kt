@@ -92,7 +92,7 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
         val literals = toLiterals(variables)
         if (relation.isTautology(0, literals.size, degree.min) && relation.isTautology(0, literals.size, degree.max)) return Tautology
         if (relation.isEmpty(0, literals.size, degree.min) && relation.isEmpty(0, literals.size, degree.max)) return Empty
-        return CardinalityVar(literals, degree, index.indexOf(degree), degree.parentLiteral(index), relation)
+        return CardinalityVar(literals, degree, index.valueIndexOf(degree), degree.parentLiteral(index), relation)
     }
 
     /**

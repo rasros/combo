@@ -24,7 +24,7 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex, v
 
 
     fun asSequence(): Sequence<VariableAssignment<*>> = scope.asSequence().mapNotNull {
-        val v = it.valueOf(instance, index.indexOf(it), it.parentLiteral(index))
+        val v = it.valueOf(instance, index.valueIndexOf(it), it.parentLiteral(index))
         if (v == null) null
         else VariableAssignment(it, v)
     }
@@ -52,16 +52,16 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex, v
     fun getFloat(variable: Variable<*, Float>): Float = getOrDefault(variable, 0.0f)
 
     operator fun contains(name: String) = scope.find<Variable<*, *>>(name)?.let {
-        it.valueOf(instance, index.indexOf(it), it.parentLiteral(index)) != null
+        it.valueOf(instance, index.valueIndexOf(it), it.parentLiteral(index)) != null
     } ?: false
 
-    operator fun contains(variable: Variable<*, *>) = variable.valueOf(instance, index.indexOf(variable), variable.parentLiteral(index)) != null
+    operator fun contains(variable: Variable<*, *>) = variable.valueOf(instance, index.valueIndexOf(variable), variable.parentLiteral(index)) != null
 
     operator fun <V> get(name: String): V? = scope.find<Variable<*, V>>(name)?.let {
-        it.valueOf(instance, index.indexOf(it), it.parentLiteral(index))
+        it.valueOf(instance, index.valueIndexOf(it), it.parentLiteral(index))
     }
 
-    operator fun <V> get(variable: Variable<*, V>): V? = variable.valueOf(instance, index.indexOf(variable), variable.parentLiteral(index))
+    operator fun <V> get(variable: Variable<*, V>): V? = variable.valueOf(instance, index.valueIndexOf(variable), variable.parentLiteral(index))
 
     fun <V> getOrThrow(variable: Variable<*, V>): V = get(variable)
             ?: throw NoSuchElementException("Variable $variable not found in assignment.")

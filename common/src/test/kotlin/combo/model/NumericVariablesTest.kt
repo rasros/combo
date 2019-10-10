@@ -98,9 +98,6 @@ class IntVarTest {
         val index = VariableIndex()
         index.add(f)
         val instance = BitArray(f.nbrValues)
-        assertFailsWith<IllegalStateException> {
-            f.valueOf(instance, 0, 0)
-        }
         instance.setBits(0, f.nbrValues, 4)
         assertEquals(4, f.valueOf(instance, 0, 0))
     }
@@ -227,9 +224,6 @@ class FloatVarTest {
     fun valueOfMandatoryNonZero() {
         val f = FloatVar("", false, Root(""), 1f, 10f)
         val instance = BitArray(f.nbrValues)
-        assertFailsWith<IllegalStateException> {
-            f.valueOf(instance, 0, 0)
-        }
         instance.setFloat(0, 4f)
         assertEquals(4f, f.valueOf(instance, 0, 0))
     }
