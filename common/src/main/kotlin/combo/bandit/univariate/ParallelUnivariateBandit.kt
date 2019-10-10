@@ -8,12 +8,13 @@ import combo.util.*
 import kotlin.math.min
 
 /**
- * Univariate bandit that can be used in parallel. The [processUpdates] method must be called periodically.
+ * Univariate bandit that can be used in parallel. The [processUpdates] method must be called periodically,
+ * it can be called from multiple threads simultaneously.
  * @param bandits Each bandit is protected by a lock that will be tested for in sequence in choose.
  * @param batchSize Updates will be grouped into batches with this size to avoid contention.
  * @param mode Type of parallelization attempted.
  */
-class ParallelUnivariateBandit<D>(val bandits: Array<UnivariateBandit<D>>,
+class ParallelUnivariateBandit<D> private constructor(val bandits: Array<UnivariateBandit<D>>,
                                   val batchSize: IntRange,
                                   val mode: ParallelMode) : UnivariateBandit<D> {
 
@@ -39,7 +40,21 @@ class ParallelUnivariateBandit<D>(val bandits: Array<UnivariateBandit<D>>,
 
     override val randomSeed: Int get() = bandits[0].randomSeed
     override val maximize: Boolean get() = bandits[0].maximize
-    override val rewards: DataSample get() = bandits[0].rewards
+    override val rewards: DataSample
+        get() {
+            while (true) {
+                for (i in IntPermutation(bandits.size, randomSequence.next())) {
+                    val b = bandits[i] as ConcurrentUnivariateBandit<D>
+                    val locked = b.lock.readLock().tryLock()
+                    if (!locked) continue
+                    try {
+                        return b.rewards.copy()
+                    } finally {
+                        b.lock.readLock().unlock()
+                    }
+                }
+            }
+        }
 
     /**
      * Handle updates added through [update] or [updateAll]
@@ -216,14 +231,8 @@ class ParallelUnivariateBandit<D>(val bandits: Array<UnivariateBandit<D>>,
         }
     }
 
-
-    /**
-     * Protects the base methods in [UnivariateBandit] behind a read/write lock. All data will be protected behind the same
-     * lock so there will be lots of contention. [ParallelUnivariateBandit] can provide speedup at some cost to rewards.
-     */
-    private class ConcurrentUnivariateBandit<D>(val base: UnivariateBandit<D>, val lock: ReadWriteLock = ReentrantReadWriteLock())
-        : UnivariateBandit<D> by base {
-
+    private class ConcurrentUnivariateBandit<D>(val base: UnivariateBandit<D>) : UnivariateBandit<D> by base {
+        val lock: ReadWriteLock = ReentrantReadWriteLock()
         fun tryChoose(): Int {
             val locked = lock.readLock().tryLock()
             if (!locked) return -1

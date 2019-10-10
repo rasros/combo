@@ -55,16 +55,12 @@ interface Bandit<D : BanditData> {
     }
 
     /**
-     * Add historic data to the bandit, this can be used to store and re-start the bandit. Any existing data is combined
-     * with the imported data importing. It is not recommended to do import of any data that the bandit has already
-     * seen, since that will cause an underestimation of variance in the rewards.
-     *
-     * @param data added to the bandit.
-     * @param restructure whether the bandit structure should exactly fit that of the imported data. If set to true
-     * some data might be lost in the import but can be used to keep multiple parallel bandits in sync. If set to false
-     * the merge will only be on existing summary statistics.
+     * Add historic [data] to the bandit, this can be used to store and re-start the bandit.
+     * Existing data is combined with the imported data importing, in general off-policy data can only be used by
+     * [PredictionBandit]. It is not recommended to do import of any data that the bandit has already seen, since that
+     * will cause an underestimation of variance in the rewards.
      */
-    fun importData(data: D, restructure: Boolean = false)
+    fun importData(data: D)
 
     /**
      * Exports all data to use for external storage. They can be used in a new [Bandit] instance that
@@ -72,58 +68,6 @@ interface Bandit<D : BanditData> {
      */
     fun exportData(): D
 
-    /**
-     * A sample of the total rewards obtained, for use in analysis and debugging.
-     */
-    var rewards: DataSample
-
-    /**
-     * Set the random seed to a specific value to have a reproducible algorithm.
-     */
-    var randomSeed: Int
-
-    /**
-     * Whether the bandit should maximize or minimize the total rewards.
-     */
-    var maximize: Boolean
-}
-
-interface BanditData {
-    fun migrate(from: IntArray, to: IntArray): BanditData
-}
-
-/**
- * A [PredictionBandit] uses a machine learning model as part of the algorithm. This machine learning algorithm can also
- * be used to make predictions about an [Instance]. In addition, further
- */
-interface PredictionBandit<D : BanditData> : Bandit<D> {
-
-    /**
-     * The total absolute error obtained on a prediction before update.
-     */
-    var trainAbsError: DataSample
-
-    /**
-     * The total absolute error obtained on a prediction after update.
-     */
-    var testAbsError: DataSample
-
-    /**
-     * Evaluate the machine learning model on a [instance].
-     */
-    fun predict(instance: Instance): Float
-
-    fun train(instance: Instance, result: Float, weight: Float)
-
-    override fun update(instance: Instance, result: Float, weight: Float) {
-        rewards.accept(result, weight)
-        testAbsError.accept(abs((result - predict(instance)) * weight))
-        train(instance, result, weight)
-        trainAbsError.accept(abs((result - predict(instance)) * weight))
-    }
-}
-
-interface BanditParameters {
     /**
      * Set the random seed to a specific value to have a reproducible algorithm. By default current system time.
      */
@@ -135,8 +79,79 @@ interface BanditParameters {
     val maximize: Boolean
 
     /**
-     * All rewards are added to this for inspecting how well the bandit performs. By default [VoidSample].
+     * All rewards are added to this for inspecting how well the bandit performs. By default [combo.math.VoidSample].
      */
     val rewards: DataSample
 }
 
+interface BanditData {
+    fun migrate(from: IntArray, to: IntArray): BanditData
+}
+
+/**
+ * A [PredictionBandit] uses a machine learning model as part of the algorithm. This machine learning algorithm can also
+ * be used to make predictions about an [Instance].
+ */
+interface PredictionBandit<D : BanditData> : Bandit<D> {
+
+    /**
+     * The total absolute error obtained on a prediction before update.
+     */
+    val trainAbsError: DataSample
+
+    /**
+     * The total absolute error obtained on a prediction after update.
+     */
+    val testAbsError: DataSample
+
+    /**
+     * Evaluate the machine learning model on an [instance].
+     */
+    fun predict(instance: Instance): Float
+
+    /**
+     * Update the model only without adding [rewards], [testAbsError] or [trainAbsError].
+     * This is called as part of the [train] method.
+     */
+    fun train(instance: Instance, result: Float, weight: Float)
+
+    /**
+     * Register rewards, test error, training error, and perform [train] on instance.
+     */
+    override fun update(instance: Instance, result: Float, weight: Float) {
+        rewards.accept(result, weight)
+        testAbsError.accept(abs((result - predict(instance)) * weight))
+        train(instance, result, weight)
+        trainAbsError.accept(abs((result - predict(instance)) * weight))
+    }
+}
+
+interface BanditBuilder<D : BanditData> {
+    fun build(): Bandit<D>
+
+    /**
+     * Initialize with historic [data] to the bandit, can only be used once.
+     */
+    fun importData(data: D): BanditBuilder<D>
+
+    /** All rewards are added to this for inspecting how well the bandit performs. By default [combo.math.VoidSample]. */
+    fun rewards(rewards: DataSample): BanditBuilder<D>
+
+    /** Whether the bandit should maximize or minimize the total rewards. By default true. */
+    fun maximize(maximize: Boolean): BanditBuilder<D>
+
+    /** Set the random seed to a specific value to have a reproducible algorithm. By default current system time. */
+    fun randomSeed(randomSeed: Int): BanditBuilder<D>
+
+    /** Build bandit that can be used in parallel. */
+    fun parallel(): ParallelBandit.Builder<D>
+}
+
+interface PredictionBanditBuilder<D : BanditData> : BanditBuilder<D> {
+    override fun build(): PredictionBandit<D>
+    override fun importData(data: D): PredictionBanditBuilder<D>
+    override fun rewards(rewards: DataSample): PredictionBanditBuilder<D>
+    override fun maximize(maximize: Boolean): PredictionBanditBuilder<D>
+    override fun randomSeed(randomSeed: Int): PredictionBanditBuilder<D>
+    override fun parallel(): ParallelPredictionBandit.Builder<D>
+}

@@ -8,14 +8,16 @@ import kotlin.math.sqrt
 
 
 interface SplitMetric {
-    fun split(total: VarianceEstimator, pos: Array<VarianceEstimator>, neg: Array<VarianceEstimator>, minSamples: Float): SplitInfo
+    fun split(total: VarianceEstimator, pos: Array<VarianceEstimator>, neg: Array<VarianceEstimator>,
+              minSamplesSplit: Float, minSamplesLeaf: Float): SplitInfo
 }
 
 data class SplitInfo(val top1: Float, val top2: Float, val i: Int)
 
 abstract class TotalSplitMetric : SplitMetric {
 
-    override fun split(total: VarianceEstimator, pos: Array<VarianceEstimator>, neg: Array<VarianceEstimator>, minSamples: Float): SplitInfo {
+    override fun split(total: VarianceEstimator, pos: Array<VarianceEstimator>, neg: Array<VarianceEstimator>,
+                       minSamplesSplit: Float, minSamplesLeaf: Float): SplitInfo {
         var top1 = 0.0f
         var top2 = 0.0f
         var bestI = -1
@@ -23,7 +25,9 @@ abstract class TotalSplitMetric : SplitMetric {
         val tv = totalValue(total)
 
         for (i in pos.indices) {
-            if (pos[i].nbrWeightedSamples < minSamples || neg[i].nbrWeightedSamples < minSamples) continue
+            val nPos = pos[i].nbrWeightedSamples
+            val nNeg = neg[i].nbrWeightedSamples
+            if (nPos < minSamplesLeaf || nNeg < minSamplesLeaf || nPos + nNeg < minSamplesSplit) continue
             val v = tv - value(total, pos[i], neg[i])
             if (v > top1) {
                 bestI = i

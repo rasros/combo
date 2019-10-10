@@ -22,9 +22,8 @@ class EliminationChainTest {
 
     @Test
     fun guaranteedElimination() {
-        val p = Problem(emptyArray(), 20)
-        val candidates = createCandidates(p, 10, UCB1Normal())
-        candidates.minSamples = 0f
+        val p = Problem(20, emptyArray())
+        val candidates = createCandidates(p, 10, UCB1Normal(), minSamples = 0f)
         val chain = EliminationChain<SquaredEstimator>(SignificanceTestElimination(), TournamentElimination(3))
         val e = chain.select(candidates, Random)
         assertTrue(e >= 0)
@@ -32,8 +31,7 @@ class EliminationChainTest {
 
     @Test
     fun eliminate() {
-        val candidates = createCandidates(MODEL1.problem, 20, EpsilonDecreasing())
-        candidates.minSamples = 4.0f
+        val candidates = createCandidates(MODEL1.problem, 20, EpsilonDecreasing(), minSamples = 4.0f)
         val s = EliminationChain<VarianceEstimator>(SignificanceTestElimination(0.5f), SmallestCountElimination())
 
         val rng = Random
@@ -60,9 +58,7 @@ class SignificanceTestEliminationTest {
 
     @Test
     fun eliminateMinimization() {
-        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior))
-        candidates.maximize = false
-        candidates.minSamples = 4.0f
+        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior), maximize = false, minSamples = 4.0f)
         val s = SignificanceTestElimination(0.05f)
 
         val rng = Random
@@ -87,9 +83,7 @@ class SignificanceTestEliminationTest {
 
     @Test
     fun eliminateMaximization() {
-        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior))
-        candidates.maximize = true
-        candidates.minSamples = 4.0f
+        val candidates = createCandidates(MODEL1.problem, 10, ThompsonSampling(NormalPosterior), maximize = true, minSamples = 4.0f)
         val s = SignificanceTestElimination(0.05f)
 
         val rng = Random
@@ -125,8 +119,7 @@ class SmallestCountEliminiationTest {
 
     @Test
     fun eliminate() {
-        val candidates = createCandidates(MODEL1.problem, 20, ThompsonSampling(NormalPosterior, RunningVariance()))
-        candidates.minSamples = 4.0f
+        val candidates = createCandidates(MODEL1.problem, 20, ThompsonSampling(NormalPosterior, RunningVariance()), minSamples = 4.0f)
         val s = SmallestCountElimination()
 
         val rng = Random

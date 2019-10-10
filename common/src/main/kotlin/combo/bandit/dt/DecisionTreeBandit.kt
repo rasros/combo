@@ -1,293 +1,98 @@
 package combo.bandit.dt
 
-import combo.bandit.LiteralData
+import combo.bandit.ParallelPredictionBandit
 import combo.bandit.PredictionBandit
+import combo.bandit.PredictionBanditBuilder
 import combo.bandit.univariate.BanditPolicy
 import combo.math.*
+import combo.model.Model
+import combo.model.Variable
 import combo.sat.*
-import combo.sat.constraints.NumericConstraint
-import combo.sat.solvers.LocalSearchSolver
-import combo.sat.solvers.Solver
+import combo.sat.optimizers.LocalSearch
+import combo.sat.optimizers.Optimizer
+import combo.sat.optimizers.SatObjective
 import combo.util.*
-import kotlin.jvm.JvmOverloads
 import kotlin.math.ln
-import kotlin.math.max
-import kotlin.math.roundToInt
+import kotlin.math.min
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 /**
  * This bandit uses a univariate bandit algorithm, such as [combo.bandit.univariate.ThompsonSampling]. Each leaf
  * node is a bandit arm.
  *
- * This is a reproduction of the following paper: https://arxiv.org/pdf/1706.04687.pdf
+ * This is a generalization of the following paper: https://arxiv.org/pdf/1706.04687.pdf
  *
  * For more info on delta and tau parameters of the VFDT algorithm check out these resources:
  * https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
  * http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
- *
- * @param problem the problem contains the [Constraint]s and the number of variables.
- * @param banditPolicy the policy that the next bandit arm is selected with.
- * @param solver the solver will be used to generate [Instance]s that satisfy the constraints from the [Problem].
  */
 @Suppress("UNCHECKED_CAST")
-class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
-        val problem: Problem,
-        val banditPolicy: BanditPolicy<E>,
-        val solver: Solver = LocalSearchSolver(problem).apply {
-            this.restarts = 10
-            this.randomSeed = randomSeed
-            this.timeout = 1000L
-        }) : PredictionBandit<Array<LiteralData<E>>> {
+class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreeParameters<E>, root: Node<E>?, val allowedVariables: IntArray?)
+    : PredictionBandit<TreeData<E>>, TreeParameters<E> by parameters {
 
-    override var maximize: Boolean = true
-    override var randomSeed: Int = nanos().toInt()
-        set(value) {
-            this.rng = Random(value)
-            solver.randomSeed = value
-            field = value
-        }
-    private var rng = Random(randomSeed)
-
-    override var rewards: DataSample = BucketSample(20)
-    override var trainAbsError: DataSample = BucketSample(10)
-    override var testAbsError: DataSample = BucketSample(10)
-
-    /**
-     * Which split metric to use for deciding what variable to split on. The default value is gini impurity for binary
-     * data and variance reduction otherwise.
-     */
-    var splitMetric: SplitMetric =
-            if (banditPolicy.baseData() is BinaryEstimator) GiniCoefficient
-            else VarianceReduction
-
-    /**
-     * VFDT parameter, this is the p-value threshold by which the best variable to split on must be better
-     * than the second best. The lower the value the more data is required before a split is performed.
-     */
-    var delta: Float = 0.05f
-
-    /**
-     * [delta] will be multiplied by this once for each split. This can be used to limit the growth of the tree.
-     */
-    var deltaDecay: Float = 0.9f
-
-    /**
-     * VFDT parameter, this is the threshold with which the algorithm splits even if it is not proven best.
-     * Set to 0.0 for never and to 1.0 for always.
-     */
-    var tau: Float = 0.1f
-
-    /**
-     * Total number of nodes that are permitted to build.
-     */
-    var maxNodes: Int = 10000
-
-    /**
-     * Only live nodes can be selected by [choose] method. By limiting the number of them we reduce
-     * computation cost of [choose] but potentially limits optimal value.
-     */
-    var maxLiveNodes: Int = 500
-
-    /**
-     * The number of randomly selected variables that leaf nodes consider for splitting the tree further during [update].
-     */
-    var maxConsideration: Int = 500
-
-    /**
-     * How often we check whether a split can be performed during [update].
-     */
-    var updatePeriod: Int = 5
-
-    /**
-     * Minimum number of samples of both positive and negative values before a variable can be used for a split.
-     */
-    var minSamples = 10.0f
-
-    /**
-     * Blocked assumptions size. When the solver fails to generate an instance with assumptions, the assumptions are
-     * added to a blocked circular queue. In this way the solver does not immediately try again with the same node.
-     * This setting limits how big the circular buffer is.
-     */
-    var blockQueueSize = 2
-
-    /**
-     * When assumptions are used in the [chooseOrThrow] method, there is a risk that the assumptions does not work with
-     * a node [LeafNode.setLiterals]. In that case the algorithm tries again for a maximum of retries specified with
-     * this. This is quite rare since most cases are fixed by unit propagation.
-     */
-    var maxRestarts = 10
-
+    private val randomSequence = RandomSequence(randomSeed)
     private val step = AtomicLong()
 
     private val liveNodes = ArrayList<LeafNode<E>>()
+    private var nbrNodes = 0
+    private var nbrAuditNodes = 0
 
-    private val numericConstraints: Array<NumericConstraint> = problem.constraints
-            .mapNotNull { it as? NumericConstraint }.toTypedArray()
-
-    private var root: Node<E> = if (problem.nbrVariables == 0) TerminalNode(EmptyCollection, banditPolicy.baseData()) else
-        AuditNode(EmptyCollection, banditPolicy.baseData(), Random(0)).also {
-            // We use a fixed random seed here because this node is created before randomSeed can be set.
-            liveNodes.add(it)
-            banditPolicy.addArm(it.data)
-        }
-
-    private var nbrNodes = 1
-    private var nbrAuditNodes = 1
-
-    override fun importData(data: Array<LiteralData<E>>, restructure: Boolean) {
-        if (data.isEmpty()) return
-        if (restructure) {
-            importRestructure(data)
+    private var root: Node<E> = if (root != null) {
+        // Convert TerminalNodes to AuditNodes as required
+        if (root is LeafNode) {
+            createLeafNode(EmptyCollection, root.data)
         } else {
-            for (d in data) {
-                root.findLeaves(d.setLiterals).forEach {
-                    it.data = it.data.combine(d.data) as E
-                }
+            val queue = ArrayQueue<SplitNode<E>>()
+            queue.add(root as SplitNode<E>)
+            while (queue.size > 0) {
+                val r = queue.remove()
+                if (r.pos is LeafNode) r.pos = createLeafNode((r.pos as LeafNode<E>).literals, (r.pos as LeafNode<E>).data)
+                else queue.add(r.pos as SplitNode<E>)
+                if (r.neg is LeafNode) r.neg = createLeafNode((r.neg as LeafNode<E>).literals, (r.neg as LeafNode<E>).data)
+                else queue.add(r.neg as SplitNode<E>)
             }
+            root
         }
+    } else {
+        createLeafNode(EmptyCollection, banditPolicy.baseData())
     }
 
-    private fun importRestructure(data: Array<LiteralData<E>>) {
-        val sorted = data.sortedBy { if (maximize) -it.data.mean else it.data.mean }
-        for (node in liveNodes) banditPolicy.removeArm(node.data)
-
-        liveNodes.clear()
-        val prior = banditPolicy.baseData()
-        root = sorted[0].setLiterals[0].toIx().let { ix ->
-            require(ix < problem.nbrVariables)
-            SplitNode(ix, TerminalNode(collectionOf(ix.toLiteral(true)), prior),
-                    TerminalNode(collectionOf(ix.toLiteral(false)), prior))
-        }
-        nbrNodes = 3
-        nbrAuditNodes = 0
-
-        fun createHistoricNode(setLiterals: IntCollection, total: E): LeafNode<E> {
-            val propagatedLiterals = IntHashSet(nullValue = 0)
-            propagatedLiterals.addAll(setLiterals)
-            problem.unitPropagation(propagatedLiterals)
-            val nodeLiterals = collectionOf(*propagatedLiterals.toArray())
-
-            val node = if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes &&
-                    setLiterals.size < problem.nbrVariables) {
-                AuditNode(nodeLiterals, total).also {
-                    nbrAuditNodes++
-                }
-            } else TerminalNode(nodeLiterals, total)
-            if (liveNodes.size + 1 <= maxLiveNodes) liveNodes.add(node)
-            return node
-        }
-
-        for (node in sorted) {
-            // This is done in three steps, 1) traverse the tree to the closest parent that the node should be added to,
-            // 2) if needed, add more splits until the path is rebuilt, finally 3) add the leaf node to the parent.
-
-            // 1) traverse the tree
-            var r: SplitNode<E> = root as SplitNode<E>
-            var stopIx = 0
-            while (true) {
-                r = if (r.pos is SplitNode && r.ix.toLiteral(true) in node.setLiterals) r.pos as SplitNode
-                else if (r.neg is SplitNode && r.ix.toLiteral(false) in node.setLiterals) r.neg as SplitNode
-                else break
-                stopIx++
-            }
-
-            // 2) create more parents with temporary data
-            while (stopIx + 1 < node.setLiterals.size) {
-                val ix = node.setLiterals[stopIx + 1].toIx()
-                require(ix < problem.nbrVariables)
-                if (r.ix.toLiteral(true) == node.setLiterals[stopIx]) {
-                    if (r.pos is LeafNode && (r.pos as LeafNode).data !== prior)
-                        break
-                    val setLiterals = node.setLiterals.sliceArray(0 until stopIx) + r.ix.toLiteral(true)
-                    r.pos = SplitNode(ix, TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(true))), prior),
-                            TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(false))), prior))
-                    r = r.pos as SplitNode
-                } else if (r.ix.toLiteral(false) == node.setLiterals[stopIx]) {
-                    if (r.neg is LeafNode && (r.neg as LeafNode).data !== prior)
-                        break
-                    val setLiterals = node.setLiterals.sliceArray(0 until stopIx) + r.ix.toLiteral(false)
-                    r.neg = SplitNode(ix, TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(true))), prior),
-                            TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(false))), prior))
-                    r = r.neg as SplitNode
-                } else
-                    break
-                nbrNodes += 2
-                stopIx++
-            }
-
-            // 3) add leaf node
-            if (node.setLiterals[stopIx] == r.ix.toLiteral(true)) {
-                if ((r.pos as? LeafNode)?.data === prior)
-                    r.pos = createHistoricNode(collectionOf(*node.setLiterals), node.data.copy() as E)
-                // else there is junk in the historicData and the current node is ignored
-            } else if (node.setLiterals[stopIx] == r.ix.toLiteral(false)) {
-                if ((r.neg as? LeafNode)?.data === prior)
-                    r.neg = createHistoricNode(collectionOf(*node.setLiterals), node.data.copy() as E)
-                // else there is junk in the historicData and the current node is ignored
+    fun chooseNode(assumptions: IntCollection = EmptyCollection): LeafNode<E>? {
+        val rng = randomSequence.next()
+        val t = step.getAndIncrement()
+        val n = liveNodes.maxBy {
+            when {
+                it.blocks(assumptions) -> Float.NEGATIVE_INFINITY
+                it.matches(assumptions) -> banditPolicy.evaluate(it.data, t, maximize, rng)
+                else -> Float.NEGATIVE_INFINITY
             }
         }
-
-        // Replace all TerminalNodes with data == prior with real node
-        val queue = ArrayQueue<SplitNode<E>>()
-        queue.add(root as SplitNode)
-        while (queue.size > 0) {
-            val r = queue.remove()
-            if (r.pos is SplitNode<*>) queue.add(r.pos as SplitNode<E>)
-            else if ((r.pos is TerminalNode) && (r.pos as TerminalNode).data === prior)
-                r.pos = createHistoricNode((r.pos as TerminalNode).setLiterals, banditPolicy.baseData())
-            if (r.neg is SplitNode<*>) queue.add(r.neg as SplitNode<E>)
-            else if ((r.neg is TerminalNode) && (r.neg as TerminalNode).data === prior)
-                r.neg = createHistoricNode((r.neg as TerminalNode).setLiterals, banditPolicy.baseData())
-        }
-
-        for (node in liveNodes) banditPolicy.addArm(node.data)
-    }
-
-    override fun exportData(): Array<LiteralData<E>> {
-        val data = ArrayList<LiteralData<E>>()
-        val queue = ArrayList<Pair<IntArray, SplitNode<E>>>()
-        if (root is SplitNode) queue.add(EMPTY_INT_ARRAY to root as SplitNode)
-        while (queue.isNotEmpty()) {
-            val (lits, r) = queue.removeAt(queue.lastIndex)
-            val posLits = lits + r.ix.toLiteral(true)
-            val negLits = lits + r.ix.toLiteral(false)
-            if (r.pos is SplitNode<E>) queue.add(posLits to r.pos as SplitNode<E>)
-            else data += LiteralData(posLits, (r.pos as LeafNode).data)
-            if (r.neg is SplitNode<E>) queue.add(negLits to r.neg as SplitNode<E>)
-            else data += LiteralData(negLits, (r.neg as LeafNode).data)
-        }
-        return data.toTypedArray()
+        return if (n?.blocks(assumptions) != false || !n.matches(assumptions)) null
+        else n
     }
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
         var propagated: IntHashSet? = null
-        for (restart in 0 until maxRestarts) {
-            if (restart == 1 && assumptions.isNotEmpty()) {
+        for (restart in 0 until parameters.maxRestarts) {
+            if (propagateAssumptions && assumptions.isNotEmpty()) {
                 propagated = IntHashSet()
                 propagated.addAll(assumptions)
-                problem.unitPropagation(propagated)
+                model.problem.unitPropagation(propagated)
             }
-            val node = liveNodes.maxBy {
-                when {
-                    it.blocks(propagated ?: assumptions) -> Float.NEGATIVE_INFINITY
-                    it.matches(propagated ?: assumptions) ->
-                        banditPolicy.evaluate(it.data, step.getAndIncrement(), maximize, rng)
-                    else -> Float.NEGATIVE_INFINITY
-                }
-            }
+            val node = chooseNode(propagated ?: assumptions)
             val instance = when {
-                node == null -> solver.witness(propagated ?: assumptions)
-                assumptions.isEmpty() -> solver.witness(node.setLiterals)
-                else -> solver.witness((propagated ?: assumptions).mutableCopy().apply { addAll(node.setLiterals) })
+                node == null -> optimizer.witness(propagated ?: assumptions)
+                assumptions.isEmpty() -> optimizer.witness(node.literals)
+                else -> optimizer.witness((propagated
+                        ?: assumptions).mutableCopy(nullValue = 0).apply { addAll(node.literals) })
             }
-            if (instance != null) return instance
-            if (node != null && assumptions.isNotEmpty()) {
-                node.blocked = node.blocked ?: CircleBuffer(blockQueueSize)
-                node.blocked!!.add(assumptions)
+            if (instance != null)
+                return instance
+            if (node != null && assumptions.isNotEmpty() && node.blocked != null) {
+                node.blocked.add(randomSequence.next(), assumptions)
             }
         }
-        throw IterationsReachedException(maxRestarts)
+        throw IterationsReachedException(parameters.maxRestarts)
     }
 
     override fun predict(instance: Instance) = root.findLeaf(instance).data.mean
@@ -296,52 +101,75 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
         root = root.update(instance, result, weight)
     }
 
-    private inner class TerminalNode(setLiterals: IntCollection, data: E) : LeafNode<E>(setLiterals, data) {
-        override fun update(instance: Instance, result: Float, weight: Float) =
-                this.apply { banditPolicy.update(data, result, weight) }
-    }
-
-    private inner class AuditNode(setLiterals: IntCollection, total: E, rng: Random = this.rng)
-        : LeafNode<E>(setLiterals, total) {
+    private inner class AuditNode(setLiterals: IntCollection, total: E)
+        : LeafNode<E>(setLiterals, total, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
 
         var nViewed: Int = 0
 
-        val auditedVariables = IntHashSet(nullValue = -1).let { set ->
-            val itr = IntPermutation(problem.nbrVariables, rng).iterator()
-            while (set.size < maxConsideration && itr.hasNext()) {
-                val ix = itr.nextInt()
-                if (ix.toLiteral(true) in setLiterals || ix.toLiteral(false) in setLiterals) continue
-                set.add(ix)
-            }
+        val auditedValues = IntHashSet(nullValue = -1).let { set ->
 
-            // Make sure that the next MSB of int/floats are included
-            for (c in numericConstraints) {
-                for (lit in c.literals.max downTo c.literals.min) {
-                    if (lit !in setLiterals && !lit !in setLiterals) {
-                        set.add(lit.toIx())
-                        break
+            val propagatedLiterals = IntHashSet(nullValue = 0)
+            propagatedLiterals.addAll(setLiterals)
+            model.problem.unitPropagation(propagatedLiterals)
+
+            // Both cases work the same
+            // Step 1) loop through variables and add one value per variable
+            // Step 2) add values (from allowed variables) until viewedValues is met
+            val rng = randomSequence.next()
+            if (allowedVariables != null) {
+                val myVariables = IntHashSet(nullValue = -1)
+                myVariables.addAll(allowedVariables)
+                while (myVariables.isNotEmpty() && set.size < viewedValues) {
+                    val itr = myVariables.permutation(rng)
+                    while (itr.hasNext() && set.size < viewedValues) {
+                        val variableIndex = itr.nextInt()
+                        val variable = model.index.variable(variableIndex)
+                        val splitter = splitters[variable] ?: defaultValueSplitter(model, variable)
+                        val valueToSplit = splitter.nextSplit(propagatedLiterals, set, rng)
+                        if (valueToSplit >= 0) set.add(valueToSplit)
+                        else {
+                            myVariables.remove(variableIndex)
+                            break
+                        }
                     }
+                }
+            } else {
+                val itr = IntPermutation(model.index.nbrVariables, rng).iterator()
+                while (itr.hasNext() && set.size < viewedValues) {
+                    val variable = model.index.variable(itr.nextInt())
+                    val splitter = splitters[variable] ?: defaultValueSplitter(model, variable)
+                    val valueToSplit = splitter.nextSplit(propagatedLiterals, set, rng)
+                    if (valueToSplit >= 0) set.add(valueToSplit)
+                }
+                val valueIterator = IntPermutation(model.problem.nbrValues, rng).iterator()
+                while (set.size < viewedValues && valueIterator.hasNext()) {
+                    val value = valueIterator.nextInt()
+                    if (value.toLiteral(true) !in propagatedLiterals && value.toLiteral(false) !in propagatedLiterals)
+                        set.add(value)
                 }
             }
             set.toArray()
         }
 
-        val dataPos = Array<VarianceEstimator>(auditedVariables.size) { banditPolicy.baseData() }
-        val dataNeg = Array<VarianceEstimator>(auditedVariables.size) { banditPolicy.baseData() }
+        val dataPos = Array<VarianceEstimator>(auditedValues.size) { banditPolicy.baseData() }
+        val dataNeg = Array<VarianceEstimator>(auditedValues.size) { banditPolicy.baseData() }
 
         override fun update(instance: Instance, result: Float, weight: Float): Node<E> {
             banditPolicy.update(data, result, weight)
-            nViewed += max(1, weight.roundToInt())
-            for ((i, ix) in auditedVariables.withIndex()) {
+            nViewed++
+            for ((i, ix) in auditedValues.withIndex()) {
                 if (instance[ix]) banditPolicy.accept(dataPos[i] as E, result, weight)
-                else banditPolicy.accept(dataNeg[i] as E, result, weight)
+                else {
+                    val reifiedLiteral = if (parameters.reifiedLiterals == null) 0 else parameters.reifiedLiterals[ix]
+                    if (reifiedLiteral == 0 || instance.literal(reifiedLiteral.toIx()) == reifiedLiteral)
+                        banditPolicy.accept(dataNeg[i] as E, result, weight)
+                }
             }
 
-            if (nViewed > updatePeriod) {
+            if (nViewed % splitPeriod == 0) {
                 val total = dataPos[0].combine(dataNeg[0]) as E
-                val (sm1, sm2, bestI) = splitMetric.split(total, dataPos, dataNeg, minSamples)
-
-                val eps = hoeffdingBound(delta, data.nbrWeightedSamples, setLiterals.size)
+                val (sm1, sm2, bestI) = splitMetric.split(total, dataPos, dataNeg, minSamplesSplit, minSamplesLeaf)
+                val eps = hoeffdingBound(delta, data.nbrWeightedSamples, literals.size)
                 if (bestI >= 0 && (sm2 / sm1 < 1 - eps || eps < tau)) {
 
                     val totalPos = dataPos[bestI] as E
@@ -352,51 +180,66 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
 
                     liveNodes.remove(this)
                     banditPolicy.removeArm(data)
-
                     nbrAuditNodes--
-                    nbrNodes += 2
+                    nbrNodes--
 
                     val pos: LeafNode<E>
                     val neg: LeafNode<E>
+                    val posLiterals = literals.mutableCopy(nullValue = 0).apply { add(auditedValues[bestI].toLiteral(true)) }
+                    val negLiterals = literals.mutableCopy(nullValue = 0).apply { add(auditedValues[bestI].toLiteral(false)) }
 
                     // The order in which the nodes are created give priority to nodes with best score
                     if (inOrder) {
-                        pos = createLeafNode(setLiterals, auditedVariables[bestI].toLiteral(true), totalPos)
-                        neg = createLeafNode(setLiterals, auditedVariables[bestI].toLiteral(false), totalNeg)
+                        pos = createLeafNode(posLiterals, totalPos)
+                        neg = createLeafNode(negLiterals, totalNeg)
                     } else {
-                        neg = createLeafNode(setLiterals, auditedVariables[bestI].toLiteral(false), totalNeg)
-                        pos = createLeafNode(setLiterals, auditedVariables[bestI].toLiteral(true), totalPos)
+                        neg = createLeafNode(negLiterals, totalNeg)
+                        pos = createLeafNode(posLiterals, totalPos)
                     }
-
-                    banditPolicy.addArm(pos.data)
-                    banditPolicy.addArm(neg.data)
-
-                    return SplitNode(auditedVariables[bestI], pos, neg)
+                    return SplitNode(auditedValues[bestI], pos, neg)
                 }
-                nViewed = 0
             }
+
             return this
         }
 
         override fun findLeaf(instance: Instance) = this
+
+        private fun hoeffdingBound(delta: Float, count: Float, depth: Int): Float {
+            // R = 1 for both binary classification and with variance ratio
+            //sqrt(/* R*R* */ ln(1.0f / delta) / (2.0f * count))
+            return sqrt((-ln(delta) - depth * ln(deltaDecay)) / 2.0f / count)
+        }
     }
 
-    private fun createLeafNode(setLiterals: IntCollection, splitLit: Int, total: E): LeafNode<E> {
-        val propagatedLiterals = IntHashSet(nullValue = 0)
-        propagatedLiterals.addAll(setLiterals)
-        propagatedLiterals.add(splitLit)
-        problem.unitPropagation(propagatedLiterals)
 
-        val nodeLiterals = collectionOf(*propagatedLiterals.toArray())
+    // TODO bugs with double literals in setLiterals
+    // TODO bug with unit propagation Unsatisfiable
 
+
+    /**
+     * Add and index new leaf node. It needs to be added to the correct split node by the caller.
+     */
+    private tailrec fun createLeafNode(setLiterals: IntCollection, total: E): LeafNode<E> {
+        nbrNodes++
         return if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes
-                && nodeLiterals.size < problem.nbrVariables) {
-            AuditNode(nodeLiterals, total).also {
-                nbrAuditNodes++
-                liveNodes.add(it)
+                && setLiterals.size < model.problem.nbrValues && setLiterals.size < maxDepth) {
+            val node: AuditNode
+            try {
+                node = AuditNode(setLiterals, total)
+            } catch (e: UnsatisfiableException) {
+                throw e
             }
+            val leafNode = if (node.auditedValues.isNotEmpty()) {
+                nbrAuditNodes++
+                node
+            } else TerminalNode(banditPolicy, setLiterals, total, blockQueueSize)
+            banditPolicy.addArm(total)
+            liveNodes.add(leafNode)
+            leafNode
         } else if (liveNodes.size < maxLiveNodes) {
-            TerminalNode(nodeLiterals, total).also {
+            TerminalNode(banditPolicy, setLiterals, total, blockQueueSize).also {
+                banditPolicy.addArm(total)
                 liveNodes.add(it)
             }
         } else {
@@ -404,35 +247,165 @@ class DecisionTreeBandit<E : VarianceEstimator> @JvmOverloads constructor(
             val (ix, worstNode) = liveNodes.asSequence().mapIndexed { i, n -> i to n }.minBy { pair ->
                 pair.second.data.mean.let { mean -> if (maximize) mean else -mean }
             }!!
-            // if new node improves on worst node
             if ((maximize && worstNode.data.mean < total.mean) || (!maximize && worstNode.data.mean > total.mean)) {
-                if (worstNode is AuditNode) {
-                    // audit node should be replaced with dead node
-                    var parent = root as SplitNode
-                    while (true) {
-                        parent = if (parent.ix.toLiteral(true) in worstNode.setLiterals) {
-                            if (parent.pos is SplitNode) parent.pos as SplitNode
-                            else break
-                        } else {
-                            if (parent.neg is SplitNode) parent.neg as SplitNode
-                            else break
-                        }
+                // remove worstNode and try again
+                banditPolicy.removeArm(worstNode.data)
+                if (worstNode is AuditNode) nbrAuditNodes--
+                var parent = root as SplitNode
+                while (true) {
+                    parent = if (parent.ix.toLiteral(true) in worstNode.literals) {
+                        if (parent.pos is SplitNode) parent.pos as SplitNode
+                        else break
+                    } else {
+                        if (parent.neg is SplitNode) parent.neg as SplitNode
+                        else break
                     }
-                    val deadNode = TerminalNode(worstNode.setLiterals, worstNode.data)
-                    if (worstNode == parent.pos) parent.pos = deadNode
-                    else parent.neg = deadNode
-                    liveNodes[ix] = AuditNode(nodeLiterals, total)
-                } else {
-                    liveNodes[ix] = TerminalNode(nodeLiterals, total)
                 }
-                liveNodes[ix]
-            } else TerminalNode(nodeLiterals, total)
+                val deadNode = TerminalNode(banditPolicy, worstNode.literals, worstNode.data, 0)
+                if (worstNode === parent.pos) parent.pos = deadNode
+                else parent.neg = deadNode
+                liveNodes.removeAt(ix)
+                createLeafNode(setLiterals, total)
+            } else TerminalNode(banditPolicy, setLiterals, total, 0)
         }
     }
 
-    private fun hoeffdingBound(delta: Float, count: Float, depth: Int): Float {
-        // R = 1 for both binary classification and with variance ratio
-        //sqrt(/* R*R* */ ln(1.0f / delta) / (2.0f * count))
-        return sqrt((-ln(delta) - depth * ln(deltaDecay)) / 2.0f / count)
+    override fun importData(data: TreeData<E>) {
+        for (d in data.nodes) {
+            root.findLeaves(d.literals).forEach {
+                banditPolicy.removeArm(it.data)
+                val combined = it.data.combine(d.data) as E
+                it.data = combined
+                banditPolicy.addArm(combined)
+            }
+        }
+    }
+
+    override fun exportData(): TreeData<E> {
+        val data = ArrayList<NodeData<E>>()
+        val queue = ArrayList<Pair<IntArray, SplitNode<E>>>()
+        if (root is SplitNode) queue.add(EMPTY_INT_ARRAY to root as SplitNode)
+        while (queue.isNotEmpty()) {
+            val (lits, r) = queue.removeAt(queue.lastIndex)
+            val posLits = lits + r.ix.toLiteral(true)
+            val negLits = lits + r.ix.toLiteral(false)
+            if (r.pos is SplitNode<E>) queue.add(posLits to r.pos as SplitNode<E>)
+            else data += NodeData(posLits, (r.pos as LeafNode).data)
+            if (r.neg is SplitNode<E>) queue.add(negLits to r.neg as SplitNode<E>)
+            else data += NodeData(negLits, (r.neg as LeafNode).data)
+        }
+        return TreeData(data)
+    }
+
+    /**
+     * Problem and bandit policy are mandatory
+     */
+    class Builder<E : VarianceEstimator>(val model: Model, val banditPolicy: BanditPolicy<E>) : PredictionBanditBuilder<TreeData<E>> {
+
+        private var optimizer: Optimizer<SatObjective>? = null
+        private var randomSeed: Int = nanos().toInt()
+        private var maximize: Boolean = true
+        private var splitMetric: SplitMetric =
+                if (banditPolicy.baseData() is BinaryEstimator) GiniCoefficient
+                else VarianceReduction
+        private var delta: Float = 0.05f
+        private var deltaDecay: Float = 0.5f
+        private var tau: Float = 0.01f
+        private var maxNodes: Int = 500
+        private var maxLiveNodes: Int = 100
+        private var viewedValues: Int = min(model.nbrVariables * 2, 100)
+        private var splitPeriod: Int = 10
+        private var minSamplesSplit: Float = banditPolicy.baseData().nbrWeightedSamples + 5.0f
+        private var minSamplesLeaf: Float = banditPolicy.baseData().nbrWeightedSamples + 1.0f
+        private var maxDepth: Int = 50
+        private var rewards: DataSample = VoidSample
+        private var trainAbsError: DataSample = VoidSample
+        private var testAbsError: DataSample = VoidSample
+        private var propagateAssumptions: Boolean = true
+        private var blockQueueSize: Int = 2
+        private var maxRestarts: Int = 5
+        private var splitters = HashMap<Variable<*, *>, ValueSplitter>()
+        private var filterMissingData: Boolean = true
+
+        private var root: Node<E>? = null
+
+        override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
+        override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
+        override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
+
+        /** Used to generate complete [Instance] from partial literals at leaf nodes. */
+        fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
+
+        /** Which split metric to use for deciding what variable to split on. */
+        fun splitMetric(splitMetric: SplitMetric) = apply { this.splitMetric = splitMetric }
+
+        /** P-value threshold that variable to split on must overcome relative to second best. Lower value requires more data. */
+        fun delta(delta: Float) = apply { this.delta = delta }
+
+        /** [delta] will be multiplied by this once for each split. Used to limit the growth of the tree. */
+        fun deltaDecay(deltaDecay: Float) = apply { this.deltaDecay = deltaDecay }
+
+        /** Threshold with which the algorithm splits even if it is not proven best (0 is never, 1 is always) */
+        fun tau(tau: Float) = apply { this.tau = tau }
+
+        /** Total number of nodes that are permitted to build. */
+        fun maxNodes(maxNodes: Int) = apply { this.maxNodes = maxNodes }
+
+        /** Only live nodes can be selected by choose method. Affects time taken to [choose]. */
+        fun maxLiveNodes(maxLiveNodes: Int) = apply { this.maxLiveNodes = maxLiveNodes }
+
+        /** The number of randomly selected values in the variables that leaf nodes consider for splitting the tree further during update. */
+        fun viewedValues(viewedValues: Int) = apply { this.viewedValues = viewedValues }
+
+        /** How often we check whether a split can be performed during update. */
+        fun splitPeriod(splitPeriod: Int) = apply { this.splitPeriod = splitPeriod }
+
+        /** Minimum number of samples in total of both positive and negative values before a variable can be used for a split. */
+        fun minSamplesSplit(minSamplesSplit: Float) = apply { this.minSamplesSplit = minSamplesSplit }
+
+        /** Minimum number of samples of both positive and negative values before a variable can be used for a split. */
+        fun minSamplesLeaf(minSamplesLeaf: Float) = apply { this.minSamplesLeaf = minSamplesLeaf }
+
+        /** Maximum depth the tree can grow to. */
+        fun maxDepth(maxDepth: Int) = apply { this.maxDepth = maxDepth }
+
+        /**The total absolute error obtained on a prediction before update. */
+        fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
+
+        /** The total absolute error obtained on a prediction after update. */
+        fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
+
+        /** Whether unit propagation before search is performed when assumptions are used. */
+        fun propagateAssumptions(propagateAssumptions: Boolean) = apply { this.propagateAssumptions = propagateAssumptions }
+
+        /** When the solver fails to generate an instance with assumptions, the assumptions are added to a blocked circular queue. */
+        fun blockQueueSize(blockQueueSize: Int) = apply { this.blockQueueSize = blockQueueSize }
+
+        /** Max restart attempts to [choose] (only relevant with assumptions). */
+        fun maxRestarts(maxRestarts: Int) = apply { this.maxRestarts = maxRestarts }
+
+        /** Custom value splitters to use instead of default. */
+        fun addSplitter(variable: Variable<*, *>, splitter: ValueSplitter) = apply { this.splitters[variable] = splitter }
+
+        /** Whether data should be automatically filtered for update for variables that are undefined (otherwise counted as false). */
+        fun filterMissingData(filterMissingData: Boolean) = apply { this.filterMissingData = filterMissingData }
+
+        override fun importData(data: TreeData<E>) = apply { this.root = data.buildTree(banditPolicy) }
+
+        override fun parallel() = ParallelPredictionBandit.Builder(this)
+
+        override fun build(): DecisionTreeBandit<E> {
+            val parameters = ExtendedTreeParameters(model = model, banditPolicy = banditPolicy,
+                    optimizer = optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed)
+                            .cached().pNew(1.0f).maxSize(10).build(),
+                    randomSeed = randomSeed, maximize = maximize, rewards = rewards, trainAbsError = trainAbsError,
+                    testAbsError = testAbsError, splitMetric = splitMetric, delta = delta, deltaDecay = deltaDecay,
+                    tau = tau, maxNodes = maxNodes, maxDepth = maxDepth, maxLiveNodes = maxLiveNodes,
+                    viewedValues = viewedValues, splitPeriod = splitPeriod,
+                    minSamplesSplit = minSamplesSplit, minSamplesLeaf = minSamplesLeaf,
+                    propagateAssumptions = propagateAssumptions, blockQueueSize = blockQueueSize,
+                    maxRestarts = maxRestarts, splitters = splitters, filterMissingData = filterMissingData)
+            return DecisionTreeBandit(parameters, root, null)
+        }
     }
 }

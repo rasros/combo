@@ -53,7 +53,7 @@ class SplitMetricTest {
     @Test
     fun varianceReduction() {
         val sm = VarianceReduction
-        val split = sm.split(total, pos, neg, 1.0f)
+        val split = sm.split(total, pos, neg, 1.0f, 1.0f)
         assertEquals(0, split.i)
         assertTrue(split.top1 > split.top2)
     }
@@ -61,7 +61,7 @@ class SplitMetricTest {
     @Test
     fun fTest() {
         val sm = TTest
-        val split = sm.split(total, pos, neg, 1.0f)
+        val split = sm.split(total, pos, neg, 1.0f, 1.0f)
         assertEquals(0, split.i)
         assertTrue(split.top1 > split.top2)
     }
@@ -69,7 +69,7 @@ class SplitMetricTest {
     @Test
     fun chi2Test() {
         val sm = ChiSquareTest
-        val split = sm.split(total, pos, neg, 1.0f)
+        val split = sm.split(total, pos, neg, 1.0f, 1.0f)
         assertEquals(0, split.i)
         assertTrue(split.top1 > split.top2)
     }
@@ -95,7 +95,7 @@ class SplitMetricTest {
     @Test
     fun entropyRecuction() {
         val sm = EntropyReduction
-        val split = sm.split(total, pos, neg, 1.0f)
+        val split = sm.split(total, pos, neg, 1.0f, 1.0f)
         assertEquals(0, split.i)
         assertTrue(split.top1 > split.top2)
     }
@@ -103,7 +103,7 @@ class SplitMetricTest {
     @Test
     fun giniCoefficient() {
         val sm = GiniCoefficient
-        val split = sm.split(total, pos, neg, 1.0f)
+        val split = sm.split(total, pos, neg, 1.0f, 1.0f)
         assertEquals(0, split.i)
         assertTrue(split.top1 > split.top2)
     }

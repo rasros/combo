@@ -87,10 +87,18 @@ class MultiArmedBandit<E : VarianceEstimator> @JvmOverloads constructor(
         private var maximize: Boolean = true
         private var rewards: DataSample = VoidSample
 
+        /** Set the random seed to a specific value to have a reproducible algorithm. By default current system time. */
         fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
+
+        /** Whether the bandit should maximize or minimize the total rewards. By default true. */
         fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
+
+        /** All rewards are added to this for inspecting how well the bandit performs. By default [combo.math.VoidSample]. */
         fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
+
+        /** Build bandit that can be used in parallel. */
         fun parallel() = ParallelUnivariateBandit.Builder(this)
+
         fun build() = MultiArmedBandit(nbrArms, banditPolicy, randomSeed, maximize, rewards)
     }
 }

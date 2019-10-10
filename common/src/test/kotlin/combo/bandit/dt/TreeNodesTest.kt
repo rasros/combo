@@ -6,9 +6,10 @@ import combo.sat.BitArray
 import combo.sat.Instance
 import combo.sat.toLiteral
 import combo.test.assertContentEquals
-import combo.util.CircleBuffer
 import combo.util.IntCollection
+import combo.util.RandomCache
 import combo.util.collectionOf
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -58,36 +59,30 @@ class TreeNodesTest {
 
     @Test
     fun blocks() {
-        val t = TestNode(collectionOf(1, 3, -5))
-        t.blocked = CircleBuffer(1)
+        val t = TestNode(collectionOf(1, 3, -5), RunningVariance(), RandomCache(1))
 
-        t.blocked?.add(collectionOf())
+        val rng = Random
+        t.blocked?.add(rng, collectionOf())
         assertTrue(t.blocks(collectionOf(1)))
         assertTrue(t.blocks(collectionOf(-1)))
 
-        t.blocked?.add(collectionOf(1))
+        t.blocked?.add(rng, collectionOf(1))
         assertTrue(t.blocks(collectionOf(1)))
-
-        t.blocked?.add(collectionOf(-1, 2))
-        assertTrue(t.blocks(collectionOf(-1, 2)))
-
-        t.blocked?.add(collectionOf(1, 3, -5))
-        assertTrue(t.blocks(collectionOf(1, 3, -5)))
-    }
-
-    @Test
-    fun blocksNot() {
-        val t = TestNode(collectionOf(-1, -2, 3))
-        t.blocked = CircleBuffer(1)
-
-        t.blocked?.add(collectionOf(1))
+        assertTrue(t.blocks(collectionOf(1, 2)))
         assertFalse(t.blocks(collectionOf(-1)))
+        assertFalse(t.blocks(collectionOf(2)))
 
-        t.blocked?.add(collectionOf(-1, 2))
+        t.blocked?.add(rng, collectionOf(-1, 2))
+        assertTrue(t.blocks(collectionOf(-1, 2)))
         assertFalse(t.blocks(collectionOf(-1, -2)))
+        assertFalse(t.blocks(collectionOf(-1)))
+        assertFalse(t.blocks(collectionOf(2)))
 
-        t.blocked?.add(collectionOf(3))
-        assertFalse(t.blocks(collectionOf(-2)))
+        t.blocked?.add(rng, collectionOf(1, 3, -5))
+        assertTrue(t.blocks(collectionOf(1, 3, -5)))
+        assertTrue(t.blocks(collectionOf(1, 3, -5, 2)))
+        assertFalse(t.blocks(collectionOf(1, -3, -5)))
+        assertFalse(t.blocks(collectionOf(1, -3, -5)))
     }
 
     @Test
@@ -111,6 +106,7 @@ class TreeNodesTest {
     }
 }
 
-private class TestNode(setLiterals: IntCollection, data: VarianceEstimator = RunningVariance()) : LeafNode<VarianceEstimator>(setLiterals, data) {
+private class TestNode(setLiterals: IntCollection, data: VarianceEstimator = RunningVariance(), blocked: RandomCache<IntCollection>? = null)
+    : LeafNode<VarianceEstimator>(setLiterals, data, blocked) {
     override fun update(instance: Instance, result: Float, weight: Float) = this
 }

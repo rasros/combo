@@ -8,13 +8,13 @@ class GLMBandit(val problem: Problem,
                 val lambda: Double = 1.0,
                 val randomSeed: Long = nanos(),
                 val optimizer: Optimizer<LinearObjective>,
-                override val rewards: DataSample = GrowingDataSample(),
-                override val trainAbsError: DataSample = GrowingDataSample(),
-                override val testAbsError: DataSample = GrowingDataSample(),
+                override val rewards: DataSample = BucketSample(),
+                override val trainAbsError: DataSample = BucketSample(),
+                override val testAbsError: DataSample = BucketSample(),
         //bias: Double,
-        //val weights: Vector = DoubleArray(problem.nbrVariables),
-        //val sampler: DiagonalSampler = DiagonalSampler(problem.nbrVariables, lambda)
-                val model: RegressionModel = DiagonalModel(problem.nbrVariables, lambda)
+        //val weights: Vector = DoubleArray(problem.binarySize),
+        //val sampler: DiagonalSampler = DiagonalSampler(problem.binarySize, lambda)
+                val model: RegressionModel = DiagonalModel(problem.binarySize, lambda)
 ) : PredictionBandit {
 
     private val randomSequence = RandomSequence(randomSeed)
@@ -22,7 +22,7 @@ class GLMBandit(val problem: Problem,
         private set
 
     init {
-        require(weights.size == problem.nbrVariables) { "Weight prior parameter must be same size as problem: ${problem.nbrVariables}." }
+        require(weights.size == problem.binarySize) { "Weight prior parameter must be same size as problem: ${problem.binarySize}." }
         require(lambda >= 1E-6) { "Lambda prior parameter should not be too close to zero (1E-6)." }
     }
 

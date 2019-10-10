@@ -14,8 +14,8 @@ import kotlin.math.min
  * All state of the search is kept here. The score is defined as mean for genetic operators that use score directly.
  */
 class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
-                                              var minSamples: Float,
-                                              var maximize: Boolean,
+                                              val minSamples: Float,
+                                              val maximize: Boolean,
                                               val banditPolicy: BanditPolicy<E>) : Candidates {
 
     override var instances = instances
@@ -70,19 +70,6 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
         if (needUpdateMinMax) calculateMinMax()
     }
 
-    fun removeCandidate(position: Int) {
-        val oldInstance = instances[position]
-        instances = instances.removeAt(position)
-        origins = origins.removeAt(position)
-        unindexCandidate(position, oldInstance)
-    }
-
-    fun addCandidate(instance: Instance) {
-        instances += instance
-        origins += step
-        indexCandidate(instances.lastIndex) { banditPolicy.baseData() }
-    }
-
     /**
      * @return candidate if it is unique
      */
@@ -93,19 +80,6 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
         val last = unindexCandidate(position, oldInstance)
         indexCandidate(position) { banditPolicy.baseData() }
         return last
-    }
-
-    fun replaceCandidates(newInstances: Array<Instance>, newData: Map<Instance, E>) {
-        instances = newInstances
-        origins = LongArray(newInstances.size) { step }
-        oldestOrigin = step
-        oldestCandidate = nbrCandidates - 1
-        estimators.clear()
-        duplications.clear()
-        minMean = Float.POSITIVE_INFINITY
-        maxMean = Float.NEGATIVE_INFINITY
-        for (i in instances.indices)
-            indexCandidate(i) { newData[instances[i]]!! }
     }
 
     fun isDuplicated(instance: Instance) = duplications[instance]?.size == 1
@@ -136,7 +110,7 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
         return last
     }
 
-    private fun calculateOldest() {
+    fun calculateOldest() {
         oldestOrigin = Long.MAX_VALUE
         for (i in origins.indices) {
             if (origins[i] < oldestOrigin) {
@@ -147,7 +121,7 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
         }
     }
 
-    private fun calculateMinMax() {
+    fun calculateMinMax() {
         minMean = Float.POSITIVE_INFINITY
         maxMean = Float.NEGATIVE_INFINITY
         for (e in estimators.values) {
