@@ -4,7 +4,7 @@ import combo.bandit.univariate.NormalPosterior;
 import combo.bandit.univariate.ThompsonSampling;
 import combo.model.Model;
 import combo.model.ModelBandit;
-import combo.model.ModelSolver;
+import combo.model.ModelOptimizer;
 
 import java.util.List;
 
@@ -24,7 +24,7 @@ public class JavaDemo {
                 .build();
 
         // Solver can generate random assignments and permutations with the asSequence method
-        var solver = ModelSolver.localSearch(model);
+        var solver = ModelOptimizer.localSearch(model);
 
         // Assignment is used like so:
         var randomAssignment = solver.witnessOrThrow();

@@ -1,14 +1,55 @@
 package combo.model
 
 import combo.bandit.Bandit
+import combo.bandit.ListBandit
 import combo.bandit.PredictionBandit
+import combo.bandit.dt.DecisionTreeBandit
+import combo.bandit.dt.RandomForestBandit
+import combo.bandit.ga.GeneticAlgorithmBandit
+import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
+import combo.math.VarianceEstimator
 import combo.util.EmptyCollection
 import combo.util.IntCollection
 import combo.util.IntHashSet
 import kotlin.jvm.JvmOverloads
+import kotlin.jvm.JvmStatic
 
 open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
+
+    companion object {
+        @JvmStatic
+        fun <E : VarianceEstimator> listBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+                ModelBandit(model, ListBandit.Builder(model.problem, banditPolicy).build())
+
+        @JvmStatic
+        fun <E : VarianceEstimator> decisionTreeBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+                PredictionModelBandit(model, DecisionTreeBandit.Builder(model, banditPolicy).build())
+
+        @JvmStatic
+        fun <E : VarianceEstimator> randomForestBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+                PredictionModelBandit(model, RandomForestBandit.Builder(model, banditPolicy).build())
+
+        @JvmStatic
+        fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+                ModelBandit(model, GeneticAlgorithmBandit.Builder(model.problem, banditPolicy).build())
+
+        /*
+    @JvmStatic
+    @JvmOverloads
+    fun linearBandit(model: Model,
+                     family: VarianceFunction = NormalVariance,
+                     link: Transform = family.canonicalLink(),
+                     regularization: Loss = SquaredLoss,
+                     optimizer: Optimizer<LinearObjective> =
+                             CachedOptimizer(LocalSearch.Builder(model.problem)
+                                     .restarts(1).cached().build()))
+            : ModelBandit<ListBandit<VarianceEstimator>> {
+        TODO()
+    }
+
+         */
+    }
 
     fun choose(vararg assumptions: Literal): Assignment? {
         val instance = bandit.choose(assumptionsLiterals(assumptions))
