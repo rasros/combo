@@ -74,7 +74,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         }
         return if (best == null && failure == null)
             baseOptimizer.optimizeOrThrow(function, assumptions, guess).also { buffer.add(rng, it) }
-        else best ?: throw UnsupportedOperationException("Failed to find matching fallback instance.", failure)
+        else best ?: throw UnsatisfiableException("Failed to find matching fallback instance.", failure)
     }
 
     override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
