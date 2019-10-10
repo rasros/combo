@@ -67,6 +67,29 @@ operator fun MutableIntCollection.plus(value: Int): MutableIntCollection {
 }
 
 /**
+ * Immutable list collection.
+ */
+fun intListOf(vararg array: Int): IntList {
+    if (array.size > 1) {
+        var min = Int.MAX_VALUE
+        var max = Int.MIN_VALUE
+        var doRange = true
+        for ((i, v) in array.withIndex()) {
+            min = min(v, min)
+            max = max(v, max)
+            if (max - min != i) {
+                doRange = false
+                break
+            }
+        }
+        if (doRange) return IntRangeCollection(min, max)
+    }
+    val list = IntArrayList()
+    list.addAll(array)
+    return list
+}
+
+/**
  * Immutable collection. This may not contain 0.
  */
 fun collectionOf(vararg array: Int): IntCollection {
@@ -75,6 +98,7 @@ fun collectionOf(vararg array: Int): IntCollection {
     var max = Int.MIN_VALUE
     var doRange = true
     for ((i, v) in array.withIndex()) {
+        assert(v != 0)
         min = min(v, min)
         max = max(v, max)
         if (max - min != i) {
