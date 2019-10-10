@@ -265,6 +265,7 @@ abstract class OptimizerTest {
         testUnsat(collectionOf(3, 4, 5), TestModels.SAT_PROBLEMS[3])
         testUnsat(collectionOf(-10, -11, -12), TestModels.SAT_PROBLEMS[3])
         testUnsat(collectionOf(-4, 5), TestModels.SAT_PROBLEMS[4])
+        testUnsat(collectionOf(4, 11, 5, 1, 2, 3), TestModels.SAT_PROBLEMS[5])
     }
 
     @Test
@@ -440,8 +441,8 @@ abstract class OptimizerTest {
             testOptimize(FloatArray(nbrValues) { -2.0f + it.toFloat() * 0.1f }, this, false, 16.300001f, 5.0f)
         }
         with(TestModels.LARGE_PROBLEMS[2]) {
-            testOptimize(FloatArray(nbrValues) { -2.0f + it.toFloat() * 0.1f }, this, true, 11475.0f, 0.0f)
-            testOptimize(FloatArray(nbrValues) { -2.0f + it.toFloat() * 0.1f }, this, false, -21.0f, .0f)
+            testOptimize(FloatArray(nbrValues) { -2.0f + it.toFloat() * 0.1f }, this, true, 11475.0f, 0.1f)
+            testOptimize(FloatArray(nbrValues) { -2.0f + it.toFloat() * 0.1f }, this, false, -21.0f, 0.1f)
         }
     }
 
