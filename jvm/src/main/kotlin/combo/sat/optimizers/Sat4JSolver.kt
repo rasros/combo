@@ -54,7 +54,7 @@ class Sat4JSolver @JvmOverloads constructor(
                     "Register custom constraint handler in order to handle extra constraints.")
         }) : Optimizer<LinearObjective> {
 
-    private val randomSequence = RandomSequence(nanos().toInt())
+    private val randomSequence = RandomSequence(randomSeed)
 
     override val complete get() = true
 
@@ -68,7 +68,7 @@ class Sat4JSolver @JvmOverloads constructor(
     private fun setupSolver(solver: ISolver) {
 
         solver.setKeepSolverHot(true)
-        solver.newVar(problem.nbrVariables)
+        solver.newVar(problem.nbrValues)
 
         try {
             for (c in problem.constraints)
@@ -124,7 +124,7 @@ class Sat4JSolver @JvmOverloads constructor(
         else solver.setTimeoutOnConflicts(Int.MAX_VALUE)
         // This disables Sat4j millisecond timeouts which spawns a thread for each solving
 
-        for (i in 1..problem.nbrVariables)
+        for (i in 1..problem.nbrValues)
             solver.registerLiteral(i)
 
     }

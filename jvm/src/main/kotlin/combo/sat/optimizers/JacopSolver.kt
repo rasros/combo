@@ -39,12 +39,12 @@ class JacopSolver @JvmOverloads constructor(
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
         }) : Optimizer<LinearObjective> {
 
-    private val randomSequence = RandomSequence(nanos().toInt())
+    private val randomSequence = RandomSequence(randomSeed)
 
     private inner class ConstraintEncoder {
         val store = Store()
 
-        val vars = Array(problem.nbrVariables) { i ->
+        val vars = Array(problem.nbrValues) { i ->
             BooleanVar(store, "x$i")
         }
 
@@ -95,6 +95,9 @@ class JacopSolver @JvmOverloads constructor(
                             LinearInt(arrayOf(posSum, negSum), intArrayOf(1, -1), c.relation.operator, c.degree - neg.size)
                         }
                     }
+                }
+                is CardinalityVar -> {
+                    TODO("need IntBounds to be calculated in initial of two passes over problem.constraints")
                 }
                 is Linear -> {
                     val pos = c.literals.asSequence().filter { it.toBoolean() }.map { vars[it.toIx()] }.toList().toTypedArray()

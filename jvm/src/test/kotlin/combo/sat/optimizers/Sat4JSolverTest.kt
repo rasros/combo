@@ -17,6 +17,9 @@ class Sat4JSolverTest : OptimizerTest() {
     override fun satOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem, randomSeed)
     override fun linearOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem, randomSeed)
 
+    override fun infeasibleSatOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem, randomSeed)
+    override fun infeasibleLinearOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem, randomSeed)
+
     override fun timeoutSatOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem, randomSeed, 0L, maxConflicts = 1)
     override fun timeoutLinearOptimizer(problem: Problem, randomSeed: Int) = Sat4JSolver(problem, randomSeed, 0L, maxConflicts = 1)
 

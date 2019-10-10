@@ -10,6 +10,9 @@ class JacopSolverTest : OptimizerTest() {
     override fun satOptimizer(problem: Problem, randomSeed: Int) = JacopSolver(problem, randomSeed)
     override fun linearOptimizer(problem: Problem, randomSeed: Int) = JacopSolver(problem, randomSeed)
 
+    override fun infeasibleSatOptimizer(problem: Problem, randomSeed: Int) = JacopSolver(problem, randomSeed)
+    override fun infeasibleLinearOptimizer(problem: Problem, randomSeed: Int) = JacopSolver(problem, randomSeed, 1L)
+
     override fun timeoutSatOptimizer(problem: Problem, randomSeed: Int) = JacopSolver(problem, randomSeed, 1L)
     override fun timeoutLinearOptimizer(problem: Problem, randomSeed: Int) = JacopSolver(problem, randomSeed, 1L)
 
