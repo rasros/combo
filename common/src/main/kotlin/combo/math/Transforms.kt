@@ -98,3 +98,7 @@ object InverseSquaredTransform : Transform {
     }
 }
 
+object ReLU : Transform {
+    override fun apply(value: Float) = max(0.0f, value)
+    override fun inverse(value: Float) = throw UnsupportedOperationException("Cannot perform inverse.")
+}
