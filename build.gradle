@@ -27,6 +27,9 @@ ext {
     nodeVersion = '12.11.1'
     qunitVersion = '2.9.2'
     junitVersion = '4.12'
+    jacopVersion = '4.6.0'
+    dl4jVersion = '1.0.0-beta5'
+    sat4jVersion = '2.3.5'
     libraries = [
             junit                         : "junit:junit:$junitVersion",
             kotlin_stdlib                 : "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion",
@@ -37,6 +40,10 @@ ext {
             kotlin_test_common            : "org.jetbrains.kotlin:kotlin-test-common:$kotlinVersion",
             kotlin_test_js                : "org.jetbrains.kotlin:kotlin-test-js:$kotlinVersion",
             kotlin_test_junit             : "org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion",
+            jacop                         : "org.jacop:jacop:$jacopVersion",
+            nd4j                          : "org.nd4j:nd4j-native-platform:$dl4jVersion",
+            dl4j                          : "org.deeplearning4j:deeplearning4j-nn:$dl4jVersion",
+            sat4j                         : "org.ow2.sat4j:org.ow2.sat4j.maxsat:$sat4jVersion"
     ]
 }
 

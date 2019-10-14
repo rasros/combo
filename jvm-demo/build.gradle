@@ -1,25 +1,36 @@
-apply plugin: 'java'
 apply plugin: 'kotlin-platform-jvm'
+apply plugin: 'java'
 
+archivesBaseName = 'combo-jvm-demo'
 dependencies {
-    compile project(':jvm')
+    api project(':jvm')
 
-    compile libraries.kotlin_stdlib
-    compile libraries.kotlin_stdlib_common
-    compile libraries.kotlin_stdlib_jdk
+    api libraries.kotlin_stdlib
+    testImplementation libraries.kotlin_test_junit
 
-    testCompile libraries.kotlin_test_junit
-    compile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
-    compile("org.jacop:jacop:4.6.0")
+    implementation libraries.sat4j
+    implementation libraries.jacop
+    implementation libraries.nd4j
+    implementation libraries.dl4j
 }
 
+/*
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.kotlin
+}
+
+artifacts {
+    archives sourcesJar
+}
+*/
 
 jar {
     manifest {
-        attributes 'Main-Class': 'combo.demo.TestKt'
+        attributes 'Main-Class': 'combo.demo.SimulationKt'
     }
 
     from {
-        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }

@@ -1,5 +1,4 @@
 apply plugin: 'kotlin-platform-jvm'
-
 apply plugin: 'java'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -8,35 +7,19 @@ archivesBaseName = 'combo-jvm'
 
 dependencies {
     expectedBy project(':common')
-    compile libraries.kotlin_stdlib_jdk
-    testCompile libraries.kotlin_test_junit
+    api libraries.kotlin_stdlib_jdk
+    testImplementation libraries.kotlin_test_junit
 
-    compileOnly("org.nd4j:nd4j-native-platform:1.0.0-beta5")
-    testCompile("org.nd4j:nd4j-native-platform:1.0.0-beta5")
-    compileOnly("org.deeplearning4j:deeplearning4j-nn:1.0.0-beta5")
-    testCompile("org.deeplearning4j:deeplearning4j-nn:1.0.0-beta5")
+    compileOnly libraries.dl4j
+    testImplementation libraries.dl4j
+    compileOnly libraries.nd4j
+    testImplementation libraries.nd4j
 
-    compileOnly("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
-    testCompile("org.ow2.sat4j:org.ow2.sat4j.maxsat:2.3.5")
+    compileOnly libraries.sat4j
+    testImplementation libraries.sat4j
 
-    compileOnly("org.jacop:jacop:4.6.0") {
-        exclude group: "org.scala-lang", module: "scala-library"
-        exclude group: "org.scala-lang", module: "scala-compiler"
-        exclude group: "org.slf4j", module: "slf4j-api"
-        exclude group: "org.slf4j", module: "slf4j-log4j12"
-        exclude group: "log4j", module: "log4j"
-        exclude group: "org.perf4j", module: "perf4j"
-        exclude group: "commons-jexl", module: "commons-jexl"
-    }
-    testCompile("org.jacop:jacop:4.6.0") {
-        exclude group: "org.scala-lang", module: "scala-library"
-        exclude group: "org.scala-lang", module: "scala-compiler"
-        exclude group: "org.slf4j", module: "slf4j-api"
-        exclude group: "org.slf4j", module: "slf4j-log4j12"
-        exclude group: "log4j", module: "log4j"
-        exclude group: "org.perf4j", module: "perf4j"
-        exclude group: "commons-jexl", module: "commons-jexl"
-    }
+    compileOnly libraries.jacop
+    testImplementation("org.jacop:jacop:4.6.0")
 }
 
 task sourcesJar(type: Jar) {
