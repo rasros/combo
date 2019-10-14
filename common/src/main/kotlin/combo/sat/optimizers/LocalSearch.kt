@@ -67,10 +67,10 @@ class LocalSearch(val problem: Problem,
             val units = IntHashSet()
             units.addAll(assumptions)
             p = Problem(problem.nbrValues, problem.unitPropagation(units, true))
-            assumption = Conjunction(units)
+            assumption = WeightedConstraint(1000, Conjunction(units))
         } else {
             p = problem
-            assumption = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
+            assumption = if (assumptions.isEmpty()) Tautology else WeightedConstraint(1000, Conjunction(assumptions))
         }
 
         val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrValues))

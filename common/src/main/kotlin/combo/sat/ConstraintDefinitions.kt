@@ -111,3 +111,7 @@ object Tautology : PropositionalConstraint, Proposition {
     override fun toString() = "Tautology"
 }
 
+class WeightedConstraint(val factor: Int, val base: Constraint) : Constraint by base {
+    override fun violations(instance: Instance, cacheResult: Int) = base.violations(instance, cacheResult) * factor
+    override fun violations(instance: Instance) = base.violations(instance) * factor
+}
