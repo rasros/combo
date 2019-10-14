@@ -226,11 +226,24 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
             }
         }
 
+
         /**
-         * Adds a separate [Model] as a child model to this. Constraints defined in the other model are not copied,
-         * but implicit constraints are added again.
+         * Adds a separate [Model] as a child model to this. Variables are copied to new model. Constraints in [model]
+         * are ignored.
+         * TODO copy constraints by remapping. Need to change so that implicit constraints are added during build.
          */
         fun addModel(model: Model) = apply {
+
+            val r = model.scope.reifiedValue as? Root ?: error("Sub model must have Root.")
+            val rebased = HashMap<Variable<*, *>, Value>()
+            rebased[r] = bool(r.name)
+            fun rebaseValue(value: Value): Value {
+                return if (value is Variable<*, *>)
+                    rebased.getOrPut(value) {
+                        value.rebase(rebaseValue(value.parent))
+                    } else value.rebase(rebaseValue(value.canonicalVariable.parent))
+            }
+
             val scopes = ArrayList<Scope>()
             val definedIn = ArrayList<ModelBuilder<*>>()
             scopes.add(model.scope)
@@ -238,15 +251,15 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
             while (scopes.isNotEmpty()) {
                 val next = scopes.removeAt(0)
                 val parent = definedIn.removeAt(0)
-                val rv = if (next.reifiedValue !in index) {
+                /*val rv = if (next.reifiedValue !in index) {
                     when {
                         next.reifiedValue is Root -> parent.bool(next.reifiedValue.name)
                         next.reifiedValue !is Variable<*, *> -> error("Value ${next.reifiedValue} not contained in scope.")
                         else -> parent.addVariable(next.reifiedValue as Variable<*, *>)
                     }
-                } else next.reifiedValue
-                parent.model(rv, next.scopeName) {
-                    next.variables.forEach { addVariable(it) }
+                } else next.reifiedValue*/
+                parent.model(rebaseValue(next.reifiedValue), next.scopeName) {
+                    next.variables.forEach { addVariable(rebaseValue(it) as Variable<*, *>) }
                     next.children.forEach {
                         scopes.add(it)
                         definedIn.add(this)

@@ -36,6 +36,7 @@ interface Literal : Expression {
  */
 interface Value : Literal, Proposition {
     fun toLiteral(variableIndex: VariableIndex): Int
+    fun rebase(parent: Value): Value
     override fun not(): Value = Not(this)
     override fun collectLiterals(index: VariableIndex, set: IntHashSet) {
         when (val value = toLiteral(index)) {
@@ -49,6 +50,7 @@ interface Value : Literal, Proposition {
 class Not(private val negated: Value) : Value {
     override val name: String get() = negated.name
     override val canonicalVariable: Variable<*, *> get() = negated.canonicalVariable
+    override fun rebase(parent: Value) = Not(negated.rebase(parent))
     override operator fun not() = negated
     override fun toLiteral(variableIndex: VariableIndex) = !negated.toLiteral(variableIndex)
     override fun toString(): String = "Not($negated)"

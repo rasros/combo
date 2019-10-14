@@ -28,6 +28,8 @@ class IntVar constructor(name: String, override val optional: Boolean, override 
         isSetBit + signedBit + valueBits
     }
 
+    override fun rebase(parent: Value) = IntVar(name, optional, parent, min, max)
+
     override fun value(value: Int): IntLiteral {
         require(value in min..max)
         return IntLiteral(this, value)
@@ -98,6 +100,8 @@ class FloatVar constructor(name: String, override val optional: Boolean, overrid
 
     override val nbrValues: Int = 32 + if (optional) 1 else 0
 
+    override fun rebase(parent: Value) = FloatVar(name, optional, parent, min, max)
+
     override fun value(value: Float): FloatLiteral {
         require(value in min..max)
         return FloatLiteral(this, value)
@@ -155,7 +159,9 @@ class BitsVar constructor(name: String, override val optional: Boolean, override
         require(nbrBits > 0) { "nbrBits must be > 0." }
     }
 
+
     override val nbrValues: Int get() = nbrBits + if (optional) 1 else 0
+    override fun rebase(parent: Value) = BitsVar(name, optional, parent, nbrBits)
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Instance? {
         if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
@@ -182,9 +188,7 @@ class BitsVar constructor(name: String, override val optional: Boolean, override
         return sequenceOf(ReifiedImplies(reifiedValue.not().toLiteral(index), Conjunction(zeros)))
     }
 
-    override fun toString(): String {
-        return "BitsVar(nbrLiterals=$nbrBits)"
-    }
+    override fun toString() = "BitsVar(nbrLiterals=$nbrBits)"
 }
 
 class BitValue constructor(override val canonicalVariable: BitsVar, val bitIndex: Int) : Value {
@@ -193,9 +197,8 @@ class BitValue constructor(override val canonicalVariable: BitsVar, val bitIndex
         require(bitIndex in 0 until canonicalVariable.nbrBits) { "BitValue with index=$bitIndex is out of bound with $name." }
     }
 
-    override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.valueIndexOf(canonicalVariable) + bitIndex + if (canonicalVariable.optional) 1 else 0).toLiteral(true)
-
-    override fun toString() = "BitValue($name=$bitIndex)"
-
     override val name: String get() = canonicalVariable.name
+    override fun rebase(parent: Value) = (parent.canonicalVariable as BitsVar).value(bitIndex)
+    override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.valueIndexOf(canonicalVariable) + bitIndex + if (canonicalVariable.optional) 1 else 0).toLiteral(true)
+    override fun toString() = "BitValue($name=$bitIndex)"
 }

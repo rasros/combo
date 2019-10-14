@@ -29,7 +29,16 @@ class VariableIndex : Iterable<Variable<*, *>> {
     fun indexOf(variable: Variable<*, *>) = variables.indexOf(variable)
 
     fun variableWithValue(valueIndex: Int): Variable<*, *> {
-        TODO("Implement with binary search")
+        var l = 0
+        var r = nbrVariables
+        while (l <= r) {
+            val m = l + (r - l) / 2
+            val ix = valueIndexOf(variables[m])
+            if (valueIndex in ix..ix + variables[m].nbrValues) return variables[m]
+            if (ix < valueIndex) l = m + 1
+            else r = m - 1
+        }
+        throw NoSuchElementException("Variable with valueIndex $valueIndex not found.")
     }
 
     fun valueIndexOf(variable: Variable<*, *>): Int =

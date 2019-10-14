@@ -60,14 +60,15 @@ abstract class Variable<in V, out T>(override val name: String) : Value {
  */
 class Root(name: String) : Variable<Nothing, Unit>(name) {
     override val nbrValues get() = 0
+    override val optional: Boolean get() = false
+    override val parent: Value get() = error("Root does not have a parent.")
+    override fun rebase(parent: Value) = error("Root cannot be rebased.")
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int) {}
     override fun toLiteral(variableIndex: VariableIndex) = error("Root cannot be used in an expression. " +
             "This is likely caused by using a mandatory variable defined in the root scope in an expression.")
 
-    override fun toString() = "Root($name)"
     override fun value(value: Nothing) = error("Root cannot be used as a value.")
-    override val optional: Boolean get() = false
-    override val parent: Value get() = error("Root does not have a parent.")
+    override fun toString() = "Root($name)"
 }
 
 /**
@@ -76,11 +77,12 @@ class Root(name: String) : Variable<Nothing, Unit>(name) {
  */
 class Flag<out T> constructor(name: String, val value: T, override val parent: Value) : Variable<Nothing, T>(name) {
     override val nbrValues: Int get() = 1
-    override fun toString() = "Flag($name)"
+    override val optional: Boolean get() = true
+    override fun rebase(parent: Value) = Flag(name, value, parent)
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int) = if (instance[index]) value else null
     override fun toLiteral(variableIndex: VariableIndex) = variableIndex.valueIndexOf(this).toLiteral(true)
     override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
-    override val optional: Boolean get() = true
+    override fun toString() = "Flag($name)"
 }
 
 /**
@@ -110,18 +112,23 @@ sealed class Select<V, out T> constructor(name: String, override val optional: B
      * to the corresponding optimization variable.
      */
     inner class Option constructor(val valueIndex: Int, val value: V) : Value {
-        override val canonicalVariable: Select<V, T> get() = this@Select
 
+        override val canonicalVariable: Select<V, T> get() = this@Select
+        override val name: String get() = canonicalVariable.name
+
+        @Suppress("UNCHECKED_CAST")
+        override fun rebase(parent: Value) = (parent.canonicalVariable as Select<V,T>).value(value)
         override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.valueIndexOf(canonicalVariable) + valueIndex
                 + if (optional) 1 else 0).toLiteral(true)
 
         override fun toString() = "Option($name=$value)"
-        override val name: String get() = canonicalVariable.name
     }
 }
 
 class Multiple<V> constructor(name: String, optional: Boolean, parent: Value, vararg values: V)
     : Select<V, List<V>>(name, optional, parent, values) {
+
+    override fun rebase(parent: Value): Variable<*, *> = Multiple(name, optional, parent, values)
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): List<V>? {
         if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
@@ -151,6 +158,8 @@ class Multiple<V> constructor(name: String, optional: Boolean, parent: Value, va
 
 class Nominal<V> constructor(name: String, optional: Boolean, parent: Value, vararg values: V)
     : Select<V, V>(name, optional, parent, values) {
+
+    override fun rebase(parent: Value): Variable<*, *> = Nominal(name, optional, parent, values)
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): V? {
         if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null

@@ -1,9 +1,6 @@
 package combo.model
 
-import combo.sat.Instance
-import combo.sat.MutableInstance
-import combo.sat.set
-import combo.sat.setAll
+import combo.sat.*
 import combo.util.IntHashSet
 
 /**
@@ -51,11 +48,13 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex, v
     fun getDouble(variable: Variable<*, Double>): Double = getOrDefault(variable, 0.0)
     fun getFloat(variable: Variable<*, Float>): Float = getOrDefault(variable, 0.0f)
 
-    operator fun contains(name: String) = scope.find<Variable<*, *>>(name)?.let {
-        it.valueOf(instance, index.valueIndexOf(it), it.parentLiteral(index)) != null
-    } ?: false
+    operator fun contains(name: String) = scope.find<Variable<*, *>>(name)?.let { contains(it) } ?: false
 
-    operator fun contains(variable: Variable<*, *>) = variable.valueOf(instance, index.valueIndexOf(variable), variable.parentLiteral(index)) != null
+    operator fun contains(value: Value) = if (value is Root) true else {
+        val lit = value.toLiteral(index)
+        lit == instance.literal(lit.toIx())
+    }
+    // = instance.lit variable.valueOf(instance, index.valueIndexOf(variable), variable.parentLiteral(index)) != null
 
     operator fun <V> get(name: String): V? = scope.find<Variable<*, V>>(name)?.let {
         it.valueOf(instance, index.valueIndexOf(it), it.parentLiteral(index))
@@ -97,5 +96,7 @@ class Assignment constructor(val instance: Instance, val index: VariableIndex, v
 
     data class VariableAssignment<V>(val variable: Variable<*, V>, val value: V) {
         override fun toString() = "${variable.name}=$value"
+        @Suppress("UNCHECKED_CAST")
+        fun toLiteral() = (variable as Variable<Any, V>).value(value as Any)
     }
 }
