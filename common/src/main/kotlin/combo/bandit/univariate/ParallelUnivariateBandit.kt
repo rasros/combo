@@ -34,8 +34,7 @@ class ParallelUnivariateBandit<D> private constructor(val bandits: Array<Univari
     }
 
     init {
-        require(!batchSize.isEmpty()) { "Batchsize interval should not be empty." }
-        require(batchSize.first >= 0)
+        require(!batchSize.isEmpty() && batchSize.first >= 0) { "Bad batchSize interval." }
     }
 
     override val randomSeed: Int get() = bandits[0].randomSeed

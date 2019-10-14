@@ -100,7 +100,6 @@ class ModelTest {
             assignments.forEach {
                 assertTrue(it.contains("a1"))
                 assertFalse(it.contains("m1"))
-                assertTrue(it.contains("m2"))
             }
         }
     }

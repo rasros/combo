@@ -32,8 +32,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
     }
 
     init {
-        require(!batchSize.isEmpty()) { "Batchsize interval should not be empty." }
-        require(batchSize.first >= 0)
+        require(!batchSize.isEmpty() && batchSize.first >= 0) { "Bad batchSize interval." }
     }
 
     override val randomSeed: Int get() = bandits[0].randomSeed
@@ -284,6 +283,10 @@ class ParallelPredictionBandit<D : BanditData>(bandits: Array<Bandit<D>>, batchS
         super<ParallelBandit>.update(instance, result, weight)
     }
 
+    override fun updateAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
+        super<ParallelBandit>.updateAll(instances, results, weights)
+    }
+
     override fun predict(instance: Instance): Float {
         while (true) {
             for (i in IntPermutation(bandits.size, randomSequence.next())) {
@@ -315,7 +318,10 @@ class ParallelPredictionBandit<D : BanditData>(bandits: Array<Bandit<D>>, batchS
             val base = baseBuilder.build()
             val array = Array<Bandit<D>>(copies) {
                 val bandit = if (it == 0) base
-                else baseBuilder.rewards(base.rewards.copy()).build()
+                else baseBuilder
+                        .testAbsError(base.testAbsError.copy())
+                        .trainAbsError(base.trainAbsError.copy())
+                        .rewards(base.rewards.copy()).build()
                 if (assumptionsLock) ConcurrentPredictionAssumptionBandit(bandit)
                 else ConcurrentPredictionBandit(bandit)
             }

@@ -2,6 +2,7 @@ package combo.bandit
 
 import combo.bandit.dt.ForestData
 import combo.bandit.dt.TreeData
+import combo.bandit.glm.*
 import combo.bandit.univariate.*
 import combo.math.*
 import combo.model.Model
@@ -9,12 +10,16 @@ import combo.model.Model.Companion.model
 import combo.model.TestModels
 import combo.model.TestModels.MODEL1
 import combo.model.TestModels.MODELS
-import combo.sat.*
+import combo.sat.BitArray
+import combo.sat.Instance
+import combo.sat.ValidationException
 import combo.sat.constraints.Conjunction
+import combo.sat.dot
 import combo.test.assertContentEquals
 import combo.test.assertEquals
 import combo.util.IntCollection
 import combo.util.collectionOf
+import combo.util.mapArray
 import combo.util.nanos
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -78,6 +83,28 @@ abstract class BanditTest<B : Bandit<*>> {
             assertTrue(m.problem.satisfies(instance2))
             bandit1.update(instance1, TestType.BINOMIAL.linearRewards(instance1, rng), (rng.nextInt(5) + 1).toFloat())
             bandit2.update(instance2, TestType.BINOMIAL.linearRewards(instance2, rng), (rng.nextInt(5) + 1).toFloat())
+        }
+        val sum1 = bandit1.rewards.values().sum()
+        val sum2 = bandit2.rewards.values().sum()
+        assertTrue(sum1 > sum2)
+    }
+
+    @Test
+    fun minimizeVsMaximizeBatch() {
+        val m = MODEL1
+        val bandit1 = bandit(m, TestParameters(TestType.BINOMIAL, 1, true))
+        val bandit2 = bandit(m, TestParameters(TestType.BINOMIAL, 2, false))
+        val rng = Random(1)
+
+        for (i in 1..50) {
+            val instances1 = Array(10) { bandit1.chooseOrThrow() }
+            val instances2 = Array(10) { bandit2.chooseOrThrow() }
+            val results1 = instances1.mapArray { TestType.BINOMIAL.linearRewards(it, rng) }.toFloatArray()
+            val results2 = instances1.mapArray { TestType.BINOMIAL.linearRewards(it, rng) }.toFloatArray()
+            val weights1 = FloatArray(10) { (rng.nextInt(5) + 1).toFloat() }
+            val weights2 = FloatArray(10) { (rng.nextInt(5) + 1).toFloat() }
+            bandit1.updateAll(instances1, results1, weights1)
+            bandit1.updateAll(instances2, results2, weights2)
         }
         val sum1 = bandit1.rewards.values().sum()
         val sum2 = bandit2.rewards.values().sum()
@@ -155,6 +182,7 @@ abstract class BanditTest<B : Bandit<*>> {
                     for (i in data1.trees.indices)
                         assertContentEquals(data1.trees[i], (data2 as ForestData<*>).trees[i])
                 }
+                is LinearData -> assertContentEquals(data1.weights, (data2 as LinearData).weights)
                 else -> throw IllegalArgumentException("Update test with other types")
             }
         }
@@ -228,6 +256,14 @@ data class TestParameters(val type: TestType = TestType.BINOMIAL,
                           val randomSeed: Int = 0,
                           val maximize: Boolean = true,
                           val rewards: DataSample = FullSample()) {
+
+    fun variance(): VarianceFunction {
+        return when (type) {
+            TestType.BINOMIAL -> BinomialVariance
+            TestType.NORMAL -> NormalVariance
+            TestType.POISSON -> PoissonVariance
+        }
+    }
 
     fun thompsonPolicy(): BanditPolicy<*> {
         return when (type) {

@@ -62,10 +62,16 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         val weights = FloatArray(model.problem.nbrValues) {
             val a = votesYes[it] + 1
             val b = votesNo[it] + 1
-            when {
-                a == b -> 0.0f
-                rng.nextBeta(a.toFloat(), b.toFloat()) > 0.5f -> 1.0f
-                else -> -1.0f
+            if (a == b) 0.0f
+            //else {
+            //val p = rng.nextBeta(a.toFloat(), b.toFloat())
+            //2 * p - 1
+            //}
+            //else if (rng.nextBeta(a.toFloat(), b.toFloat()) > 0.5f) 1.0f
+            //else -1.0f
+            else {
+                val p = a.toFloat() / (a + b).toFloat()
+                2 * p - 1
             }
         }
         @Suppress("UNCHECKED_CAST")
@@ -121,6 +127,9 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
         override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
 
+        /** How many trees are in the assembly. */
+        fun trees(trees: Int) = apply { this.trees = trees }
+
         /** Used to calculate max set coverage for votes. */
         fun optimizer(optimizer: Optimizer<LinearObjective>) = apply { this.optimizer = optimizer }
 
@@ -161,10 +170,10 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         fun maxDepth(maxDepth: Int) = apply { this.maxDepth = maxDepth }
 
         /**The total absolute error obtained on a prediction before update. */
-        fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
+        override fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
 
         /** The total absolute error obtained on a prediction after update. */
-        fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
+        override fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
 
         /** Whether unit propagation before search is performed when assumptions are used. */
         fun propagateAssumptions(propagateAssumptions: Boolean) = apply { this.propagateAssumptions = propagateAssumptions }
@@ -213,7 +222,7 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
 
         override fun build(): RandomForestBandit<E> {
             val treeParameters = ExtendedTreeParameters(model, banditPolicy,
-                     optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed)
+                    optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed)
                             .cached().pNew(1.0f).maxSize(10).build(),
                     randomSeed, maximize, rewards,
                     trainAbsError, testAbsError, splitMetric, delta, deltaDecay, tau, maxNodes, maxDepth, maxLiveNodes,

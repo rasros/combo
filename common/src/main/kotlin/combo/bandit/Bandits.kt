@@ -115,6 +115,11 @@ interface PredictionBandit<D : BanditData> : Bandit<D> {
      */
     fun train(instance: Instance, result: Float, weight: Float)
 
+    fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
+        for (i in instances.indices)
+            train(instances[i], results[i], weights?.get(i) ?: 1.0f)
+    }
+
     /**
      * Register rewards, test error, training error, and perform [train] on instance.
      */
@@ -123,6 +128,19 @@ interface PredictionBandit<D : BanditData> : Bandit<D> {
         testAbsError.accept(abs((result - predict(instance)) * weight))
         train(instance, result, weight)
         trainAbsError.accept(abs((result - predict(instance)) * weight))
+    }
+
+    override fun updateAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
+        for (i in results.indices) {
+            val w = weights?.get(i) ?: 1.0f
+            rewards.accept(results[i], w)
+            testAbsError.accept(abs((results[i] - predict(instances[i])) * w))
+        }
+        trainAll(instances, results, weights)
+        for (i in results.indices) {
+            rewards.accept(results[i], weights?.get(i) ?: 1.0f)
+            trainAbsError.accept(abs((results[i] - predict(instances[i])) * (weights?.get(i) ?: 1.0f)))
+        }
     }
 }
 
@@ -154,4 +172,10 @@ interface PredictionBanditBuilder<D : BanditData> : BanditBuilder<D> {
     override fun maximize(maximize: Boolean): PredictionBanditBuilder<D>
     override fun randomSeed(randomSeed: Int): PredictionBanditBuilder<D>
     override fun parallel(): ParallelPredictionBandit.Builder<D>
+
+    /** The total absolute error obtained on a prediction before update. */
+    fun trainAbsError(trainAbsError: DataSample): PredictionBanditBuilder<D>
+
+    /** The total absolute error obtained on a prediction after update. */
+    fun testAbsError(testAbsError: DataSample): PredictionBanditBuilder<D>
 }

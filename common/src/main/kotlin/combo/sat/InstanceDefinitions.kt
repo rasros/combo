@@ -2,6 +2,7 @@
 
 package combo.sat
 
+import combo.math.Matrix
 import combo.math.Vector
 import combo.util.*
 import kotlin.jvm.JvmName
@@ -219,6 +220,12 @@ infix fun Instance.dot(v: Vector): Float {
         }
     }
     return sum
+}
+
+operator fun Matrix.times(instance: Instance): FloatArray {
+    return FloatArray(size) {
+        instance dot get(it)
+    }
 }
 
 fun Instance.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }

@@ -18,7 +18,7 @@ fun matrix(size: Int) = Array(size) { FloatArray(size) }
 val Matrix.rows: Int
     get() = this.size
 val Matrix.cols: Int
-    get() = this[0].size
+    get() = if (size == 0) 0 else this[0].size
 
 operator fun Matrix.get(i: Int, j: Int) = this[i][j]
 operator fun Matrix.set(i: Int, j: Int, s: Float) {
@@ -26,7 +26,7 @@ operator fun Matrix.set(i: Int, j: Int, s: Float) {
 }
 
 /**
- * must be square matrix
+ * Inline transpose. Must be square matrix.
  */
 fun Matrix.transpose() {
     assert(rows == cols)
@@ -91,10 +91,10 @@ fun Matrix.sub(s: Float) = transformMatrix { d -> d - s }
 fun Matrix.sub(a: Matrix) = transformMatrixIndexed { i, j, d -> d - a[i, j] }
 operator fun Matrix.times(s: Float) = mapMatrix { d -> d * s }
 fun Matrix.multiply(s: Float) = transformMatrix { d -> d * s }
-fun Matrix.multiply(a: Matrix) = transformMatrixIndexed { i, j, d -> d * a[i, j] }
+fun Matrix.elementMultiply(a: Matrix) = transformMatrixIndexed { i, j, d -> d * a[i, j] }
 operator fun Matrix.div(s: Float) = mapMatrix { d -> d / s }
 fun Matrix.divide(s: Float) = transformMatrix { d -> d / s }
-fun Matrix.divide(a: Matrix) = transformMatrixIndexed { i, j, d -> d / a[i, j] }
+fun Matrix.elementDivide(a: Matrix) = transformMatrixIndexed { i, j, d -> d / a[i, j] }
 
 /**
  * @return Column vector A*v
@@ -114,20 +114,18 @@ operator fun Vector.times(A: Matrix) = Vector(A.cols).also {
             it[j] += A[i, j] * this[i]
 }
 
-/**
- * Perform a rank 1 update of symmetric matrix inverse.
- * This uses the Sherman-Morrison formula:
- * inv(A + v*v') = inv(A) - inv(A)*v*v'*inv(A) / (1+v'*inv(A)*v)
- * <p>
- *
- * @return vector whose outer product should be added to inverse
- */
-fun Matrix.shermanUpdater(v: Vector): Vector {
-    val t: Vector = this * v
-    return t.apply { divide(sqrt(1.0f + (t dot v))) }
+fun Vector.toIntArray(delta: Float, gcd: Boolean): IntArray {
+    val array = IntArray(size) {
+        (this[it] / delta).roundToInt()
+    }
+    if (gcd) {
+        val g = gcdAll(*array)
+        if (g > 1) array.transformArray { it / g }
+    }
+    return array
 }
 
-fun Matrix.cholDowndate(v: Vector) {
+fun Matrix.choleskyDowndate(v: Vector) {
     val L = this
     for (i in 0 until rows) {
         val r: Float = sqrt(L[i, i] * L[i, i] - v[i] * v[i])
@@ -141,13 +139,19 @@ fun Matrix.cholDowndate(v: Vector) {
     }
 }
 
-fun Vector.toIntArray(delta: Float, gcd: Boolean): IntArray {
-    val array = IntArray(size) {
-        (this[it] / delta).roundToInt()
+fun Matrix.cholesky(): Matrix {
+    val N = size
+    val L = Matrix(N) { Vector(N) }
+    for (i in 0 until N) {
+        for (j in 0..i) {
+            var sum = 0.0f
+            for (k in 0 until j)
+                sum += L[i][k] * L[j][k]
+
+            if (i == j) L[i][i] = sqrt(this[i][i] - sum)
+            else L[i][j] = 1.0f / L[j][j] * (this[i][j] - sum)
+        }
+        if (L[i][i] <= 0) error("Matrix not positive definite");
     }
-    if (gcd) {
-        val g = gcdAll(*array)
-        if (g > 1) array.transformArray { it / g }
-    }
-    return array
+    return L
 }

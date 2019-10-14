@@ -6,6 +6,8 @@ import combo.bandit.PredictionBandit
 import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.dt.RandomForestBandit
 import combo.bandit.ga.GeneticAlgorithmBandit
+import combo.bandit.glm.LinearBandit
+import combo.bandit.glm.VarianceFunction
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
 import combo.math.VarianceEstimator
@@ -34,21 +36,9 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
         fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model, banditPolicy: BanditPolicy<E>) =
                 ModelBandit(model, GeneticAlgorithmBandit.Builder(model.problem, banditPolicy).build())
 
-        /*
-    @JvmStatic
-    @JvmOverloads
-    fun linearBandit(model: Model,
-                     family: VarianceFunction = NormalVariance,
-                     link: Transform = family.canonicalLink(),
-                     regularization: Loss = SquaredLoss,
-                     optimizer: Optimizer<LinearObjective> =
-                             CachedOptimizer(LocalSearch.Builder(model.problem)
-                                     .restarts(1).cached().build()))
-            : ModelBandit<ListBandit<VarianceEstimator>> {
-        TODO()
-    }
-
-         */
+        @JvmStatic
+        fun linearBandit(model: Model, family: VarianceFunction) =
+                PredictionModelBandit(model, LinearBandit.diagonalCovarianceBuilder(model.problem).family(family).build())
     }
 
     fun choose(vararg assumptions: Literal): Assignment? {

@@ -332,6 +332,8 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
         override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
+        override fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
+        override fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
 
         /** Used to generate complete [Instance] from partial literals at leaf nodes. */
         fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
@@ -368,12 +370,6 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
 
         /** Maximum depth the tree can grow to. */
         fun maxDepth(maxDepth: Int) = apply { this.maxDepth = maxDepth }
-
-        /**The total absolute error obtained on a prediction before update. */
-        fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
-
-        /** The total absolute error obtained on a prediction after update. */
-        fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
 
         /** Whether unit propagation before search is performed when assumptions are used. */
         fun propagateAssumptions(propagateAssumptions: Boolean) = apply { this.propagateAssumptions = propagateAssumptions }

@@ -132,9 +132,6 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
                     if (lit1 == lit2) intersect.add(lit1)
                 }
                 newInstance = optimizer.witness(intersect) as MutableInstance?
-                if (newInstance != null && !problem.satisfies(newInstance)) {
-                    println()
-                }
                 parent1 != parent2
             } else false
 

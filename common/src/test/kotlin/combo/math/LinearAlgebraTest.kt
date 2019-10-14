@@ -182,44 +182,7 @@ class LinearAlgebraTest {
     }
 
     @Test
-    fun basicShermanUpdater() {
-        val H = matrix(6)
-        for (i in 0 until 6)
-            H[i, i] = 1.0f
-        val x = FloatArray(6) { 0.5f }
-        x[2] = 0.0f
-        val inc = H.shermanUpdater(x)
-        val expectedInc = FloatArray(6) { 1.0f / 3.0f }
-        expectedInc[2] = 0.0f
-        assertContentEquals(expectedInc, inc)
-    }
-
-    @Test
-    fun fullShermanUpdater() {
-        val H = arrayOf(
-                floatArrayOf(1.0565f, 0.3456f, -0.4646f, 1.8587f),
-                floatArrayOf(0.3456f, 0.5910f, -0.1395f, 0.6277f),
-                floatArrayOf(-0.4646f, -0.1395f, 0.2371f, -0.8419f),
-                floatArrayOf(1.8587f, 0.6277f, -0.8419f, 4.2134f))
-        val x = floatArrayOf(1.0f, 0.0f, 1.0f, 1.0f) * sqrt(0.5f)
-
-        val inc = H.shermanUpdater(x)
-
-        val expectedInc = floatArrayOf(0.8351f, 0.2841f, -0.3644f, 1.7823f)
-        assertContentEquals(expectedInc, inc, 1e-3f)
-        H.sub(inc outer inc)
-
-        val expected = arrayOf(
-                floatArrayOf(0.3591f, 0.1083f, -0.1603f, 0.3703f),
-                floatArrayOf(0.1083f, 0.5103f, -0.0360f, 0.1213f),
-                floatArrayOf(-0.1603f, -0.0360f, 0.1042f, -0.1923f),
-                floatArrayOf(0.3703f, 0.1213f, -0.1923f, 1.0367f))
-
-        assertContentEquals(expected, H, 1e-3f)
-    }
-
-    @Test
-    fun cholDowndate() {
+    fun choleskyDowndate() {
         val H = arrayOf(
                 floatArrayOf(1.0565f, 0.3456f, -0.4646f, 1.8587f),
                 floatArrayOf(0.3456f, 0.5910f, -0.1395f, 0.6277f),
@@ -233,9 +196,10 @@ class LinearAlgebraTest {
                 floatArrayOf(0.0f, 0.0f, 0.3780f, -0.2912f),
                 floatArrayOf(0.0f, 0.0f, 0.0f, 2.0179f))
 
-        val inc = H.shermanUpdater(x)
+        val t: Vector = H * x
+        val inc = t.apply { divide(sqrt(1.0f + (t dot x))) }
 
-        L.cholDowndate(inc)
+        L.choleskyDowndate(inc)
 
         // tested using matlabs cholupdate(L,inc,'-')
 
