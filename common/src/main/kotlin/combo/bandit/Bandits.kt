@@ -137,10 +137,8 @@ interface PredictionBandit<D : BanditData> : Bandit<D> {
             testAbsError.accept(abs((results[i] - predict(instances[i])) * w))
         }
         trainAll(instances, results, weights)
-        for (i in results.indices) {
-            rewards.accept(results[i], weights?.get(i) ?: 1.0f)
+        for (i in results.indices)
             trainAbsError.accept(abs((results[i] - predict(instances[i])) * (weights?.get(i) ?: 1.0f)))
-        }
     }
 }
 

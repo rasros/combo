@@ -4,6 +4,7 @@ package combo.sat
 
 import combo.math.Matrix
 import combo.math.Vector
+import combo.math.dot
 import combo.util.*
 import kotlin.jvm.JvmName
 import kotlin.math.min
@@ -225,6 +226,12 @@ infix fun Instance.dot(v: Vector): Float {
 operator fun Matrix.times(instance: Instance): FloatArray {
     return FloatArray(size) {
         instance dot get(it)
+    }
+}
+
+operator fun Matrix.times(vector: Vector): FloatArray {
+    return FloatArray(size) {
+        vector dot get(it)
     }
 }
 

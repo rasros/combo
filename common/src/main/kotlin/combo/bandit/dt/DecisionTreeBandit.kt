@@ -212,11 +212,6 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         }
     }
 
-
-    // TODO bugs with double literals in setLiterals
-    // TODO bug with unit propagation Unsatisfiable
-
-
     /**
      * Add and index new leaf node. It needs to be added to the correct split node by the caller.
      */

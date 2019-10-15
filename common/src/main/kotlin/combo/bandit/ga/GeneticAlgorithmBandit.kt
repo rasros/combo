@@ -156,7 +156,8 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
                     index += rng.nextGeometric(mr)
                 }
 
-                newInstance = optimizer.witness(forcedAssumption ?: EmptyCollection, mutatedInstance) as MutableInstance?
+                newInstance = optimizer.witness(forcedAssumption
+                        ?: EmptyCollection, mutatedInstance) as MutableInstance?
                         ?: newInstance
             }
 
@@ -300,12 +301,9 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
                 candidates.calculateMinMax()
                 candidates
             }
-            return GeneticAlgorithmBandit(problem = problem, banditPolicy = banditPolicy, optimizer = optimizer,
-                    randomSeed = randomSeed, maximize = maximize, rewards = rewards,
-                    selection = selection, elimination = elimination, eliminationPeriod = eliminationPeriod,
-                    recombinationProbability = recombinationProbability, mutation = mutation,
-                    mutationProbability = mutationProbability, allowDuplicates = allowDuplicates,
-                    maxSolverRestarts = maxSolverRestarts, addAssumptions = addAssumptions, candidates = candidates)
+            return GeneticAlgorithmBandit(problem, banditPolicy, optimizer, randomSeed, maximize, rewards,
+                    selection, elimination, eliminationPeriod, recombinationProbability, mutation,
+                    mutationProbability, allowDuplicates, maxSolverRestarts, addAssumptions, candidates)
         }
     }
 }

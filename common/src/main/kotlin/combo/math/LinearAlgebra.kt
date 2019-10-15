@@ -2,11 +2,9 @@
 
 package combo.math
 
-import combo.util.assert
-import combo.util.mapArray
-import combo.util.transformArray
-import combo.util.transformArrayIndexed
+import combo.util.*
 import kotlin.jvm.JvmName
+import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -64,6 +62,7 @@ fun Vector.add(v: Vector) = transformArrayIndexed { i, d -> d + v[i] }
 fun Vector.sub(v: Vector) = transformArrayIndexed { i, d -> d - v[i] }
 
 infix fun Vector.dot(v: Vector) = foldIndexed(0.0f) { i, dot, d -> dot + d * v[i] }
+
 infix fun Vector.outer(v: Vector) = Array(size) { FloatArray(size) }.also {
     for (i in 0 until size)
         for (j in 0 until size)
@@ -125,18 +124,54 @@ fun Vector.toIntArray(delta: Float, gcd: Boolean): IntArray {
     return array
 }
 
-fun Matrix.choleskyDowndate(v: Vector) {
+/**
+ * Perform cholesky decomposition downdate with vector x, such that A = L'*L - x*x'
+ * The matrix is modified inline.
+ * Ported from fortran dchdd.
+ */
+fun Matrix.choleskyDowndate(x: Vector): Float {
     val L = this
-    for (i in 0 until rows) {
-        val r: Float = sqrt(L[i, i] * L[i, i] - v[i] * v[i])
-        val c: Float = r / L[i][i]
-        val s: Float = v[i] / L[i][i]
-        L[i][i] = r
-        for (j in i + 1 until rows)
-            L[i, j] = (L[i, j] - s * v[j]) / c
-        for (j in i + 1 until rows)
-            v[j] = c * v[j] - s * L[i][j]
+    val p = x.size
+
+    val s = Vector(p)
+    val c = Vector(p)
+
+    // Solve the system L.T*s = x
+    s[0] = x[0] / L[0, 0]
+    if (p > 1) {
+        for (j in 1 until p) {
+            var sum = 0f
+            for (i in 0 until j)
+                sum += L[i, j] * s[i]
+            s[j] = x[j] - sum
+            s[j] = s[j] / L[j, j]
+        }
     }
+
+    var norm = sqrt(s.sumByFloat { it * it })
+    return if (norm > 0f && norm < 1f) {
+        var alpha = sqrt(1 - norm * norm)
+        for (ii in 0 until p) {
+            val i = p - ii - 1
+            val scale = alpha + s[i].absoluteValue
+            val a = alpha / scale
+            val b = s[i] / scale
+            norm = sqrt(a * a + b * b)
+            c[i] = a / norm
+            s[i] = b / norm
+            alpha = scale * norm
+        }
+        for (j in 0 until p) {
+            var xx = 0f
+            for (ii in 0..j) {
+                val i = j - ii
+                val t = c[i] * xx + s[i] * L[i, j]
+                L[i, j] = c[i] * L[i, j] - s[i] * xx
+                xx = t
+            }
+        }
+        0f
+    } else norm
 }
 
 fun Matrix.cholesky(): Matrix {
