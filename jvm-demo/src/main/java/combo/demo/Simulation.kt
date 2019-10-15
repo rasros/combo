@@ -24,7 +24,8 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                  val endTime: Long = Long.MAX_VALUE,
                  val workers: Int = max(1, Runtime.getRuntime().availableProcessors()),
                  val expectedRewards: DataSample = FullSample(),
-                 val duration: RunningVariance = RunningVariance()) {
+                 val duration: RunningVariance = RunningVariance(),
+                 val log: Boolean = true) {
 
     private val updateThread = object : Thread() {
         override fun run() {
@@ -36,11 +37,13 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                     interrupt()
                 }
             }
-            println("Updater thread interrupted.")
+            if (log)
+                println("Updater thread interrupted.")
             while (bandit.processUpdates(false) > 0) {
             }
             updaterCdl.countDown()
-            println("Updater thread done.")
+            if (log)
+                println("Updater thread done.")
         }
     }
     private val steps = AtomicInt(0)
@@ -59,7 +62,10 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                 else step()
             }
             cdl.countDown()
-            println("Worker thread $it done.")
+            if (log)
+                println("Worker thread $it done.")
+            if (cdl.count == 0L)
+                updateThread.interrupt()
         }
     }
 

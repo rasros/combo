@@ -1,7 +1,10 @@
 package combo.demo.models
 
+import combo.bandit.BanditBuilder
 import combo.bandit.ParallelMode
+import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.dt.RandomForestBandit
+import combo.bandit.glm.LinearBandit
 import combo.bandit.univariate.NormalPosterior
 import combo.bandit.univariate.ThompsonSampling
 import combo.demo.Simulation
@@ -21,39 +24,33 @@ import combo.util.IntHashSet
 import combo.util.RandomSequence
 import combo.util.nanos
 import java.io.InputStreamReader
-import kotlin.math.pow
+import kotlin.math.sqrt
 
 fun main() {
     val acm = AutoCompleteSurrogate()
-    //val bandit = DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior))
-    //.trainAbsError(RunningVariance())
-    //.testAbsError(RunningVariance())
-    //.parallel()
-    //.mode(ParallelMode.BLOCKING)
-    //.build()
-    val interactionInstance = acm.optimal(JacopSolver(acm.dataSet.model.problem))!!
-    println(acm.predict(acm.remap(interactionInstance)))
 
-    val bandit = RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior))
-            .trees(200)
-            .maxLiveNodes(20)
-            .maxDepth(6)
-            .trainAbsError(RunningVariance())
-            .testAbsError(RunningVariance())
-            .parallel()
-            .mode(ParallelMode.BLOCKING)
-            .build()
+    fun BanditBuilder<*>.parallelBuild() = rewards(RunningVariance()).parallel().mode(ParallelMode.BLOCKING).build()
+    val bandits = arrayOf(
+            //{ "GA" to GeneticAlgorithmBandit.Builder(acm.model.problem, ThompsonSampling(NormalPosterior)).parallelBuild() },
+            { "DT" to DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).parallelBuild() },
+            { "RF" to RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).trees(200).parallelBuild() },
+            { "GLMd" to LinearBandit.diagonalCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() },
+            { "GLMf" to LinearBandit.fullCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() })
 
-    val s = Simulation(acm, bandit, horizon = 100_000)
-    s.start()
-    s.awaitCompletion()
-
-    println(bandit.testAbsError)
-    println(bandit.trainAbsError)
-    println(s.expectedRewards.nbrSamples)
-    println(s.expectedRewards.values().asSequence().sample(RunningVariance()).toString())
-    println(s.duration.mean / 1_000_000)
-    println((s.duration.standardDeviation / 1_000_000).pow(2))
+    for (bandit in bandits) {
+        val rewards = RunningVariance()
+        val n = 100
+        var name: String? = null
+        for (k in 0 until n) {
+            val (bname, b) = bandit.invoke()
+            name = bname
+            val s = Simulation(acm, b, horizon = 100_000, log = false)
+            s.start()
+            s.awaitCompletion()
+            rewards.accept((b.rewards as RunningVariance).mean)
+        }
+        println(name + " " + rewards.mean + "+/-" + (1.984f * rewards.standardDeviation / sqrt(n.toFloat())))
+    }
 }
 
 fun autoCompleteModel(trainingSurrogate: Boolean) = Model.model("Auto complete") {
@@ -237,7 +234,7 @@ class AutoCompleteSurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<
         (d - dataSet.scores[i])
     }.asSequence().sample(RunningVariance()).standardDeviation
 
-    override fun optimal(optimizer: Optimizer<LinearObjective>, assumptions:IntCollection): Instance? {
+    override fun optimal(optimizer: Optimizer<LinearObjective>, assumptions: IntCollection): Instance? {
         return optimizer.optimize(LinearObjective(true, weights), assumptions)
     }
 
