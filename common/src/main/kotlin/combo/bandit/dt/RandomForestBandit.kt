@@ -58,17 +58,12 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
                 else votesNo[ix]++
             }
         }
-        val rng = randomSequence.next()
-        val weights = FloatArray(model.problem.nbrValues) {
-            val a = votesYes[it] + 1
-            val b = votesNo[it] + 1
-            if (a == b) 0.0f
-            //else {
-            //val p = rng.nextBeta(a.toFloat(), b.toFloat())
-            //2 * p - 1
-            //}
-            //else if (rng.nextBeta(a.toFloat(), b.toFloat()) > 0.5f) 1.0f
-            //else -1.0f
+        val weights = vectors.zeroVector(model.problem.nbrValues)
+
+        for (i in weights.indices) {
+            val a = votesYes[i] + 1
+            val b = votesNo[i] + 1
+            weights[i] = if (a == b) 0.0f
             else {
                 val p = a.toFloat() / (a + b).toFloat()
                 2 * p - 1

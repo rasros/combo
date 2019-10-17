@@ -89,7 +89,7 @@ class Linear(override val literals: IntHashMap, val weights: IntArray, val degre
 
     override fun isUnit() = false
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         val card = this
         var value = cache(instance)
         val perm = card.literals.permutation(rng)
@@ -171,7 +171,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
         }
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         val card = this
         var value = cache(instance)
         val perm = card.literals.permutation(rng)
@@ -221,7 +221,7 @@ class CardinalityVar(valueLiterals: IntCollection, val degreeVar: IntVar, val va
     override fun cache(instance: Instance): Int {
         var sum = 0
         if (literals.a is IntRangeCollection) {
-            val lits = literals.a as IntRangeCollection
+            val lits = literals.a
             var ix = min(lits.min.toIx(), lits.max.toIx())
             val ints = (size shr 5) + if (size and 0x1F > 0) 1 else 0
             for (i in 0 until ints) {
@@ -247,7 +247,7 @@ class CardinalityVar(valueLiterals: IntCollection, val degreeVar: IntVar, val va
         return relation.violations(cacheResult, degree).coerceAtMost(literals.a.size)
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         val degree = degreeVar.valueOf(instance, varIndex, parentLiteral) ?: return
         Cardinality(literals.a, degree, relation).coerce(instance, rng)
     }

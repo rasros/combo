@@ -17,7 +17,7 @@ data class ExpandedCandidates(val candidates: ValidatorCandidates,
                               val scores: FloatArray)
 
 fun createCandidates(problem: Problem, nbrStates: Int, rng: Random): ExpandedCandidates {
-    val instanceBuilder = BitArrayBuilder
+    val instanceBuilder = BitArrayFactory
     val instances = Array(nbrStates) {
         val instance = instanceBuilder.create(problem.nbrValues)
         WordRandomSet().initialize(instance, Tautology, rng, null)
@@ -135,11 +135,11 @@ abstract class RecombinationOperatorTest {
             val crossoverOperator = crossoverOperator()
             crossoverOperator.combine(p1, p2, c, candidates, rng)
             for (i in 0 until instance1.size) {
-                assertEquals(instance1[i], candidates.instances[p1][i])
-                assertEquals(instance2[i], candidates.instances[p2][i])
+                assertEquals(instance1.isSet(i), candidates.instances[p1].isSet(i))
+                assertEquals(instance2.isSet(i), candidates.instances[p2].isSet(i))
 
-                if (instance1[i] == instance2[i]) assertEquals(instance1[i], candidates.instances[c][i], "$i")
-                else assertTrue(instance1[i] == candidates.instances[c][i] || instance2[i] == candidates.instances[c][i])
+                if (instance1.isSet(i) == instance2.isSet(i)) assertEquals(instance1.isSet(i), candidates.instances[c].isSet(i), "$i")
+                else assertTrue(instance1.isSet(i) == candidates.instances[c].isSet(i) || instance2.isSet(i) == candidates.instances[c].isSet(i))
             }
         }
     }

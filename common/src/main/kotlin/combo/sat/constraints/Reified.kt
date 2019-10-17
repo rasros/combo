@@ -54,7 +54,7 @@ class ReifiedEquivalent(literal: Int, override val constraint: PropositionalCons
         }
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         if (instance.literal(literal.toIx()) == literal) constraint.coerce(instance, rng)
         else if (constraint.satisfies(instance)) instance.set(literal)
     }
@@ -112,7 +112,7 @@ class ReifiedImplies(literal: Int, constraint: Constraint) : ReifiedConstraint(l
         }
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         if (instance.literal(literal.toIx()) == literal) constraint.coerce(instance, rng)
     }
 

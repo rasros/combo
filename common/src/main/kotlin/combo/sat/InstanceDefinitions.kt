@@ -2,37 +2,38 @@
 
 package combo.sat
 
-import combo.math.Matrix
-import combo.math.Vector
-import combo.math.dot
+import combo.math.VectorView
+import combo.math.vectors
 import combo.util.*
 import kotlin.jvm.JvmName
 import kotlin.math.min
+import kotlin.math.sqrt
 
 
 /**
  * An instance is used by the solvers to find a valid truth assignment. There are two basic implementations:
  * 1) [BitArray] will suit most applications, and [SparseBitArray] will work better for [Problem]s with
- * sparse solutions. The [InstanceBuilder] class is used to create the [Instance]s in a generic way by eg. an
+ * sparse solutions. The [InstanceFactory] class is used to create the [Instance]s in a generic way by eg. an
  * [combo.sat.optimizers.Optimizer].
  *
  * Equals and hashCode are defined through actual assignment values.
  */
-interface Instance : Iterable<Int> {
+interface Instance : VectorView {
 
     /**
      * Number of variables declared.
      */
-    val size: Int
+    override val size: Int
 
     val wordSize: Int get() = (size shr 5) + (if (size and 0x1F > 0) 1 else 0)
 
     val indices: IntRange
         get() = 0 until size
 
-    fun copy(): MutableInstance
+    override fun copy(): Instance
+    override fun vectorCopy() = vectors.vector(toFloatArray())
 
-    operator fun get(ix: Int): Boolean
+    fun isSet(ix: Int): Boolean
 
     fun getWord(wordIx: Int): Int
 
@@ -48,17 +49,22 @@ interface Instance : Iterable<Int> {
      */
     fun wordIterator(): LongIterator
 
-    val sparse: Boolean
-}
-
-interface MutableInstance : Instance {
-    fun flip(ix: Int) = set(ix, !get(ix))
+    fun flip(ix: Int) = set(ix, !isSet(ix))
     operator fun set(ix: Int, value: Boolean)
     fun setWord(wordIx: Int, value: Int)
     fun clear()
+
+    override fun get(i: Int) = if (isSet(i)) 1f else 0f
+
+    override fun dot(v: VectorView) = fold(0f) { sum, i -> sum + v[i] }
+    override fun norm2() = sqrt(sum())
+    override fun sum() = cardinality().toFloat()
+
+    override fun toFloatArray() = FloatArray(size) { if (this.isSet(it)) 1.0f else 0.0f }
+    override fun toIntArray() = IntArray(size) { if (this.isSet(it)) 1 else 0 }
 }
 
-fun MutableInstance.and(inst: Instance) {
+fun Instance.and(inst: Instance) {
     for (entry in inst.wordIterator()) {
         val key = entry.key()
         val value = entry.value()
@@ -75,7 +81,7 @@ fun MutableInstance.and(inst: Instance) {
     }
 }
 
-fun MutableInstance.andNot(inst: Instance) {
+fun Instance.andNot(inst: Instance) {
     for (entry in inst.wordIterator()) {
         val key = entry.key()
         val value = entry.value()
@@ -92,7 +98,7 @@ fun MutableInstance.andNot(inst: Instance) {
     }
 }
 
-fun MutableInstance.or(inst: Instance) {
+fun Instance.or(inst: Instance) {
     for (entry in inst.wordIterator()) {
         val key = entry.key()
         val value = entry.value()
@@ -118,7 +124,7 @@ fun Instance.getBits(ix: Int, nbrBits: Int): Int {
     }
 }
 
-fun MutableInstance.setBits(ix: Int, nbrBits: Int, value: Int) {
+fun Instance.setBits(ix: Int, nbrBits: Int, value: Int) {
     assert(nbrBits >= 1 && nbrBits <= 32 && ix + nbrBits <= size)
     assert(nbrBits == 32 || value and (-1 shl nbrBits) == 0)
     val i1 = ix shr 5
@@ -154,13 +160,13 @@ fun Instance.getSignedInt(ix: Int, nbrBits: Int): Int {
     else raw
 }
 
-fun MutableInstance.setSignedInt(ix: Int, nbrBits: Int, value: Int) {
+fun Instance.setSignedInt(ix: Int, nbrBits: Int, value: Int) {
     val mask = (-1 ushr Int.SIZE_BITS - nbrBits + 1)
     if (value >= 0) setBits(ix, nbrBits, value and mask)
     else setBits(ix, nbrBits, (1 shl nbrBits - 1) or (value and mask))
 }
 
-fun MutableInstance.setFloat(ix: Int, value: Float) = setBits(ix, 32, value.toRawBits())
+fun Instance.setFloat(ix: Int, value: Float) = setBits(ix, 32, value.toRawBits())
 fun Instance.getFloat(ix: Int) = Float.fromBits(getBits(ix, 32))
 
 /**
@@ -206,40 +212,12 @@ fun Instance.deepToString() = when {
     else -> "[<$size>]"
 }
 
-infix fun Instance.dot(v: Vector): Float {
-    var sum = 0.0f
-    val itr = wordIterator()
-    while (itr.hasNext()) {
-        val e = itr.nextLong()
-        var value = e.value()
-        val wordIx = e.key()
-        val ix = (wordIx shl 5)
-        for (i in 0 until 32) {
-            if (value and 1 == 1) sum += v[ix + i]
-            value = value ushr 1
-            if (value == 0) break
-        }
-    }
+interface InstanceFactory {
+    fun create(size: Int): Instance
+}
+
+fun Instance.cardinality(): Int {
+    var sum = 0
+    for (e in wordIterator()) sum += Int.bitCount(e.value())
     return sum
 }
-
-operator fun Matrix.times(instance: Instance): FloatArray {
-    return FloatArray(size) {
-        instance dot get(it)
-    }
-}
-
-operator fun Matrix.times(vector: Vector): FloatArray {
-    return FloatArray(size) {
-        vector dot get(it)
-    }
-}
-
-fun Instance.toIntArray() = IntArray(size) { if (this[it]) 1 else 0 }
-fun Instance.toFloatArray() = FloatArray(size) { if (this[it]) 1.0f else 0.0f }
-
-interface InstanceBuilder {
-    fun create(size: Int): MutableInstance
-}
-
-fun Instance.cardinality(): Int = wordIterator().asSequence().sumBy { Int.bitCount(it.value()) }

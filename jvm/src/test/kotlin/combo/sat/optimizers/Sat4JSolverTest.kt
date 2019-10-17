@@ -1,5 +1,6 @@
 package combo.sat.optimizers
 
+import combo.math.FallbackVector
 import combo.math.nextNormal
 import combo.model.TestModels
 import combo.sat.IterationsReachedException
@@ -37,7 +38,7 @@ class Sat4JSolverTest : OptimizerTest() {
         }
         assertEquals(0, solver.asSequence().count())
         assertFailsWith(IterationsReachedException::class) {
-            solver.optimizeOrThrow(LinearObjective(true, FloatArray(p.nbrValues) { Random.nextNormal() }))
+            solver.optimizeOrThrow(LinearObjective(true, FallbackVector(FloatArray(p.nbrValues) { Random.nextNormal() })))
         }
     }
 }

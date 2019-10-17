@@ -30,7 +30,7 @@ class IntBounds(literals: IntRangeCollection, val min: Int, val max: Int) : Nume
         return Int.bitCount(changedBits)
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         val coerced = rng.nextInt(min, if (max == Int.MAX_VALUE) max else max + 1)
         if (isSigned()) instance.setSignedInt(literals.min.toIx(), literals.size, coerced)
         else instance.setBits(literals.min.toIx(), literals.size, coerced)
@@ -64,7 +64,7 @@ class FloatBounds(literals: IntRangeCollection, val min: Float, val max: Float) 
         return Int.bitCount(changedBits)
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         val coerced = rng.nextFloat(min, max)
         instance.setFloat(literals.min.toIx(), coerced)
     }

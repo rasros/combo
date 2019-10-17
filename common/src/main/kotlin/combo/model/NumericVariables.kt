@@ -38,7 +38,7 @@ class IntVar constructor(name: String, override val optional: Boolean, override 
     fun isSigned() = min < 0
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Int? {
-        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         val offset = if (optional) 1 else 0
         val value = if (isSigned()) instance.getSignedInt(index + offset, nbrValues - offset) else
             instance.getBits(index + offset, nbrValues - offset)
@@ -108,7 +108,7 @@ class FloatVar constructor(name: String, override val optional: Boolean, overrid
     }
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Float? {
-        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         val offset = if (optional) 1 else 0
         val value = Float.fromBits(instance.getBits(index + offset, 32))
         //assert(value in min..max)
@@ -164,7 +164,7 @@ class BitsVar constructor(name: String, override val optional: Boolean, override
     override fun rebase(parent: Value) = BitsVar(name, optional, parent, nbrBits)
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Instance? {
-        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         return BitArray(nbrBits).apply {
             var offset = if (optional) 1 else 0
             for (i in field.indices) {

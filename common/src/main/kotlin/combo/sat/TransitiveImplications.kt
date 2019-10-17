@@ -57,7 +57,7 @@ class TransitiveImplications(val nbrValues: Int, implications: Map<Int, IntArray
     fun trueImplications(literal: Int) = trueImplications[toArrayIndex(literal)]
     fun falseImplications(literal: Int) = falseImplications[toArrayIndex(literal)]
 
-    fun propagate(literal: Int, instance: MutableInstance) {
+    fun propagate(literal: Int, instance: Instance) {
         trueImplications(literal)?.run { instance.or(this) }
         falseImplications(literal)?.run { instance.andNot(this) }
     }

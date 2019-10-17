@@ -14,7 +14,7 @@ operator fun Int.not(): Int = -this
 
 typealias Literals = IntArray
 
-fun Instance.literal(ix: Int) = ix.toLiteral(this[ix])
+fun Instance.literal(ix: Int) = ix.toLiteral(this.isSet(ix))
 
 fun Instance.toLiterals(): Literals {
     val list = IntArrayList()
@@ -24,7 +24,7 @@ fun Instance.toLiterals(): Literals {
     return list.toArray()
 }
 
-fun MutableInstance.set(literal: Int) = set(literal.toIx(), literal.toBoolean())
-fun MutableInstance.setAll(literals: Literals) = literals.forEach { set(it) }
-fun MutableInstance.setAll(literals: Iterable<Int>) = literals.forEach { set(it) }
+fun Instance.set(literal: Int) = set(literal.toIx(), literal.toBoolean())
+fun Instance.setAll(literals: Literals) = literals.forEach { set(it) }
+fun Instance.setAll(literals: Iterable<Int>) = literals.forEach { set(it) }
 

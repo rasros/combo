@@ -2,19 +2,16 @@ package combo.demo.models
 
 import combo.bandit.BanditBuilder
 import combo.bandit.ParallelMode
-import combo.bandit.dt.DecisionTreeBandit
-import combo.bandit.dt.RandomForestBandit
 import combo.bandit.glm.LinearBandit
-import combo.bandit.univariate.NormalPosterior
-import combo.bandit.univariate.ThompsonSampling
 import combo.demo.Simulation
 import combo.demo.SurrogateModel
+import combo.math.FallbackVector
 import combo.math.RunningVariance
-import combo.math.dot
 import combo.math.nextNormal
 import combo.math.sample
 import combo.model.*
-import combo.sat.*
+import combo.sat.BitArray
+import combo.sat.Instance
 import combo.sat.constraints.Relation.*
 import combo.sat.optimizers.JacopSolver
 import combo.sat.optimizers.LinearObjective
@@ -29,26 +26,34 @@ import kotlin.math.sqrt
 fun main() {
     val acm = AutoCompleteSurrogate()
 
-    fun BanditBuilder<*>.parallelBuild() = rewards(RunningVariance()).parallel().mode(ParallelMode.BLOCKING).build()
+    fun BanditBuilder<*>.parallelBuild() = parallel().mode(ParallelMode.BLOCKING).build()
     val bandits = arrayOf(
             //{ "GA" to GeneticAlgorithmBandit.Builder(acm.model.problem, ThompsonSampling(NormalPosterior)).parallelBuild() },
-            { "DT" to DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).parallelBuild() },
-            { "RF" to RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).trees(200).parallelBuild() },
-            { "GLMd" to LinearBandit.diagonalCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() },
+            //{ "DT" to DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).parallelBuild() },
+            //{ "RF" to RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).trees(200).parallelBuild() },
+            //{ "GLMd" to LinearBandit.diagonalCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() },
             { "GLMf" to LinearBandit.fullCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() })
 
     for (bandit in bandits) {
         val rewards = RunningVariance()
         val n = 100
         var name: String? = null
+        val horizon = 100_000
+        val buckets = Array(horizon) { RunningVariance() }
         for (k in 0 until n) {
             val (bname, b) = bandit.invoke()
             name = bname
-            val s = Simulation(acm, b, horizon = 100_000, log = false)
+            val s = Simulation(acm, b, horizon = horizon, log = false)
             s.start()
             s.awaitCompletion()
-            rewards.accept((b.rewards as RunningVariance).mean)
+            val sum = RunningVariance()
+            for ((i, f) in b.rewards.values().withIndex()) {
+                sum.accept(f)
+                buckets[i].accept(f)
+            }
+            rewards.accept(sum.mean)
         }
+        println(buckets.map { it.mean }.joinToString())
         println(name + " " + rewards.mean + "+/-" + (1.984f * rewards.standardDeviation / sqrt(n.toFloat())))
     }
 }
@@ -228,7 +233,7 @@ class AutoCompleteSurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<
     val dataSet = AutoCompleteDataSet()
     val model = autoCompleteModel(false)
     val solver = JacopSolver(dataSet.model.problem, randomSeed)
-    val weights = readWeights()
+    val weights = FallbackVector(readWeights())
     val stdErr = dataSet.sites.mapIndexed { i, assignment ->
         val d = assignment.instance dot weights
         (d - dataSet.scores[i])
@@ -249,7 +254,7 @@ class AutoCompleteSurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<
             val varIx = dataSet.model.index.valueIndexOf(variable)
             val realVarIx = model.index.valueIndexOf(realVariable)
             for (vi in 0 until variable.nbrValues) {
-                if (interactionInstance[varIx + vi])
+                if (interactionInstance.isSet(varIx + vi))
                     instance[realVarIx + vi] = true
             }
         }
@@ -284,14 +289,14 @@ class AutoCompleteSurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<
 
         val set = IntHashSet()
         literals.forEach { it.collectLiterals(dataSet.model.index, set) }
-        val x = solver.witnessOrThrow(set).toFloatArray()
+        val x = solver.witnessOrThrow(set)
 
         // Clear blocking factors for optimization rewards
         for (name in arrayOf("Gender", "Person", "Relevant suggestions", "Diversified suggestions")) {
             val variable = dataSet.model[name]
             val ix = dataSet.model.index.valueIndexOf(variable)
             for (i in 0 until variable.nbrValues) {
-                x[ix + i] = 0.0f
+                x[ix + i] = false
             }
         }
         return x dot weights

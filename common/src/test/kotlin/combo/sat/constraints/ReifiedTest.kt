@@ -84,7 +84,7 @@ class ReifiedEquivalentTest : ConstraintTest() {
     fun toCnfSatisfiesDisjunction() {
         val original = ReifiedEquivalent(-3, Disjunction(IntArrayList(intArrayOf(-1, -2))))
         val toCnf = original.toCnf()
-        for (l in InstancePermutation(3, BitArrayBuilder, Random)) {
+        for (l in InstancePermutation(3, BitArrayFactory, Random)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)
@@ -95,7 +95,7 @@ class ReifiedEquivalentTest : ConstraintTest() {
     fun toCnfSatisfiesConjunction() {
         val original = ReifiedEquivalent(3, Conjunction(IntArrayList(intArrayOf(1, -2))))
         val toCnf = original.toCnf()
-        for (l in InstancePermutation(3, BitArrayBuilder, Random)) {
+        for (l in InstancePermutation(3, BitArrayFactory, Random)) {
             val s1 = original.satisfies(l)
             val s2 = toCnf.asSequence().all { it.satisfies(l) }
             assertEquals(s1, s2)

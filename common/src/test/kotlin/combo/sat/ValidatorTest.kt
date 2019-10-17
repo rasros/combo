@@ -22,7 +22,7 @@ class ValidatorTest {
     fun initialize() {
         for (p in TestModels.SAT_PROBLEMS) {
             val solver = ExhaustiveSolver(p)
-            val instance = solver.witnessOrThrow() as MutableInstance
+            val instance = solver.witnessOrThrow()
             val copy = instance.copy()
             val validator = Validator(p, instance, Tautology)
             assertEquals(0, validator.totalUnsatisfied)
@@ -34,7 +34,7 @@ class ValidatorTest {
     fun initializeSameAssumption() {
         for (p in TestModels.SAT_PROBLEMS) {
             val solver = ExhaustiveSolver(p)
-            val instance = solver.witnessOrThrow() as MutableInstance
+            val instance = solver.witnessOrThrow()
             val copy = instance.copy()
             val assumption = Conjunction(collectionOf(instance.literal(Random.nextInt(p.nbrValues))))
             val validator = Validator(p, instance, assumption)
@@ -47,7 +47,7 @@ class ValidatorTest {
     fun initializeDifferentAssumption() {
         for (p in TestModels.SAT_PROBLEMS) {
             val solver = ExhaustiveSolver(p)
-            val instance = solver.witnessOrThrow() as MutableInstance
+            val instance = solver.witnessOrThrow()
             val assumption = Conjunction(collectionOf(!instance.literal(Random.nextInt(p.nbrValues))))
             val validator = Validator(p, instance, assumption)
             checkValidatorState(p, validator, assumption)
@@ -87,7 +87,7 @@ class ValidatorTest {
     @Test
     fun improvementNoChange() {
         for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
-            val instance = BitArrayBuilder.create(p.nbrValues)
+            val instance = BitArrayFactory.create(p.nbrValues)
             WordRandomSet().initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)
             val ix = Random.nextInt(p.nbrValues)
@@ -101,7 +101,7 @@ class ValidatorTest {
     @Test
     fun improvement() {
         for (p in TestModels.UNSAT_PROBLEMS + TestModels.SAT_PROBLEMS + TestModels.LARGE_PROBLEMS) {
-            val instance = BitArrayBuilder.create(p.nbrValues)
+            val instance = BitArrayFactory.create(p.nbrValues)
             WordRandomSet(0.1f).initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)
             val ix = Random.nextInt(p.nbrValues)
@@ -117,11 +117,11 @@ class ValidatorTest {
     @Test
     fun improvementAssumptions() {
         val p = Problem(10, arrayOf())
-        val instance = BitArrayBuilder.create(p.nbrValues)
+        val instance = BitArrayFactory.create(p.nbrValues)
         val assumption = Conjunction(collectionOf(1, 2, 3, 4))
         WordRandomSet().initialize(instance, assumption, Random, null)
         val validator = Validator(p, instance, assumption)
-        if (validator.instance[0]) validator.flip(0)
+        if (validator.instance.isSet(0)) validator.flip(0)
         val imp = validator.improvement(0)
         assertTrue(imp > 0)
         checkValidatorState(p, validator, assumption)
@@ -130,7 +130,7 @@ class ValidatorTest {
     @Test
     fun randomUnsatisfied() {
         for (p in TestModels.UNSAT_PROBLEMS) {
-            val instance = BitArrayBuilder.create(p.nbrValues)
+            val instance = BitArrayFactory.create(p.nbrValues)
             WordRandomSet(0.8f).initialize(instance, Tautology, Random, null)
             val validator = Validator(p, instance, Tautology)
             val sent = validator.randomUnsatisfied(Random)

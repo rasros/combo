@@ -25,13 +25,13 @@ sealed class Node<E : VarianceEstimator> {
 class SplitNode<E : VarianceEstimator>(val ix: Int, var pos: Node<E>, var neg: Node<E>) : Node<E>() {
 
     override fun update(instance: Instance, result: Float, weight: Float): Node<E> {
-        if (instance[ix]) pos = pos.update(instance, result, weight)
+        if (instance.isSet(ix)) pos = pos.update(instance, result, weight)
         else neg = neg.update(instance, result, weight)
         return this
     }
 
     override fun findLeaf(instance: Instance) =
-            if (instance[ix]) pos.findLeaf(instance)
+            if (instance.isSet(ix)) pos.findLeaf(instance)
             else neg.findLeaf(instance)
 
     override fun findLeaves(setLiterals: Literals): Sequence<LeafNode<E>> {

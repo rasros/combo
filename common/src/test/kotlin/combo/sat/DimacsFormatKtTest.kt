@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class LiteralsTest {
+class DimacsFormatKtTest {
 
     @Test
     fun toLiteral() {

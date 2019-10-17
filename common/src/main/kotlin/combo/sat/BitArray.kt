@@ -2,7 +2,7 @@ package combo.sat
 
 import combo.util.entry
 
-object BitArrayBuilder : InstanceBuilder {
+object BitArrayFactory : InstanceFactory {
     override fun create(size: Int) = BitArray(size)
 }
 
@@ -10,7 +10,7 @@ object BitArrayBuilder : InstanceBuilder {
  * This uses a dense int array as backing for [Instance]. 32 bit ints are used instead of 64 bits due to JavaScript
  * interoperability.
  */
-class BitArray constructor(override val size: Int, val field: IntArray) : MutableInstance {
+class BitArray constructor(override val size: Int, val field: IntArray) : Instance {
 
     // Note this code uses a lot of bit shifts. The most common being masking by 0x1F and shifting right by 5.
     //  - shifting by 5 is equivalent to dividing by 32 which gives the int-field to access
@@ -23,7 +23,7 @@ class BitArray constructor(override val size: Int, val field: IntArray) : Mutabl
 
     override fun copy(): BitArray = BitArray(size, field.copyOf())
 
-    override operator fun get(ix: Int) = (field[ix shr 5] ushr (ix and 0x1F)) and 1 == 1
+    override fun isSet(ix: Int) = (field[ix shr 5] ushr (ix and 0x1F)) and 1 == 1
 
     override fun flip(ix: Int) {
         val i = ix shr 5

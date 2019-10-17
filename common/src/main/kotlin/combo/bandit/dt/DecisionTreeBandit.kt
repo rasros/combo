@@ -158,7 +158,7 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
             banditPolicy.update(data, result, weight)
             nViewed++
             for ((i, ix) in auditedValues.withIndex()) {
-                if (instance[ix]) banditPolicy.accept(dataPos[i] as E, result, weight)
+                if (instance.isSet(ix)) banditPolicy.accept(dataPos[i] as E, result, weight)
                 else {
                     val reifiedLiteral = if (parameters.reifiedLiterals == null) 0 else parameters.reifiedLiterals[ix]
                     if (reifiedLiteral == 0 || instance.literal(reifiedLiteral.toIx()) == reifiedLiteral)

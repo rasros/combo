@@ -36,7 +36,7 @@ import org.sat4j.pb.SolverFactory as PBSolverFactory
  * @param problem the problem contains the [Constraint]s and the number of variables.
  * @param randomSeed Set the random seed to a specific value to have a reproducible algorithm.
  * @param timeout The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
- * @param instanceBuilder Determines the [Instance] that will be created for solving.
+ * @param instanceFactory Determines the [Instance] that will be created for solving.
  * @param maxConflicts Solver aborts after this number of conflicts are reached.
  * @param delta Precision with which to convert objective function into integer constraints.
  * @param gcdSimplify Simplify weights with greatest common divisor before optimizing.
@@ -45,7 +45,7 @@ class Sat4JSolver @JvmOverloads constructor(
         val problem: Problem,
         override val randomSeed: Int = nanos().toInt(),
         override val timeout: Long = -1L,
-        val instanceBuilder: InstanceBuilder = BitArrayBuilder,
+        val instanceFactory: InstanceFactory = BitArrayFactory,
         val maxConflicts: Int = 0,
         val delta: Float = 0.01f,
         val gcdSimplify: Boolean = true,
@@ -129,7 +129,7 @@ class Sat4JSolver @JvmOverloads constructor(
 
     }
 
-    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun witnessOrThrow(assumptions: IntCollection, guess: Instance?): Instance {
         val solver = solverTL.get()
 
         if (maxConflicts > 0) solver.setTimeoutOnConflicts(maxConflicts)
@@ -179,7 +179,7 @@ class Sat4JSolver @JvmOverloads constructor(
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: Instance?): Instance {
         val pbSolver = PBSolverFactory.newLight() as PBSolver
         setupSolver(pbSolver)
 
@@ -232,11 +232,11 @@ class Sat4JSolver @JvmOverloads constructor(
         override fun init(v: Int, p: Int) {}
         override fun updateVarAtDecisionLevel(q: Int) {}
         override fun updateVar(p: Int) {}
-        override fun select(v: Int) = if (guess[v - 1]) posLit(v) else negLit(v)
+        override fun select(v: Int) = if (guess.isSet(v - 1)) posLit(v) else negLit(v)
     }
 
     private fun IntArray.toInstance(): Instance {
-        val create = instanceBuilder.create(size)
+        val create = instanceFactory.create(size)
         create.setAll(this)
         return create
     }

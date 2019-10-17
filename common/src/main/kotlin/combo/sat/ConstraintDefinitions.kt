@@ -74,7 +74,7 @@ interface Constraint : Expression {
      */
     fun unitPropagation(unit: Int): Constraint
 
-    fun coerce(instance: MutableInstance, rng: Random)
+    fun coerce(instance: Instance, rng: Random)
 }
 
 /**
@@ -94,7 +94,7 @@ object Empty : PropositionalConstraint, Proposition {
     override fun violations(instance: Instance, cacheResult: Int) = Int.MAX_VALUE
     override operator fun not() = Tautology
     override fun unitPropagation(unit: Int) = this
-    override fun coerce(instance: MutableInstance, rng: Random) {}
+    override fun coerce(instance: Instance, rng: Random) {}
     override fun toString() = "Empty"
 }
 
@@ -107,7 +107,7 @@ object Tautology : PropositionalConstraint, Proposition {
     override fun violations(instance: Instance, cacheResult: Int) = 0
     override operator fun not() = Empty
     override fun unitPropagation(unit: Int) = this
-    override fun coerce(instance: MutableInstance, rng: Random) {}
+    override fun coerce(instance: Instance, rng: Random) {}
     override fun toString() = "Tautology"
 }
 

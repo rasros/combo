@@ -10,27 +10,27 @@ import combo.util.*
  * @param randomSeed Set the random seed to a specific value to have a reproducible algorithm.
  * @param timeout The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
  * @param propagateAssumptions If true then perform unit propagation before solving when assumptions are used.
- * @param instanceBuilder Determines the [Instance] that will be created for solving.
+ * @param instanceFactory Determines the [Instance] that will be created for solving.
  *
  */
 class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nanos().toInt(),
                        override val timeout: Long = -1L,
                        val propagateAssumptions: Boolean = true,
-                       val instanceBuilder: InstanceBuilder = BitArrayBuilder) : Optimizer<ObjectiveFunction> {
+                       val instanceFactory: InstanceFactory = BitArrayFactory) : Optimizer<ObjectiveFunction> {
 
     private val randomSequence = RandomSequence(randomSeed)
 
     /**
      * The [guess] is used only if it satisfies all constraints.
      */
-    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun witnessOrThrow(assumptions: IntCollection, guess: Instance?): Instance {
         val propAssumptions = propAssumptions(assumptions)
         if (guess != null && (propAssumptions.isEmpty() || Conjunction(propAssumptions).satisfies(guess)) && problem.satisfies(guess))
             return guess
         val remap = createRemap(propAssumptions)
         val nbrVariables = problem.nbrValues - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceBuilder, randomSequence.next())
+        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapInstance(propAssumptions, it, remap) }
@@ -47,14 +47,14 @@ class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nano
         val remap = createRemap(propAssumptions)
         val nbrVariables = problem.nbrValues - propAssumptions.size
         val end = if (timeout > 0) millis() + timeout else Long.MAX_VALUE
-        return InstancePermutation(nbrVariables, instanceBuilder, randomSequence.next())
+        return InstancePermutation(nbrVariables, instanceFactory, randomSequence.next())
                 .asSequence()
                 .takeWhile { millis() <= end }
                 .map { remapInstance(propAssumptions, it, remap) }
                 .filter { problem.satisfies(it) }
     }
 
-    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: MutableInstance?) = asSequence(assumptions).minBy {
+    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?) = asSequence(assumptions).minBy {
         function.value(it)
     } ?: throw UnsatisfiableException()
 
@@ -87,10 +87,10 @@ class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nano
 
     private fun remapInstance(assumptions: IntCollection, instance: Instance, remap: IntArray): Instance {
         return if (assumptions.isNotEmpty()) {
-            val result = this.instanceBuilder.create(problem.nbrValues)
+            val result = this.instanceFactory.create(problem.nbrValues)
             result.setAll(assumptions)
             for (i in instance.indices) {
-                result[remap[i]] = instance[i]
+                result[remap[i]] = instance.isSet(i)
             }
             result
         } else instance

@@ -43,7 +43,7 @@ enum class InitializerType {
 }
 
 interface InstanceInitializer<in O : ObjectiveFunction?> {
-    fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: O)
+    fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: O)
 }
 
 class ConstraintCoercer<in O : ObjectiveFunction?>(val problem: Problem, val randomizer: InstanceInitializer<O>) : InstanceInitializer<O> {
@@ -54,7 +54,7 @@ class ConstraintCoercer<in O : ObjectiveFunction?>(val problem: Problem, val ran
         })
     }
 
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: O) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: O) {
         randomizer.initialize(mi, assumption, rng, function)
         assumption.coerce(mi, rng)
         for (c in prioritizedConstraints) c.coerce(mi, rng)
@@ -75,7 +75,7 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
         })
     }
 
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: O) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: O) {
         randomizer.initialize(mi, assumption, rng, function)
         assumption.coerce(mi, rng)
         for (i in IntPermutation(problem.nbrValues, rng)) {
@@ -88,12 +88,12 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
 }
 
 object NoInitializer : InstanceInitializer<ObjectiveFunction?> {
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
     }
 }
 
 class WeightSet @JvmOverloads constructor(val noiseStd: Float = 0.5f) : InstanceInitializer<LinearObjective> {
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: LinearObjective) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: LinearObjective) {
         for (i in mi.indices) {
             mi[i] = if (function.maximize) rng.nextNormal(function.weights[i], noiseStd) >= 0.0f
             else rng.nextNormal(function.weights[i], noiseStd) < 0.0f
@@ -102,7 +102,7 @@ class WeightSet @JvmOverloads constructor(val noiseStd: Float = 0.5f) : Instance
 }
 
 class RandomSet(val pBias: Float = .5f) : InstanceInitializer<ObjectiveFunction?> {
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
         for (j in mi.indices) mi[j] = rng.nextFloat() < pBias
     }
 }
@@ -116,7 +116,7 @@ class WordRandomSet(val start: Int, val steps: Int) : InstanceInitializer<Object
 
     constructor(pBias: Float = .5f) : this(if (pBias > 0.5f) 0 else -1, min(sqrt(1 / min(pBias, 1 - pBias)).roundToInt(), 8))
 
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
         val misaligned = mi.size and 0x1F > 0
         val ints = (mi.size shr 5) + if (misaligned) 1 else 0
         var offset = 0
@@ -145,7 +145,7 @@ class WordRandomSet(val start: Int, val steps: Int) : InstanceInitializer<Object
  * Useful for very sparse problems where [pBias] is close to 0.
  */
 class GeometricRandomSet(val pBias: Float = 0.5f) : InstanceInitializer<ObjectiveFunction?> {
-    override fun initialize(mi: MutableInstance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
+    override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
         var index = rng.nextGeometric(pBias) - 1
         while (index < mi.size) {
             mi.flip(index)

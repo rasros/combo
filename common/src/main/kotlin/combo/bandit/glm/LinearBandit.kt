@@ -3,14 +3,15 @@ package combo.bandit.glm
 import combo.bandit.ParallelPredictionBandit
 import combo.bandit.PredictionBandit
 import combo.bandit.PredictionBanditBuilder
-import combo.math.*
+import combo.math.DataSample
+import combo.math.Transform
+import combo.math.VoidSample
+import combo.math.vectors
 import combo.sat.Instance
 import combo.sat.Problem
-import combo.sat.dot
 import combo.sat.optimizers.LinearObjective
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
-import combo.sat.times
 import combo.util.IntCollection
 import combo.util.RandomSequence
 import combo.util.nanos
@@ -18,7 +19,6 @@ import kotlin.jvm.JvmStatic
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 /**
  * Generalized linear model (GLM) bandit with Thompson sampling. The most important configuration parameter is [family],
@@ -45,23 +45,23 @@ class LinearBandit<L : LinearData>(val problem: Problem,
                                    override val maximize: Boolean = true,
                                    val link: Transform = family.canonicalLink(),
                                    val optimizer: Optimizer<LinearObjective> = LocalSearch.Builder(problem).randomSeed(randomSeed).build(),
-                                   learningRate: Float = 0.1f,
-                                   val learningRateGrowth: Float = 1.01f,
+                                   val learningRate: Float = 0.1f,
+                                   val learningRateGrowth: Float = 1.05f,
                                    val batchThreshold: Int = 3,
                                    override val rewards: DataSample = VoidSample,
                                    override val trainAbsError: DataSample = VoidSample,
                                    override val testAbsError: DataSample = VoidSample)
     : PredictionBandit<L> {
 
-    var learningRate: Float = learningRate
-        private set
     private val randomSequence = RandomSequence(randomSeed)
     private val model: LinearModel<L> =
             when (model) {
                 is DiagonalCovarianceData ->
-                    DiagonalModel(model.weights, model.precision, model.bias, model.biasPrecision)
+                    DiagonalModel(family, link, vectors.vector(model.weights), vectors.vector(model.precision),
+                            model.bias, model.biasPrecision, learningRate)
                 is FullCovarianceData ->
-                    FullModel(model.weights, model.covariance, model.cholesky, model.bias, model.biasPrecision)
+                    FullModel(family, link, vectors.vector(model.weights), vectors.matrix(model.covariance),
+                            vectors.matrix(model.covarianceL), model.bias, model.biasPrecision, learningRate)
                 else -> error("sealed class")
             }.let {
                 @Suppress("UNCHECKED_CAST")
@@ -73,10 +73,16 @@ class LinearBandit<L : LinearData>(val problem: Problem,
     }
 
     override fun predict(instance: Instance) = link.apply(model.bias + (instance dot model.weights))
-    override fun train(instance: Instance, result: Float, weight: Float) = model.train(instance, result, weight)
+
+    override fun train(instance: Instance, result: Float, weight: Float) {
+        model.train(instance, result, weight)
+        model.learningRate = min(1f, learningRate * learningRateGrowth)
+    }
+
     override fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
         if (instances.size < batchThreshold) super.trainAll(instances, results, weights)
         else model.trainAll(instances, results, weights)
+        model.learningRate = min(1f, learningRate * learningRateGrowth.pow(instances.size))
     }
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
@@ -87,151 +93,6 @@ class LinearBandit<L : LinearData>(val problem: Problem,
 
     override fun importData(data: L) = model.importData(data)
     override fun exportData() = model.exportData()
-
-    private abstract inner class LinearModel<L : LinearData>(val weights: Vector, var bias: Float, var biasPrecision: Float) {
-        abstract fun sample(rng: Random): Vector
-        abstract fun train(instance: Instance, result: Float, weight: Float)
-        abstract fun importData(data: L)
-        abstract fun exportData(): L
-        abstract fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?)
-    }
-
-    private inner class DiagonalModel(weights: Vector,
-                                      val precision: Vector,
-                                      bias: Float,
-                                      biasPrecision: Float)
-        : LinearModel<DiagonalCovarianceData>(weights, bias, biasPrecision) {
-
-        override fun sample(rng: Random) = Vector(weights.size) { rng.nextNormal(weights[it], sqrt(1f / precision[it])) }
-
-        override fun train(instance: Instance, result: Float, weight: Float) {
-            val pred = predict(instance)
-            val diff = result - pred
-            val varF = family.variance(pred)
-            val alpha = learningRate * weight
-            for (i in instance) {
-                precision[i] += varF * alpha
-                weights[i] += (diff * alpha) / precision[i]
-            }
-            biasPrecision += varF * alpha
-            bias += (diff * alpha) / biasPrecision
-            learningRate = min(1f, learningRate * learningRateGrowth)
-        }
-
-        override fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
-            val precisionUpdate = Vector(this.weights.size)
-            val weightsUpdate = Vector(this.weights.size)
-            var biasPrecisionUpdate = 0.0f
-            var biasUpdate = 0.0f
-            for (i in instances.indices) {
-                val instance = instances[i]
-                val result = results[i]
-                val weight = weights?.get(i) ?: 1.0f
-                val pred = predict(instance)
-                val diff = result - pred
-                val varF = family.variance(pred)
-                val itr = instance.iterator()
-                val alpha = learningRate * weight
-                while (itr.hasNext()) {
-                    val j = itr.nextInt()
-                    precisionUpdate[j] += varF * alpha
-                    weightsUpdate[j] += diff * alpha
-                }
-                biasPrecisionUpdate += varF * alpha
-                biasUpdate += diff * alpha
-            }
-            for (i in weightsUpdate.indices) {
-                precision[i] += precisionUpdate[i]
-                this.weights[i] += weightsUpdate[i] / precision[i]
-            }
-            biasPrecision += biasPrecisionUpdate
-            bias += biasUpdate / biasPrecision
-            learningRate = min(1f, learningRate * learningRateGrowth.pow(instances.size))
-        }
-
-        override fun importData(data: DiagonalCovarianceData) {
-            bias = data.bias
-            biasPrecision = data.biasPrecision
-            for (i in weights.indices) {
-                weights[i] = data.weights[i]
-                precision[i] = data.precision[i]
-            }
-        }
-
-        override fun exportData() = DiagonalCovarianceData(weights.copyOf(), precision.copyOf(), bias, biasPrecision)
-    }
-
-    private inner class FullModel(weights: Vector,
-                                  val covariance: Matrix,
-                                  val covarianceL: Matrix,
-                                  bias: Float,
-                                  biasVariance: Float)
-        : LinearModel<FullCovarianceData>(weights, bias, biasVariance) {
-
-        override fun sample(rng: Random) = (covarianceL * Vector(weights.size) { rng.nextNormal() }).apply { add(weights) }
-
-        override fun train(instance: Instance, result: Float, weight: Float) {
-            val pred = predict(instance)
-            val diff = result - pred
-            val varF = family.variance(pred)
-            val alpha = learningRate * weight
-
-            val varianceUpdate = covariance * instance
-            varianceUpdate.multiply(varF)
-            varianceUpdate.divide(sqrt((1 + (instance dot varianceUpdate) * sqrt(varF))))
-            varianceUpdate.multiply(alpha)
-
-            var norm = covarianceL.choleskyDowndate(varianceUpdate)
-            if (norm > 1f) {
-                // Numerical errors have been accrued to fix we recalculate cholesky decomposition
-                val L = covariance.cholesky()
-                for (i in L.indices)
-                    for (j in L.indices)
-                        covarianceL[j, i] = L[i, j] // L is lower triangulate, cholesky is upper
-
-                norm = covarianceL.choleskyDowndate(varianceUpdate)
-                while (norm > 1f) {
-                    // Still failed cholesky downdate due to numerical instability
-                    // Take smaller step instead
-                    varianceUpdate.divide(norm + 1e-4f)
-                    norm = covarianceL.choleskyDowndate(varianceUpdate)
-                }
-            }
-
-            // Down date covariance matrix
-            for (i in covariance.indices)
-                for (j in covariance.indices)
-                    covariance[i][j] -= varianceUpdate[i] * varianceUpdate[j]
-
-            val x = FloatArray(instance.size)
-            for (i in instance) x[i] = diff * alpha
-            val step = covariance * x
-            weights.add(step)
-
-            biasPrecision += varF * alpha
-            bias += (diff * alpha) / biasPrecision
-            learningRate = min(1f, learningRate * learningRateGrowth)
-        }
-
-        override fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
-            for (i in instances.indices)
-                train(instances[i], results[i], weights?.get(i) ?: 1.0f)
-        }
-
-        override fun importData(data: FullCovarianceData) {
-            bias = data.bias
-            biasPrecision = data.biasPrecision
-            for (i in weights.indices) {
-                weights[i] = data.weights[i]
-                covariance[i] = data.covariance[i].copyOf()
-                covarianceL[i] = data.cholesky[i].copyOf()
-            }
-        }
-
-        override fun exportData() = FullCovarianceData(weights.copyOf(),
-                Array(covariance.size) { covariance[it].copyOf() },
-                Array(covarianceL.size) { covarianceL[it].copyOf() }, bias, biasPrecision)
-    }
 
     companion object {
         /** Build linear model with full covariance. Size of covariance is quadratic in [Problem.nbrValues]. */
@@ -303,7 +164,7 @@ class LinearBandit<L : LinearData>(val problem: Problem,
             val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed).build()
             val bias = bias ?: if (family is PoissonVariance) 1f else 0f
             val model = model ?: DiagonalCovarianceData(
-                    Vector(n), Vector(n) { regularizationFactor }, bias, regularizationFactor)
+                    FloatArray(n), FloatArray(n) { regularizationFactor }, bias, regularizationFactor)
             return LinearBandit(problem, family, model, randomSeed, maximize, link ?: family.canonicalLink(), optimizer,
                     learningRate, learningRateGrowth, batchThreshold, rewards, trainAbsError, testAbsError)
         }
@@ -316,10 +177,10 @@ class LinearBandit<L : LinearData>(val problem: Problem,
             val bias = bias ?: if (family is PoissonVariance) 1f else 0f
             val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed).build()
             val model = model ?: FullCovarianceData(
-                    Vector(n), Matrix(n) { Vector(n) }, Matrix(n) { Vector(n) }, bias, 0.1f * regularizationFactor).apply {
+                    FloatArray(n), Array(n) { FloatArray(n) }, Array(n) { FloatArray(n) }, bias, 0.1f * regularizationFactor).apply {
                 for (i in 0 until n) {
-                    covariance[i, i] = regularizationFactor
-                    cholesky[i, i] = sqrt(regularizationFactor)
+                    covariance[i][i] = regularizationFactor
+                    covarianceL[i][i] = sqrt(regularizationFactor)
                 }
             }
             return LinearBandit(problem, family, model, randomSeed, maximize, link ?: family.canonicalLink(), optimizer,

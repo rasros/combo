@@ -1,7 +1,7 @@
 package combo.model
 
 import combo.sat.BitArray
-import combo.sat.BitArrayBuilder
+import combo.sat.BitArrayFactory
 import combo.sat.InstancePermutation
 import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Conjunction
@@ -220,7 +220,7 @@ class ModelTest {
             val m1: Flag<*> = scope.find("Cat 1")!!
             val m2: Multiple<*> = scope.find("Cat 1 1")!!
             val con = Conjunction(collectionOf(!m1.toLiteral(index), m2.toLiteral(index)))
-            for (i in InstancePermutation(problem.nbrValues, BitArrayBuilder, Random).asSequence().take(100)) {
+            for (i in InstancePermutation(problem.nbrValues, BitArrayFactory, Random).asSequence().take(100)) {
                 con.coerce(i, Random)
                 assertFalse(problem.satisfies(i), "$i")
             }

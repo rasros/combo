@@ -79,7 +79,7 @@ class Flag<out T> constructor(name: String, val value: T, override val parent: V
     override val nbrValues: Int get() = 1
     override val optional: Boolean get() = true
     override fun rebase(parent: Value) = Flag(name, value, parent)
-    override fun valueOf(instance: Instance, index: Int, parentLiteral: Int) = if (instance[index]) value else null
+    override fun valueOf(instance: Instance, index: Int, parentLiteral: Int) = if (instance.isSet(index)) value else null
     override fun toLiteral(variableIndex: VariableIndex) = variableIndex.valueIndexOf(this).toLiteral(true)
     override fun value(value: Nothing) = throw UnsupportedOperationException("Cannot be called.")
     override fun toString() = "Flag($name)"
@@ -131,7 +131,7 @@ class Multiple<V> constructor(name: String, optional: Boolean, parent: Value, va
     override fun rebase(parent: Value): Variable<*, *> = Multiple(name, optional, parent, values)
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): List<V>? {
-        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         val ret = ArrayList<V>()
         val valueIndex = index + if (optional) 1 else 0
         var i = 0
@@ -162,7 +162,7 @@ class Nominal<V> constructor(name: String, optional: Boolean, parent: Value, var
     override fun rebase(parent: Value): Variable<*, *> = Nominal(name, optional, parent, values)
 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): V? {
-        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance[index])) return null
+        if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         val valueIndex = index + if (optional) 1 else 0
         val value = instance.getFirst(valueIndex, valueIndex + values.size)
         return if (value >= 0) values[value].value

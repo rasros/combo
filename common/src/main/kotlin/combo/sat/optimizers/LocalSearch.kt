@@ -30,7 +30,7 @@ import kotlin.math.min
  * @param pRandomWalk Chance of talking a random walk according to the WalkSAT algorithm.
  * @param pRandomWalkDecay Multiply the [pRandomWalk] by this during each step of the algorithm.
  * @param tabuListSize Keep a ring-buffer with blocked assignments during search. Size is always a power of 2.
- * @param instanceBuilder Determines the [Instance] that will be created for solving.
+ * @param instanceFactory Determines the [Instance] that will be created for solving.
  * @param initializer This determines how instances are given their starting values.
  * @param eps Threshold of improvement to stop current iteration in the search.
  * @param maxConsideration Maximum number of variables to consider during each search, set to [Int.MAX_VALUE] to disable.
@@ -45,7 +45,7 @@ class LocalSearch(val problem: Problem,
                   val pRandomWalk: Float = 0.8f,
                   val pRandomWalkDecay: Float = 0.95f,
                   tabuListSize: Int = Int.power2(min(problem.nbrValues, 2)),
-                  val instanceBuilder: InstanceBuilder = BitArrayBuilder,
+                  val instanceFactory: InstanceFactory = BitArrayFactory,
                   val initializer: InstanceInitializer<*> = ConstraintCoercer(problem, WordRandomSet()),
                   val eps: Float = 1E-4f,
                   val maxConsideration: Int = max(20, problem.nbrValues / 5),
@@ -57,7 +57,7 @@ class LocalSearch(val problem: Problem,
     val tabuListSize = if (tabuListSize == 0) 0 else Int.power2(tabuListSize)
     private val tabuMask = tabuListSize - 1
 
-    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?): Instance {
         val end = if (timeout > 0L) millis() + timeout else Long.MAX_VALUE
 
         val rng = randomSequence.next()
@@ -85,11 +85,11 @@ class LocalSearch(val problem: Problem,
         for (restart in 1..restarts) {
             var pRandomWalk = pRandomWalk
 
-            val instance: MutableInstance
+            val instance: Instance
             if (guess != null) {
                 instance = guess
             } else {
-                instance = instanceBuilder.create(p.nbrValues)
+                instance = instanceFactory.create(p.nbrValues)
                 @Suppress("UNCHECKED_CAST")
                 (initializer as InstanceInitializer<ObjectiveFunction>).initialize(instance, assumption, rng, function)
             }
@@ -154,19 +154,23 @@ class LocalSearch(val problem: Problem,
                         for (i in it)
                             validator[i] = true
                     }
-                    0f
+                    val score = function.value(instance)
+                    val imp = prevValue - score
+                    prevValue = score
+                    setReturnValue(score)
+                    imp
                 } else {
                     val imp = function.improvement(instance, ix)
                     val score = prevValue - imp
                     validator.flip(ix)
-                    setReturnValue(score)
-                    pRandomWalk *= pRandomWalkDecay
-                    if (tabuListSize > 0) {
-                        tabuBuffer[tabuI] = ix
-                        tabuI = (tabuI + 1) and tabuMask
-                    }
                     prevValue -= imp
+                    setReturnValue(score)
                     imp
+                }
+                pRandomWalk *= pRandomWalkDecay
+                if (tabuListSize > 0) {
+                    tabuBuffer[tabuI] = ix
+                    tabuI = (tabuI + 1) and tabuMask
                 }
                 if (validator.totalUnsatisfied == 0) {
                     if (abs(bestValue - lowerBound) < eps) return validator.instance
@@ -180,7 +184,7 @@ class LocalSearch(val problem: Problem,
                 ?: (if (millis() > end) throw TimeoutException(timeout) else throw IterationsReachedException(restarts))
     }
 
-    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?) = optimizeOrThrow(SatObjective, assumptions, guess)
+    override fun witnessOrThrow(assumptions: IntCollection, guess: Instance?) = optimizeOrThrow(SatObjective, assumptions, guess)
 
     /**
      * Problem is the only mandatory parameter.
@@ -193,7 +197,7 @@ class LocalSearch(val problem: Problem,
         private var pRandomWalk: Float = 0.8f
         private var pRandomWalkDecay: Float = 0.95f
         private var tabuListSize: Int = Int.power2(min(problem.nbrValues, 2))
-        private var instanceBuilder: InstanceBuilder = BitArrayBuilder
+        private var instanceFactory: InstanceFactory = BitArrayFactory
         private var eps: Float = 1E-4f
         private var maxConsideration: Int = max(20, problem.nbrValues / 5)
         private var propagateAssumptions: Boolean = true
@@ -225,7 +229,7 @@ class LocalSearch(val problem: Problem,
         fun tabuListSize(tabuListSize: Int) = apply { this.tabuListSize = tabuListSize }
 
         /** Whether to use sparse or dense bit array as instance. */
-        fun sparse(sparse: Boolean) = apply { if (sparse) instanceBuilder = SparseBitArrayBuilder else BitArrayBuilder }
+        fun sparse(sparse: Boolean) = apply { if (sparse) instanceFactory = SparseBitArrayFactory else BitArrayFactory }
 
         /** Type of initialization strategy. */
         fun initializer(initializer: InitializerType) = apply { this.initializerType = initializer }
@@ -258,7 +262,7 @@ class LocalSearch(val problem: Problem,
             else null
 
             val randomizer = if (initializerBias > 0.999f) RandomSet(initializerBias)
-            else if (initializerBias < 0.01f) GeometricRandomSet(initializerBias)
+            else if (initializerBias <= 0.01f) GeometricRandomSet(initializerBias)
             else WordRandomSet(initializerBias)
             val init = when (initializerType) {
                 InitializerType.WEIGHT_MAX -> WeightSet(initializerNoise)
@@ -270,7 +274,7 @@ class LocalSearch(val problem: Problem,
 
             return LocalSearch(problem, randomSeed = randomSeed, timeout = timeout, restarts = restarts,
                     maxSteps = maxSteps, pRandomWalk = pRandomWalk, pRandomWalkDecay = pRandomWalkDecay,
-                    tabuListSize = tabuListSize, instanceBuilder = instanceBuilder, initializer = init, eps = eps,
+                    tabuListSize = tabuListSize, instanceFactory = instanceFactory, initializer = init, eps = eps,
                     maxConsideration = maxConsideration, transitiveImplications = if (propagateFlips) digraph else null,
                     propagateAssumptions = propagateAssumptions)
         }

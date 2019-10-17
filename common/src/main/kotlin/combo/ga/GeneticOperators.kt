@@ -1,6 +1,9 @@
 package combo.ga
 
-import combo.math.*
+import combo.math.AliasMethodSampler
+import combo.math.DiscreteSampler
+import combo.math.IntPermutation
+import combo.math.nextGeometric
 import combo.sat.TransitiveImplications
 import combo.sat.literal
 import combo.util.assert
@@ -28,8 +31,8 @@ class UniformRecombination : RecombinationOperator<ValidatorCandidates> {
         val s3 = candidates.instances[child]
         for (i in 0 until candidates.nbrVariables)
             if (rng.nextBoolean()) {
-                if (s1[i] != s3[i]) s3.flip(i)
-            } else if (s2[i] != s3[i]) s3.flip(i)
+                if (s1.isSet(i) != s3.isSet(i)) s3.flip(i)
+            } else if (s2.isSet(i) != s3.isSet(i)) s3.flip(i)
     }
 }
 
@@ -47,7 +50,7 @@ class KPointRecombination(val k: Int = 1) : RecombinationOperator<ValidatorCandi
         var prev = 0
         for (point in points) {
             for (i in prev until point) {
-                if (s3[i] != s1[i]) s3.flip(i)
+                if (s3.isSet(i) != s1.isSet(i)) s3.flip(i)
             }
             val tmp = s1
             s1 = s2
@@ -55,7 +58,7 @@ class KPointRecombination(val k: Int = 1) : RecombinationOperator<ValidatorCandi
             prev = point
         }
         for (i in prev until candidates.nbrVariables) {
-            if (s3[i] != s1[i]) s3.flip(i)
+            if (s3.isSet(i) != s1.isSet(i)) s3.flip(i)
         }
     }
 }

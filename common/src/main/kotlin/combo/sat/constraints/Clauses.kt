@@ -36,7 +36,7 @@ class Disjunction(override val literals: IntCollection) : PropositionalConstrain
         } else this
     }
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         if (!satisfies(instance))
             instance.set(literals.random(rng))
     }
@@ -69,7 +69,7 @@ class Conjunction(override val literals: IntCollection) : PropositionalConstrain
 
     override fun isUnit() = true
 
-    override fun coerce(instance: MutableInstance, rng: Random) {
+    override fun coerce(instance: Instance, rng: Random) {
         if (literals is IntRangeCollection) {
             var ix = min(literals.min.toIx(), literals.max.toIx())
             val ints = (literals.size shr 5) + if (size and 0x1F > 0) 1 else 0

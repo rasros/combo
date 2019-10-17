@@ -136,7 +136,7 @@ class LinearTest : ConstraintTest() {
             val c = Cardinality(collectionOf(1, 7, 5), 1, GT)
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
-            assertTrue(it[0] || it[6] || it[4])
+            assertTrue(it.isSet(0) || it.isSet(6) || it.isSet(4))
             assertEquals(2, it.iterator().asSequence().count())
         }
         BitArray(100).also {
@@ -316,7 +316,7 @@ class CardinalityTest : ConstraintTest() {
             val c = Cardinality(collectionOf(1, 7, 5), 1, GT)
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
-            assertTrue(it[0] || it[6] || it[4])
+            assertTrue(it.isSet(0) || it.isSet(6) || it.isSet(4))
             assertEquals(2, it.iterator().asSequence().count())
         }
         BitArray(100).also {
@@ -486,7 +486,7 @@ class RelationTest {
                     sum += weights[j]
                 if (relation.violations(sum, degree) == 0) {
                     for (j in instance.indices) {
-                        if (instance[j]) accepted[j][1] = 1
+                        if (instance.isSet(j)) accepted[j][1] = 1
                         else accepted[j][0] = 1
                     }
                 }

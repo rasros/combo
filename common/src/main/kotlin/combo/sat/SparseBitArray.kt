@@ -4,13 +4,13 @@ import combo.util.IntHashMap
 import combo.util.key
 import combo.util.value
 
-object SparseBitArrayBuilder : InstanceBuilder {
+object SparseBitArrayFactory : InstanceFactory {
     override fun create(size: Int) = SparseBitArray(size)
 }
 
-class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(1, -1)) : MutableInstance {
+class SparseBitArray(override val size: Int, val map: IntHashMap = IntHashMap(1, -1)) : Instance {
 
-    override operator fun get(ix: Int) = (map[ix shr 5] ushr ix and 0x1F) and 1 == 1
+    override fun isSet(ix: Int) = (map[ix shr 5] ushr ix and 0x1F) and 1 == 1
 
     override fun copy() = SparseBitArray(size, map.copy())
 

@@ -2,10 +2,7 @@ package combo.model
 
 import combo.math.gcd
 import combo.math.gcdAll
-import combo.sat.Constraint
-import combo.sat.Empty
-import combo.sat.PropositionalConstraint
-import combo.sat.Tautology
+import combo.sat.*
 import combo.sat.constraints.*
 import combo.sat.constraints.Relation.*
 import combo.util.*
@@ -209,6 +206,8 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
             literals[i] = d.literals.first()
         return Conjunction(collectionOf(*literals))
     }
+
+    fun Constraint.weighted(factor: Int) = WeightedConstraint(factor, this)
 
     private fun toLiterals(vars: Array<out Value>): IntCollection {
         // Remove any duplicates

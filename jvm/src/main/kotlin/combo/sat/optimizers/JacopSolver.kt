@@ -24,7 +24,7 @@ import kotlin.random.Random
  * @param problem the problem contains the [Constraint]s and the number of variables.
  * @param randomSeed Set the random seed to a specific value to have a reproducible algorithm.
  * @param timeout The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
- * @param instanceBuilder Determines the [Instance] that will be created for solving.
+ * @param instanceFactory Determines the [Instance] that will be created for solving.
  * @param delta Precision with which to convert objective function into integer constraints.
  * @param gcdSimplify Simplify weights with greatest common divisor before optimizing.
  */
@@ -32,7 +32,7 @@ class JacopSolver @JvmOverloads constructor(
         val problem: Problem,
         override val randomSeed: Int = nanos().toInt(),
         override val timeout: Long= -1L,
-        val instanceBuilder: InstanceBuilder = BitArrayBuilder,
+        val instanceFactory: InstanceFactory = BitArrayFactory,
         val delta: Float= 0.01f,
         val gcdSimplify: Boolean = true,
         val constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Unit = { _, _, _ ->
@@ -156,11 +156,11 @@ class JacopSolver @JvmOverloads constructor(
 
     private val encoderTL = ThreadLocal.withInitial { ConstraintEncoder() }
 
-    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun witnessOrThrow(assumptions: IntCollection, guess: Instance?): Instance {
         with(encoderTL.get()) {
             try {
                 store.setLevel(store.level + 1)
-                if (vars.isEmpty()) return instanceBuilder.create(0)
+                if (vars.isEmpty()) return instanceFactory.create(0)
                 val rng = randomSequence.next()
                 if (assumptions.isNotEmpty()) {
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
@@ -209,7 +209,7 @@ class JacopSolver @JvmOverloads constructor(
 
                 if (instance != null) {
                     store.impose(Or(Array(instance.size) {
-                        XeqC(vars[it], if (instance[it]) 0 else 1)
+                        XeqC(vars[it], if (instance.isSet(it)) 0 else 1)
                     }))
                 }
                 instance
@@ -217,11 +217,11 @@ class JacopSolver @JvmOverloads constructor(
         }
     }
 
-    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun optimizeOrThrow(function: LinearObjective, assumptions: IntCollection, guess: Instance?): Instance {
         with(encoderTL.get()) {
             try {
                 store.setLevel(store.level + 1)
-                if (vars.isEmpty()) return instanceBuilder.create(0)
+                if (vars.isEmpty()) return instanceFactory.create(0)
                 if (assumptions.isNotEmpty())
                     for (l in assumptions) store.impose(XeqC(vars[l.toIx()], if (l.toBoolean()) 1 else 0))
 
@@ -254,7 +254,7 @@ class JacopSolver @JvmOverloads constructor(
     }
 
     private fun toInstance(encoder: ConstraintEncoder, rng: Random): Instance {
-        val instance = instanceBuilder.create(encoder.vars.size)
+        val instance = instanceFactory.create(encoder.vars.size)
         encoder.vars.forEachIndexed { i, v ->
             if ((v.dom().singleton() && v.value() == 1) || (!v.dom().singleton() && rng.nextBoolean()))
                 instance[i] = true
@@ -279,8 +279,8 @@ class JacopSolver @JvmOverloads constructor(
         override fun indomain(v: BooleanVar) = rng.nextInt(2)
     }
 
-    private class InitialGuessIndomain(val encoder: ConstraintEncoder, val guess: MutableInstance) : Indomain<BooleanVar> {
-        override fun indomain(v: BooleanVar) = if (guess[encoder.varIndex[v]!!]) 1 else 0
+    private class InitialGuessIndomain(val encoder: ConstraintEncoder, val guess: Instance) : Indomain<BooleanVar> {
+        override fun indomain(v: BooleanVar) = if (guess.isSet(encoder.varIndex[v]!!)) 1 else 0
     }
 
     private class WeightIndomain(val function: LinearObjective, vars: Array<BooleanVar>) : Indomain<BooleanVar> {

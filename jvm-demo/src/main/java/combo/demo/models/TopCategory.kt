@@ -17,28 +17,30 @@ import combo.sat.constraints.Relation
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
 import combo.sat.set
-import combo.util.IntCollection
-import combo.util.RandomSequence
-import combo.util.nanos
+import combo.util.*
 import java.io.InputStreamReader
 import kotlin.collections.set
 import kotlin.math.pow
 
 fun main() {
+    vectors = Nd4jVectorFactory
     val tcs = TopCategorySurrogate()
     val optimizer = LocalSearch.Builder(tcs.model.problem)
+            .restarts(1)
+            .initializerBias(0.01f)
             .sparse(true)
             .build()
-    /*val t = measureTimeMillis {
+    val t = measureTimeMillis {
         val literals = IntHashSet()
-        tcs.model["Top-k", 5].collectLiterals(tcs.model.index, literals)
+        tcs.model["Top-k", 10].collectLiterals(tcs.model.index, literals)
+        tcs.model["domain", "D1"].collectLiterals(tcs.model.index, literals)
         val instance = tcs.optimal(optimizer, literals) ?: error("failed")
         println(tcs.model.toAssignment(instance))
         println(tcs.o.value(instance))
     }
     println(t.toFloat() / 1000)
     println(tcs.o.value(optimizer.witnessOrThrow()))
-     */
+    return
 
     val p = tcs.datasetInstances().maxBy { tcs.o.value(it.second) }
     p!!
@@ -120,13 +122,13 @@ fun categoryTreeModel(): Model {
     return toModel(tree)
 }
 
-class TopCategorySurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<FeedForwardRegressionObjective> {
+class TopCategorySurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<RegressionNetwork> {
 
     private val randomSequence = RandomSequence(randomSeed)
     val model = categoryTreeModel()
-    val o = FeedForwardRegressionObjective(true,
-            readInputDenseLayerWeights(),
-            arrayOf(readBatchNormLayer(2),
+    val o = RegressionNetwork(true,
+            arrayOf(readDenseLayerWeights(1, ReLU),
+                    readBatchNormLayer(2),
                     readDenseLayerWeights(3, ReLU),
                     readBatchNormLayer(4),
                     readDenseLayerWeights(5, IdentityTransform)),
@@ -139,7 +141,7 @@ class TopCategorySurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<F
 
     override fun predict(instance: Instance) = o.value(instance)
 
-    override fun optimal(optimizer: Optimizer<FeedForwardRegressionObjective>, assumptions: IntCollection) = optimizer.optimize(o, assumptions)
+    override fun optimal(optimizer: Optimizer<RegressionNetwork>, assumptions: IntCollection) = optimizer.optimize(o, assumptions)
 
     fun datasetInstances(): Sequence<Pair<Int, Instance>> {
         return InputStreamReader(javaClass.getResourceAsStream("tc_dataset.txt")).buffered().lineSequence().map {
@@ -154,41 +156,27 @@ class TopCategorySurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<F
         }
     }
 
-    private fun readInputDenseLayerWeights(): InputLayer {
-        val lines = InputStreamReader(javaClass.getResourceAsStream("tc_layer1.txt")).readLines()
-        val full = lines.map { line ->
-            line.trim().split(" ").map {
-                it.toDouble().toFloat()
-            }.toFloatArray()
-        }
-        val bias = full.map { it[0] }.toFloatArray()
-        val matrix = full.map {
-            it.sliceArray(1 until it.size)
-        }.toTypedArray()
-        return InputLayer(matrix, bias, ReLU)
-    }
-
-    private fun readBatchNormLayer(layer: Int): HiddenLayer {
+    private fun readBatchNormLayer(layer: Int): Layer {
         val lines = InputStreamReader(javaClass.getResourceAsStream("tc_layer$layer.txt")).readLines()
         val full = lines.map { line ->
             line.trim().split(" ").map {
                 it.toDouble().toFloat()
             }.toFloatArray()
-        }
+        }.map { vectors.vector(it) }
         return BatchNormalizationLayer(full[0], full[1], full[2], full[3], 1e-5f)
     }
 
-    private fun readDenseLayerWeights(layer: Int, activation: Transform): HiddenLayer {
+    private fun readDenseLayerWeights(layer: Int, activation: Transform): Layer {
         val lines = InputStreamReader(javaClass.getResourceAsStream("tc_layer$layer.txt")).readLines()
         val full = lines.map { line ->
             line.trim().split(" ").map {
                 it.toDouble().toFloat()
             }.toFloatArray()
         }
-        val bias = full.map { it[0] }.toFloatArray()
-        val matrix = full.map {
+        val bias = vectors.vector(full.map { it[0] }.toFloatArray())
+        val matrix = vectors.matrix(full.map {
             it.sliceArray(1 until it.size)
-        }.toTypedArray()
+        }.toTypedArray())
         return DenseLayer(matrix, bias, activation)
     }
 }

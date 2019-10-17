@@ -160,7 +160,7 @@ class FloatBoundsTest : ConstraintTest() {
             val bounds = FloatBounds(ix, min, max)
             val rng = Random(0)
             val variable = FloatVar("", false, Root(""), min, max)
-            val values = InstancePermutation(32 + ix, BitArrayBuilder, rng).asSequence().take(100).map {
+            val values = InstancePermutation(32 + ix, BitArrayFactory, rng).asSequence().take(100).map {
                 bounds.coerce(it, rng)
                 variable.valueOf(it, ix, 0)!!
             }.toList().toFloatArray()

@@ -1,7 +1,8 @@
 package combo.sat.optimizers
 
+import combo.math.FallbackMatrix
+import combo.math.FallbackVector
 import combo.math.nextNormal
-import combo.math.times
 import combo.model.TestModels
 import combo.sat.*
 import combo.test.assertEquals
@@ -76,13 +77,13 @@ class JumpObjective(val n: Int, val m: Int = (0.8 * n).toInt()) : ObjectiveFunct
 }
 
 class InteractionObjective(weights: FloatArray) : ObjectiveFunction {
-    val weights = Array(weights.size) { i ->
+    val weights = FallbackMatrix(Array(weights.size) { i ->
         FloatArray(weights.size) { j ->
             if (abs(i - j) <= 2) weights[i] * weights[j] else 0.0f
         }
-    }
+    })
 
-    override fun value(instance: Instance) = (instance.toFloatArray() * weights).sum()
+    override fun value(instance: Instance) = (weights * instance).sum()
 
     private val lowerBound: Float
     private val upperBound: Float
@@ -90,8 +91,8 @@ class InteractionObjective(weights: FloatArray) : ObjectiveFunction {
     init {
         var lb = 0.0f
         var ub = 0.0f
-        for (i in 0 until weights.size) {
-            for (j in 0 until weights.size) {
+        for (i in weights.indices) {
+            for (j in weights.indices) {
                 if (abs(i - j) <= 2) {
                     lb += min(0.0f, weights[i] * weights[j])
                     ub += max(0.0f, weights[i] * weights[j])
@@ -126,11 +127,11 @@ class JumpObjectiveTest : ObjectiveFunctionTest() {
 
 class LinearObjectiveTest : ObjectiveFunctionTest() {
     override fun function(nbrVariables: Int) =
-            LinearObjective(Random.nextBoolean(), FloatArray(nbrVariables) { Random.nextNormal() })
+            LinearObjective(Random.nextBoolean(), FallbackVector(FloatArray(nbrVariables) { Random.nextNormal() }))
 
     @Test
     fun valueOfOnes() {
-        val weights = FloatArray(8) { 1.0f }
+        val weights = FallbackVector(FloatArray(8) { 1.0f })
         val max = LinearObjective(true, weights)
         val min = LinearObjective(false, weights)
 
@@ -145,7 +146,7 @@ class LinearObjectiveTest : ObjectiveFunctionTest() {
 
     @Test
     fun valueOfRange() {
-        val weights = FloatArray(4) { it.toFloat() }
+        val weights = FallbackVector(FloatArray(4) { it.toFloat() })
         val min = LinearObjective(false, weights)
         val max = LinearObjective(true, weights)
 
@@ -163,7 +164,7 @@ class DisjunctPenaltyTest {
     @Test
     fun outOfReach() {
         val penalty = DisjunctPenalty(LinearPenalty())
-        val function = LinearObjective(false, floatArrayOf(-1.0f, 0.5f, 2.0f, 1.0f))
+        val function = LinearObjective(false, FallbackVector(floatArrayOf(-1.0f, 0.5f, 2.0f, 1.0f)))
         var min = Float.POSITIVE_INFINITY
         var max = Float.NEGATIVE_INFINITY
         for (l in 0 until 2.0.pow(4).toInt()) {

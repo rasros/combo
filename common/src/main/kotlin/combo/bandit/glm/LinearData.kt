@@ -1,21 +1,20 @@
 package combo.bandit.glm
 
 import combo.bandit.BanditData
-import combo.math.Matrix
-import combo.math.Vector
 import combo.math.cholesky
+import combo.math.vectors
 
-sealed class LinearData(val weights: Vector, val bias: Float, val biasPrecision: Float) : BanditData {
+sealed class LinearData(val weights: FloatArray, val bias: Float, val biasPrecision: Float) : BanditData {
     override fun migrate(from: IntArray, to: IntArray): BanditData {
         TODO("not implemented")
     }
 }
 
-class FullCovarianceData(weights: Vector, val covariance: Matrix, val cholesky: Matrix, bias: Float, biasPrecision: Float)
+class FullCovarianceData(weights: FloatArray, val covariance: Array<FloatArray>, val covarianceL: Array<FloatArray>, bias: Float, biasPrecision: Float)
     : LinearData(weights, bias, biasPrecision) {
-    constructor(weights: Vector, covariance: Matrix, bias: Float, biasPrecision: Float) : this(
-            weights, covariance, covariance.cholesky(), bias, biasPrecision)
+    constructor(weights: FloatArray, covariance: Array<FloatArray>, bias: Float, biasPrecision: Float) : this(
+            weights, covariance, vectors.matrix(covariance).cholesky().toArray(), bias, biasPrecision)
 }
 
-class DiagonalCovarianceData(weights: Vector, val precision: Vector, bias: Float, biasPrecision: Float)
+class DiagonalCovarianceData(weights: FloatArray, val precision: FloatArray, bias: Float, biasPrecision: Float)
     : LinearData(weights, bias, biasPrecision)

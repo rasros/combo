@@ -10,8 +10,7 @@ import kotlin.random.Random
  * This contains cached information about satisfied constraints used during search by search-based methods,
  * [combo.sat.optimizers.GeneticAlgorithm] and [combo.sat.optimizers.LocalSearch].
  */
-class Validator(val problem: Problem, val instance: MutableInstance, val assumption: Constraint) :
-        MutableInstance, Instance by instance {
+class Validator(val problem: Problem, val instance: Instance, val assumption: Constraint) : Instance by instance {
 
     var totalUnsatisfied: Int = 0
         private set
@@ -23,8 +22,6 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
             }
     private val unsatisfied = IntHashSet(nullValue = -1)
 
-    // TODO replace with map from int to int, and in combination let constraint cache value approach 0 for validation
-    // TODO then join with unsatisfied
     private val constraintCache = IntArray(problem.nbrConstraints + 1)
 
     init {
@@ -56,6 +53,8 @@ class Validator(val problem: Problem, val instance: MutableInstance, val assumpt
         instance.flip(ix)
         return oldFlips - newFlips
     }
+
+    override fun flip(ix: Int) = set(ix, !isSet(ix))
 
     override fun set(ix: Int, value: Boolean) {
         val literal = ix.toLiteral(value)

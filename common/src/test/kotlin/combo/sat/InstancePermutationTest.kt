@@ -11,25 +11,25 @@ class InstancePermutationTest {
 
     @Test
     fun emptySequence() {
-        assertEquals(1, InstancePermutation(0, BitArrayBuilder, Random).asSequence().count())
+        assertEquals(1, InstancePermutation(0, BitArrayFactory, Random).asSequence().count())
     }
 
     @Test
     fun sequenceSize() {
-        assertEquals(2.0.pow(3).toInt(), InstancePermutation(3, BitArrayBuilder, Random).asSequence().count())
-        assertEquals(2.0.pow(4).toInt(), InstancePermutation(4, BitArrayBuilder, Random).asSequence().count())
+        assertEquals(2.0.pow(3).toInt(), InstancePermutation(3, BitArrayFactory, Random).asSequence().count())
+        assertEquals(2.0.pow(4).toInt(), InstancePermutation(4, BitArrayFactory, Random).asSequence().count())
     }
 
     @Test
     fun noRepetition() {
-        val list = InstancePermutation(4, BitArrayBuilder, Random).asSequence().toList()
-        val set = InstancePermutation(4, BitArrayBuilder, Random).asSequence().toSet()
+        val list = InstancePermutation(4, BitArrayFactory, Random).asSequence().toList()
+        val set = InstancePermutation(4, BitArrayFactory, Random).asSequence().toSet()
         assertEquals(set.size, list.size)
     }
 
     @Test
     fun takeMany() {
-        assertEquals(16, InstancePermutation(4, BitArrayBuilder, Random).asSequence().take(1000).toList().size)
+        assertEquals(16, InstancePermutation(4, BitArrayFactory, Random).asSequence().take(1000).toList().size)
     }
 
     @Test
@@ -40,7 +40,7 @@ class InstancePermutationTest {
         var k = 0
         val rng = Random(0)
         while (left.isNotEmpty() && k++ <= 10000) {
-            val instance = InstancePermutation(size, BitArrayBuilder, rng).asSequence().first()
+            val instance = InstancePermutation(size, BitArrayFactory, rng).asSequence().first()
             for (i in instance)
                 left.remove(i)
         }

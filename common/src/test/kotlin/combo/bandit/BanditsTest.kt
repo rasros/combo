@@ -14,7 +14,6 @@ import combo.sat.BitArray
 import combo.sat.Instance
 import combo.sat.ValidationException
 import combo.sat.constraints.Conjunction
-import combo.sat.dot
 import combo.test.assertContentEquals
 import combo.test.assertEquals
 import combo.util.IntCollection
@@ -221,7 +220,7 @@ abstract class BanditTest<B : Bandit<*>> {
             }
             var count = 0
             for (i in 0 until 100)
-                if (bandit.chooseOrThrow()[0]) count++
+                if (bandit.chooseOrThrow().isSet(0)) count++
             assertTrue(count > 50, "$type")
         }
     }
@@ -295,7 +294,7 @@ enum class TestType {
     };
 
     fun linearRewards(instance: Instance, rng: Random): Float {
-        val weights = FloatArray(instance.size) { 1 + it * 0.1f }
+        val weights = FallbackVector(FloatArray(instance.size) { 1 + it * 0.1f })
         return linearRewards((1 + (instance dot weights)) / (weights.sum() + 2), 1, rng)
     }
 

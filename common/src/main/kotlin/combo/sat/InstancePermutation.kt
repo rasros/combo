@@ -9,7 +9,7 @@ import kotlin.random.Random
  * This class iterates over an instance in a random order without repetitions.
  */
 class InstancePermutation constructor(
-        private val nbrVariables: Int, val builder: InstanceBuilder, rng: Random) : Iterator<MutableInstance> {
+        private val nbrVariables: Int, val factory: InstanceFactory, rng: Random) : Iterator<Instance> {
 
     private val permutation: Array<IntPermutation>
     private var count: AtomicInt = AtomicInt(0)
@@ -27,8 +27,8 @@ class InstancePermutation constructor(
 
     override fun hasNext() = count.get() < limit
 
-    override fun next(): MutableInstance {
-        val instance = builder.create(nbrVariables)
+    override fun next(): Instance {
+        val instance = factory.create(nbrVariables)
         val c = count.getAndIncrement()
         var ix = 0
         for (perm in permutation) {

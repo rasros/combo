@@ -4,7 +4,10 @@ package combo.sat.optimizers
 
 import combo.sat.*
 import combo.sat.constraints.Conjunction
-import combo.util.*
+import combo.util.IntCollection
+import combo.util.RandomCache
+import combo.util.RandomSequence
+import combo.util.isEmpty
 import kotlin.jvm.JvmName
 import kotlin.jvm.JvmOverloads
 
@@ -31,7 +34,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
 
     private val buffer = RandomCache<Instance>(maxSize)
 
-    override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: Instance?): Instance {
         val c: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
         val rng = randomSequence.next()
         var minV = Float.MAX_VALUE
@@ -77,7 +80,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         else best ?: throw UnsatisfiableException("Failed to find matching fallback instance.", failure)
     }
 
-    override fun witnessOrThrow(assumptions: IntCollection, guess: MutableInstance?): Instance {
+    override fun witnessOrThrow(assumptions: IntCollection, guess: Instance?): Instance {
         val rng = randomSequence.next()
         var failure: ValidationException? = null
         try {

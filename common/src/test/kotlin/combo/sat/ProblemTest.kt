@@ -81,7 +81,7 @@ class ProblemTest {
         } catch (e: UnsatisfiableException) {
             return
         }
-        InstancePermutation(p.nbrValues, BitArrayBuilder, rng).iterator().asSequence().take(100).forEach {
+        InstancePermutation(p.nbrValues, BitArrayFactory, rng).iterator().asSequence().take(100).forEach {
             assertEquals(p2.satisfies(it), reduced.satisfies(it))
         }
     }

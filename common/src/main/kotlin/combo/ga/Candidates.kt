@@ -1,7 +1,6 @@
 package combo.ga
 
 import combo.sat.Instance
-import combo.sat.MutableInstance
 import combo.sat.Validator
 import kotlin.math.max
 import kotlin.math.min

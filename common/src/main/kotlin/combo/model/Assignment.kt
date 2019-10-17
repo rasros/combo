@@ -10,7 +10,7 @@ import combo.util.IntHashSet
  */
 class Assignment constructor(val instance: Instance, val index: VariableIndex, val scope: Scope) : Iterable<Assignment.VariableAssignment<*>> {
 
-    constructor(instance: MutableInstance, index: VariableIndex, scope: Scope, values: Array<out Literal>) : this(instance.also {
+    constructor(instance: Instance, index: VariableIndex, scope: Scope, values: Array<out Literal>) : this(instance.also {
         val set = IntHashSet()
         values.forEach {
             if (it is Value) instance.set(it.toLiteral(index))

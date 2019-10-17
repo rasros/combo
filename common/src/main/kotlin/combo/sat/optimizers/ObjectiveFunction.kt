@@ -1,9 +1,12 @@
 package combo.sat.optimizers
 
+import combo.math.EMPTY_VECTOR
 import combo.math.Vector
-import combo.sat.*
-import combo.util.EMPTY_FLOAT_ARRAY
-import combo.util.sumByFloat
+import combo.math.sumBy
+import combo.sat.Instance
+import combo.sat.literal
+import combo.sat.not
+import combo.sat.toIx
 import kotlin.math.max
 import kotlin.math.min
 
@@ -24,7 +27,7 @@ interface ObjectiveFunction {
     /**
      * Override for efficiency reasons. New value should be previous value - improvement.
      */
-    fun improvement(instance: MutableInstance, ix: Int): Float {
+    fun improvement(instance: Instance, ix: Int): Float {
         val v1 = value(instance)
         instance.flip(ix)
         val v2 = value(instance)
@@ -38,10 +41,10 @@ interface ObjectiveFunction {
  */
 open class LinearObjective(val maximize: Boolean, val weights: Vector) : ObjectiveFunction {
 
-    private val lowerBound: Float = if (maximize) -weights.sumByFloat { max(0.0f, it) } else
-        weights.sumByFloat { min(0.0f, it) }
-    private val upperBound: Float = if (maximize) -weights.sumByFloat { min(0.0f, it) } else
-        weights.sumByFloat { max(0.0f, it) }
+    private val lowerBound: Float = if (maximize) -weights.sumBy { max(0.0f, it) } else
+        weights.sumBy { min(0.0f, it) }
+    private val upperBound: Float = if (maximize) -weights.sumBy { min(0.0f, it) } else
+        weights.sumBy { max(0.0f, it) }
 
     override fun value(instance: Instance) = (instance dot weights).let {
         if (maximize) -it else it
@@ -50,21 +53,21 @@ open class LinearObjective(val maximize: Boolean, val weights: Vector) : Objecti
     override fun lowerBound() = lowerBound
     override fun upperBound() = upperBound
 
-    override fun improvement(instance: MutableInstance, ix: Int): Float {
+    override fun improvement(instance: Instance, ix: Int): Float {
         val literal = !instance.literal(ix)
         return if (instance.literal(literal.toIx()) == literal) 0.0f
         else {
-            val w = weights[literal.toIx()].let { if (instance[literal.toIx()]) it else -it }
+            val w = weights[literal.toIx()].let { if (instance.isSet(literal.toIx())) it else -it }
             if (maximize) -w else w
         }
     }
 }
 
-object SatObjective : LinearObjective(false, EMPTY_FLOAT_ARRAY) {
+object SatObjective : LinearObjective(false, EMPTY_VECTOR) {
     override fun value(instance: Instance) = 0.0f
     override fun lowerBound() = 0.0f
     override fun upperBound() = 0.0f
-    override fun improvement(instance: MutableInstance, ix: Int) = 0.0f
+    override fun improvement(instance: Instance, ix: Int) = 0.0f
 }
 
 /**

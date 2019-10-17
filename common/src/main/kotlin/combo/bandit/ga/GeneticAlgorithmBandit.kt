@@ -117,7 +117,7 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
             val eliminated = selectForElimination(false, rng)
             if (eliminated < 0) return
             replacementCount = 0
-            var newInstance: MutableInstance? = null
+            var newInstance: Instance? = null
 
             // Perform recombination
             val recombined = if (rng.nextFloat() < recombinationProbability) {
@@ -131,7 +131,7 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
                     val lit2 = instance2.literal(i)
                     if (lit1 == lit2) intersect.add(lit1)
                 }
-                newInstance = optimizer.witness(intersect) as MutableInstance?
+                newInstance = optimizer.witness(intersect)
                 parent1 != parent2
             } else false
 
@@ -149,21 +149,21 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
                 while (index < problem.nbrValues) {
                     if (forcedAssumption == null) {
                         forcedAssumption = IntArrayList()
-                        forcedAssumption.add(!index.toLiteral(mutatedInstance[index]))
+                        forcedAssumption.add(!index.toLiteral(mutatedInstance.isSet(index)))
                     }
-                    val literal = !index.toLiteral(mutatedInstance[index])
+                    val literal = !index.toLiteral(mutatedInstance.isSet(index))
                     mutatedInstance.set(literal)
                     index += rng.nextGeometric(mr)
                 }
 
                 newInstance = optimizer.witness(forcedAssumption
-                        ?: EmptyCollection, mutatedInstance) as MutableInstance?
+                        ?: EmptyCollection, mutatedInstance)
                         ?: newInstance
             }
 
             // Replace with random if it is a duplicate
             while (!allowDuplicates && newInstance!! in candidates.estimators)
-                newInstance = optimizer.witness() as MutableInstance
+                newInstance = optimizer.witness() as Instance
 
             candidates.replaceCandidate(eliminated, newInstance!!)?.run {
                 banditPolicy.removeArm(this)

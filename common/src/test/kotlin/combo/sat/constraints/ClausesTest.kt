@@ -83,7 +83,7 @@ class ConjunctionTest : ConstraintTest() {
             val c = Conjunction(collectionOf(1, 7, 5))
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
-            assertTrue(it[0] && it[6] && it[4])
+            assertTrue(it.isSet(0) && it.isSet(6) && it.isSet(4))
             assertEquals(3, it.iterator().asSequence().count())
         }
         BitArray(100).also {
@@ -225,7 +225,7 @@ class DisjunctionTest : ConstraintTest() {
             val c = Disjunction(collectionOf(1, 7, 5))
             c.coerce(it, Random)
             assertTrue(c.satisfies(it))
-            assertTrue(it[0] || it[6] || it[4])
+            assertTrue(it.isSet(0) || it.isSet(6) || it.isSet(4))
             assertEquals(1, it.iterator().asSequence().count())
         }
         BitArray(100).also {

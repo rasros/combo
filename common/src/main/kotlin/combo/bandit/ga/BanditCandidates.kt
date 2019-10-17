@@ -6,7 +6,6 @@ import combo.math.VarianceEstimator
 import combo.sat.Instance
 import combo.util.IntHashSet
 import combo.util.isEmpty
-import combo.util.removeAt
 import kotlin.math.max
 import kotlin.math.min
 

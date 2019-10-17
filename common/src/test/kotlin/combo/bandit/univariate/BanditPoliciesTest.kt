@@ -1,6 +1,9 @@
 package combo.bandit.univariate
 
-import combo.math.*
+import combo.math.BinaryEstimator
+import combo.math.RunningVariance
+import combo.math.SquaredEstimator
+import combo.math.VarianceEstimator
 import combo.test.assertEquals
 import kotlin.random.Random
 import kotlin.test.Test
