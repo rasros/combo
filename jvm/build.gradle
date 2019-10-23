@@ -19,7 +19,7 @@ dependencies {
     testImplementation libraries.sat4j
 
     compileOnly libraries.jacop
-    testImplementation("org.jacop:jacop:4.6.0")
+    testImplementation libraries.jacop
 }
 
 task sourcesJar(type: Jar) {
