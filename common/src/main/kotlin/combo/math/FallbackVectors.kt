@@ -21,6 +21,7 @@ class FallbackVector(val array: FloatArray) : Vector {
     override fun toFloatArray() = array.copyOf()
     override fun copy() = FallbackVector(array.copyOf())
     override fun vectorCopy() = copy()
+    override fun asVector() = this
 }
 
 class FallbackMatrix(val array: Array<FloatArray>) : Matrix {
@@ -60,7 +61,7 @@ class FallbackMatrix(val array: Array<FloatArray>) : Matrix {
 }
 
 object FallbackVectorFactory : VectorFactory {
-    override fun zeroMatrix(size: Int) = FallbackMatrix(size)
+    override fun zeroMatrix(rows: Int, columns: Int) = FallbackMatrix(rows, columns)
     override fun zeroVector(size: Int) = FallbackVector(size)
     override fun matrix(values: Array<FloatArray>) = FallbackMatrix(values)
     override fun vector(values: FloatArray) = FallbackVector(values)

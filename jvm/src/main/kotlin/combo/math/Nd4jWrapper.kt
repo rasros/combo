@@ -19,6 +19,11 @@ class Nd4jVector(val array: INDArray) : Vector {
         else v dot this
     }
 
+    override fun assign(v: VectorView) {
+        if (v is Nd4jVector) Nd4j.copy(v.array, this.array)
+        else super.assign(v)
+    }
+
     override fun norm2() = array.norm2Number().toFloat()
     override fun sum() = array.sumNumber().toFloat()
 
@@ -84,6 +89,7 @@ class Nd4jVector(val array: INDArray) : Vector {
     }
 
     override fun vectorCopy() = copy()
+    override fun asVector() = this
 }
 
 class Nd4jMatrix(val mat: INDArray) : Matrix {
@@ -116,6 +122,8 @@ class Nd4jMatrix(val mat: INDArray) : Matrix {
         mat.transposei()
     }
 
+    override val T: Nd4jMatrix get() = Nd4jMatrix(mat.transpose())
+
     override fun toArray(): Array<FloatArray> = mat.toFloatMatrix()
 }
 
@@ -125,8 +133,13 @@ object Nd4jVectorFactory : VectorFactory {
         Nd4j.setDefaultDataTypes(DataType.FLOAT, DataType.FLOAT)
     }
 
-    override fun zeroMatrix(size: Int) = Nd4jMatrix(Nd4j.zeros(size, size))
+    override fun zeroMatrix(rows: Int, columns: Int) = Nd4jMatrix(Nd4j.zeros(rows, columns))
     override fun zeroVector(size: Int) = Nd4jVector(Nd4j.zeros(size))
     override fun matrix(values: Array<FloatArray>) = Nd4jMatrix(Nd4j.create(values))
     override fun vector(values: FloatArray) = Nd4jVector(Nd4j.create(values))
+
+}
+
+fun VectorView.toNd4j() = if (this is Nd4jVector) this else Nd4jVectorFactory.zeroVector(size).also {
+    for (i in this) it[i] = this[i]
 }

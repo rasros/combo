@@ -29,6 +29,7 @@ interface VectorView : Iterable<Int> {
 
     fun copy(): VectorView
     fun vectorCopy(): Vector
+    fun asVector(): Vector = vectorCopy()
 
     /**
      * Returns a copy of the backing data.
@@ -51,6 +52,10 @@ interface Vector : VectorView {
     fun subtract(v: VectorView) = transformIndexed { i, d -> d - v[i] }
     fun multiply(v: VectorView) = transformIndexed { i, d -> d * v[i] }
     fun divide(v: VectorView) = transformIndexed { i, d -> d / v[i] }
+
+    fun assign(v: VectorView) {
+        for (i in 0 until v.size) this[i] = v[i]
+    }
 }
 
 inline val VectorView.indices get() = 0 until size
@@ -73,6 +78,9 @@ interface Matrix {
      */
     fun transpose()
 
+    val T: Matrix
+        get() = copy().apply { transpose() }
+
     /**
      * Returns a copy of the backing data.
      */
@@ -80,7 +88,7 @@ interface Matrix {
 }
 
 interface VectorFactory {
-    fun zeroMatrix(size: Int): Matrix
+    fun zeroMatrix(rows: Int, columns: Int = rows): Matrix
     fun zeroVector(size: Int): Vector
     fun matrix(values: Array<FloatArray>): Matrix
     fun vector(values: FloatArray): Vector
@@ -92,9 +100,7 @@ interface VectorFactory {
 expect var vectors: VectorFactory
 
 val EMPTY_VECTOR = FallbackVector(0)
-
-val Matrix.T: Matrix
-    get() = copy().apply { transpose() }
+val EMPTY_MATRIX = FallbackMatrix(0)
 
 fun VectorView.toIntArray(delta: Float, gcd: Boolean): IntArray {
     val array = IntArray(size) {
@@ -119,7 +125,7 @@ inline fun Vector.transformIndexed(transform: (Int, Float) -> Float) {
 
 inline fun VectorView.sumBy(selector: (Float) -> Float): Float {
     var sum = 0.0f
-    for (i in indices) {
+    for (i in this) {
         sum += selector(this[i])
     }
     return sum
