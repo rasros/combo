@@ -29,6 +29,14 @@ private fun Float.nextDown(): Float {
     }
 }
 
+private fun Float.nextUp(): Float {
+    return if (isNaN() || this == Float.POSITIVE_INFINITY) this
+    else {
+        if (this == 0.0f) MIN_VALUE32
+        else Float.fromBits(toRawBits() + (if (this > 0.0f) +1 else -1))
+    }
+}
+
 fun Random.nextFloatPos(): Float {
     while (true) {
         val u = nextFloat()
@@ -60,7 +68,8 @@ fun Random.nextGamma(alpha: Float): Float {
     // Marsaglia and Tsang method
     if (alpha < 1.0) {
         val u = nextFloatPos()
-        return nextGamma(1.0f + alpha) * u.pow(1.0f / alpha)
+        val g = nextGamma(1.0f + alpha) * u.pow(1.0f / alpha)
+        return if (g == 0f) MIN_VALUE32 else g
     } else {
         val d = alpha - 1.0f / 3.0f
         val c = (1.0f / 3.0f) / sqrt(d)
@@ -90,7 +99,10 @@ fun Random.nextGamma(alpha: Float): Float {
 fun Random.nextBeta(alpha: Float, beta: Float): Float {
     val a = nextGamma(alpha)
     val b = nextGamma(beta)
-    return a / (a + b)
+    val m = max(a, b)
+    val c = if (m == a + b) m.nextUp()
+    else a + b
+    return a / c
 }
 
 /**
