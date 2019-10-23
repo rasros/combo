@@ -6,10 +6,8 @@ import kotlin.jvm.JvmName
 import kotlin.math.*
 
 interface Transform {
-    // TODO need inverse???
-    fun inverse(value: Float): Float
-
     fun apply(value: Float): Float
+    fun inverse(value: Float): Float = throw UnsupportedOperationException("Inverse not available.")
 
     fun andThen(after: Transform) = object : Transform {
         override fun inverse(value: Float) = this@Transform.inverse(after.inverse(value))
@@ -21,7 +19,6 @@ object IdentityTransform : Transform {
     override fun inverse(value: Float) = value
     override fun apply(value: Float) = value
 }
-
 
 class ShiftTransform(val by: Float) : Transform {
     override fun inverse(value: Float) = value - by
@@ -49,56 +46,31 @@ object SquareRootTransform : Transform {
 }
 
 object LogitTransform : Transform {
-    override fun apply(value: Float): Float {
-        return 1 / (1 + exp(-value))
-    }
-
-    override fun inverse(value: Float): Float {
-        return -ln(1 / value - 1)
-    }
+    override fun apply(value: Float) = 1f / (1f + exp(-value))
+    override fun inverse(value: Float) = -ln(1f / value - 1f)
 }
 
 object ClogLogTransform : Transform {
-    override fun inverse(value: Float): Float {
-        return 1 - exp(-exp(value))
-    }
-
-    override fun apply(value: Float): Float {
-        return ln(-ln(1 - value))
-    }
+    override fun inverse(value: Float) = 1f - exp(-exp(value))
+    override fun apply(value: Float) = ln(-ln(1f - value))
 }
 
 object InverseTransform : Transform {
-    override fun inverse(value: Float): Float {
-        return 1 / value
-    }
-
-    override fun apply(value: Float): Float {
-        return 1 / value
-    }
+    override fun inverse(value: Float) = 1f / value
+    override fun apply(value: Float) = 1f / value
 }
 
 object NegativeInverseTransform : Transform {
-    override fun inverse(value: Float): Float {
-        return -1 / value
-    }
-
-    override fun apply(value: Float): Float {
-        return -1 / value
-    }
+    override fun inverse(value: Float) = -1f / value
+    override fun apply(value: Float) = -1f / value
 }
 
 object InverseSquaredTransform : Transform {
-    override fun inverse(value: Float): Float {
-        return 1 / sqrt(value)
-    }
-
-    override fun apply(value: Float): Float {
-        return 1 / (value * value)
-    }
+    override fun inverse(value: Float) = 1f / sqrt(value)
+    override fun apply(value: Float) = 1f / (value * value)
 }
 
-object ReLU : Transform {
-    override fun apply(value: Float) = max(0.0f, value)
-    override fun inverse(value: Float) = throw UnsupportedOperationException("Cannot perform inverse.")
+object RectifierTransform : Transform {
+    override fun apply(value: Float) = max(0f, value)
 }
+
