@@ -21,10 +21,13 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreeParameters<E>, val trees: Array<DecisionTreeBandit<E>>)
-    : PredictionBandit<ForestData<E>>, TreeParameters<E> by parameters {
+class RandomForestBandit(val parameters: ExtendedTreeParameters,
+                         val trees: Array<DecisionTreeBandit>,
+                         val voteStrategy: VoteStrategy = SumVotes())
+    : PredictionBandit<ForestData>, TreeParameters by parameters {
 
     private val randomSequence = RandomSequence(randomSeed)
+    private var step: Long = 0L
 
     override fun predict(instance: Instance): Float {
         var score = 0.0f
@@ -34,6 +37,7 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
     }
 
     override fun train(instance: Instance, result: Float, weight: Float) {
+        step++
         val rng = randomSequence.next()
         for (t in trees) {
             val n = rng.nextPoisson(1.0f)
@@ -41,7 +45,10 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         }
     }
 
-    override fun chooseOrThrow(assumptions: IntCollection): Instance {
+    override fun optimalOrThrow(assumptions: IntCollection) = opt(true, assumptions)
+    override fun chooseOrThrow(assumptions: IntCollection) = opt(false, assumptions)
+
+    private fun opt(optimal: Boolean, assumptions: IntCollection): Instance {
         val propagated = if (propagateAssumptions && assumptions.isNotEmpty()) {
             val set = IntHashSet()
             set.addAll(assumptions)
@@ -51,48 +58,39 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         val votesYes = ShortArray(model.problem.nbrValues)
         val votesNo = ShortArray(model.problem.nbrValues)
         for (b in trees) {
-            val n = b.chooseNode(propagated) ?: continue
+            val n = (if (optimal) b.optimalNode(propagated) else b.chooseNode(propagated)) ?: continue
             for (lit in n.literals) {
                 val ix = lit.toIx()
                 if (lit.toBoolean()) votesYes[ix]++
                 else votesNo[ix]++
             }
         }
-        val weights = vectors.zeroVector(model.problem.nbrValues)
-
-        for (i in weights.indices) {
-            val a = votesYes[i] + 1
-            val b = votesNo[i] + 1
-            weights[i] = if (a == b) 0.0f
-            else {
-                val p = a.toFloat() / (a + b).toFloat()
-                2 * p - 1
-            }
-        }
+        val rng = randomSequence.next()
+        val weights = voteStrategy.weights(votesYes, votesNo, rng, trees.size, step)
         @Suppress("UNCHECKED_CAST")
         optimizer as Optimizer<LinearObjective>
-        return optimizer.optimizeOrThrow(LinearObjective(maximize, weights), propagated)
+        return optimizer.optimizeOrThrow(LinearObjective(true, weights), propagated)
     }
 
-    override fun exportData(): ForestData<E> {
+    override fun exportData(): ForestData {
         return ForestData(List(trees.size) {
             trees[it].exportData()
         })
     }
 
-    override fun importData(data: ForestData<E>) {
+    override fun importData(data: ForestData) {
         for (i in 0 until min(data.trees.size, trees.size))
             trees[i].importData(data.trees[i])
     }
 
-    class Builder<E : VarianceEstimator>(val model: Model, val banditPolicy: BanditPolicy<E>) : PredictionBanditBuilder<ForestData<E>> {
+    class Builder(val model: Model, val banditPolicy: BanditPolicy) : PredictionBanditBuilder<ForestData> {
 
         private var trees: Int = 10
         private var optimizer: Optimizer<LinearObjective>? = null
         private var randomSeed: Int = nanos().toInt()
         private var maximize: Boolean = true
         private var splitMetric: SplitMetric =
-                if (banditPolicy.baseData() is BinaryEstimator) GiniCoefficient
+                if (banditPolicy.prior is BinaryEstimator) GiniCoefficient
                 else VarianceReduction
         private var delta: Float = 0.05f
         private var deltaDecay: Float = 0.5f
@@ -116,7 +114,8 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         private var blockQueueSize: Int = 2
         private var splitters = HashMap<Variable<*, *>, ValueSplitter>()
         private var filterMissingData: Boolean = true
-        private var importedData: ForestData<E>? = null
+        private var importedData: ForestData? = null
+        private var voteStrategy: VoteStrategy = SumVotes()
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
@@ -182,11 +181,14 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         /** Whether data should be automatically filtered for update for variables that are undefined (otherwise counted as false). */
         fun filterMissingData(filterMissingData: Boolean) = apply { this.filterMissingData = filterMissingData }
 
-        override fun importData(data: ForestData<E>) = apply { this.importedData = data }
+        /** How the optimization problem for vote resolution is decided. */
+        fun voteStrategy(voteStrategy: VoteStrategy) = apply { this.voteStrategy = voteStrategy }
+
+        override fun importData(data: ForestData) = apply { this.importedData = data }
 
         override fun parallel() = ParallelPredictionBandit.Builder(this)
 
-        private fun sampleVariables(rng: Random, observed: TreeData<E>? = null): IntArray {
+        private fun sampleVariables(rng: Random, observed: TreeData? = null): IntArray {
             fun variableIndices(variable: Variable<*, *>): IntList {
                 var v = variable
                 val myList = IntArrayList()
@@ -215,13 +217,11 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
             return observedVariables.toArray()
         }
 
-        override fun build(): RandomForestBandit<E> {
+        override fun build(): RandomForestBandit {
             val treeParameters = ExtendedTreeParameters(model, banditPolicy,
-                    optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed)
-                            .cached().pNew(1.0f).maxSize(10).build(),
-                    randomSeed, maximize, rewards,
-                    trainAbsError, testAbsError, splitMetric, delta, deltaDecay, tau, maxNodes, maxDepth, maxLiveNodes,
-                    viewedValues, splitPeriod, minSamplesSplit, minSamplesLeaf,
+                    optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed).fallbackCached().build(),
+                    randomSeed, maximize, rewards, trainAbsError, testAbsError, splitMetric, delta, deltaDecay, tau,
+                    maxNodes, maxDepth, maxLiveNodes, viewedValues, splitPeriod, minSamplesSplit, minSamplesLeaf,
                     propagateAssumptions, splitters, filterMissingData, blockQueueSize, 0)
             val rng = Random(randomSeed)
             val trees = if (importedData != null) {
@@ -234,7 +234,7 @@ class RandomForestBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
                     DecisionTreeBandit(treeParameters, null, sampleVariables(rng))
                 }
             }
-            return RandomForestBandit(treeParameters, trees)
+            return RandomForestBandit(treeParameters, trees, voteStrategy)
         }
     }
 }
