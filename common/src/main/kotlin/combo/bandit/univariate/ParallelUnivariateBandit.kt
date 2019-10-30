@@ -206,7 +206,7 @@ class ParallelUnivariateBandit<D> private constructor(val bandits: Array<Univari
         override val size: Int = armIndices.size
     }
 
-    class Builder<E : VarianceEstimator>(private val baseBuilder: MultiArmedBandit.Builder<E>) {
+    class Builder(private val baseBuilder: MultiArmedBandit.Builder) {
         private var copies: Int = 2
         private var mode: ParallelMode = ParallelMode.LOCKING
         private var batchSize: IntRange = 1..50
@@ -220,9 +220,9 @@ class ParallelUnivariateBandit<D> private constructor(val bandits: Array<Univari
         /** Updates will be grouped into batches with this size to avoid contention. */
         fun batchSize(batchSize: IntRange) = apply { this.batchSize = batchSize }
 
-        fun build(): ParallelUnivariateBandit<List<E>> {
+        fun build(): ParallelUnivariateBandit<List<VarianceEstimator>> {
             val base = baseBuilder.build()
-            val array = Array<UnivariateBandit<List<E>>>(copies) {
+            val array = Array<UnivariateBandit<List<VarianceEstimator>>>(copies) {
                 if (it == 0) ConcurrentUnivariateBandit(base)
                 else ConcurrentUnivariateBandit(baseBuilder.rewards(base.rewards.copy()).build())
             }

@@ -9,20 +9,20 @@ import kotlin.random.Random
  * classes are based on the likelihood, that is the rewards in a a bandit setting. For example, for poisson distributed
  * rewards the corresponding posterior is named [PoissonPosterior].
  */
-interface UnivariatePosterior<E : VarianceEstimator> {
+interface UnivariatePosterior {
 
-    fun sample(stat: E, rng: Random): Float
+    fun sample(stat: VarianceEstimator, rng: Random): Float
 
-    fun update(stat: E, value: Float, weight: Float = 1.0f) {
+    fun update(stat: VarianceEstimator, value: Float, weight: Float = 1.0f) {
         stat.accept(value, weight)
     }
 
-    fun defaultPrior(): E
+    fun defaultPrior(): VarianceEstimator
 }
 
-interface PooledUnivariatePosterior<E : VarianceEstimator> : UnivariatePosterior<E> {
+interface PooledUnivariatePosterior : UnivariatePosterior {
     val pool: PooledVarianceEstimator
-    fun copy(): PooledUnivariatePosterior<E>
+    fun copy(): PooledUnivariatePosterior
 }
 
 class PooledVarianceEstimator(val prior: VarianceEstimator = RunningVariance(0.0f, 0.02f, 0.02f)) {
@@ -63,7 +63,7 @@ class PooledVarianceEstimator(val prior: VarianceEstimator = RunningVariance(0.0
         }
     }
 
-    fun copy() = PooledVarianceEstimator(prior).also{
+    fun copy() = PooledVarianceEstimator(prior).also {
         it.arms.addAll(arms)
         it.nbrWeightedSamples = nbrWeightedSamples
         it.means = means.copy()
@@ -71,21 +71,21 @@ class PooledVarianceEstimator(val prior: VarianceEstimator = RunningVariance(0.0
     }
 }
 
-object BinomialPosterior : UnivariatePosterior<BinaryEstimator> {
+object BinomialPosterior : UnivariatePosterior {
     override fun defaultPrior() = BinarySum(1.0f, 2.0f)
-    override fun sample(stat: BinaryEstimator, rng: Random): Float {
+    override fun sample(stat: VarianceEstimator, rng: Random): Float {
         val alpha = stat.sum
         val beta = stat.nbrWeightedSamples - alpha
         return rng.nextBeta(alpha, beta)
     }
 }
 
-object PoissonPosterior : UnivariatePosterior<MeanEstimator> {
+object PoissonPosterior : UnivariatePosterior {
     override fun defaultPrior() = RunningMean(1.0f, 0.01f)
-    override fun sample(stat: MeanEstimator, rng: Random) = rng.nextGamma(stat.sum) / stat.nbrWeightedSamples
+    override fun sample(stat: VarianceEstimator, rng: Random) = rng.nextGamma(stat.sum) / stat.nbrWeightedSamples
 }
 
-object GeometricPosterior : UnivariatePosterior<VarianceEstimator> {
+object GeometricPosterior : UnivariatePosterior {
     override fun defaultPrior() = RunningVariance(2.0f, 0.0f, 1.0f)
     override fun sample(stat: VarianceEstimator, rng: Random) =
             rng.nextBeta(stat.nbrWeightedSamples, (stat.sum - stat.nbrWeightedSamples))
@@ -95,7 +95,7 @@ object GeometricPosterior : UnivariatePosterior<VarianceEstimator> {
  * Section 3.1 in https://arxiv.org/pdf/1303.3390.pdf
  */
 class HierarchicalNormalPosterior(override val pool: PooledVarianceEstimator = PooledVarianceEstimator())
-    : PooledUnivariatePosterior<VarianceEstimator> {
+    : PooledUnivariatePosterior {
 
     override fun defaultPrior() = RunningVariance(0.0f, 0.02f, 0.02f)
     override fun sample(stat: VarianceEstimator, rng: Random): Float {
@@ -121,7 +121,7 @@ class HierarchicalNormalPosterior(override val pool: PooledVarianceEstimator = P
     override fun copy() = HierarchicalNormalPosterior(pool.copy())
 }
 
-object NormalPosterior : UnivariatePosterior<VarianceEstimator> {
+object NormalPosterior : UnivariatePosterior {
     override fun defaultPrior() = RunningVariance(0.0f, 0.02f, 0.02f)
     override fun sample(stat: VarianceEstimator, rng: Random): Float {
         while (true) {
@@ -136,7 +136,7 @@ object NormalPosterior : UnivariatePosterior<VarianceEstimator> {
     }
 }
 
-object LogNormalPosterior : UnivariatePosterior<VarianceEstimator> {
+object LogNormalPosterior : UnivariatePosterior {
     override fun defaultPrior() = RunningVariance(0.0f, 0.02f, 2.0f)
     override fun sample(stat: VarianceEstimator, rng: Random): Float {
         while (true) {
@@ -156,7 +156,7 @@ object LogNormalPosterior : UnivariatePosterior<VarianceEstimator> {
     }
 }
 
-object ExponentialPosterior : UnivariatePosterior<VarianceEstimator> {
+object ExponentialPosterior : UnivariatePosterior {
     override fun defaultPrior() = RunningVariance(1.0f, 0.0f, 0.01f)
     override fun sample(stat: VarianceEstimator, rng: Random) = rng.nextGamma(stat.nbrWeightedSamples) / stat.sum
 }
@@ -164,7 +164,7 @@ object ExponentialPosterior : UnivariatePosterior<VarianceEstimator> {
 /**
  * mean of samples will be = fixedShape / mean
  */
-class GammaScalePosterior(val fixedShape: Float) : UnivariatePosterior<VarianceEstimator> {
+class GammaScalePosterior(val fixedShape: Float) : UnivariatePosterior {
     override fun defaultPrior() = RunningVariance(1.0f, 0.0f, 0.1f)
     override fun sample(stat: VarianceEstimator, rng: Random): Float {
         return rng.nextGamma(stat.nbrWeightedSamples * fixedShape) / stat.sum
