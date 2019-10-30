@@ -8,8 +8,24 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-abstract class VectorViewTest {
-    abstract fun vector(vararg xs: Float): VectorView
+abstract class VectorTest(val vectorFactory: VectorFactory) {
+
+    fun vector(vararg xs: Float): Vector = vectorFactory.vector(xs)
+    fun zeroVector(size: Int): Vector = vectorFactory.zeroVector(size)
+
+    @Test
+    fun size() {
+        assertEquals(0, vector().size)
+        assertEquals(3, vector(1f, 2f, 3f).size)
+        assertEquals(2, vector(-1f, 2f).size)
+    }
+
+    @Test
+    fun zeroVectorSize() {
+        for (i in 0 until 10) {
+            assertEquals(i, zeroVector(i).size)
+        }
+    }
 
     @Test
     fun dotProduct() {
@@ -19,6 +35,14 @@ abstract class VectorViewTest {
         assertEquals(6.0f, v dot u)
         assertContentEquals(floatArrayOf(-1.0f, 2.0f, 0.0f), v.toFloatArray())
         assertContentEquals(floatArrayOf(0.0f, 3.0f, 4.0f), u.toFloatArray())
+    }
+
+    @Test
+    fun dotProductZero() {
+        val v = vector(-1.0f, 2.0f, 0.0f)
+        val u = zeroVector(3)
+        assertEquals(0.0f, u dot v)
+        assertEquals(0.0f, v dot u)
     }
 
     @Test
@@ -128,11 +152,6 @@ abstract class VectorViewTest {
             assertTrue(larger[i].absoluteValue >= rounded[i].absoluteValue)
         }
     }
-}
-
-abstract class VectorTest : VectorViewTest() {
-
-    abstract override fun vector(vararg xs: Float): Vector
 
     @Test
     fun inlineAddScalar() {
@@ -199,10 +218,27 @@ abstract class VectorTest : VectorViewTest() {
     }
 }
 
-abstract class MatrixTest {
+abstract class MatrixTest(val vectorFactory: VectorFactory) {
 
-    abstract fun matrix(vararg xs: FloatArray): Matrix
-    abstract fun vector(vararg xs: Float): Vector
+    fun zeroMatrix(rows: Int, cols: Int = rows): Matrix = vectorFactory.zeroMatrix(rows, cols)
+
+    @Suppress("UNCHECKED_CAST")
+    fun matrix(vararg xs: FloatArray): Matrix = vectorFactory.matrix(xs as Array<FloatArray>)
+
+    fun vector(vararg xs: Float): Vector = vectorFactory.vector(xs)
+
+    @Test
+    fun emptyMatrix() {
+        assertEquals(0, zeroMatrix(0).rows)
+    }
+
+    @Test
+    fun matrixSize() {
+        assertEquals(2, zeroMatrix(2).rows)
+        assertEquals(2, zeroMatrix(2).cols)
+        assertEquals(2, zeroMatrix(2, 3).rows)
+        assertEquals(3, zeroMatrix(2, 3).cols)
+    }
 
     @Test
     fun transpose() {

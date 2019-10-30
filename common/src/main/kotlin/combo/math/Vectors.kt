@@ -97,7 +97,7 @@ interface VectorFactory {
     }
 }
 
-expect var vectors: VectorFactory
+var vectors: VectorFactory = FallbackVectorFactory
 
 val EMPTY_VECTOR = FallbackVector(0)
 val EMPTY_MATRIX = FallbackMatrix(0)

@@ -6,7 +6,7 @@ import org.nd4j.linalg.factory.Nd4j
 
 class Nd4jVector(val array: INDArray) : Vector {
 
-    override val size: Int get() = array.columns()
+    override val size: Int get() = array.rows()
     override val sparse: Boolean get() = false
     override fun get(i: Int): Float = array.getFloat(i.toLong())
 
@@ -83,7 +83,7 @@ class Nd4jVector(val array: INDArray) : Vector {
     override fun toFloatArray(): FloatArray = array.toFloatVector()
 
     override fun copy(): Vector {
-        val c = Nd4j.zeros(size)
+        val c = Nd4j.zeros(size, 1, 'c')
         Nd4j.copy(array, c)
         return Nd4jVector(c)
     }
@@ -134,9 +134,11 @@ object Nd4jVectorFactory : VectorFactory {
     }
 
     override fun zeroMatrix(rows: Int, columns: Int) = Nd4jMatrix(Nd4j.zeros(rows, columns))
-    override fun zeroVector(size: Int) = Nd4jVector(Nd4j.zeros(size))
+    override fun zeroVector(size: Int) = Nd4jVector(Nd4j.zeros(size, 1, 'c'))
     override fun matrix(values: Array<FloatArray>) = Nd4jMatrix(Nd4j.create(values))
-    override fun vector(values: FloatArray) = Nd4jVector(Nd4j.create(values))
+    override fun vector(values: FloatArray) =
+            if (values.isEmpty()) zeroVector(0)
+            else Nd4jVector(Nd4j.create(values).reshape(intArrayOf(values.size, 1)))
 
 }
 
