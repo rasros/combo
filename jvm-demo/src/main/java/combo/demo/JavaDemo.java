@@ -41,7 +41,7 @@ public class JavaDemo {
 
         // This bandit is the most basic, it just generates a bunch of solutions and does a multi-armed bandit
         // competition between them
-        var bandit = ModelBandit.listBandit(model, new ThompsonSampling<>(NormalPosterior.INSTANCE));
+        var bandit = ModelBandit.listBandit(model, new ThompsonSampling(NormalPosterior.INSTANCE));
 
         // The bandit is used like so:
         var chosenAssignment = bandit.chooseOrThrow();

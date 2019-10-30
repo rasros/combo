@@ -2,7 +2,6 @@ package combo.bandit.dt
 
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
-import combo.math.VarianceEstimator
 import combo.model.Model
 import combo.model.Root
 import combo.model.Variable
@@ -13,9 +12,9 @@ import combo.sat.optimizers.Optimizer
  * 1) so that we make sure that each tree in a random forest have the same parameters
  * 2) sharing some code between decision tree and random forest construction
  */
-interface TreeParameters<E : VarianceEstimator> {
+interface TreeParameters {
     val model: Model
-    val banditPolicy: BanditPolicy<E>
+    val banditPolicy: BanditPolicy
     val optimizer: Optimizer<*>
     val randomSeed: Int
     val maximize: Boolean
@@ -39,9 +38,9 @@ interface TreeParameters<E : VarianceEstimator> {
     val blockQueueSize: Int
 }
 
-class ExtendedTreeParameters<E : VarianceEstimator>(
+class ExtendedTreeParameters(
         override val model: Model,
-        override val banditPolicy: BanditPolicy<E>,
+        override val banditPolicy: BanditPolicy,
         override val optimizer: Optimizer<*>,
         override val randomSeed: Int,
         override val maximize: Boolean,
@@ -63,7 +62,7 @@ class ExtendedTreeParameters<E : VarianceEstimator>(
         override val splitters: Map<Variable<*, *>, ValueSplitter>,
         override val filterMissingData: Boolean,
         override val blockQueueSize: Int,
-        val maxRestarts: Int) : TreeParameters<E> {
+        val maxRestarts: Int) : TreeParameters {
 
     val reifiedLiterals: IntArray? = if (filterMissingData) IntArray(model.problem.nbrValues) else null
     // TODO could be a range with binary search

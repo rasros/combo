@@ -2,9 +2,9 @@ package combo.bandit.ga
 
 import combo.bandit.*
 import combo.bandit.univariate.BanditPolicy
+import combo.bandit.univariate.Greedy
 import combo.ga.*
 import combo.math.DataSample
-import combo.math.VarianceEstimator
 import combo.math.VoidSample
 import combo.math.nextGeometric
 import combo.sat.*
@@ -40,15 +40,15 @@ import kotlin.random.Random
  * @param addAssumptions Whether candidates that are generated due to a no-match between candidates and assumptions should to the candidate solutions.
  * @param candidates Initialized instances in the gene pool.
  */
-class GeneticAlgorithmBandit<E : VarianceEstimator>(
+class GeneticAlgorithmBandit(
         val problem: Problem,
-        val banditPolicy: BanditPolicy<E>,
+        val banditPolicy: BanditPolicy,
         val optimizer: Optimizer<SatObjective> = LocalSearch(problem),
         override val randomSeed: Int = nanos().toInt(),
         override val maximize: Boolean = true,
         override val rewards: DataSample = VoidSample,
-        val selection: SelectionOperator<BanditCandidates<E>> = TournamentSelection(5),
-        val elimination: SelectionOperator<BanditCandidates<E>> = EliminationChain(SignificanceTestElimination(), TournamentElimination(3)),
+        val selection: SelectionOperator<BanditCandidates> = TournamentSelection(5),
+        val elimination: SelectionOperator<BanditCandidates> = EliminationChain(SignificanceTestElimination(), TournamentElimination(3)),
         val eliminationPeriod: Int = 10,
         val recombinationProbability: Float = 0.5f,
         val mutation: MutationRate = FixedRateMutation(),
@@ -56,7 +56,7 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
         val allowDuplicates: Boolean = true,
         val maxSolverRestarts: Int = 10,
         val addAssumptions: Boolean = true,
-        val candidates: BanditCandidates<E> = run {
+        val candidates: BanditCandidates = run {
             val candidateSize: Int = max(10, min(problem.nbrValues * 2, 100))
             val instances: Array<Instance> = if (!allowDuplicates && optimizer.complete) {
                 optimizer.asSequence().take(candidateSize).toList().toTypedArray()
@@ -76,7 +76,7 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
             }
             BanditCandidates(instances, 4.0f, maximize, banditPolicy)
         })
-    : Bandit<InstancesData<E>> {
+    : Bandit<InstancesData> {
 
     init {
         for (e in candidates.estimators.values) banditPolicy.addArm(e)
@@ -87,24 +87,31 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
     private var replacementCount = 0
     private val step = AtomicLong()
 
-    override fun chooseOrThrow(assumptions: IntCollection): Instance {
+    private fun opt(opt: Boolean, assumptions: IntCollection, policy: BanditPolicy): Instance? {
         val assumption: Constraint = if (assumptions.isNotEmpty()) Conjunction(assumptions) else Tautology
 
-        val t = step.getAndIncrement()
+        val t = if (opt) step.get() else step.getAndIncrement()
         val rng = randomSequence.next()
         val (instance, _) = candidates.estimators.maxBy { (i, e) ->
-            if (assumption.satisfies(i)) banditPolicy.evaluate(e, t, maximize, rng)
+            if (assumption.satisfies(i)) policy.evaluate(e, t, maximize, rng)
             else Float.NEGATIVE_INFINITY
         }!!
 
         return if (!assumption.satisfies(instance)) {
-            // This instance will always be a non-duplicate so we don't need to check for that
-            val newInstance = optimizer.witnessOrThrow(assumptions)
-            if (addAssumptions)
-                candidates.replaceCandidate(selectForElimination(true, rng), newInstance)
-            newInstance
+            if (opt) null
+            else {
+                // This instance will always be a non-duplicate so we don't need to check for that
+                val newInstance = optimizer.witnessOrThrow(assumptions)
+                if (addAssumptions)
+                    candidates.replaceCandidate(selectForElimination(true, rng), newInstance)
+                newInstance
+            }
         } else instance
     }
+
+    override fun chooseOrThrow(assumptions: IntCollection): Instance = opt(false, assumptions, banditPolicy)!!
+    override fun optimalOrThrow(assumptions: IntCollection): Instance = opt(true, assumptions, Greedy)
+            ?: throw UnsatisfiableException("No candidates matching assumptions found.")
 
     override fun update(instance: Instance, result: Float, weight: Float) {
         rewards.accept(result, weight)
@@ -173,19 +180,18 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
         }
     }
 
-    override fun exportData(): InstancesData<E> {
-        val list = ArrayList<InstanceData<E>>(candidates.nbrCandidates)
+    override fun exportData(): InstancesData {
+        val list = ArrayList<InstanceData>(candidates.nbrCandidates)
         for (i in 0 until candidates.nbrCandidates)
             list.add(InstanceData(candidates.instances[i], candidates.estimator(i)!!))
         return InstancesData(list)
     }
 
-    override fun importData(data: InstancesData<E>) {
+    override fun importData(data: InstancesData) {
         for ((i, newE) in data.instances) {
             val old = candidates.estimators[i] ?: continue
             banditPolicy.removeArm(old)
-            @Suppress("UNCHECKED_CAST")
-            val combined = old.combine(newE) as E
+            val combined = old.combine(newE)
             candidates.estimators[i] = combined
             banditPolicy.addArm(combined)
         }
@@ -197,14 +203,14 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
         else e
     }
 
-    class Builder<E : VarianceEstimator>(val problem: Problem, val banditPolicy: BanditPolicy<E>) : BanditBuilder<InstancesData<E>> {
+    class Builder(val problem: Problem, val banditPolicy: BanditPolicy) : BanditBuilder<InstancesData> {
 
         private var optimizer: Optimizer<SatObjective>? = null
         private var randomSeed: Int = nanos().toInt()
         private var maximize: Boolean = true
         private var rewards: DataSample = VoidSample
-        private var selection: SelectionOperator<BanditCandidates<E>> = TournamentSelection(5)
-        private var elimination: SelectionOperator<BanditCandidates<E>> = EliminationChain(
+        private var selection: SelectionOperator<BanditCandidates> = TournamentSelection(5)
+        private var elimination: SelectionOperator<BanditCandidates> = EliminationChain(
                 SignificanceTestElimination(),
                 TournamentElimination(3))
         private var eliminationPeriod: Int = 10
@@ -218,7 +224,7 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
         private var minEliminationSamples: Float = 4.0f
         private var candidateSize: Int = max(10, min(problem.nbrValues * 2, 100))
 
-        private var importedData: InstancesData<E>? = null
+        private var importedData: InstancesData? = null
 
         /** The optimizer will be used to generate [Instance]s that satisfy the constraints from the [Problem]. */
         fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
@@ -236,10 +242,10 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
         fun candidateSize(candidateSize: Int) = apply { this.candidateSize = candidateSize }
 
         /** How candidates are selected to form the next candidate (see also [elimination]). */
-        fun selection(selection: SelectionOperator<BanditCandidates<E>>) = apply { this.selection = selection }
+        fun selection(selection: SelectionOperator<BanditCandidates>) = apply { this.selection = selection }
 
         /** How candidates are selected to eliminate the next candidate (see also [selection]). */
-        fun elimination(elimination: SelectionOperator<BanditCandidates<E>>) = apply { this.elimination = elimination }
+        fun elimination(elimination: SelectionOperator<BanditCandidates>) = apply { this.elimination = elimination }
 
         /** Run the elimination with this period. If set to 1 it will run each update. */
         fun eliminationPeriod(eliminationPeriod: Int) = apply { this.eliminationPeriod = eliminationPeriod }
@@ -265,11 +271,11 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
         /** addAssumptions Whether candidates that are generated due to a no-match between candidates and assumptions should to the candidate solutions. */
         fun addAssumptions(addAssumptions: Boolean) = apply { this.addAssumptions = addAssumptions }
 
-        override fun importData(data: InstancesData<E>) = apply { this.importedData = data }
+        override fun importData(data: InstancesData) = apply { this.importedData = data }
 
         override fun parallel() = ParallelBandit.Builder(this).assumptionsLock(!addAssumptions)
 
-        override fun build(): GeneticAlgorithmBandit<E> {
+        override fun build(): GeneticAlgorithmBandit {
             val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed)
                     .cached().pNew(1.0f).maxSize(10).build()
             val candidates = if (importedData == null) {
@@ -295,8 +301,7 @@ class GeneticAlgorithmBandit<E : VarianceEstimator>(
                 val instances = importedData!!.instances.map { it.instance }.toTypedArray()
                 val candidates = BanditCandidates(instances, minEliminationSamples, maximize, banditPolicy)
                 for ((instance, data) in importedData!!) {
-                    @Suppress("UNCHECKED_CAST")
-                    candidates.estimators[instance] = data.copy() as E
+                    candidates.estimators[instance] = data.copy()
                 }
                 candidates.calculateMinMax()
                 candidates

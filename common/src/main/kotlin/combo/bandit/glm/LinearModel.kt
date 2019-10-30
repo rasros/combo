@@ -4,163 +4,263 @@ import combo.math.*
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-abstract class LinearModel<L : LinearData>(
-        val family: VarianceFunction,
-        val link: Transform,
-        val weights: Vector,
-        var bias: Float,
-        var biasPrecision: Float,
-        var learningRate: Float) {
+abstract class LinearModel(val link: Transform,
+                           val loss: Transform,
+                           val regularization: Transform,
+                           val regularizationFactor: Float,
+                           val exploration: Float,
+                           var step: Long,
+                           val weights: Vector,
+                           var bias: Float) {
 
     fun predict(input: VectorView) = link.apply(bias + (input dot weights))
-    abstract fun sample(rng: Random): Vector
+    abstract fun sample(rng: Random): VectorView
+
     abstract fun train(input: VectorView, result: Float, weight: Float)
-    abstract fun importData(data: L)
-    abstract fun exportData(): L
-    abstract fun trainAll(inputs: Array<out VectorView>, results: FloatArray, weights: FloatArray?)
+    open fun trainAll(inputs: Array<out VectorView>, results: FloatArray, weights: FloatArray?) {
+        for (i in inputs.indices)
+            train(inputs[i], results[i], weights?.get(i) ?: 1.0f)
+    }
+
+    /** Create a reset copy of the model with the given variance parameter and cleared weights. */
+    abstract fun resetVariance(variance: Float): LinearModel
+
+    /**
+     * @param varianceMixin ratio between 0-1 of how much data should change variance estimate
+     * @param weightMixin ratio between 0-1 of how much data should change weights
+     */
+    abstract fun importData(data: LinearData, varianceMixin: Float = 1f, weightMixin: Float = 1f)
+
+    abstract fun exportData(): LinearData
 }
 
-class DiagonalModel(varianceFunction: VarianceFunction,
-                    link: Transform,
-                    weights: Vector,
-                    val precision: Vector,
-                    bias: Float,
-                    biasPrecision: Float,
-                    learningRate: Float)
-    : LinearModel<DiagonalCovarianceData>(varianceFunction, link, weights, bias, biasPrecision, learningRate) {
+class GreedyLinearModel(link: Transform,
+                        loss: Transform,
+                        regularization: Transform,
+                        regularizationFactor: Float,
+                        val updater: SGDAlgorithm,
+                        exploration: Float,
+                        step: Long,
+                        weights: Vector,
+                        val biasRate: LearningRateSchedule = ExponentialDecay(),
+                        bias: Float)
+    : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
-
-    override fun sample(rng: Random) = vectors.zeroVector(weights.size).apply {
-        transformIndexed { i, _ ->
-            rng.nextNormal(weights[i], sqrt(1f / precision[i]))
-        }
+    override fun sample(rng: Random): VectorView {
+        return if (exploration > 0f)
+            vectors.zeroVector(weights.size).apply {
+                transformIndexed { i, _ ->
+                    rng.nextNormal(weights[i], sqrt(exploration))
+                }
+            }
+        else weights
     }
 
     override fun train(input: VectorView, result: Float, weight: Float) {
-        val pred = predict(input)
-        val diff = result - pred
-        val varF = family.variance(pred)
-        val alpha = learningRate * weight
+        step++
+        val yhat = predict(input)
+        val diff = yhat - result
+        val loss = loss.apply(diff)
         for (i in input) {
-            precision[i] += varF * alpha
-            weights[i] += (diff * alpha) / precision[i]
+            val reg = regularizationFactor * regularization.apply(weights[i])
+            val grad = input[i] * (loss + reg) * weight
+            weights[i] = updater.step(weights[i], i, grad, step)
         }
-
-        biasPrecision += varF * alpha
-        bias += (diff * alpha) / biasPrecision
+        bias -= diff * biasRate.rate(step)
     }
 
-    override fun trainAll(inputs: Array<out VectorView>, results: FloatArray, weights: FloatArray?) {
-        val precisionUpdate = vectors.zeroVector(this.weights.size)
-        val weightsUpdate = vectors.zeroVector(this.weights.size)
-        var biasPrecisionUpdate = 0.0f
-        var biasUpdate = 0.0f
-        for (i in inputs.indices) {
-            val input = inputs[i]
-            val result = results[i]
-            val weight = weights?.get(i) ?: 1.0f
-            val pred = predict(input)
-            val diff = result - pred
-            val varF = family.variance(pred)
-            val alpha = learningRate * weight
-            for (j in input) {
-                precisionUpdate[j] += varF * alpha
-                weightsUpdate[j] += diff * alpha
-            }
-            biasPrecisionUpdate += varF * alpha
-            biasUpdate += diff * alpha
-        }
-
-        precision.add(precisionUpdate)
-        weightsUpdate.divide(precision)
-        this.weights.add(weightsUpdate)
-
-        biasPrecision += biasPrecisionUpdate
-        bias += biasUpdate / biasPrecision
-    }
-
-    override fun importData(data: DiagonalCovarianceData) {
+    override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
+        // TODO variance/weight
+        step = data.step
         bias = data.bias
-        biasPrecision = data.biasPrecision
-        for (i in weights.indices) {
+        for (i in weights.indices)
             weights[i] = data.weights[i]
-            precision[i] = data.precision[i]
-        }
     }
 
-    override fun exportData() = DiagonalCovarianceData(weights.toFloatArray(), precision.toFloatArray(), bias, biasPrecision)
+    override fun exportData() = LinearData(weights.toFloatArray(), bias, 0f, step, updater.exportData().toArray())
+    override fun resetVariance(variance: Float) = GreedyLinearModel(
+            link, loss, regularization, regularizationFactor, updater.copyReset(), exploration, 0L, vectors.zeroVector(weights.size), biasRate, bias)
 }
 
-class FullModel(
-        family: VarianceFunction,
-        link: Transform,
-        weights: Vector,
-        val covariance: Matrix,
-        val covarianceL: Matrix,
-        bias: Float,
-        biasPrecision: Float,
-        learningRate: Float)
-    : LinearModel<FullCovarianceData>(family, link, weights, bias, biasPrecision, learningRate) {
+class PrecisionLinearModel(val family: VarianceFunction,
+                           link: Transform,
+                           loss: Transform,
+                           regularization: Transform,
+                           regularizationFactor: Float,
+                           val learningRate: LearningRateSchedule,
+                           exploration: Float,
+                           step: Long,
+                           weights: Vector,
+                           val precision: Vector,
+                           bias: Float,
+                           var biasPrecision: Float)
+    : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
     override fun sample(rng: Random) =
-            (covarianceL * vectors.vector(FloatArray(weights.size) { rng.nextNormal() })).apply { add(weights) }
+            vectors.zeroVector(weights.size).apply {
+                transformIndexed { i, _ ->
+                    rng.nextNormal(weights[i], sqrt(exploration / precision[i]))
+                }
+            }
 
     override fun train(input: VectorView, result: Float, weight: Float) {
-        val pred = predict(input)
-        val diff = result - pred
-        val varF = family.variance(pred)
-        val alpha = learningRate * weight
+        step++
+        val yhat = predict(input)
+        val diff = yhat - result
+        val loss = loss.apply(diff)
+        val varF = family.variance(yhat)
+        val lr = learningRate.rate(step)
+        for (i in input) {
+            val reg = regularizationFactor * regularization.apply(weights[i])
+            precision[i] += varF * input[i]
+            val grad = input[i] * (loss + reg) * weight
+            weights[i] -= lr * grad / precision[i]
+        }
+        biasPrecision += varF
+        bias -= lr * weight * loss / biasPrecision
+    }
 
-        val varianceUpdate = covariance * input
-        varianceUpdate.multiply(varF)
-        varianceUpdate.divide(sqrt((1 + (input dot varianceUpdate) * sqrt(varF))))
-        varianceUpdate.multiply(alpha)
+    override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
+        require(data.updaterData.size == 1) { "Expected updaterData to have one row." }
+        val wp = weightMixin
+        val wip = 1 - weightMixin
+        val vp = varianceMixin
+        val vip = 1 - varianceMixin
+        bias = bias * wip + data.bias * wp
+        biasPrecision = biasPrecision * vip + data.biasPrecision * vp
+        for (i in weights.indices) {
+            weights[i] = weights[i] * wip + data.weights[i] * wp
+            precision[i] = precision[i] * vip + data.updaterData[0][i] * vp
+        }
+    }
 
-        var norm = covarianceL.choleskyDowndate(varianceUpdate)
+    override fun exportData() = LinearData(weights.toFloatArray(), bias, biasPrecision, step, arrayOf(precision.toFloatArray()))
+    override fun resetVariance(variance: Float) = PrecisionLinearModel(
+            family, link, loss, regularization, regularizationFactor, learningRate, exploration, 0L, vectors.zeroVector(weights.size),
+            vectors.zeroVector(precision.size).apply { add(1f / variance) }, bias, 1f / variance)
+}
+
+/**
+ * Laplace approximation to the full bayesian linear regression.
+ */
+class CovarianceLinearModel(val family: VarianceFunction,
+                            link: Transform,
+                            loss: Transform,
+                            regularization: Transform,
+                            regularizationFactor: Float,
+                            val learningRate: LearningRateSchedule,
+                            exploration: Float,
+                            step: Long,
+                            weights: Vector,
+                            val covariance: Matrix,
+                            val covarianceL: Matrix,
+                            bias: Float,
+                            var biasPrecision: Float)
+    : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
+
+    override fun sample(rng: Random): Vector {
+        val u = vectors.vector(FloatArray(weights.size) { rng.nextNormal(0f, sqrt(exploration)) })
+        val wHat = covarianceL * u
+        wHat.add(weights)
+        return wHat
+    }
+
+    override fun train(input: VectorView, result: Float, weight: Float) {
+        step++
+        val yhat = predict(input)
+        val diff = yhat - result
+        val loss = loss.apply(diff)
+        val varF = family.variance(yhat)
+        val lr = learningRate.rate(step)
+
+        // H is a matrix of precision
+        // x is the input
+        // H^-1 is the covariance matrix
+        // g is the gradient wrt to the weights, g2 is the 2nd order gradient
+        // Note that g2 = x'*x/var
+        // The update rule is:
+        // H_t = H_t-1 + g2_t-1
+        // w_t = w_t-1 - H^-1_t * g_t-1
+        //
+        // The matrix H is not stored explicitly, but its inverse can be updated incrementally with the
+        // Sherman-Woodbury-Morrison formula, like so:
+        // (A + uv^T)^-1 = A^-1 - (A^-1*uv^T*A^-1) / (1 + v^T*A^-1*u)
+        // Here, uv^T=g2=x'*x/var <=> u=v=x/sqrt(var), so it simplifies to:
+        // (H + g2*g2^T)^-1 = H^-1 - (H^-1*g2*g2^T*H^-1) / (1 + g2^T*H^-1*g2) =
+        // (H + g2*g2^T)^-1 = H^-1 - z*z^T, where z = H^-1*x / sqrt(var + x^T*H^-1*x)
+        // Also, L, the cholesky decomposition of the covariance matrix is needed to generate sample from the model. It
+        // is also updated incrementally.
+
+        // Compute z as above
+        val z = let {
+            val vec = covariance * input
+            val denom = sqrt(varF + (input dot vec))
+            if (denom == 0f) return
+            vec.divide(denom)
+            vec
+        }
+
+        // Downdate L, L = chol(H^-1)
+        var norm = covarianceL.choleskyDowndate(z)
         if (norm > 1f) {
-            // Numerical errors have been accrued to fix we recalculate cholesky decomposition
+            // Numerical errors have been accrued, to fix we recalculate cholesky decomposition
             val L = covariance.cholesky()
             for (i in 0 until L.rows)
                 for (j in 0 until L.rows)
                     covarianceL[j, i] = L[i, j] // L is lower triangulate, cholesky is upper
 
-            norm = covarianceL.choleskyDowndate(varianceUpdate)
+            norm = covarianceL.choleskyDowndate(z)
             while (norm > 1f) {
                 // Still failed cholesky downdate due to numerical instability
                 // Take smaller step instead
-                varianceUpdate.divide(norm + 1e-4f)
-                norm = covarianceL.choleskyDowndate(varianceUpdate)
+                z.divide(norm + 1e-4f)
+                norm = covarianceL.choleskyDowndate(z)
             }
         }
 
-        // Down date covariance matrix
-        for (i in 0 until covariance.rows)
-            for (j in 0 until covariance.rows)
-                covariance[i, j] -= varianceUpdate[i] * varianceUpdate[j]
+        // Downdate covariance matrix, H^-1 = H^-1 - z*z' (outer product)
+        for (i in 0 until z.size)
+            for (j in 0 until z.size)
+                covariance[i, j] -= z[i] * z[j]
 
-        val step = covariance * (input * (diff * alpha))
-        weights.add(step)
+        // w_t = w_t-1 - H^-1_t * g_t-1
+        val reg = weights.copy().apply { transform { regularization.apply(it) * regularizationFactor } }
+        val grad = (input + reg) * (loss * lr)
+        val step = covariance * grad
+        weights.subtract(step)
 
-        biasPrecision += varF * alpha
-        bias += (diff * alpha) / biasPrecision
+        biasPrecision += weight * varF
+        bias -= lr * weight * loss / biasPrecision
     }
 
-    override fun trainAll(inputs: Array<out VectorView>, results: FloatArray, weights: FloatArray?) {
-        for (i in inputs.indices)
-            train(inputs[i], results[i], weights?.get(i) ?: 1.0f)
-    }
-
-    override fun importData(data: FullCovarianceData) {
-        bias = data.bias
-        biasPrecision = data.biasPrecision
+    override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
+        require(data.updaterData.size == weights.size * 2) { "Expected updaterData to contain covariance and covarianceL." }
+        val wp = weightMixin
+        val wip = 1 - weightMixin
+        val vp = varianceMixin
+        val vip = 1 - varianceMixin
+        bias = bias * wip + data.bias * wp
+        biasPrecision = biasPrecision * vip + data.biasPrecision * vp
         for (i in weights.indices) {
-            weights[i] = data.weights[i]
-            covariance[i] = vectors.vector(data.covariance[i])
-            covarianceL[i] = vectors.vector(data.covarianceL[i])
+            weights[i] = weights[i] * wip + data.weights[i] * wp
+            covariance[i] = covariance[i] * vip + vectors.vector(data.updaterData[i]) * vp
+            // TODO will this always be positive semi-definitive or do we need to recalculate chol?:
+            covarianceL[i] = covarianceL[i] * vip + vectors.vector(data.updaterData[i + weights.size]) * vp
         }
     }
 
-    override fun exportData() = FullCovarianceData(
-            weights.toFloatArray(), covariance.toArray(), covarianceL.toArray(), bias, biasPrecision)
+    override fun exportData() = LinearData(weights.toFloatArray(), bias, biasPrecision, step, covariance.toArray() + covarianceL.toArray())
+
+    override fun resetVariance(variance: Float): CovarianceLinearModel {
+        val covariance = vectors.zeroMatrix(covariance.rows)
+        val covarianceL = vectors.zeroMatrix(covarianceL.rows)
+        for (i in 0 until covariance.rows) {
+            covariance[i, i] = variance
+            covarianceL[i, i] = sqrt(variance)
+        }
+        return CovarianceLinearModel(
+                family, link, loss, regularization, regularizationFactor, learningRate, exploration, 0L, vectors.zeroVector(weights.size),
+                covariance, covarianceL, bias, 1f / variance)
+    }
 }
 

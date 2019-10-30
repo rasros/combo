@@ -15,7 +15,7 @@ class EliminationChainTest {
     @Test
     fun noEliminationOnEmpty() {
         val candidates = createCandidates(MODEL1.problem, 20, UCB1())
-        val s = EliminationChain<BinaryEstimator>(SignificanceTestElimination(0.999f), TournamentElimination(10))
+        val s = EliminationChain(SignificanceTestElimination(0.999f), TournamentElimination(10))
         val select = s.select(candidates, Random)
         assertTrue(select < 0)
     }
@@ -24,7 +24,7 @@ class EliminationChainTest {
     fun guaranteedElimination() {
         val p = Problem(20, emptyArray())
         val candidates = createCandidates(p, 10, UCB1Normal(), minSamples = 0f)
-        val chain = EliminationChain<SquaredEstimator>(SignificanceTestElimination(), TournamentElimination(3))
+        val chain = EliminationChain(SignificanceTestElimination(), TournamentElimination(3))
         val e = chain.select(candidates, Random)
         assertTrue(e >= 0)
     }
@@ -32,7 +32,7 @@ class EliminationChainTest {
     @Test
     fun eliminate() {
         val candidates = createCandidates(MODEL1.problem, 20, EpsilonDecreasing(), minSamples = 4.0f)
-        val s = EliminationChain<VarianceEstimator>(SignificanceTestElimination(0.5f), SmallestCountElimination())
+        val s = EliminationChain(SignificanceTestElimination(0.5f), SmallestCountElimination())
 
         val rng = Random
         do {

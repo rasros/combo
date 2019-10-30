@@ -8,7 +8,7 @@ import combo.model.Model.Companion.model
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
+class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit>() {
 
     override fun bandit(model: Model, parameters: TestParameters) = DecisionTreeBandit.Builder(model, parameters.thompsonPolicy())
             .rewards(parameters.rewards)
@@ -23,10 +23,4 @@ class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit<*>>() {
             .maximize(parameters.maximize)
             .maxRestarts(1)
             .build()
-
-    @Test
-    fun exportEmpty() {
-        val bandit = DecisionTreeBandit.Builder(model { bool() }, UCB1Tuned()).build()
-        assertTrue(bandit.exportData().nodes.isEmpty())
-    }
 }

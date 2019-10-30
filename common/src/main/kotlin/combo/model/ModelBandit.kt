@@ -21,24 +21,25 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
 
     companion object {
         @JvmStatic
-        fun <E : VarianceEstimator> listBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+        fun <E : VarianceEstimator> listBandit(model: Model, banditPolicy: BanditPolicy) =
                 ModelBandit(model, ListBandit.Builder(model.problem, banditPolicy).build())
 
         @JvmStatic
-        fun <E : VarianceEstimator> decisionTreeBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+        fun <E : VarianceEstimator> decisionTreeBandit(model: Model, banditPolicy: BanditPolicy) =
                 PredictionModelBandit(model, DecisionTreeBandit.Builder(model, banditPolicy).build())
 
         @JvmStatic
-        fun <E : VarianceEstimator> randomForestBandit(model: Model, banditPolicy: BanditPolicy<E>) =
-                PredictionModelBandit(model, RandomForestBandit.Builder(model, banditPolicy).build())
+        @JvmOverloads
+        fun <E : VarianceEstimator> randomForestBandit(model: Model, banditPolicy: BanditPolicy, nbrTrees: Int = 10) =
+                PredictionModelBandit(model, RandomForestBandit.Builder(model, banditPolicy).trees(nbrTrees).build())
 
         @JvmStatic
-        fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model, banditPolicy: BanditPolicy<E>) =
+        fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model, banditPolicy: BanditPolicy) =
                 ModelBandit(model, GeneticAlgorithmBandit.Builder(model.problem, banditPolicy).build())
 
         @JvmStatic
         fun linearBandit(model: Model, family: VarianceFunction) =
-                PredictionModelBandit(model, LinearBandit.diagonalCovarianceBuilder(model.problem).family(family).build())
+                PredictionModelBandit(model, LinearBandit.greedyBuilder(model.problem).family(family).build())
     }
 
     fun choose(vararg assumptions: Literal): Assignment? {
@@ -49,6 +50,15 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
 
     fun chooseOrThrow(vararg assumptions: Literal) =
             model.toAssignment(bandit.chooseOrThrow(assumptionsLiterals(assumptions)))
+
+    fun optimal(vararg assumptions: Literal): Assignment? {
+        val instance = bandit.optimal(assumptionsLiterals(assumptions))
+        return if (instance != null) model.toAssignment(instance)
+        else null
+    }
+
+    fun optimalOrThrow(vararg assumptions: Literal) =
+            model.toAssignment(bandit.optimalOrThrow(assumptionsLiterals(assumptions)))
 
     /**
      * Update the result of an assignment.

@@ -7,6 +7,7 @@ import combo.math.DataSample
 import combo.math.Transform
 import combo.math.VoidSample
 import combo.math.vectors
+import combo.sat.BitArray
 import combo.sat.Instance
 import combo.sat.Problem
 import combo.sat.optimizers.LinearObjective
@@ -15,9 +16,6 @@ import combo.sat.optimizers.Optimizer
 import combo.util.IntCollection
 import combo.util.RandomSequence
 import combo.util.nanos
-import kotlin.jvm.JvmStatic
-import kotlin.math.min
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
@@ -31,94 +29,82 @@ import kotlin.math.sqrt
  * @param maximize Whether the bandit should maximize or minimize the total rewards. By default true.
  * @param link Specify GLM link function, otherwise [family]'s [VarianceFunction.canonicalLink] is used.
  * @param optimizer Which optimizer to use for maximization of the linear function.
- * @param learningRate Slows learning rate. In theory not needed due but will help if other parameters are slightly miss-specified.
- * @param learningRateGrowth Increases learning rate until it reaches 1.
- * @param batchThreshold Use mini-batch mode if the number of updates in [trainAll] is larger than this.
+ * @param learningRate What step size to take at each step.
  * @param rewards All rewards are added to this for inspecting how well the bandit performs.
  * @param trainAbsError The total absolute error obtained on a prediction before update.
  * @param testAbsError The total absolute error obtained on a prediction after update.
  */
-class LinearBandit<L : LinearData>(val problem: Problem,
-                                   val family: VarianceFunction,
-                                   model: L,
-                                   override val randomSeed: Int = nanos().toInt(),
-                                   override val maximize: Boolean = true,
-                                   val link: Transform = family.canonicalLink(),
-                                   val optimizer: Optimizer<LinearObjective> = LocalSearch.Builder(problem).randomSeed(randomSeed).build(),
-                                   val learningRate: Float = 0.1f,
-                                   val learningRateGrowth: Float = 1.05f,
-                                   val batchThreshold: Int = 3,
-                                   override val rewards: DataSample = VoidSample,
-                                   override val trainAbsError: DataSample = VoidSample,
-                                   override val testAbsError: DataSample = VoidSample)
-    : PredictionBandit<L> {
+class LinearBandit(val problem: Problem,
+                   val model: LinearModel,
+                   override val randomSeed: Int = nanos().toInt(),
+                   override val maximize: Boolean = true,
+                   val optimizer: Optimizer<LinearObjective> = LocalSearch.Builder(problem).randomSeed(randomSeed).build(),
+                   override val rewards: DataSample = VoidSample,
+                   override val trainAbsError: DataSample = VoidSample,
+                   override val testAbsError: DataSample = VoidSample)
+    : PredictionBandit<LinearData> {
 
     private val randomSequence = RandomSequence(randomSeed)
-    private val model: LinearModel<L> =
-            when (model) {
-                is DiagonalCovarianceData ->
-                    DiagonalModel(family, link, vectors.vector(model.weights), vectors.vector(model.precision),
-                            model.bias, model.biasPrecision, learningRate)
-                is FullCovarianceData ->
-                    FullModel(family, link, vectors.vector(model.weights), vectors.matrix(model.covariance),
-                            vectors.matrix(model.covarianceL), model.bias, model.biasPrecision, learningRate)
-                else -> error("sealed class")
-            }.let {
-                @Suppress("UNCHECKED_CAST")
-                it as LinearModel<L>
-            }
 
     init {
-        require(model.weights.size == problem.nbrValues) { "Weight prior parameter must be same size as problem: ${problem.nbrValues}." }
+        require(model.weights.size == problem.nbrValues) {
+            "Weight prior parameter must be same size as problem: ${problem.nbrValues}."
+        }
     }
 
-    override fun predict(instance: Instance) = link.apply(model.bias + (instance dot model.weights))
+    override fun predict(instance: Instance) = model.predict(instance)
 
     override fun train(instance: Instance, result: Float, weight: Float) {
         model.train(instance, result, weight)
-        model.learningRate = min(1f, learningRate * learningRateGrowth)
     }
 
     override fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
-        if (instances.size < batchThreshold) super.trainAll(instances, results, weights)
-        else model.trainAll(instances, results, weights)
-        model.learningRate = min(1f, learningRate * learningRateGrowth.pow(instances.size))
+        model.trainAll(instances, results, weights)
     }
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
+        if (problem.nbrValues == 0) return BitArray(0)
         val rng = randomSequence.next()
         val sampled = model.sample(rng)
         return optimizer.optimizeOrThrow(LinearObjective(maximize, sampled), assumptions)
     }
 
-    override fun importData(data: L) = model.importData(data)
+    override fun optimalOrThrow(assumptions: IntCollection): Instance {
+        return optimizer.optimizeOrThrow(LinearObjective(maximize, model.weights), assumptions)
+    }
+
+    override fun importData(data: LinearData) {
+        val ratio = if (data.step <= 0L) 1f
+        else data.step.toFloat() / (model.step + data.step).toFloat()
+        model.importData(data, ratio, ratio)
+    }
+
     override fun exportData() = model.exportData()
 
     companion object {
-        /** Build linear model with full covariance. Size of covariance is quadratic in [Problem.nbrValues]. */
-        @JvmStatic
-        fun fullCovarianceBuilder(problem: Problem) = FullCovarianceBuilder(problem)
-
-        /** Build linear modle with diagonalized covariance. Size of variance is linear in [Problem.nbrValues]. */
-        @JvmStatic
-        fun diagonalCovarianceBuilder(problem: Problem) = DiagonalCovarianceBuilder(problem)
+        fun greedyBuilder(problem: Problem) = GreedyBuilder(problem)
+        fun precisionBuilder(problem: Problem) = PrecisionBuilder(problem)
+        fun covarianceBuilder(problem: Problem) = CovarianceBuilder(problem)
     }
 
-    abstract class Builder<L : LinearData>(val problem: Problem) : PredictionBanditBuilder<L> {
-        protected var regularizationFactor: Float = 1.0f
-        protected var learningRate: Float = 0.1f
-        protected var learningRateGrowth: Float = 1.01f
+    abstract class Builder(val problem: Problem) : PredictionBanditBuilder<LinearData> {
+
         protected var family: VarianceFunction = NormalVariance
         protected var randomSeed: Int = nanos().toInt()
         protected var rewards: DataSample = VoidSample
-        protected var trainAbsError: DataSample = VoidSample
-        protected var testAbsError: DataSample = VoidSample
         protected var maximize: Boolean = true
         protected var link: Transform? = null
+        protected var loss: Transform = MSELoss
+        protected var exploration: Float = 1f
+        protected var regularization: Transform = MSELoss
+        protected var regularizationFactor: Float = 1e-5f
         protected var optimizer: Optimizer<LinearObjective>? = null
-        protected var batchThreshold: Int = 3
-        protected var model: L? = null
         protected var bias: Float? = null
+        protected var trainAbsError: DataSample = VoidSample
+        protected var testAbsError: DataSample = VoidSample
+        protected var startingStep: Long = 0L
+
+        protected var data: LinearData? = null
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
@@ -126,65 +112,99 @@ class LinearBandit<L : LinearData>(val problem: Problem,
         override fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
         override fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
         override fun parallel() = ParallelPredictionBandit.Builder(this)
+        override fun importData(data: LinearData) = apply { this.data = data }
 
         /** Initial bias term. This has no effect if importing data. */
         fun bias(bias: Float) = apply { this.bias = bias }
 
-        /** Used in initialization of the covariance matrix. This has no effect if importing data. */
+        /** Loss function of the regression, by default it is mean squared loss. */
+        fun loss(loss: Transform) = apply { this.loss = loss }
+
+        /** Type of regularization to apply, by default L2. */
+        fun regularization(regularization: Transform) = apply { this.regularization = regularization }
+
+        /** Regularization constant. */
         fun regularizationFactor(regularizationFactor: Float) = apply { this.regularizationFactor = regularizationFactor }
 
-        /** Slows learning rate. In theory not needed due but will help if other parameters are slightly miss-specified. */
-        fun learningRate(learningRate: Float) = apply { this.learningRate = learningRate }
+        /** Noise added (or multiplied) to weights during [choose]. */
+        fun exploration(exploration: Float) = apply { this.exploration = exploration }
 
-        /** Increases learning rate until it reaches 1. */
-        fun learningRateGrowth(learningRateGrowth: Float) = apply { this.learningRateGrowth = learningRateGrowth }
+        /** Starting step counter. */
+        fun startingStep(step: Long) = apply { this.startingStep = step }
 
-        /**
-         * Type of response data. This is an important parameter to set.
-         * For binary data use [BinomialVariance], for normal data use [NormalVariance], etc.
-         */
+        /** Type of response data. For binary data use [BinomialVariance], for normal data use [NormalVariance], etc. */
         fun family(family: VarianceFunction) = apply { this.family = family }
 
         /** Specify GLM link function, otherwise [family]'s [VarianceFunction.canonicalLink] is used. */
         fun link(link: Transform) = apply { this.link = link }
 
-        /** Use mini-batch mode if the number of updates in [trainAll] is larger than this. */
-        fun batchThreshold(batchThreshold: Int) = apply { this.batchThreshold = batchThreshold }
-
         /** Which optimizer to use for maximization of the linear function. */
         fun optimizer(optimizer: Optimizer<LinearObjective>) = apply { this.optimizer = optimizer }
 
-        abstract override fun build(): LinearBandit<L>
+        protected fun defaultLink() = link ?: family.canonicalLink()
+        protected fun defaultOptimizer() = optimizer ?: LocalSearch.Builder(problem)
+                .randomSeed(randomSeed).fallbackCached().build()
+
+        protected fun defaultBias() = bias ?: if (family is PoissonVariance) 1.001f else 0f
+
+        abstract override fun build(): LinearBandit
     }
 
-    class DiagonalCovarianceBuilder(problem: Problem) : Builder<DiagonalCovarianceData>(problem) {
-        override fun importData(data: DiagonalCovarianceData) = apply { this.model = data }
-        override fun build(): LinearBandit<DiagonalCovarianceData> {
-            val n = problem.nbrValues
-            val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed).build()
-            val bias = bias ?: if (family is PoissonVariance) 1f else 0f
-            val model = model ?: DiagonalCovarianceData(
-                    FloatArray(n), FloatArray(n) { regularizationFactor }, bias, regularizationFactor)
-            return LinearBandit(problem, family, model, randomSeed, maximize, link ?: family.canonicalLink(), optimizer,
-                    learningRate, learningRateGrowth, batchThreshold, rewards, trainAbsError, testAbsError)
+    class GreedyBuilder(problem: Problem) : Builder(problem) {
+        init {
+            exploration = .1f
+        }
+
+        private var biasRate: LearningRateSchedule = ExponentialDecay()
+        private var updater: SGDAlgorithm = SGD(ExponentialDecay())
+
+        fun biasRate(biasRate: LearningRateSchedule) = apply { this.biasRate = biasRate }
+
+        /** Stochastic gradient descent algorithm to use. */
+        fun updater(updater: SGDAlgorithm) = apply { this.updater = updater }
+
+        override fun build(): LinearBandit {
+            val lm = GreedyLinearModel(defaultLink(), loss, regularization, regularizationFactor, updater, exploration,
+                    startingStep, vectors.zeroVector(problem.nbrValues), biasRate, defaultBias())
+            return LinearBandit(problem, lm, randomSeed, maximize, defaultOptimizer(), rewards, trainAbsError, testAbsError)
         }
     }
 
-    class FullCovarianceBuilder(problem: Problem) : Builder<FullCovarianceData>(problem) {
-        override fun importData(data: FullCovarianceData) = apply { this.model = data }
-        override fun build(): LinearBandit<FullCovarianceData> {
+    class PrecisionBuilder(problem: Problem) : Builder(problem) {
+        private var learningRate: LearningRateSchedule = ExponentialDecay()
+        private var priorPrecision: Float = 1f
+
+        fun priorPrecision(priorPrecision: Float) = apply { this.priorPrecision = priorPrecision }
+
+        fun learningRate(learningRate: LearningRateSchedule) = apply { this.learningRate = learningRate }
+
+        override fun build(): LinearBandit {
+            val lm = PrecisionLinearModel(family, defaultLink(), loss, regularization, regularizationFactor, learningRate,
+                    exploration, startingStep, vectors.zeroVector(problem.nbrValues),
+                    vectors.vector(FloatArray(problem.nbrValues) { priorPrecision }), defaultBias(), priorPrecision)
+            return LinearBandit(problem, lm, randomSeed, maximize, defaultOptimizer(), rewards, trainAbsError, testAbsError)
+        }
+    }
+
+    class CovarianceBuilder(problem: Problem) : Builder(problem) {
+        private var learningRate: LearningRateSchedule = ExponentialDecay()
+        private var priorVariance: Float = 1f
+
+        fun priorVariance(priorVariance: Float) = apply { this.priorVariance = priorVariance }
+
+        fun learningRate(learningRate: LearningRateSchedule) = apply { this.learningRate = learningRate }
+
+        override fun build(): LinearBandit {
             val n = problem.nbrValues
-            val bias = bias ?: if (family is PoissonVariance) 1f else 0f
-            val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed).build()
-            val model = model ?: FullCovarianceData(
-                    FloatArray(n), Array(n) { FloatArray(n) }, Array(n) { FloatArray(n) }, bias, 0.1f * regularizationFactor).apply {
-                for (i in 0 until n) {
-                    covariance[i][i] = regularizationFactor
-                    covarianceL[i][i] = sqrt(regularizationFactor)
-                }
+            val Hinv = vectors.zeroMatrix(n, n)
+            val L = vectors.zeroMatrix(n, n)
+            for (i in 0 until n) {
+                Hinv[i, i] = priorVariance
+                L[i, i] = sqrt(priorVariance)
             }
-            return LinearBandit(problem, family, model, randomSeed, maximize, link ?: family.canonicalLink(), optimizer,
-                    learningRate, learningRateGrowth, batchThreshold, rewards, trainAbsError, testAbsError)
+            val lm = CovarianceLinearModel(family, defaultLink(), loss, regularization, regularizationFactor, learningRate,
+                    exploration, startingStep, vectors.zeroVector(problem.nbrValues), Hinv, L, defaultBias(), 1f / priorVariance)
+            return LinearBandit(problem, lm, randomSeed, maximize, defaultOptimizer(), rewards, trainAbsError, testAbsError)
         }
     }
 }

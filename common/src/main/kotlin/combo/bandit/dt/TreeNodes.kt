@@ -7,24 +7,24 @@ import combo.util.IntCollection
 import combo.util.RandomCache
 import combo.util.isEmpty
 
-sealed class Node<E : VarianceEstimator> {
+sealed class Node {
     /**
      * Find the exact node that matches the instance. This will always work unless there is an index out of bounds.
      */
-    abstract fun findLeaf(instance: Instance): LeafNode<E>
+    abstract fun findLeaf(instance: Instance): LeafNode
 
     /**
      * Finds all leaves that match the given literals. This can possibly return all leaves if for example the
      * literals are empty.
      */
-    abstract fun findLeaves(setLiterals: Literals): Sequence<LeafNode<E>>
+    abstract fun findLeaves(setLiterals: Literals): Sequence<LeafNode>
 
-    abstract fun update(instance: Instance, result: Float, weight: Float): Node<E>
+    abstract fun update(instance: Instance, result: Float, weight: Float): Node
 }
 
-class SplitNode<E : VarianceEstimator>(val ix: Int, var pos: Node<E>, var neg: Node<E>) : Node<E>() {
+class SplitNode(val ix: Int, var pos: Node, var neg: Node) : Node() {
 
-    override fun update(instance: Instance, result: Float, weight: Float): Node<E> {
+    override fun update(instance: Instance, result: Float, weight: Float): Node {
         if (instance.isSet(ix)) pos = pos.update(instance, result, weight)
         else neg = neg.update(instance, result, weight)
         return this
@@ -34,7 +34,7 @@ class SplitNode<E : VarianceEstimator>(val ix: Int, var pos: Node<E>, var neg: N
             if (instance.isSet(ix)) pos.findLeaf(instance)
             else neg.findLeaf(instance)
 
-    override fun findLeaves(setLiterals: Literals): Sequence<LeafNode<E>> {
+    override fun findLeaves(setLiterals: Literals): Sequence<LeafNode> {
         for (l in setLiterals) {
             if (l.toIx() == ix) {
                 return if (l.toBoolean()) pos.findLeaves(setLiterals)
@@ -45,7 +45,7 @@ class SplitNode<E : VarianceEstimator>(val ix: Int, var pos: Node<E>, var neg: N
     }
 }
 
-abstract class LeafNode<E : VarianceEstimator>(val literals: IntCollection, var data: E, val blocked: RandomCache<IntCollection>?) : Node<E>() {
+abstract class LeafNode(val literals: IntCollection, var data: VarianceEstimator, val blocked: RandomCache<IntCollection>?) : Node() {
     override fun findLeaf(instance: Instance) = this
     override fun findLeaves(setLiterals: Literals) = sequenceOf(this)
 
@@ -86,8 +86,8 @@ abstract class LeafNode<E : VarianceEstimator>(val literals: IntCollection, var 
     }
 }
 
-class TerminalNode<E : VarianceEstimator>(val banditPolicy: BanditPolicy<E>, setLiterals: IntCollection, data: E, blockQueueSize: Int)
-    : LeafNode<E>(setLiterals, data, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
+class TerminalNode(val banditPolicy: BanditPolicy, setLiterals: IntCollection, data: VarianceEstimator, blockQueueSize: Int)
+    : LeafNode(setLiterals, data, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
     override fun update(instance: Instance, result: Float, weight: Float) =
             this.apply { banditPolicy.update(data, result, weight) }
 }

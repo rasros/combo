@@ -17,6 +17,11 @@ import kotlin.random.Random
 enum class InitializerType {
 
     /**
+     * Set all to false.
+     */
+    NONE,
+
+    /**
      * Used for linear objective only. It makes a guess based on the weight of each variable.
      */
     WEIGHT_MAX,
@@ -87,8 +92,9 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
     }
 }
 
-object NoInitializer : InstanceInitializer<ObjectiveFunction?> {
+class NoInitializer(val assumptions: Boolean) : InstanceInitializer<ObjectiveFunction?> {
     override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: ObjectiveFunction?) {
+        if (assumptions) assumption.coerce(mi, rng)
     }
 }
 

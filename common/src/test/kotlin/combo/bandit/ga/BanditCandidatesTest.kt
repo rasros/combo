@@ -15,8 +15,8 @@ import combo.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-fun <E : VarianceEstimator> createCandidates(problem: Problem, n: Int, bp: BanditPolicy<E>,
-                                             minSamples: Float = 5.0f, maximize: Boolean = true): BanditCandidates<E> {
+fun createCandidates(problem: Problem, n: Int, bp: BanditPolicy,
+                                             minSamples: Float = 5.0f, maximize: Boolean = true): BanditCandidates {
     val instances: Array<Instance> = LocalSearch(problem).asSequence().take(n).toList().toTypedArray()
     return BanditCandidates(instances, minSamples, maximize, bp)
 }

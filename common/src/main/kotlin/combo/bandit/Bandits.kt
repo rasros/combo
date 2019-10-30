@@ -1,10 +1,16 @@
 package combo.bandit
 
 import combo.math.DataSample
+import combo.math.VoidSample
 import combo.sat.Instance
+import combo.sat.Problem
 import combo.sat.ValidationException
+import combo.sat.optimizers.LocalSearch
+import combo.sat.optimizers.Optimizer
+import combo.sat.optimizers.SatObjective
 import combo.util.EmptyCollection
 import combo.util.IntCollection
+import combo.util.nanos
 import kotlin.math.abs
 
 /**
@@ -28,6 +34,23 @@ interface Bandit<D : BanditData> {
     fun choose(assumptions: IntCollection = EmptyCollection) =
             try {
                 chooseOrThrow(assumptions)
+            } catch (e: ValidationException) {
+                null
+            }
+
+    /**
+     * Calculate the perceived optimal instance, throwing [ValidationException] on failure.
+     * @param assumptions these are values that must be set by the returned instance, the format is in Dimacs.
+     */
+    fun optimalOrThrow(assumptions: IntCollection = EmptyCollection): Instance
+
+    /**
+     * Calculate the perceived optimal instance, returning null on failure.
+     * @param assumptions these are values that must be set by the returned instance, the format is in Dimacs.
+     */
+    fun optimal(assumptions: IntCollection = EmptyCollection) =
+            try {
+                optimalOrThrow(assumptions)
             } catch (e: ValidationException) {
                 null
             }
@@ -176,4 +199,33 @@ interface PredictionBanditBuilder<D : BanditData> : BanditBuilder<D> {
 
     /** The total absolute error obtained on a prediction after update. */
     fun testAbsError(testAbsError: DataSample): PredictionBanditBuilder<D>
+}
+
+class RandomBandit(val optimizer: Optimizer<SatObjective>, override val rewards: DataSample) : Bandit<Nothing> {
+    override fun chooseOrThrow(assumptions: IntCollection) = optimizer.witnessOrThrow(assumptions)
+    override fun optimalOrThrow(assumptions: IntCollection) = optimizer.witnessOrThrow(assumptions)
+    override fun update(instance: Instance, result: Float, weight: Float) {}
+    override fun importData(data: Nothing) {}
+    override fun exportData() = error("Cannot export.")
+    override val maximize: Boolean get() = true
+    override val randomSeed: Int get() = optimizer.randomSeed
+
+    class Builder(val problem: Problem) : BanditBuilder<Nothing> {
+
+        private var rewards: DataSample = VoidSample
+        private var randomSeed: Int = nanos().toInt()
+        private var optimizer: Optimizer<SatObjective>? = null
+
+        override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
+        override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
+        fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
+
+        override fun importData(data: Nothing) = this
+        override fun maximize(maximize: Boolean) = this
+
+        override fun parallel() = ParallelBandit.Builder(this)
+
+        override fun build() = RandomBandit(optimizer
+                ?: LocalSearch.Builder(problem).randomSeed(randomSeed).fallbackCached().build(), rewards)
+    }
 }

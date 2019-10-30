@@ -4,6 +4,7 @@ import combo.bandit.ParallelPredictionBandit
 import combo.bandit.PredictionBandit
 import combo.bandit.PredictionBanditBuilder
 import combo.bandit.univariate.BanditPolicy
+import combo.bandit.univariate.Greedy
 import combo.math.*
 import combo.model.Model
 import combo.model.Variable
@@ -26,30 +27,29 @@ import kotlin.math.sqrt
  * https://github.com/ulmangt/vfml/blob/master/weka/src/main/java/weka/classifiers/trees/VFDT.java
  * http://kt.ijs.si/elena_ikonomovska/00-disertation.pdf
  */
-@Suppress("UNCHECKED_CAST")
-class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreeParameters<E>, root: Node<E>?, val allowedVariables: IntArray?)
-    : PredictionBandit<TreeData<E>>, TreeParameters<E> by parameters {
+class DecisionTreeBandit(val parameters: ExtendedTreeParameters, root: Node?, val allowedVariables: IntArray?)
+    : PredictionBandit<TreeData>, TreeParameters by parameters {
 
     private val randomSequence = RandomSequence(randomSeed)
     private val step = AtomicLong()
 
-    private val liveNodes = ArrayList<LeafNode<E>>()
+    private val liveNodes = ArrayList<LeafNode>()
     private var nbrNodes = 0
     private var nbrAuditNodes = 0
 
-    private var root: Node<E> = if (root != null) {
+    private var root: Node = if (root != null) {
         // Convert TerminalNodes to AuditNodes as required
         if (root is LeafNode) {
             createLeafNode(EmptyCollection, root.data)
         } else {
-            val queue = ArrayQueue<SplitNode<E>>()
-            queue.add(root as SplitNode<E>)
+            val queue = ArrayQueue<SplitNode>()
+            queue.add(root as SplitNode)
             while (queue.size > 0) {
                 val r = queue.remove()
-                if (r.pos is LeafNode) r.pos = createLeafNode((r.pos as LeafNode<E>).literals, (r.pos as LeafNode<E>).data)
-                else queue.add(r.pos as SplitNode<E>)
-                if (r.neg is LeafNode) r.neg = createLeafNode((r.neg as LeafNode<E>).literals, (r.neg as LeafNode<E>).data)
-                else queue.add(r.neg as SplitNode<E>)
+                if (r.pos is LeafNode) r.pos = createLeafNode((r.pos as LeafNode).literals, (r.pos as LeafNode).data)
+                else queue.add(r.pos as SplitNode)
+                if (r.neg is LeafNode) r.neg = createLeafNode((r.neg as LeafNode).literals, (r.neg as LeafNode).data)
+                else queue.add(r.neg as SplitNode)
             }
             root
         }
@@ -57,13 +57,12 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         createLeafNode(EmptyCollection, banditPolicy.baseData())
     }
 
-    fun chooseNode(assumptions: IntCollection = EmptyCollection): LeafNode<E>? {
+    private fun optNode(assumptions: IntCollection, policy: BanditPolicy, t: Long): LeafNode? {
         val rng = randomSequence.next()
-        val t = step.getAndIncrement()
         val n = liveNodes.maxBy {
             when {
                 it.blocks(assumptions) -> Float.NEGATIVE_INFINITY
-                it.matches(assumptions) -> banditPolicy.evaluate(it.data, t, maximize, rng)
+                it.matches(assumptions) -> policy.evaluate(it.data, t, maximize, rng)
                 else -> Float.NEGATIVE_INFINITY
             }
         }
@@ -71,7 +70,10 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         else n
     }
 
-    override fun chooseOrThrow(assumptions: IntCollection): Instance {
+    fun optimalNode(assumptions: IntCollection = EmptyCollection): LeafNode? = optNode(assumptions, Greedy, step.get())
+    fun chooseNode(assumptions: IntCollection = EmptyCollection): LeafNode? = optNode(assumptions, banditPolicy, step.getAndIncrement())
+
+    private fun opt(optimal: Boolean, assumptions: IntCollection): Instance {
         var propagated: IntHashSet? = null
         for (restart in 0 until parameters.maxRestarts) {
             if (propagateAssumptions && assumptions.isNotEmpty()) {
@@ -79,7 +81,8 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
                 propagated.addAll(assumptions)
                 model.problem.unitPropagation(propagated)
             }
-            val node = chooseNode(propagated ?: assumptions)
+            val node = if (optimal) optimalNode(propagated ?: assumptions)
+            else chooseNode(propagated ?: assumptions)
             val instance = when {
                 node == null -> optimizer.witness(propagated ?: assumptions)
                 assumptions.isEmpty() -> optimizer.witness(node.literals)
@@ -95,14 +98,17 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         throw IterationsReachedException(parameters.maxRestarts)
     }
 
+    override fun chooseOrThrow(assumptions: IntCollection) = opt(false, assumptions)
+    override fun optimalOrThrow(assumptions: IntCollection) = opt(true, assumptions)
+
     override fun predict(instance: Instance) = root.findLeaf(instance).data.mean
 
     override fun train(instance: Instance, result: Float, weight: Float) {
         root = root.update(instance, result, weight)
     }
 
-    private inner class AuditNode(setLiterals: IntCollection, total: E)
-        : LeafNode<E>(setLiterals, total, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
+    private inner class AuditNode(setLiterals: IntCollection, total: VarianceEstimator)
+        : LeafNode(setLiterals, total, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
 
         var nViewed: Int = 0
 
@@ -151,29 +157,29 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
             set.toArray()
         }
 
-        val dataPos = Array<VarianceEstimator>(auditedValues.size) { banditPolicy.baseData() }
-        val dataNeg = Array<VarianceEstimator>(auditedValues.size) { banditPolicy.baseData() }
+        val dataPos = Array(auditedValues.size) { banditPolicy.baseData() }
+        val dataNeg = Array(auditedValues.size) { banditPolicy.baseData() }
 
-        override fun update(instance: Instance, result: Float, weight: Float): Node<E> {
+        override fun update(instance: Instance, result: Float, weight: Float): Node {
             banditPolicy.update(data, result, weight)
             nViewed++
             for ((i, ix) in auditedValues.withIndex()) {
-                if (instance.isSet(ix)) banditPolicy.accept(dataPos[i] as E, result, weight)
+                if (instance.isSet(ix)) banditPolicy.accept(dataPos[i], result, weight)
                 else {
                     val reifiedLiteral = if (parameters.reifiedLiterals == null) 0 else parameters.reifiedLiterals[ix]
                     if (reifiedLiteral == 0 || instance.literal(reifiedLiteral.toIx()) == reifiedLiteral)
-                        banditPolicy.accept(dataNeg[i] as E, result, weight)
+                        banditPolicy.accept(dataNeg[i], result, weight)
                 }
             }
 
             if (nViewed % splitPeriod == 0) {
-                val total = dataPos[0].combine(dataNeg[0]) as E
+                val total = dataPos[0].combine(dataNeg[0])
                 val (sm1, sm2, bestI) = splitMetric.split(total, dataPos, dataNeg, minSamplesSplit, minSamplesLeaf)
                 val eps = hoeffdingBound(delta, data.nbrWeightedSamples, literals.size)
                 if (bestI >= 0 && (sm2 / sm1 < 1 - eps || eps < tau)) {
 
-                    val totalPos = dataPos[bestI] as E
-                    val totalNeg = dataNeg[bestI] as E
+                    val totalPos = dataPos[bestI]
+                    val totalNeg = dataNeg[bestI]
 
                     val posHigh = dataPos[bestI].mean > dataNeg[bestI].mean
                     val inOrder = (posHigh && maximize) || (!posHigh && !maximize)
@@ -183,8 +189,8 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
                     nbrAuditNodes--
                     nbrNodes--
 
-                    val pos: LeafNode<E>
-                    val neg: LeafNode<E>
+                    val pos: LeafNode
+                    val neg: LeafNode
                     val posLiterals = literals.mutableCopy(nullValue = 0).apply { add(auditedValues[bestI].toLiteral(true)) }
                     val negLiterals = literals.mutableCopy(nullValue = 0).apply { add(auditedValues[bestI].toLiteral(false)) }
 
@@ -215,7 +221,7 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
     /**
      * Add and index new leaf node. It needs to be added to the correct split node by the caller.
      */
-    private tailrec fun createLeafNode(setLiterals: IntCollection, total: E): LeafNode<E> {
+    private tailrec fun createLeafNode(setLiterals: IntCollection, total: VarianceEstimator): LeafNode {
         nbrNodes++
         return if (2 + nbrNodes + 2 * nbrAuditNodes <= maxNodes && liveNodes.size < maxLiveNodes
                 && setLiterals.size < model.problem.nbrValues && setLiterals.size < maxDepth) {
@@ -265,28 +271,28 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         }
     }
 
-    override fun importData(data: TreeData<E>) {
+    override fun importData(data: TreeData) {
         for (d in data.nodes) {
             root.findLeaves(d.literals).forEach {
                 banditPolicy.removeArm(it.data)
-                val combined = it.data.combine(d.data) as E
+                val combined = it.data.combine(d.data)
                 it.data = combined
                 banditPolicy.addArm(combined)
             }
         }
     }
 
-    override fun exportData(): TreeData<E> {
-        val data = ArrayList<NodeData<E>>()
-        val queue = ArrayList<Pair<IntArray, SplitNode<E>>>()
+    override fun exportData(): TreeData {
+        val data = ArrayList<NodeData>()
+        val queue = ArrayList<Pair<IntArray, SplitNode>>()
         if (root is SplitNode) queue.add(EMPTY_INT_ARRAY to root as SplitNode)
         while (queue.isNotEmpty()) {
             val (lits, r) = queue.removeAt(queue.lastIndex)
             val posLits = lits + r.ix.toLiteral(true)
             val negLits = lits + r.ix.toLiteral(false)
-            if (r.pos is SplitNode<E>) queue.add(posLits to r.pos as SplitNode<E>)
+            if (r.pos is SplitNode) queue.add(posLits to r.pos as SplitNode)
             else data += NodeData(posLits, (r.pos as LeafNode).data)
-            if (r.neg is SplitNode<E>) queue.add(negLits to r.neg as SplitNode<E>)
+            if (r.neg is SplitNode) queue.add(negLits to r.neg as SplitNode)
             else data += NodeData(negLits, (r.neg as LeafNode).data)
         }
         return TreeData(data)
@@ -295,7 +301,7 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
     /**
      * Problem and bandit policy are mandatory
      */
-    class Builder<E : VarianceEstimator>(val model: Model, val banditPolicy: BanditPolicy<E>) : PredictionBanditBuilder<TreeData<E>> {
+    class Builder(val model: Model, val banditPolicy: BanditPolicy) : PredictionBanditBuilder<TreeData> {
 
         private var optimizer: Optimizer<SatObjective>? = null
         private var randomSeed: Int = nanos().toInt()
@@ -303,9 +309,9 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         private var splitMetric: SplitMetric =
                 if (banditPolicy.baseData() is BinaryEstimator) GiniCoefficient
                 else VarianceReduction
-        private var delta: Float = 0.05f
+        private var delta: Float = 0.5f
         private var deltaDecay: Float = 0.5f
-        private var tau: Float = 0.01f
+        private var tau: Float = 0.1f
         private var maxNodes: Int = 500
         private var maxLiveNodes: Int = 100
         private var viewedValues: Int = min(model.nbrVariables * 2, 100)
@@ -322,7 +328,7 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         private var splitters = HashMap<Variable<*, *>, ValueSplitter>()
         private var filterMissingData: Boolean = true
 
-        private var root: Node<E>? = null
+        private var root: Node? = null
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
@@ -381,21 +387,16 @@ class DecisionTreeBandit<E : VarianceEstimator>(val parameters: ExtendedTreePara
         /** Whether data should be automatically filtered for update for variables that are undefined (otherwise counted as false). */
         fun filterMissingData(filterMissingData: Boolean) = apply { this.filterMissingData = filterMissingData }
 
-        override fun importData(data: TreeData<E>) = apply { this.root = data.buildTree(banditPolicy) }
+        override fun importData(data: TreeData) = apply { this.root = data.buildTree(banditPolicy) }
 
         override fun parallel() = ParallelPredictionBandit.Builder(this)
 
-        override fun build(): DecisionTreeBandit<E> {
-            val parameters = ExtendedTreeParameters(model = model, banditPolicy = banditPolicy,
-                    optimizer = optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed)
-                            .cached().pNew(1.0f).maxSize(10).build(),
-                    randomSeed = randomSeed, maximize = maximize, rewards = rewards, trainAbsError = trainAbsError,
-                    testAbsError = testAbsError, splitMetric = splitMetric, delta = delta, deltaDecay = deltaDecay,
-                    tau = tau, maxNodes = maxNodes, maxDepth = maxDepth, maxLiveNodes = maxLiveNodes,
-                    viewedValues = viewedValues, splitPeriod = splitPeriod,
-                    minSamplesSplit = minSamplesSplit, minSamplesLeaf = minSamplesLeaf,
-                    propagateAssumptions = propagateAssumptions, blockQueueSize = blockQueueSize,
-                    maxRestarts = maxRestarts, splitters = splitters, filterMissingData = filterMissingData)
+        override fun build(): DecisionTreeBandit {
+            val parameters = ExtendedTreeParameters(model, banditPolicy,
+                    optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed).fallbackCached().build(),
+                    randomSeed, maximize, rewards, trainAbsError, testAbsError, splitMetric, delta, deltaDecay,
+                    tau, maxNodes, maxDepth, maxLiveNodes, viewedValues, splitPeriod, minSamplesSplit, minSamplesLeaf,
+                    propagateAssumptions, splitters, filterMissingData, blockQueueSize, maxRestarts)
             return DecisionTreeBandit(parameters, root, null)
         }
     }

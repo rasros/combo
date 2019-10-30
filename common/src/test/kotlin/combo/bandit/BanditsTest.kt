@@ -54,6 +54,13 @@ abstract class BanditTest<B : Bandit<*>> {
     }
 
     @Test
+    fun poissonDefault() {
+        val m = model { bool() }
+        val bandit = bandit(m, TestParameters(TestType.POISSON, 0, true))
+        bandit.update(BitArray(1), 0f)
+    }
+
+    @Test
     fun allProblemsFeasible() {
         for ((i, m) in MODELS.withIndex()) {
             val seed = nanos().toInt()
@@ -175,11 +182,11 @@ abstract class BanditTest<B : Bandit<*>> {
             val data1 = (bandit as Bandit<BanditData>).exportData()
             val data2 = (bandit as Bandit<BanditData>).exportData()
             when (data1) {
-                is InstancesData<*> -> assertContentEquals(data1.instances, (data2 as InstancesData<*>).instances)
-                is TreeData<*> -> assertContentEquals(data1.nodes, (data2 as TreeData<*>).nodes)
-                is ForestData<*> -> {
+                is InstancesData -> assertContentEquals(data1.instances, (data2 as InstancesData).instances)
+                is TreeData -> assertContentEquals(data1.nodes, (data2 as TreeData).nodes)
+                is ForestData -> {
                     for (i in data1.trees.indices)
-                        assertContentEquals(data1.trees[i], (data2 as ForestData<*>).trees[i])
+                        assertContentEquals(data1.trees[i], (data2 as ForestData).trees[i])
                 }
                 is LinearData -> assertContentEquals(data1.weights, (data2 as LinearData).weights)
                 else -> throw IllegalArgumentException("Update test with other types")
@@ -264,7 +271,7 @@ data class TestParameters(val type: TestType = TestType.BINOMIAL,
         }
     }
 
-    fun thompsonPolicy(): BanditPolicy<*> {
+    fun thompsonPolicy(): BanditPolicy {
         return when (type) {
             TestType.BINOMIAL -> ThompsonSampling(BinomialPosterior)
             TestType.NORMAL -> ThompsonSampling(NormalPosterior)
@@ -272,7 +279,7 @@ data class TestParameters(val type: TestType = TestType.BINOMIAL,
         }
     }
 
-    fun ucbPolicy(): BanditPolicy<*> {
+    fun ucbPolicy(): BanditPolicy {
         return when (type) {
             TestType.BINOMIAL -> UCB1Tuned()
             TestType.NORMAL -> UCB1Normal()

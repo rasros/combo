@@ -3,10 +3,10 @@ package combo.bandit
 import combo.math.VarianceEstimator
 import combo.sat.Instance
 
-data class InstanceData<out E : VarianceEstimator>(val instance: Instance, val data: E) {
+data class InstanceData(val instance: Instance, val data: VarianceEstimator) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other == null || other !is InstanceData<*>) return false
+        if (other == null || other !is InstanceData) return false
         return instance == other.instance && data == other.data
     }
 
@@ -17,8 +17,8 @@ data class InstanceData<out E : VarianceEstimator>(val instance: Instance, val d
     }
 }
 
-class InstancesData<out E : VarianceEstimator>(val instances: List<InstanceData<E>>)
-    : BanditData, List<InstanceData<E>> by instances {
+class InstancesData(val instances: List<InstanceData>)
+    : BanditData, List<InstanceData> by instances {
     override fun migrate(from: IntArray, to: IntArray): BanditData {
         TODO("not implemented")
     }

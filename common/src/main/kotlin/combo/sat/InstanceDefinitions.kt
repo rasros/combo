@@ -60,8 +60,8 @@ interface Instance : VectorView {
     override fun norm2() = sqrt(sum())
     override fun sum() = cardinality().toFloat()
 
-    override fun toFloatArray() = FloatArray(size) { if (this.isSet(it)) 1.0f else 0.0f }
-    override fun toIntArray() = IntArray(size) { if (this.isSet(it)) 1 else 0 }
+    override fun toFloatArray() = FloatArray(size) { if (isSet(it)) 1.0f else 0.0f }
+    override fun toIntArray() = IntArray(size) { if (isSet(it)) 1 else 0 }
 }
 
 fun Instance.and(inst: Instance) {

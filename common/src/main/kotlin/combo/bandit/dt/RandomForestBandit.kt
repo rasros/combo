@@ -23,7 +23,8 @@ import kotlin.random.Random
 
 class RandomForestBandit(val parameters: ExtendedTreeParameters,
                          val trees: Array<DecisionTreeBandit>,
-                         val voteStrategy: VoteStrategy = SumVotes())
+                         val voteStrategy: VoteStrategy = SumVotes(),
+                         val instanceSamplingMean: Float = 1f)
     : PredictionBandit<ForestData>, TreeParameters by parameters {
 
     private val randomSequence = RandomSequence(randomSeed)
@@ -40,7 +41,7 @@ class RandomForestBandit(val parameters: ExtendedTreeParameters,
         step++
         val rng = randomSequence.next()
         for (t in trees) {
-            val n = rng.nextPoisson(1.0f)
+            val n = rng.nextPoisson(instanceSamplingMean)
             if (n > 0) t.train(instance, result, weight * n)
         }
     }
@@ -111,11 +112,11 @@ class RandomForestBandit(val parameters: ExtendedTreeParameters,
         private var trainAbsError: DataSample = VoidSample
         private var testAbsError: DataSample = VoidSample
         private var propagateAssumptions: Boolean = true
-        private var blockQueueSize: Int = 2
         private var splitters = HashMap<Variable<*, *>, ValueSplitter>()
         private var filterMissingData: Boolean = true
         private var importedData: ForestData? = null
         private var voteStrategy: VoteStrategy = SumVotes()
+        private var instanceSamplingMean: Float = 1f
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
@@ -172,9 +173,6 @@ class RandomForestBandit(val parameters: ExtendedTreeParameters,
         /** Whether unit propagation before search is performed when assumptions are used. */
         fun propagateAssumptions(propagateAssumptions: Boolean) = apply { this.propagateAssumptions = propagateAssumptions }
 
-        /** When the solver fails to generate an instance with assumptions, the assumptions are added to a blocked circular queue. */
-        fun blockQueueSize(blockQueueSize: Int) = apply { this.blockQueueSize = blockQueueSize }
-
         /** Custom value splitters to use instead of default. */
         fun addSplitter(variable: Variable<*, *>, splitter: ValueSplitter) = apply { this.splitters[variable] = splitter }
 
@@ -183,6 +181,9 @@ class RandomForestBandit(val parameters: ExtendedTreeParameters,
 
         /** How the optimization problem for vote resolution is decided. */
         fun voteStrategy(voteStrategy: VoteStrategy) = apply { this.voteStrategy = voteStrategy }
+
+        /** How many times each instance is given to each tree on average (passed to poisson distribution) */
+        fun instanceSamplingMean(instanceSamplingMean: Float) = apply { this.instanceSamplingMean = instanceSamplingMean }
 
         override fun importData(data: ForestData) = apply { this.importedData = data }
 
@@ -222,7 +223,7 @@ class RandomForestBandit(val parameters: ExtendedTreeParameters,
                     optimizer ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed).fallbackCached().build(),
                     randomSeed, maximize, rewards, trainAbsError, testAbsError, splitMetric, delta, deltaDecay, tau,
                     maxNodes, maxDepth, maxLiveNodes, viewedValues, splitPeriod, minSamplesSplit, minSamplesLeaf,
-                    propagateAssumptions, splitters, filterMissingData, blockQueueSize, 0)
+                    propagateAssumptions, splitters, filterMissingData, 0, 0)
             val rng = Random(randomSeed)
             val trees = if (importedData != null) {
                 Array(importedData!!.size) {
@@ -234,7 +235,7 @@ class RandomForestBandit(val parameters: ExtendedTreeParameters,
                     DecisionTreeBandit(treeParameters, null, sampleVariables(rng))
                 }
             }
-            return RandomForestBandit(treeParameters, trees, voteStrategy)
+            return RandomForestBandit(treeParameters, trees, voteStrategy, instanceSamplingMean)
         }
     }
 }

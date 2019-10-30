@@ -12,10 +12,10 @@ import kotlin.math.min
 /**
  * All state of the search is kept here. The score is defined as mean for genetic operators that use score directly.
  */
-class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
+class BanditCandidates(instances: Array<Instance>,
                                               val minSamples: Float,
                                               val maximize: Boolean,
-                                              val banditPolicy: BanditPolicy<E>) : Candidates {
+                                              val banditPolicy: BanditPolicy) : Candidates {
 
     override var instances = instances
         private set
@@ -37,7 +37,7 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
     var step = 0L
         private set
 
-    val estimators: MutableMap<Instance, E> = HashMap()
+    val estimators: MutableMap<Instance, VarianceEstimator> = HashMap()
     private val duplications: MutableMap<Instance, IntHashSet> = HashMap()
 
     init {
@@ -53,7 +53,7 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
         return if (maximize) -score else score
     }
 
-    fun estimator(position: Int): E? = estimators[instances[position]]
+    fun estimator(position: Int): VarianceEstimator? = estimators[instances[position]]
 
     /**
      * Updates the estimator of an instance with new data.
@@ -72,7 +72,7 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
     /**
      * @return candidate if it is unique
      */
-    fun replaceCandidate(position: Int, instance: Instance): E? {
+    fun replaceCandidate(position: Int, instance: Instance): VarianceEstimator? {
         val oldInstance = instances[position]
         instances[position] = instance
         origins[position] = step
@@ -83,8 +83,8 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
 
     fun isDuplicated(instance: Instance) = duplications[instance]?.size == 1
 
-    private inline fun indexCandidate(position: Int, data: () -> E) {
-        val e = estimators.getOrPut(instances[position]) {
+    private inline fun indexCandidate(position: Int, data: () -> VarianceEstimator) {
+        @Suppress("UNCHECKED_CAST") val e = estimators.getOrPut(instances[position]) {
             duplications[instances[position]] = IntHashSet(nullValue = -1)
             data()
         }
@@ -94,8 +94,8 @@ class BanditCandidates<E : VarianceEstimator>(instances: Array<Instance>,
         minMean = min(minMean, e.mean)
     }
 
-    private fun unindexCandidate(position: Int, oldInstance: Instance): E? {
-        var last: E? = null
+    private fun unindexCandidate(position: Int, oldInstance: Instance): VarianceEstimator? {
+        var last: VarianceEstimator? = null
         val set = duplications[oldInstance]
         if (set != null) {
             set.remove(position)

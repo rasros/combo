@@ -1,17 +1,14 @@
 package combo.bandit.univariate
 
-import combo.math.BinaryEstimator
 import combo.math.RunningVariance
-import combo.math.SquaredEstimator
-import combo.math.VarianceEstimator
 import combo.test.assertEquals
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-abstract class BanditPolicyTest<E : VarianceEstimator> {
-    abstract fun banditPolicy(): BanditPolicy<E>
+abstract class BanditPolicyTest {
+    abstract fun banditPolicy(): BanditPolicy
 
     @Test
     fun initialEvaluate() {
@@ -59,7 +56,7 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
         bp.addArm(arm1)
         bp.addArm(arm2)
         val rng = Random(0)
-        for (i in 0 until 50 ) {
+        for (i in 0 until 50) {
             val s1 = bp.evaluate(arm1, i.toLong(), false, rng)
             val s2 = bp.evaluate(arm2, i.toLong(), false, rng)
             if (s1 > s2) bp.update(arm1, 1.0f, 10.0f)
@@ -72,32 +69,32 @@ abstract class BanditPolicyTest<E : VarianceEstimator> {
     }
 }
 
-class ThompsonSamplingTest : BanditPolicyTest<VarianceEstimator>() {
+class ThompsonSamplingTest : BanditPolicyTest() {
     override fun banditPolicy() = ThompsonSampling(NormalPosterior)
 }
 
-class PooledThompsonSamplingTest : BanditPolicyTest<VarianceEstimator>() {
+class PooledThompsonSamplingTest : BanditPolicyTest() {
     override fun banditPolicy() = PooledThompsonSampling(
             HierarchicalNormalPosterior(PooledVarianceEstimator(RunningVariance(0.0f, 0.02f, 0.02f))))
 }
 
-class UCB1Test : BanditPolicyTest<BinaryEstimator>() {
+class UCB1Test : BanditPolicyTest() {
     override fun banditPolicy() = UCB1()
 }
 
-class UCB1NormalTest : BanditPolicyTest<SquaredEstimator>() {
+class UCB1NormalTest : BanditPolicyTest() {
     override fun banditPolicy() = UCB1Normal()
 }
 
-class UCB1TunedTest : BanditPolicyTest<SquaredEstimator>() {
+class UCB1TunedTest : BanditPolicyTest() {
     override fun banditPolicy() = UCB1Tuned()
 }
 
-class EpsilonGreedyTest : BanditPolicyTest<VarianceEstimator>() {
+class EpsilonGreedyTest : BanditPolicyTest() {
     override fun banditPolicy() = EpsilonGreedy()
 }
 
-class EpsilonDecreasingTest : BanditPolicyTest<VarianceEstimator>() {
+class EpsilonDecreasingTest : BanditPolicyTest() {
     override fun banditPolicy() = EpsilonDecreasing()
 }
 

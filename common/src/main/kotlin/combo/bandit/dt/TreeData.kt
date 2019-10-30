@@ -13,10 +13,10 @@ import combo.util.collectionOf
 /**
  * This class holds the data in the leaf nodes. The order of the [literals] is significant and cannot be changed.
  */
-data class NodeData<E : VarianceEstimator>(val literals: Literals, val data: E) {
+data class NodeData(val literals: Literals, val data: VarianceEstimator) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other == null || other !is NodeData<*>) return false
+        if (other == null || other !is NodeData) return false
         return literals.contentEquals(other.literals) && data == other.data
     }
 
@@ -27,12 +27,12 @@ data class NodeData<E : VarianceEstimator>(val literals: Literals, val data: E) 
     }
 }
 
-class TreeData<E : VarianceEstimator>(val nodes: List<NodeData<E>>) : BanditData, List<NodeData<E>> by nodes {
-    override fun migrate(from: IntArray, to: IntArray): TreeData<E> {
+class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes {
+    override fun migrate(from: IntArray, to: IntArray): TreeData {
         TODO("not implemented")
     }
 
-    fun buildTree(banditPolicy: BanditPolicy<E>): Node<E> {
+    fun buildTree(banditPolicy: BanditPolicy): Node {
         val prior = banditPolicy.baseData()
         if (nodes.isEmpty()) return TerminalNode(banditPolicy, EmptyCollection, prior, 0)
 
@@ -77,27 +77,25 @@ class TreeData<E : VarianceEstimator>(val nodes: List<NodeData<E>>) : BanditData
 
             // 3) add leaf node
             if (literals[stopIx] == r.ix.toLiteral(true)) {
-                @Suppress("UNCHECKED_CAST")
                 if ((r.pos as? LeafNode)?.data === prior)
-                    r.pos = TerminalNode(banditPolicy, collectionOf(*literals), data.copy() as E, 0)
+                    r.pos = TerminalNode(banditPolicy, collectionOf(*literals), data.copy(), 0)
                 // else there is junk in the historicData and the current node is ignored
             } else if (literals[stopIx] == r.ix.toLiteral(false)) {
-                @Suppress("UNCHECKED_CAST")
                 if ((r.neg as? LeafNode)?.data === prior)
-                    r.neg = TerminalNode(banditPolicy, collectionOf(*literals), data.copy() as E, 0)
+                    r.neg = TerminalNode(banditPolicy, collectionOf(*literals), data.copy(), 0)
                 // else there is junk in the historicData and the current node is ignored
             }
         }
 
         // Replace all TerminalNodes with data == prior with real node
-        val queue = ArrayQueue<SplitNode<E>>()
+        val queue = ArrayQueue<SplitNode>()
         queue.add(root)
         while (queue.size > 0) {
             val r = queue.remove()
-            if (r.pos is SplitNode<*>) queue.add(r.pos as SplitNode<E>)
+            if (r.pos is SplitNode) queue.add(r.pos as SplitNode)
             else if ((r.pos is TerminalNode) && (r.pos as TerminalNode).data === prior)
                 r.pos = TerminalNode(banditPolicy, (r.pos as TerminalNode).literals, banditPolicy.baseData(), 0)
-            if (r.neg is SplitNode<*>) queue.add(r.neg as SplitNode<E>)
+            if (r.neg is SplitNode) queue.add(r.neg as SplitNode)
             else if ((r.neg is TerminalNode) && (r.neg as TerminalNode).data === prior)
                 r.neg = TerminalNode(banditPolicy, (r.neg as TerminalNode).literals, banditPolicy.baseData(), 0)
         }
@@ -105,8 +103,8 @@ class TreeData<E : VarianceEstimator>(val nodes: List<NodeData<E>>) : BanditData
     }
 }
 
-class ForestData<E : VarianceEstimator>(val trees: List<TreeData<E>>)
-    : BanditData, List<TreeData<E>> by trees {
+class ForestData(val trees: List<TreeData>)
+    : BanditData, List<TreeData> by trees {
     override fun migrate(from: IntArray, to: IntArray): BanditData {
         TODO("not implemented")
     }

@@ -169,6 +169,36 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
         }
     }
 
+    override fun optimal(assumptions: IntCollection): Instance? {
+        while (true) {
+            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+                val b = bandits[i] as ConcurrentBandit<D>
+                val locked = b.lock.readLock().tryLock()
+                if (!locked) continue
+                try {
+                    return b.optimal(assumptions)
+                } finally {
+                    b.lock.readLock().unlock()
+                }
+            }
+        }
+    }
+
+    override fun optimalOrThrow(assumptions: IntCollection): Instance {
+        while (true) {
+            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+                val b = bandits[i] as ConcurrentBandit<D>
+                val locked = b.lock.readLock().tryLock()
+                if (!locked) continue
+                try {
+                    return b.optimalOrThrow(assumptions)
+                } finally {
+                    b.lock.readLock().unlock()
+                }
+            }
+        }
+    }
+
     override fun exportData(): D = bandits[0].exportData()
 
     override fun updateAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
@@ -273,6 +303,14 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
         override fun chooseOrThrow(assumptions: IntCollection) =
                 if (assumptions.isNotEmpty()) lock.write { base.chooseOrThrow(assumptions) }
                 else lock.read { base.chooseOrThrow(assumptions) }
+
+        override fun optimal(assumptions: IntCollection) =
+                if (assumptions.isNotEmpty()) lock.write { base.optimal(assumptions) }
+                else lock.read { base.optimal(assumptions) }
+
+        override fun optimalOrThrow(assumptions: IntCollection) =
+                if (assumptions.isNotEmpty()) lock.write { base.optimalOrThrow(assumptions) }
+                else lock.read { base.optimalOrThrow(assumptions) }
     }
 }
 
@@ -362,5 +400,13 @@ class ParallelPredictionBandit<D : BanditData>(bandits: Array<Bandit<D>>, batchS
         override fun chooseOrThrow(assumptions: IntCollection) =
                 if (assumptions.isNotEmpty()) lock.write { base.chooseOrThrow(assumptions) }
                 else lock.read { base.chooseOrThrow(assumptions) }
+
+        override fun optimal(assumptions: IntCollection) =
+                if (assumptions.isNotEmpty()) lock.write { base.optimal(assumptions) }
+                else lock.read { base.optimal(assumptions) }
+
+        override fun optimalOrThrow(assumptions: IntCollection) =
+                if (assumptions.isNotEmpty()) lock.write { base.optimalOrThrow(assumptions) }
+                else lock.read { base.optimalOrThrow(assumptions) }
     }
 }

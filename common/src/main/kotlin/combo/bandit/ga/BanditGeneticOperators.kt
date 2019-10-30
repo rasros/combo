@@ -9,13 +9,13 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-class EliminationChain<E : VarianceEstimator>(vararg val eliminators: SelectionOperator<BanditCandidates<E>>) : SelectionOperator<BanditCandidates<E>> {
+class EliminationChain(vararg val eliminators: SelectionOperator<BanditCandidates>) : SelectionOperator<BanditCandidates> {
 
     init {
         require(eliminators.isNotEmpty())
     }
 
-    override fun select(candidates: BanditCandidates<E>, rng: Random): Int {
+    override fun select(candidates: BanditCandidates, rng: Random): Int {
         for (e in eliminators) {
             val el = e.select(candidates, rng)
             if (el >= 0) return el
@@ -28,7 +28,7 @@ class EliminationChain<E : VarianceEstimator>(vararg val eliminators: SelectionO
  * This eliminates the first candidate/bandit that is proven to be significantly worse than another.
  * @param alpha significance level to used to calculate z-value.
  */
-class SignificanceTestElimination(alpha: Float = 0.05f) : SelectionOperator<BanditCandidates<*>> {
+class SignificanceTestElimination(alpha: Float = 0.05f) : SelectionOperator<BanditCandidates> {
 
     init {
         require(alpha > 0.0f && alpha < 1.0f)
@@ -36,7 +36,7 @@ class SignificanceTestElimination(alpha: Float = 0.05f) : SelectionOperator<Band
 
     val z = normInvCdf(1 - alpha / 2)
 
-    override fun select(candidates: BanditCandidates<*>, rng: Random): Int {
+    override fun select(candidates: BanditCandidates, rng: Random): Int {
         var maxCI = Float.NEGATIVE_INFINITY
         var minCI = Float.POSITIVE_INFINITY
         val perm = IntPermutation(candidates.nbrCandidates, rng)
@@ -77,8 +77,8 @@ class SignificanceTestElimination(alpha: Float = 0.05f) : SelectionOperator<Band
 /**
  * This eliminates the candidate/bandit with smallest number of plays.
  */
-class SmallestCountElimination : SelectionOperator<BanditCandidates<*>> {
-    override fun select(candidates: BanditCandidates<*>, rng: Random): Int {
+class SmallestCountElimination : SelectionOperator<BanditCandidates> {
+    override fun select(candidates: BanditCandidates, rng: Random): Int {
         var min = Float.POSITIVE_INFINITY
         var minIx = -1
         for (i in candidates.instances.indices) {

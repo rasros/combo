@@ -7,7 +7,7 @@ import combo.sat.optimizers.LocalSearchTest
 import combo.sat.optimizers.ObjectiveFunction
 import combo.sat.optimizers.Optimizer
 
-class GeneticAlgorithmBanditTest : BanditTest<GeneticAlgorithmBandit<*>>() {
+class GeneticAlgorithmBanditTest : BanditTest<GeneticAlgorithmBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) = GeneticAlgorithmBandit.Builder(model.problem, parameters.thompsonPolicy())
             .rewards(parameters.rewards)
             .randomSeed(parameters.randomSeed)

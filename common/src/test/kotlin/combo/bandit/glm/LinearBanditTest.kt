@@ -2,11 +2,24 @@ package combo.bandit.glm
 
 import combo.bandit.BanditTest
 import combo.bandit.TestParameters
+import combo.math.vectors
 import combo.model.Model
 
-class DiagonalCovarianceLinearBanditTest : BanditTest<LinearBandit<*>>() {
+class GreedyLinearBanditTest : BanditTest<LinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.diagonalCovarianceBuilder(model.problem)
+            LinearBandit.greedyBuilder(model.problem)
+                    .exploration(1f)
+                    .family(parameters.variance())
+                    .randomSeed(parameters.randomSeed)
+                    .maximize(parameters.maximize)
+                    .rewards(parameters.rewards)
+                    .build()
+
+}
+
+class PrecisionLinearBanditTest : BanditTest<LinearBandit>() {
+    override fun bandit(model: Model, parameters: TestParameters) =
+            LinearBandit.precisionBuilder(model.problem)
                     .family(parameters.variance())
                     .randomSeed(parameters.randomSeed)
                     .maximize(parameters.maximize)
@@ -14,9 +27,9 @@ class DiagonalCovarianceLinearBanditTest : BanditTest<LinearBandit<*>>() {
                     .build()
 }
 
-class FullCovarianceLinearBanditTest : BanditTest<LinearBandit<*>>() {
+class CovarianceLinearBanditTest : BanditTest<LinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.fullCovarianceBuilder(model.problem)
+            LinearBandit.covarianceBuilder(model.problem)
                     .family(parameters.variance())
                     .randomSeed(parameters.randomSeed)
                     .maximize(parameters.maximize)

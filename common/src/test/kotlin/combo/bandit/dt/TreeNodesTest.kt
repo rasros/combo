@@ -107,6 +107,6 @@ class TreeNodesTest {
 }
 
 private class TestNode(setLiterals: IntCollection, data: VarianceEstimator = RunningVariance(), blocked: RandomCache<IntCollection>? = null)
-    : LeafNode<VarianceEstimator>(setLiterals, data, blocked) {
+    : LeafNode(setLiterals, data, blocked) {
     override fun update(instance: Instance, result: Float, weight: Float) = this
 }

@@ -119,14 +119,12 @@ class UnivariatePosteriorsTest {
     fun properPriors() {
         for ((i, posterior) in arrayOf(PoissonPosterior, ExponentialPosterior, NormalPosterior, GammaScalePosterior(0.1f),
                 BinomialPosterior, GeometricPosterior, LogNormalPosterior).withIndex()) {
-            @Suppress("UNCHECKED_CAST")
-            val post = posterior as UnivariatePosterior<VarianceEstimator>
             val rng = Random(i)
-            val prior = post.defaultPrior()
+            val prior = posterior.defaultPrior()
             assertTrue(prior.variance.isFinite(), i.toString())
             assertTrue(prior.mean.isFinite(), i.toString())
             val s = RunningVariance()
-            generateSequence { post.sample(prior, rng) }.take(50).forEach { s.accept(it) }
+            generateSequence { posterior.sample(prior, rng) }.take(50).forEach { s.accept(it) }
             assertTrue(s.variance.isFinite(), i.toString())
             assertTrue(s.variance > 0, i.toString())
             assertTrue(s.mean.isFinite(), i.toString())
