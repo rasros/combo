@@ -1,7 +1,7 @@
 package combo.sat.optimizers
 
 import combo.math.EMPTY_VECTOR
-import combo.math.Vector
+import combo.math.VectorView
 import combo.math.sumBy
 import combo.sat.Instance
 import combo.sat.literal
@@ -39,7 +39,7 @@ interface ObjectiveFunction {
 /**
  * Linear sum objective, as in linear programming.
  */
-open class LinearObjective(val maximize: Boolean, val weights: Vector) : ObjectiveFunction {
+open class LinearObjective(val maximize: Boolean, val weights: VectorView) : ObjectiveFunction {
 
     private val lowerBound: Float = if (maximize) -weights.sumBy { max(0.0f, it) } else
         weights.sumBy { min(0.0f, it) }

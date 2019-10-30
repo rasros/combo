@@ -48,7 +48,7 @@ class LocalSearch(val problem: Problem,
                   val instanceFactory: InstanceFactory = BitArrayFactory,
                   val initializer: InstanceInitializer<*> = ConstraintCoercer(problem, WordRandomSet()),
                   val eps: Float = 1E-4f,
-                  val maxConsideration: Int = max(20, problem.nbrValues / 5),
+                  val maxConsideration: Int = max(20, min(100, problem.nbrValues / 5)),
                   val propagateAssumptions: Boolean = true,
                   val transitiveImplications: TransitiveImplications? = null) : Optimizer<ObjectiveFunction> {
 
@@ -67,10 +67,10 @@ class LocalSearch(val problem: Problem,
             val units = IntHashSet()
             units.addAll(assumptions)
             p = Problem(problem.nbrValues, problem.unitPropagation(units, true))
-            assumption = WeightedConstraint(1000, Conjunction(units))
+            assumption = Conjunction(units)
         } else {
             p = problem
-            assumption = if (assumptions.isEmpty()) Tautology else WeightedConstraint(1000, Conjunction(assumptions))
+            assumption = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
         }
 
         val adjustedMaxConsideration = max(2, min(maxConsideration, p.nbrValues))
@@ -124,7 +124,7 @@ class LocalSearch(val problem: Problem,
                             OffsetIterator(1, IntPermutation(p.nbrValues, rng).iterator())
                         else (1..p.nbrValues).iterator()
                     }
-                    var maxSatImp = Int.MIN_VALUE
+                    var maxSatImp = -validator.totalUnsatisfied
                     var maxOptImp = 0.0f
                     var bestIx = -1
                     for (k in 0 until n) {
@@ -199,7 +199,7 @@ class LocalSearch(val problem: Problem,
         private var tabuListSize: Int = Int.power2(min(problem.nbrValues, 2))
         private var instanceFactory: InstanceFactory = BitArrayFactory
         private var eps: Float = 1E-4f
-        private var maxConsideration: Int = max(20, problem.nbrValues / 5)
+        private var maxConsideration: Int = max(20, min(100, problem.nbrValues / 5))
         private var propagateAssumptions: Boolean = true
 
         private var propagateFlips: Boolean = false
@@ -255,6 +255,8 @@ class LocalSearch(val problem: Problem,
         /** Wrap this in a cached optimizer. */
         fun cached() = CachedOptimizer.Builder(build())
 
+        fun fallbackCached() = cached().pNew(1f).maxSize(10)
+
         fun build(): LocalSearch {
 
             val digraph = if (propagateFlips || initializerType == InitializerType.PROPAGATE_COERCE
@@ -262,6 +264,7 @@ class LocalSearch(val problem: Problem,
             else null
 
             val randomizer = if (initializerBias > 0.999f) RandomSet(initializerBias)
+            else if (initializerBias == 0.0f) NoInitializer(false)
             else if (initializerBias <= 0.01f) GeometricRandomSet(initializerBias)
             else WordRandomSet(initializerBias)
             val init = when (initializerType) {
@@ -270,6 +273,7 @@ class LocalSearch(val problem: Problem,
                 InitializerType.COERCE -> ConstraintCoercer(problem, randomizer)
                 InitializerType.PROPAGATE_COERCE -> ImplicationConstraintCoercer(problem, digraph!!, randomizer)
                 InitializerType.WEIGHT_MAX_PROPAGATE_COERCE -> ImplicationConstraintCoercer(problem, digraph!!, WeightSet(initializerNoise))
+                InitializerType.NONE -> NoInitializer(true)
             }
 
             return LocalSearch(problem, randomSeed = randomSeed, timeout = timeout, restarts = restarts,

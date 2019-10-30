@@ -299,18 +299,21 @@ class GeneticAlgorithm(val problem: Problem,
         fun build(): GeneticAlgorithm {
 
             val randomizer = if (initializerBias > 0.999f) RandomSet(initializerBias)
-            else if (initializerBias < 0.01f) GeometricRandomSet(initializerBias)
+            else if (initializerBias == 0.0f) NoInitializer(false)
+            else if (initializerBias <= 0.01f) GeometricRandomSet(initializerBias)
             else WordRandomSet(initializerBias)
 
             val digraph = if (mutation == null || initializerType == InitializerType.PROPAGATE_COERCE ||
                     initializerType == InitializerType.WEIGHT_MAX_PROPAGATE_COERCE) TransitiveImplications(problem)
             else null
+
             val init = when (initializerType) {
                 InitializerType.WEIGHT_MAX -> WeightSet(initializerNoise)
                 InitializerType.RANDOM -> randomizer
                 InitializerType.COERCE -> ConstraintCoercer(problem, randomizer)
                 InitializerType.PROPAGATE_COERCE -> ImplicationConstraintCoercer(problem, digraph!!, randomizer)
                 InitializerType.WEIGHT_MAX_PROPAGATE_COERCE -> ImplicationConstraintCoercer(problem, digraph!!, WeightSet(initializerNoise))
+                InitializerType.NONE -> NoInitializer(true)
             }
 
             return GeneticAlgorithm(problem = problem, randomSeed = randomSeed, timeout = timeout,
