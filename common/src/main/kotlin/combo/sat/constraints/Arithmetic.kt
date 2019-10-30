@@ -216,27 +216,15 @@ class CardinalityVar(valueLiterals: IntCollection, val degreeVar: IntVar, val va
         else IntUnionCollection(valueLiterals, IntUnionCollection(degreeLiterals, collectionOf(parentLiteral)))
     }
 
-    override fun cacheUpdate(cacheResult: Int, newLit: Int) = cacheResult + if (newLit in literals.a) 1 else -1
+    private val baseCardinality = Cardinality(literals.a, 0, relation)
 
-    override fun cache(instance: Instance): Int {
-        var sum = 0
-        if (literals.a is IntRangeCollection) {
-            val lits = literals.a
-            var ix = min(lits.min.toIx(), lits.max.toIx())
-            val ints = (size shr 5) + if (size and 0x1F > 0) 1 else 0
-            for (i in 0 until ints) {
-                val nbrBits = if (i == ints - 1) ((size - 1) and 0x1F) + 1 else 32
-                val value = instance.getBits(ix, nbrBits)
-                sum += if (lits.min < 0) nbrBits - Int.bitCount(value) else Int.bitCount(value)
-                ix += nbrBits
-            }
-            return sum
-        }
-        for (lit in literals.a.iterator()) {
-            if (instance.literal(lit.toIx()) == lit) sum++
-        }
-        return sum
+    override fun cacheUpdate(cacheResult: Int, newLit: Int) = cacheResult + when {
+        newLit in literals.a -> 1
+        !newLit in literals.a -> -1
+        else -> 0
     }
+
+    override fun cache(instance: Instance) = baseCardinality.cache(instance)
 
     override operator fun not() = CardinalityVar(literals.a, degreeVar, varIndex, parentLiteral, !relation)
 
