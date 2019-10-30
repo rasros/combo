@@ -1,9 +1,12 @@
-package combo.nn
+package combo.bandit.nn
 
+import combo.bandit.nn.BatchNormalizationLayer
+import combo.bandit.nn.BinarySoftmaxLayer
+import combo.bandit.nn.DenseLayer
 import combo.math.FallbackMatrix
 import combo.math.FallbackVector
 import combo.math.IdentityTransform
-import combo.math.ReLU
+import combo.math.RectifierTransform
 import combo.sat.BitArray
 import combo.test.assertContentEquals
 import combo.test.assertEquals
@@ -56,7 +59,7 @@ class BinarySoftmaxLayerTest {
     }
 }
 
-class RegressionNetworkTest {
+class StaticNetworkTest {
 
     @Test
     fun activate() {
@@ -66,9 +69,9 @@ class RegressionNetworkTest {
                         floatArrayOf(1f, 2f, -1f),
                         floatArrayOf(-2f, 1.5f, -3f)
                 )), FallbackVector(floatArrayOf(0.5f, -1f))
-                , ReLU)
+                , RectifierTransform)
         val output = BinarySoftmaxLayer()
-        val net = RegressionNetwork(true, arrayOf(input), output)
+        val net = StaticNetwork(arrayOf(input), output)
 
         val vec = FallbackVector(floatArrayOf(-1f, 2f, 1.5f))
         val result = net.predict(vec)
