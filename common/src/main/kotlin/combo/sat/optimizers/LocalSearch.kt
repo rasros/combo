@@ -35,14 +35,14 @@ import kotlin.math.min
  * @param eps Threshold of improvement to stop current iteration in the search.
  * @param maxConsideration Maximum number of variables to consider during each search, set to [Int.MAX_VALUE] to disable.
  * @param propagateAssumptions Whether unit propagation before search is performed when assumptions are used.
- * @param transitiveImplications Used to propagate flips.
+ * @param transitiveImplications Used to propagate flips for implications, set to null for no propagations.
  */
 class LocalSearch(val problem: Problem,
                   override val randomSeed: Int = nanos().toInt(),
                   override val timeout: Long = -1L,
                   val restarts: Int = 5,
                   val maxSteps: Int = max(100, problem.nbrValues),
-                  val pRandomWalk: Float = 0.8f,
+                  val pRandomWalk: Float = 0.1f,
                   val pRandomWalkDecay: Float = 0.95f,
                   tabuListSize: Int = Int.power2(min(problem.nbrValues, 2)),
                   val instanceFactory: InstanceFactory = BitArrayFactory,
@@ -130,12 +130,24 @@ class LocalSearch(val problem: Problem,
                     for (k in 0 until n) {
                         val ix = itr.nextInt().toIx()
                         if (ix in tabuBuffer) continue
-                        val satScore = validator.improvement(ix)
-                        val optScore = function.improvement(instance, ix)
-                        if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
-                            bestIx = ix
-                            maxSatImp = satScore
-                            maxOptImp = optScore
+                        if (transitiveImplications != null && transitiveImplications.hasPropagations(!instance.literal(ix))) {
+                            val copy = validator.copy()
+                            copy.flipPropagate(ix, transitiveImplications)
+                            val satScore = validator.totalUnsatisfied - copy.totalUnsatisfied
+                            val optScore = prevValue - function.value(copy.instance)
+                            if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
+                                bestIx = ix
+                                maxSatImp = satScore
+                                maxOptImp = optScore
+                            }
+                        } else {
+                            val satScore = validator.improvement(ix)
+                            val optScore = function.improvement(instance, ix)
+                            if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
+                                bestIx = ix
+                                maxSatImp = satScore
+                                maxOptImp = optScore
+                            }
                         }
                     }
                     bestIx
@@ -143,17 +155,8 @@ class LocalSearch(val problem: Problem,
 
                 if (ix < 0)
                     break
-                val improvement = if (transitiveImplications != null) {
-                    validator.flip(ix)
-                    val literal = !instance.literal(ix)
-                    transitiveImplications.trueImplications(literal)?.let {
-                        for (i in it)
-                            validator[i] = true
-                    }
-                    transitiveImplications.falseImplications(literal)?.let {
-                        for (i in it)
-                            validator[i] = true
-                    }
+                val improvement = if (transitiveImplications != null && transitiveImplications.hasPropagations(!instance.literal(ix))) {
+                    validator.flipPropagate(ix, transitiveImplications)
                     val score = function.value(instance)
                     val imp = prevValue - score
                     prevValue = score
@@ -194,7 +197,7 @@ class LocalSearch(val problem: Problem,
         private var timeout: Long = -1L
         private var restarts: Int = 5
         private var maxSteps: Int = max(100, problem.nbrValues)
-        private var pRandomWalk: Float = 0.8f
+        private var pRandomWalk: Float = 0.1f
         private var pRandomWalkDecay: Float = 0.95f
         private var tabuListSize: Int = Int.power2(min(problem.nbrValues, 2))
         private var instanceFactory: InstanceFactory = BitArrayFactory
@@ -249,7 +252,7 @@ class LocalSearch(val problem: Problem,
         /** Whether unit propagation before search is performed when assumptions are used. */
         fun propagateAssumptions(propagateAssumptions: Boolean) = apply { this.propagateAssumptions = propagateAssumptions }
 
-        /** Whether propagations are done through the implications that the problem defines. */
+        /** Whether flips propagate during search, each flip will be more expensive but more effective. */
         fun propagateFlips(propagateFlips: Boolean) = apply { this.propagateFlips = propagateFlips }
 
         /** Wrap this in a cached optimizer. */

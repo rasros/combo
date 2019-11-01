@@ -10,7 +10,9 @@ import kotlin.random.Random
  * This contains cached information about satisfied constraints used during search by search-based methods,
  * [combo.sat.optimizers.GeneticAlgorithm] and [combo.sat.optimizers.LocalSearch].
  */
-class Validator(val problem: Problem, val instance: Instance, val assumption: Constraint) : Instance by instance {
+class Validator private constructor(val problem: Problem, val instance: Instance, val assumption: Constraint, rebuildIndex: Boolean) : Instance by instance {
+
+    constructor(problem: Problem, instance: Instance, assumption: Constraint) : this(problem, instance, assumption, true)
 
     var totalUnsatisfied: Int = 0
         private set
@@ -25,7 +27,8 @@ class Validator(val problem: Problem, val instance: Instance, val assumption: Co
     private val constraintCache = IntArray(problem.nbrConstraints + 1)
 
     init {
-        rebuildIndex()
+        if (rebuildIndex)
+            rebuildIndex()
     }
 
     fun randomUnsatisfied(rng: Random): Constraint {
@@ -55,6 +58,16 @@ class Validator(val problem: Problem, val instance: Instance, val assumption: Co
     }
 
     override fun flip(ix: Int) = set(ix, !isSet(ix))
+    fun flipPropagate(ix: Int, implications: TransitiveImplications) {
+        flip(ix)
+        val literal = instance.literal(ix)
+        val trueImplications = implications.trueImplications(literal)
+        if (trueImplications != null)
+            for (j in trueImplications) this[j] = true
+        val falseImplications = implications.falseImplications(literal)
+        if (falseImplications != null)
+            for (j in falseImplications) this[j] = false
+    }
 
     override fun set(ix: Int, value: Boolean) {
         val literal = ix.toLiteral(value)
@@ -90,6 +103,14 @@ class Validator(val problem: Problem, val instance: Instance, val assumption: Co
     override fun clear() {
         instance.clear()
         rebuildIndex()
+    }
+
+    override fun copy(): Validator {
+        val copy = Validator(problem, instance.copy(), assumption, false)
+        constraintCache.copyInto(copy.constraintCache)
+        copy.totalUnsatisfied = totalUnsatisfied
+        copy.unsatisfied.addAll(unsatisfied)
+        return copy
     }
 
     private fun rebuildIndex() {

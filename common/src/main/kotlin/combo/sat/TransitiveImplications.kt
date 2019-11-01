@@ -62,6 +62,11 @@ class TransitiveImplications(val nbrValues: Int, implications: Map<Int, IntArray
         falseImplications(literal)?.run { instance.andNot(this) }
     }
 
+    fun hasPropagations(literal: Int): Boolean {
+        val ix = toArrayIndex(literal)
+        return trueImplications[ix] != null || falseImplications[ix] != null
+    }
+
     fun toArray(literal: Int): IntArray {
         val set = IntHashSet()
         trueImplications[toArrayIndex(literal)]?.forEach { set.add(it.toLiteral(true)) }
