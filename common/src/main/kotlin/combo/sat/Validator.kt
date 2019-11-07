@@ -38,9 +38,8 @@ class Validator private constructor(val problem: Problem, val instance: Instance
     }
 
     fun improvement(ix: Int): Int {
-        val literal = !instance.literal(ix)
         val assumptionImprovement =
-                if (literal.toIx() in assumptionIxs) improvementConst(ix, assumption, constraintCache.lastIndex)
+                if (ix in assumptionIxs) improvementConst(ix, assumption, constraintCache.lastIndex)
                 else 0
         return assumptionImprovement + problem.constraining(ix).sumBy { constId ->
             val const = problem.constraints[constId]
@@ -51,13 +50,14 @@ class Validator private constructor(val problem: Problem, val instance: Instance
     private fun improvementConst(ix: Int, const: Constraint, constId: Int): Int {
         val oldFlips = const.violations(this, constraintCache[constId])
         instance.flip(ix)
-        val newMatches = const.cacheUpdate(constraintCache[constId], instance.literal(ix))
-        val newFlips = const.violations(this, newMatches)
+        val cacheUpdate = const.cacheUpdate(constraintCache[constId], instance.literal(ix))
+        val newFlips = const.violations(this, cacheUpdate)
         instance.flip(ix)
         return oldFlips - newFlips
     }
 
     override fun flip(ix: Int) = set(ix, !isSet(ix))
+
     fun flipPropagate(ix: Int, implications: TransitiveImplications) {
         flip(ix)
         val literal = instance.literal(ix)
@@ -72,7 +72,7 @@ class Validator private constructor(val problem: Problem, val instance: Instance
     override fun set(ix: Int, value: Boolean) {
         val literal = ix.toLiteral(value)
         if (instance.literal(literal.toIx()) == literal) return
-        if (literal.toIx() in assumptionIxs)
+        if (ix in assumptionIxs)
             updateConst(ix, assumption, constraintCache.lastIndex)
         for (constId in problem.constraining(ix)) {
             val const = problem.constraints[constId]
