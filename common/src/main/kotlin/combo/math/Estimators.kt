@@ -27,6 +27,8 @@ interface VarianceEstimator : DataSample {
     val variance: Float get() = squaredDeviations / nbrWeightedSamples
     val standardDeviation: Float get() = sqrt(variance)
 
+    fun updateSampleSize(newN: Float)
+
     override fun copy(): VarianceEstimator
 }
 
@@ -107,6 +109,11 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
         squaredDeviations -= weight * (value - oldM) * (value - mean)
     }
 
+    override fun updateSampleSize(newN: Float) {
+        squaredDeviations *= newN / nbrWeightedSamples
+        nbrWeightedSamples = newN
+    }
+
     override fun toString() = "RunningVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = RunningVariance(mean, squaredDeviations, nbrWeightedSamples)
 
@@ -177,6 +184,10 @@ class ExponentialDecayVariance(val beta: Float = 0.02f, mean: Float = 0.0f, vari
         }
     }
 
+    override fun updateSampleSize(newN: Float) {
+        nbrWeightedSamples = newN
+    }
+
     override fun toString() = "ExponentialDecayVariance(mean=$mean, variance=$variance, nbrSamples=$nbrSamples)"
     override fun copy() = ExponentialDecayVariance(beta, mean, variance, nbrWeightedSamples)
 
@@ -236,6 +247,11 @@ class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEst
     override val variance: Float
         get() = mean * (1 - mean)
 
+    override fun updateSampleSize(newN: Float) {
+        sum *= newN / nbrWeightedSamples
+        nbrWeightedSamples = newN
+    }
+
     override fun toString() = "BinarySum(sum=$sum, nbrSamples=$nbrSamples)"
     override fun copy() = BinarySum(sum, nbrWeightedSamples)
 
@@ -272,6 +288,11 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
         nbrWeightedSamples -= weight
         val oldM = mean
         mean = oldM - (value - oldM) * (weight / nbrWeightedSamples)
+    }
+
+    override fun updateSampleSize(newN: Float) {
+        mean *= newN / nbrWeightedSamples
+        nbrWeightedSamples = newN
     }
 
     override fun toString() = "RunningMean(mean=$mean, nbrSamples=$nbrSamples)"
