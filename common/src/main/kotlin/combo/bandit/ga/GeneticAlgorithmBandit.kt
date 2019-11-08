@@ -212,7 +212,7 @@ class GeneticAlgorithmBandit(
         private var selection: SelectionOperator<BanditCandidates> = TournamentSelection(5)
         private var elimination: SelectionOperator<BanditCandidates> = EliminationChain(
                 SignificanceTestElimination(),
-                TournamentElimination(3))
+                TournamentElimination(10))
         private var eliminationPeriod: Int = 10
         private var recombinationProbability: Float = 0.5f
         private var mutation: MutationRate = FixedRateMutation()
@@ -279,7 +279,6 @@ class GeneticAlgorithmBandit(
             val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed)
                     .cached().pNew(1.0f).maxSize(10).build()
             val candidates = if (importedData == null) {
-                val candidateSize: Int = max(10, min(problem.nbrValues * 2, 100))
                 val instances: Array<Instance> = if (!allowDuplicates && optimizer.complete) {
                     optimizer.asSequence().take(candidateSize).toList().toTypedArray()
                 } else {
