@@ -8,16 +8,9 @@ import kotlin.math.sqrt
 
 
 interface SplitMetric {
+
     fun split(total: VarianceEstimator, pos: Array<VarianceEstimator>, neg: Array<VarianceEstimator>,
-              minSamplesSplit: Float, minSamplesLeaf: Float): SplitInfo
-}
-
-data class SplitInfo(val top1: Float, val top2: Float, val i: Int)
-
-abstract class TotalSplitMetric : SplitMetric {
-
-    override fun split(total: VarianceEstimator, pos: Array<VarianceEstimator>, neg: Array<VarianceEstimator>,
-                       minSamplesSplit: Float, minSamplesLeaf: Float): SplitInfo {
+              minSamplesSplit: Float, minSamplesLeaf: Float): SplitInfo {
         var top1 = 0.0f
         var top2 = 0.0f
         var bestI = -1
@@ -40,11 +33,13 @@ abstract class TotalSplitMetric : SplitMetric {
         return SplitInfo(top1, top2, bestI)
     }
 
-    open fun totalValue(total: VarianceEstimator): Float = 0.0f
-    abstract fun value(total: VarianceEstimator, pos: VarianceEstimator, neg: VarianceEstimator): Float
+    fun totalValue(total: VarianceEstimator): Float = 0.0f
+    fun value(total: VarianceEstimator, pos: VarianceEstimator, neg: VarianceEstimator): Float
 }
 
-object VarianceReduction : TotalSplitMetric() {
+data class SplitInfo(val top1: Float, val top2: Float, val i: Int)
+
+object VarianceReduction : SplitMetric {
     override fun totalValue(total: VarianceEstimator) = total.variance
     override fun value(total: VarianceEstimator, pos: VarianceEstimator, neg: VarianceEstimator): Float {
         val nPos = pos.nbrWeightedSamples
@@ -54,7 +49,7 @@ object VarianceReduction : TotalSplitMetric() {
     }
 }
 
-object TTest : TotalSplitMetric() {
+object TTest : SplitMetric {
     override fun totalValue(total: VarianceEstimator) = 1.0f
     override fun value(total: VarianceEstimator, pos: VarianceEstimator, neg: VarianceEstimator): Float {
         val nPos = pos.nbrWeightedSamples
@@ -67,7 +62,7 @@ object TTest : TotalSplitMetric() {
     }
 }
 
-object EntropyReduction : TotalSplitMetric() {
+object EntropyReduction : SplitMetric {
     override fun totalValue(total: VarianceEstimator): Float {
         val n = total.nbrWeightedSamples
         val pos = total.sum
@@ -87,7 +82,7 @@ object EntropyReduction : TotalSplitMetric() {
     }
 }
 
-object ChiSquareTest : TotalSplitMetric() {
+object ChiSquareTest : SplitMetric {
     override fun totalValue(total: VarianceEstimator) = 1.0f
     override fun value(total: VarianceEstimator, pos: VarianceEstimator, neg: VarianceEstimator): Float {
         val nPos = pos.nbrWeightedSamples
@@ -120,7 +115,7 @@ object ChiSquareTest : TotalSplitMetric() {
     }
 }
 
-object GiniCoefficient : TotalSplitMetric() {
+object GiniCoefficient : SplitMetric {
     override fun totalValue(total: VarianceEstimator): Float {
         val n = total.nbrWeightedSamples
         val pos = total.sum

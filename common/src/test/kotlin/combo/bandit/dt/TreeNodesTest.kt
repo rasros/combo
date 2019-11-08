@@ -1,5 +1,6 @@
 package combo.bandit.dt
 
+import combo.bandit.univariate.BanditPolicy
 import combo.math.RunningVariance
 import combo.math.VarianceEstimator
 import combo.sat.BitArray
@@ -18,10 +19,11 @@ import kotlin.test.assertTrue
 class TreeNodesTest {
     @Test
     fun findLeaf() {
+        val d = RunningVariance()
         val node = SplitNode(1,
                 SplitNode(0, TestNode(collectionOf(1.toLiteral(true), 0.toLiteral(true))),
-                        TestNode(collectionOf(1.toLiteral(true), 0.toLiteral(false)))),
-                TestNode(collectionOf(1.toLiteral(false))))
+                        TestNode(collectionOf(1.toLiteral(true), 0.toLiteral(false))), d),
+                TestNode(collectionOf(1.toLiteral(false))), d)
 
         assertEquals(node.neg, node.findLeaf(BitArray(2, intArrayOf(0b00))))
         assertEquals(node.neg, node.findLeaf(BitArray(2, intArrayOf(0b01))))
@@ -31,10 +33,11 @@ class TreeNodesTest {
 
     @Test
     fun findLeaves() {
+        val d = RunningVariance()
         val node = SplitNode(1,
                 SplitNode(0, TestNode(collectionOf(1.toLiteral(true), 0.toLiteral(true))),
-                        TestNode(collectionOf(1.toLiteral(true), 0.toLiteral(false)))),
-                TestNode(collectionOf(1.toLiteral(false))))
+                        TestNode(collectionOf(1.toLiteral(true), 0.toLiteral(false))), d),
+                TestNode(collectionOf(1.toLiteral(false))), d)
 
         val t1 = (node.pos as SplitNode).pos
         val t2 = (node.pos as SplitNode).neg
@@ -108,5 +111,5 @@ class TreeNodesTest {
 
 private class TestNode(setLiterals: IntCollection, data: VarianceEstimator = RunningVariance(), blocked: RandomCache<IntCollection>? = null)
     : LeafNode(setLiterals, data, blocked) {
-    override fun update(instance: Instance, result: Float, weight: Float) = this
+    override fun update(instance: Instance, result: Float, weight: Float, banditPolicy: BanditPolicy) = this
 }

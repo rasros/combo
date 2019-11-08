@@ -38,6 +38,7 @@ interface BanditPolicy {
     fun removeArm(armData: VarianceEstimator) {}
 
     fun copy(): BanditPolicy = this
+    fun blank(): BanditPolicy = this
 }
 
 /**
@@ -95,6 +96,7 @@ class PooledThompsonSampling @JvmOverloads constructor(
     }
 
     override fun copy() = PooledThompsonSampling(posterior.copy(), prior)
+    override fun blank() = PooledThompsonSampling(posterior.blank(), prior)
 }
 
 /**
@@ -131,8 +133,9 @@ class UCB1 @JvmOverloads constructor(val alpha: Float = 1.0f, override val prior
 
     override fun copy() = UCB1(alpha, prior).also {
         it.totalSamples = totalSamples
-
     }
+
+    override fun blank() = UCB1(alpha, prior)
 }
 
 /**
@@ -168,6 +171,8 @@ class UCB1Normal @JvmOverloads constructor(
     override fun copy() = UCB1Normal(alpha, prior).also {
         it.nbrArms = nbrArms
     }
+
+    override fun blank() = UCB1Normal(alpha, prior)
 }
 
 /**
@@ -208,6 +213,8 @@ class UCB1Tuned @JvmOverloads constructor(
     override fun copy() = UCB1Tuned(alpha, prior).also {
         it.totalSamples = totalSamples
     }
+
+    override fun blank() = UCB1Tuned(alpha, prior)
 }
 
 class UniformSelection(override val prior: RunningVariance = RunningVariance()) : BanditPolicy {
@@ -282,4 +289,6 @@ class EpsilonDecreasing @JvmOverloads constructor(
     override fun copy() = EpsilonDecreasing(epsilon, decay, prior).also {
         it.totalSamples = totalSamples
     }
+
+    override fun blank() = EpsilonDecreasing(epsilon, decay, prior)
 }

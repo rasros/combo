@@ -7,7 +7,7 @@ import combo.util.IntCollection
 import combo.util.RandomCache
 import combo.util.isEmpty
 
-sealed class Node {
+sealed class Node(var data: VarianceEstimator) {
     /**
      * Find the exact node that matches the instance. This will always work unless there is an index out of bounds.
      */
@@ -17,16 +17,18 @@ sealed class Node {
      * Finds all leaves that match the given literals. This can possibly return all leaves if for example the
      * literals are empty.
      */
-    abstract fun findLeaves(setLiterals: Literals): Sequence<LeafNode>
+    abstract fun findLeaves(setLiterals: IntArray): Sequence<LeafNode>
 
-    abstract fun update(instance: Instance, result: Float, weight: Float): Node
+    abstract fun update(instance: Instance, result: Float, weight: Float, banditPolicy: BanditPolicy): Node
+
 }
 
-class SplitNode(val ix: Int, var pos: Node, var neg: Node) : Node() {
+class SplitNode(val ix: Int, var pos: Node, var neg: Node, data: VarianceEstimator) : Node(data) {
 
-    override fun update(instance: Instance, result: Float, weight: Float): Node {
-        if (instance.isSet(ix)) pos = pos.update(instance, result, weight)
-        else neg = neg.update(instance, result, weight)
+    override fun update(instance: Instance, result: Float, weight: Float, banditPolicy: BanditPolicy): Node {
+        banditPolicy.update(data, result, weight)
+        if (instance.isSet(ix)) pos = pos.update(instance, result, weight, banditPolicy)
+        else neg = neg.update(instance, result, weight, banditPolicy)
         return this
     }
 
@@ -34,7 +36,7 @@ class SplitNode(val ix: Int, var pos: Node, var neg: Node) : Node() {
             if (instance.isSet(ix)) pos.findLeaf(instance)
             else neg.findLeaf(instance)
 
-    override fun findLeaves(setLiterals: Literals): Sequence<LeafNode> {
+    override fun findLeaves(setLiterals: IntArray): Sequence<LeafNode> {
         for (l in setLiterals) {
             if (l.toIx() == ix) {
                 return if (l.toBoolean()) pos.findLeaves(setLiterals)
@@ -45,9 +47,9 @@ class SplitNode(val ix: Int, var pos: Node, var neg: Node) : Node() {
     }
 }
 
-abstract class LeafNode(val literals: IntCollection, var data: VarianceEstimator, val blocked: RandomCache<IntCollection>?) : Node() {
+abstract class LeafNode(val literals: IntCollection, data: VarianceEstimator, val blocked: RandomCache<IntCollection>?) : Node(data) {
     override fun findLeaf(instance: Instance) = this
-    override fun findLeaves(setLiterals: Literals) = sequenceOf(this)
+    override fun findLeaves(setLiterals: IntArray) = sequenceOf(this)
 
     /**
      * Checks whether the assumptions can be satisfied by the conjunction formed by literals.
@@ -86,8 +88,8 @@ abstract class LeafNode(val literals: IntCollection, var data: VarianceEstimator
     }
 }
 
-class TerminalNode(val banditPolicy: BanditPolicy, setLiterals: IntCollection, data: VarianceEstimator, blockQueueSize: Int)
-    : LeafNode(setLiterals, data, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
-    override fun update(instance: Instance, result: Float, weight: Float) =
+class TerminalNode(literals: IntCollection, data: VarianceEstimator, blockQueueSize: Int)
+    : LeafNode(literals, data, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
+    override fun update(instance: Instance, result: Float, weight: Float, banditPolicy: BanditPolicy) =
             this.apply { banditPolicy.update(data, result, weight) }
 }

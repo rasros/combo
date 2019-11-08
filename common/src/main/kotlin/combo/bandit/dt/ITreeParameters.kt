@@ -12,7 +12,7 @@ import combo.sat.optimizers.Optimizer
  * 1) so that we make sure that each tree in a random forest have the same parameters
  * 2) sharing some code between decision tree and random forest construction
  */
-interface TreeParameters {
+interface ITreeParameters {
     val model: Model
     val banditPolicy: BanditPolicy
     val optimizer: Optimizer<*>
@@ -27,7 +27,6 @@ interface TreeParameters {
     val tau: Float
     val maxNodes: Int
     val maxDepth: Int
-    val maxLiveNodes: Int
     val viewedValues: Int
     val splitPeriod: Int
     val minSamplesSplit: Float
@@ -36,9 +35,10 @@ interface TreeParameters {
     val splitters: Map<Variable<*, *>, ValueSplitter>
     val filterMissingData: Boolean
     val blockQueueSize: Int
+    val maxRestarts: Int
 }
 
-class ExtendedTreeParameters(
+class TreeParameters(
         override val model: Model,
         override val banditPolicy: BanditPolicy,
         override val optimizer: Optimizer<*>,
@@ -53,7 +53,6 @@ class ExtendedTreeParameters(
         override val tau: Float,
         override val maxNodes: Int,
         override val maxDepth: Int,
-        override val maxLiveNodes: Int,
         override val viewedValues: Int,
         override val splitPeriod: Int,
         override val minSamplesSplit: Float,
@@ -62,7 +61,7 @@ class ExtendedTreeParameters(
         override val splitters: Map<Variable<*, *>, ValueSplitter>,
         override val filterMissingData: Boolean,
         override val blockQueueSize: Int,
-        val maxRestarts: Int) : TreeParameters {
+        override val maxRestarts: Int) : ITreeParameters {
 
     val reifiedLiterals: IntArray? = if (filterMissingData) IntArray(model.problem.nbrValues) else null
     // TODO could be a range with binary search

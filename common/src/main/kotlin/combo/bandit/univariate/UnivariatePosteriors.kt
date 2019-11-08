@@ -23,6 +23,7 @@ interface UnivariatePosterior {
 interface PooledUnivariatePosterior : UnivariatePosterior {
     val pool: PooledVarianceEstimator
     fun copy(): PooledUnivariatePosterior
+    fun blank(): PooledUnivariatePosterior
 }
 
 class PooledVarianceEstimator(val prior: VarianceEstimator = RunningVariance(0.0f, 0.02f, 0.02f)) {
@@ -69,6 +70,8 @@ class PooledVarianceEstimator(val prior: VarianceEstimator = RunningVariance(0.0
         it.means = means.copy()
         it.squaredTotalDeviations = squaredTotalDeviations
     }
+
+    fun blank() = PooledVarianceEstimator(prior)
 }
 
 object BinomialPosterior : UnivariatePosterior {
@@ -118,6 +121,8 @@ class HierarchicalNormalPosterior(override val pool: PooledVarianceEstimator = P
         }
     }
 
+
+    override fun blank() = HierarchicalNormalPosterior(pool.blank())
     override fun copy() = HierarchicalNormalPosterior(pool.copy())
 }
 
