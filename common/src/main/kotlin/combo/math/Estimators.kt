@@ -30,6 +30,20 @@ interface VarianceEstimator : DataSample {
     override fun copy(): VarianceEstimator
 }
 
+fun combineMean(m1: Float, m2: Float, n1: Float, n2: Float): Float {
+    val n = n1 + n2
+    return if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
+}
+
+fun combineVariance(v1: Float, v2: Float, m1: Float, m2: Float, n1: Float, n2: Float): Float {
+    val n = n1 + n2
+    return if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+}
+
+fun combinePrecision(v1: Float, v2: Float, m1: Float, m2: Float, n1: Float, n2: Float): Float {
+    TODO()
+}
+
 interface RemovableEstimator : VarianceEstimator {
     fun remove(value: Float, weight: Float = 1.0f)
     override fun combine(vs: VarianceEstimator): RemovableEstimator
@@ -104,8 +118,8 @@ class RunningVariance(mean: Float = 0.0f, squaredDeviations: Float = 0.0f, nbrWe
         val m1 = mean
         val m2 = vs.mean
         val n = n1 + n2
-        val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
-        val v = if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+        val m = combineMean(m1, m2, n1, n2)
+        val v = combineVariance(v1, v2, m1, m2, n1, n2)
         return RunningVariance(m, v * n, n)
     }
 
@@ -174,8 +188,8 @@ class ExponentialDecayVariance(val beta: Float = 0.02f, mean: Float = 0.0f, vari
         val m1 = mean
         val m2 = vs.mean
         val n = n1 + n2
-        val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
-        val v = if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+        val m = combineMean(m1, m2, n1, n2)
+        val v = combineVariance(v1, v2, m1, m2, n1, n2)
         return ExponentialDecayVariance(beta, m, v, min(maxSize, n))
     }
 
@@ -274,9 +288,8 @@ class RunningMean(mean: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : MeanEs
         val n2 = vs.nbrWeightedSamples
         val m1 = mean
         val m2 = vs.mean
-        val n = n1 + n2
-        val m = if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
-        return RunningMean(m, n)
+        val m = combineMean(m1, m2, n1, n2)
+        return RunningMean(m, n1 + n2)
     }
 
     override fun hashCode(): Int {
@@ -317,8 +330,7 @@ class RunningSquaredMeans private constructor(private val base: RunningVariance,
         val ms2 = vs.meanOfSquares
         val n1 = nbrWeightedSamples
         val n2 = vs.nbrWeightedSamples
-        val n = n1 + n2
-        val ms = if (n == 0.0f) 0.0f else (ms1 * n1 + ms2 * n2) / n
+        val ms = combineMean(ms1, ms2, n1, n2)
         return RunningSquaredMeans(base.combine(vs), ms)
     }
 
