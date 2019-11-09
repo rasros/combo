@@ -21,7 +21,7 @@ interface Constraint : Expression {
     val priority: Int
 
     fun isUnit(): Boolean = size == 1
-    fun unitLiterals(): Literals = literals.toArray()
+    fun unitLiterals(): IntArray = literals.toArray()
 
     /**
      * Returns the number of changes necessary for the constraint to be satisfied, based on a cached result.

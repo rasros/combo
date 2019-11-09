@@ -12,11 +12,9 @@ fun Int.toIx(): Int = this.absoluteValue - 1
 fun Int.offset(offset: Int) = (toIx() + offset).toLiteral(toBoolean())
 operator fun Int.not(): Int = -this
 
-typealias Literals = IntArray
-
 fun Instance.literal(ix: Int) = ix.toLiteral(this.isSet(ix))
 
-fun Instance.toLiterals(): Literals {
+fun Instance.toLiterals(): IntArray {
     val list = IntArrayList()
     val itr = iterator()
     while (itr.hasNext()) list.add(itr.nextInt().toLiteral(true))
@@ -25,6 +23,6 @@ fun Instance.toLiterals(): Literals {
 }
 
 fun Instance.set(literal: Int) = set(literal.toIx(), literal.toBoolean())
-fun Instance.setAll(literals: Literals) = literals.forEach { set(it) }
+fun Instance.setAll(literals: IntArray) = literals.forEach { set(it) }
 fun Instance.setAll(literals: Iterable<Int>) = literals.forEach { set(it) }
 
