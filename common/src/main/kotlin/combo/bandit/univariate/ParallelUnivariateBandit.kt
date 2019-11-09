@@ -207,7 +207,7 @@ class ParallelUnivariateBandit<D> private constructor(val bandits: Array<Univari
     }
 
     class Builder(private val baseBuilder: MultiArmedBandit.Builder) {
-        private var copies: Int = 2
+        private var copies: Int = 1
         private var mode: ParallelMode = ParallelMode.LOCKING
         private var batchSize: IntRange = 1..50
 

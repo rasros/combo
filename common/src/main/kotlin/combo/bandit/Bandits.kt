@@ -148,20 +148,24 @@ interface PredictionBandit<D : BanditData> : Bandit<D> {
      */
     override fun update(instance: Instance, result: Float, weight: Float) {
         rewards.accept(result, weight)
-        testAbsError.accept(abs((result - predict(instance)) * weight))
+        if (testAbsError != VoidSample)
+            testAbsError.accept(abs((result - predict(instance)) * weight))
         train(instance, result, weight)
-        trainAbsError.accept(abs((result - predict(instance)) * weight))
+        if (trainAbsError != VoidSample)
+            trainAbsError.accept(abs((result - predict(instance)) * weight))
     }
 
     override fun updateAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
         for (i in results.indices) {
             val w = weights?.get(i) ?: 1.0f
             rewards.accept(results[i], w)
-            testAbsError.accept(abs((results[i] - predict(instances[i])) * w))
+            if (testAbsError != VoidSample)
+                testAbsError.accept(abs((results[i] - predict(instances[i])) * w))
         }
         trainAll(instances, results, weights)
         for (i in results.indices)
-            trainAbsError.accept(abs((results[i] - predict(instances[i])) * (weights?.get(i) ?: 1.0f)))
+            if (trainAbsError != VoidSample)
+                trainAbsError.accept(abs((results[i] - predict(instances[i])) * (weights?.get(i) ?: 1.0f)))
     }
 }
 

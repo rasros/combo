@@ -257,7 +257,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
     }
 
     open class Builder<D : BanditData>(protected open val baseBuilder: BanditBuilder<D>) {
-        protected var copies: Int = 2
+        protected var copies: Int = 1
         protected var mode: ParallelMode = ParallelMode.LOCKING
         protected var batchSize: IntRange = 1..50
         protected var assumptionsLock: Boolean = false
