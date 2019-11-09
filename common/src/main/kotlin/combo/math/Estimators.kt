@@ -34,16 +34,20 @@ interface VarianceEstimator : DataSample {
 
 fun combineMean(m1: Float, m2: Float, n1: Float, n2: Float): Float {
     val n = n1 + n2
-    return if (n == 0.0f) 0.0f else (m1 * n1 + m2 * n2) / n
+    return if (n == 0f) 0f
+    else (m1 * n1 + m2 * n2) / n
 }
 
 fun combineVariance(v1: Float, v2: Float, m1: Float, m2: Float, n1: Float, n2: Float): Float {
     val n = n1 + n2
-    return if (n == 0.0f) 0.0f else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
+    return if (n == 0f) 0f
+    else (v1 * n1 + v2 * n2) / n + (m1 - m2) * (m1 - m2) * n1 * n2 / n / n
 }
 
-fun combinePrecision(v1: Float, v2: Float, m1: Float, m2: Float, n1: Float, n2: Float): Float {
-    TODO()
+fun combinePrecision(p1: Float, p2: Float, m1: Float, m2: Float, n1: Float, n2: Float): Float {
+    val n = n1 + n2
+    return if (p1 == 0f || p2 == 0f) 0f
+    else n * n / (n1 * n2 * (m1 - m2) * (m1 - m2) + n * (n1 / p1 + n2 / p2))
 }
 
 interface RemovableEstimator : VarianceEstimator {
