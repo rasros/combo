@@ -171,7 +171,7 @@ class LinearBandit(val problem: Problem,
     }
 
     class PrecisionBuilder(problem: Problem) : Builder(problem) {
-        private var learningRate: LearningRateSchedule = ExponentialDecay()
+        private var learningRate: LearningRateSchedule = ConstantRate(1f)
         private var priorPrecision: Float = 1f
 
         fun priorPrecision(priorPrecision: Float) = apply { this.priorPrecision = priorPrecision }
@@ -187,7 +187,7 @@ class LinearBandit(val problem: Problem,
     }
 
     class CovarianceBuilder(problem: Problem) : Builder(problem) {
-        private var learningRate: LearningRateSchedule = ExponentialDecay()
+        private var learningRate: LearningRateSchedule = ConstantRate(1f)
         private var priorVariance: Float = 1f
 
         fun priorVariance(priorVariance: Float) = apply { this.priorVariance = priorVariance }

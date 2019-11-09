@@ -23,7 +23,7 @@ abstract class LinearModel(val link: Transform,
     }
 
     /** Create a reset copy of the model with the given variance parameter and cleared weights. */
-    abstract fun resetVariance(variance: Float): LinearModel
+    abstract fun blank(variance: Float): LinearModel
 
     /**
      * @param varianceMixin ratio between 0-1 of how much data should change variance estimate
@@ -70,15 +70,15 @@ class GreedyLinearModel(link: Transform,
     }
 
     override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
-        // TODO variance/weight
-        step = data.step
-        bias = data.bias
+        step += data.step
+        bias = combineMean(bias, data.bias, 1 - weightMixin, weightMixin)
         for (i in weights.indices)
-            weights[i] = data.weights[i]
+            weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
+        updater.importData(vectors.matrix(data.updaterData), varianceMixin, weightMixin)
     }
 
     override fun exportData() = LinearData(weights.toFloatArray(), bias, 0f, step, updater.exportData().toArray())
-    override fun resetVariance(variance: Float) = GreedyLinearModel(
+    override fun blank(variance: Float) = GreedyLinearModel(
             link, loss, regularization, regularizationFactor, updater.copyReset(), exploration, 0L, vectors.zeroVector(weights.size), biasRate, bias)
 }
 
@@ -122,20 +122,17 @@ class PrecisionLinearModel(val family: VarianceFunction,
 
     override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
         require(data.updaterData.size == 1) { "Expected updaterData to have one row." }
-        val wp = weightMixin
-        val wip = 1 - weightMixin
-        val vp = varianceMixin
-        val vip = 1 - varianceMixin
-        bias = bias * wip + data.bias * wp
-        biasPrecision = biasPrecision * vip + data.biasPrecision * vp
+        step += data.step
+        bias = combineMean(bias, data.bias, 1 - weightMixin, weightMixin)
+        biasPrecision = combinePrecision(biasPrecision, data.biasPrecision, bias, data.bias, 1 - varianceMixin, varianceMixin)
         for (i in weights.indices) {
-            weights[i] = weights[i] * wip + data.weights[i] * wp
-            precision[i] = precision[i] * vip + data.updaterData[0][i] * vp
+            weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
+            precision[i] = combinePrecision(precision[i], data.updaterData[0][i], weights[i], data.weights[i], 1 - varianceMixin, varianceMixin)
         }
     }
 
     override fun exportData() = LinearData(weights.toFloatArray(), bias, biasPrecision, step, arrayOf(precision.toFloatArray()))
-    override fun resetVariance(variance: Float) = PrecisionLinearModel(
+    override fun blank(variance: Float) = PrecisionLinearModel(
             family, link, loss, regularization, regularizationFactor, learningRate, exploration, 0L, vectors.zeroVector(weights.size),
             vectors.zeroVector(precision.size).apply { add(1f / variance) }, bias, 1f / variance)
 }
@@ -235,23 +232,24 @@ class CovarianceLinearModel(val family: VarianceFunction,
 
     override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
         require(data.updaterData.size == weights.size * 2) { "Expected updaterData to contain covariance and covarianceL." }
-        val wp = weightMixin
-        val wip = 1 - weightMixin
-        val vp = varianceMixin
-        val vip = 1 - varianceMixin
-        bias = bias * wip + data.bias * wp
-        biasPrecision = biasPrecision * vip + data.biasPrecision * vp
+        step += data.step
+        bias = combineMean(bias, data.bias, 1 - weightMixin, weightMixin)
+        biasPrecision = combinePrecision(biasPrecision, data.biasPrecision, bias, data.bias, 1 - varianceMixin, varianceMixin)
         for (i in weights.indices) {
-            weights[i] = weights[i] * wip + data.weights[i] * wp
-            covariance[i] = covariance[i] * vip + vectors.vector(data.updaterData[i]) * vp
-            // TODO will this always be positive semi-definitive or do we need to recalculate chol?:
-            covarianceL[i] = covarianceL[i] * vip + vectors.vector(data.updaterData[i + weights.size]) * vp
+            weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
+            for (j in weights.indices) {
+                covariance[i, j] = combineVariance(covariance[i, j], data.updaterData[i][j], weights[i], data.weights[j], 1 - varianceMixin, varianceMixin)
+            }
         }
+        val L = covariance.cholesky()
+        for (i in 0 until L.rows)
+            for (j in 0 until L.rows)
+                covarianceL[j, i] = L[i, j] // L is lower triangulate, cholesky is upper
     }
 
     override fun exportData() = LinearData(weights.toFloatArray(), bias, biasPrecision, step, covariance.toArray() + covarianceL.toArray())
 
-    override fun resetVariance(variance: Float): CovarianceLinearModel {
+    override fun blank(variance: Float): CovarianceLinearModel {
         val covariance = vectors.zeroMatrix(covariance.rows)
         val covarianceL = vectors.zeroMatrix(covarianceL.rows)
         for (i in 0 until covariance.rows) {

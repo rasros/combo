@@ -9,7 +9,7 @@ import kotlin.math.sqrt
 
 interface SGDAlgorithm {
     fun step(weight: Float, i: Int, grad: Float, t: Long): Float
-    fun importData(data: Matrix)
+    fun importData(data: Matrix, varianceMixin: Float, weightMixin: Float)
     fun exportData(): Matrix
     fun copyReset(): SGDAlgorithm
 }
@@ -21,7 +21,7 @@ class SGD(val learningRate: LearningRateSchedule) : SGDAlgorithm {
         return weight - eta * grad
     }
 
-    override fun importData(data: Matrix) {}
+    override fun importData(data: Matrix, varianceMixin: Float, weightMixin: Float) {}
     override fun exportData() = EMPTY_MATRIX
     override fun copyReset() = this
 }
@@ -50,8 +50,8 @@ class AdaGrad(val v: Vector, val eta: Float = 0.01f, val eps: Float = 1e-5f) : S
         return weight - grad * eta / sqrt(v[i] + eps)
     }
 
-    override fun importData(data: Matrix) {
-        v.assign(data[0])
+    override fun importData(data: Matrix, varianceMixin: Float, weightMixin: Float) {
+        v.assign(v * (1 - varianceMixin) + data[0] * varianceMixin)
     }
 
     override fun exportData() = vectors.matrix(arrayOf(v.toFloatArray()))
@@ -66,8 +66,8 @@ class RMSProp(val v: Vector, val eta: Float = 0.01f, val beta: Float = 0.9f, val
         return weight - grad * eta / sqrt(v[i] + eps)
     }
 
-    override fun importData(data: Matrix) {
-        v.assign(data[0])
+    override fun importData(data: Matrix, varianceMixin: Float, weightMixin: Float) {
+        v.assign(v * (1 - varianceMixin) + data[0] * varianceMixin)
     }
 
     override fun exportData() = vectors.matrix(arrayOf(v.toFloatArray()))
@@ -85,9 +85,9 @@ class Adam(val m: Vector, val v: Vector, val eta: Float = 0.01f,
         return weight - grad * eta * m[i] / sqrt(v[i] + eps)
     }
 
-    override fun importData(data: Matrix) {
-        m.assign(data[0])
-        v.assign(data[1])
+    override fun importData(data: Matrix, varianceMixin: Float, weightMixin: Float) {
+        m.assign(m * (1 - varianceMixin) + data[0] * varianceMixin)
+        v.assign(v * (1 - varianceMixin) + data[1] * varianceMixin)
     }
 
     override fun exportData() = vectors.matrix(arrayOf(m.toFloatArray(), v.toFloatArray()))
