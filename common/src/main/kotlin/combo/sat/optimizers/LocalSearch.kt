@@ -86,7 +86,7 @@ class LocalSearch(val problem: Problem,
             var pRandomWalk = pRandomWalk
 
             val instance: Instance
-            if (guess != null) {
+            if (guess != null && restart % 2 != 0) {
                 instance = guess
             } else {
                 instance = instanceFactory.create(p.nbrValues)
@@ -170,6 +170,8 @@ class LocalSearch(val problem: Problem,
                     setReturnValue(score)
                     imp
                 }
+                if (prevValue.isNaN())
+                    throw NumericalInstability("NaN function evaluation.")
                 pRandomWalk *= pRandomWalkDecay
                 if (tabuListSize > 0) {
                     tabuBuffer[tabuI] = ix
@@ -205,7 +207,7 @@ class LocalSearch(val problem: Problem,
         private var maxConsideration: Int = max(20, min(100, problem.nbrValues / 5))
         private var propagateAssumptions: Boolean = true
 
-        private var propagateFlips: Boolean = false
+        private var propagateFlips: Boolean = true
         private var initializerType: InitializerType = InitializerType.PROPAGATE_COERCE
         private var initializerBias: Float = 0.5f
         private var initializerNoise: Float = 0.5f

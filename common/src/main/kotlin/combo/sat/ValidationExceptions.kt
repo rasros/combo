@@ -17,6 +17,8 @@ class IterationsReachedException(msg: String) : ValidationException(msg) {
     constructor(itr: Int) : this("Max iterations of $itr reached.")
 }
 
+class NumericalInstability(msg: String): ValidationException(msg)
+
 class UnsatisfiableException(override val message: String = "The model is unsatisfiable because " +
         "there is a contradiction in the specification.",
                              override val cause: Throwable? = null,
