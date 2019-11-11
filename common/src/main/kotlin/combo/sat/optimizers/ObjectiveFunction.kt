@@ -100,3 +100,20 @@ class DisjunctPenalty(private val extended: PenaltyFunction = LinearPenalty()) :
         else 0.0f
     }
 }
+
+class StatisticObjectiveFunction(val base: ObjectiveFunction) : ObjectiveFunction by base {
+    var functionEvaluations = 0
+        private set
+    var improvementEvaluations = 0
+        private set
+
+    override fun value(instance: Instance): Float {
+        functionEvaluations++
+        return base.value(instance)
+    }
+
+    override fun improvement(instance: Instance, ix: Int): Float {
+        improvementEvaluations++
+        return base.improvement(instance, ix)
+    }
+}
