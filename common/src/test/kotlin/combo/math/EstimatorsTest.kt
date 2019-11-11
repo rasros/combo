@@ -10,6 +10,34 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.*
 
+class VarianceCombinationTest {
+
+    @Test
+    fun combineEmptyVariances() {
+        assertFalse(combineVariance(0f, 0f, 0f, 0f, 0f, 0f).isNaN())
+        assertFalse(combineVariance(0f, 0f, 0f, 0f, 1f, 1f).isNaN())
+        assertFalse(combinePrecision(0f, 0f, 0f, 0f, 0f, 0f).isNaN())
+        assertFalse(combinePrecision(0f, 0f, 0f, 0f, 1f, 1f).isNaN())
+    }
+
+    @Test
+    fun combineVariances() {
+        val x1 = floatArrayOf(1f, -2f, 3f, 4f)
+        val x2 = floatArrayOf(-1f, -1f, 0f, 3f, 5f, 1f, 2f, -3f, 3f)
+        val m1 = x1.average().toFloat()
+        val m2 = x2.average().toFloat()
+        val n1 = x1.size.toFloat()
+        val n2 = x2.size.toFloat()
+
+        val v1 = 7f
+        val v2 = 5.5555553f
+        val v = combineVariance(v1, v2, m1, m2, n1, n2)
+        val p = combinePrecision(1f / v1, 1 / v2, m1, m2, n1, n2)
+        assertEquals(6.05325f, v, 1e-4f)
+        assertEquals(v, 1 / p, 1e-6f)
+    }
+}
+
 class RunningVarianceTest {
 
     @Test
