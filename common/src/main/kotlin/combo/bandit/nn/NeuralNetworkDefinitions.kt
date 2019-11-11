@@ -16,7 +16,7 @@ interface VectorTransform<T> {
     fun apply(vector: VectorView): T
 }
 
-class ScalarTransform(val transform: Transform) : VectorTransform<Float>{
+class ScalarTransform(val transform: Transform) : VectorTransform<Float> {
     override fun apply(vector: VectorView) = transform.apply(vector[0])
 }
 
@@ -102,11 +102,13 @@ interface NeuralNetworkBuilder {
     val regularizationFactor: Float
     val hiddenLayers: Int
     val hiddenLayerWidth: Int
+    val randomNoiseStd: Float
 
     fun output(output: Transform): NeuralNetworkBuilder
     fun randomSeed(randomSeed: Int): NeuralNetworkBuilder
     fun regularizationFactor(regularizationFactor: Float): NeuralNetworkBuilder
     fun hiddenLayers(hiddenLayers: Int): NeuralNetworkBuilder
     fun hiddenLayerWidth(hiddenLayerWidth: Int): NeuralNetworkBuilder
+    fun randomNoiseStd(randomNoiseStd: Float): NeuralNetworkBuilder
     fun build(): NeuralNetwork
 }

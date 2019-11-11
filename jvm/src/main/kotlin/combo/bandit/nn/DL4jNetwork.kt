@@ -15,6 +15,8 @@ import org.nd4j.linalg.activations.IActivation
 import org.nd4j.linalg.activations.impl.ActivationIdentity
 import org.nd4j.linalg.activations.impl.ActivationReLU
 import org.nd4j.linalg.activations.impl.ActivationSigmoid
+import org.nd4j.linalg.api.rng.DefaultRandom
+import org.nd4j.linalg.api.rng.distribution.impl.NormalDistribution
 import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.learning.config.RmsProp
 import org.nd4j.linalg.lossfunctions.LossFunctions
@@ -114,12 +116,15 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
             private set
         override var hiddenLayerWidth: Int = 100
             private set
+        override var randomNoiseStd: Float = 0.1f
+            private set
 
         override fun output(output: Transform) = apply { this.output = output }
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun regularizationFactor(regularizationFactor: Float) = apply { this.regularizationFactor = regularizationFactor }
         override fun hiddenLayers(hiddenLayers: Int) = apply { this.hiddenLayers = hiddenLayers }
         override fun hiddenLayerWidth(hiddenLayerWidth: Int) = apply { this.hiddenLayerWidth = hiddenLayerWidth }
+        override fun randomNoiseStd(randomNoiseStd: Float) = apply { this.randomNoiseStd = randomNoiseStd }
 
         fun defaultOutputLayer(nIn: Int, output: Transform): OutputLayer {
             val conf = when (output) {
@@ -132,7 +137,6 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
 
         override fun build(): DL4jNetwork {
             val conf = NeuralNetConfiguration.Builder()
-                    //.l2()
                     .weightDecay(regularizationFactor.toDouble())
                     .miniBatch(true)
                     .weightInit(WeightInit.NORMAL)
@@ -150,7 +154,11 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                     .layer(defaultOutputLayer(hiddenLayerWidth, output))
                     .build()
             val network = MultiLayerNetwork(conf)
-            network.init()
+            val hn = hiddenLayerWidth
+            val params = Nd4j.zeros(1, (problem.nbrValues + 1) * hn + hiddenLayers * hn * (hn + 1) + hn + 1)
+            val random = DefaultRandom(randomSeed.toLong())
+            Nd4j.rand(params, NormalDistribution(random, 0.0, randomNoiseStd.toDouble()))
+            network.init(params, true)
             return DL4jNetwork(network)
         }
     }
