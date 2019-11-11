@@ -24,6 +24,7 @@ class NeuralLinearBandit(val problem: Problem,
                          val baseVariance: Float = 0.1f,
                          val weightUpdateDecay: Float = 0f,
                          val varianceUpdateDecay: Float = 0f,
+                         val useStatic: Boolean = true,
                          override val randomSeed: Int = nanos().toInt(),
                          override val maximize: Boolean = true,
                          override val rewards: DataSample = VoidSample,
@@ -32,6 +33,9 @@ class NeuralLinearBandit(val problem: Problem,
 
     private val randomSequence = RandomSequence(randomSeed)
     private var linear: LinearModel = linearModel
+    private var trainingSteps = 0L
+
+    private var static = if (useStatic) network.toStaticNetwork() else network
 
     // These array buffers hold update batch data
     private val instances = arrayOfNulls<Instance>(batchSize)
@@ -42,21 +46,22 @@ class NeuralLinearBandit(val problem: Problem,
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
         val rng = randomSequence.next()
         val weights = linear.sample(rng)
-        val objective = NeuralLinearObjective(maximize, network, weights)
+        val objective = NeuralLinearObjective(maximize, static, weights)
         return optimizer.optimizeOrThrow(objective, assumptions)
     }
 
     override fun optimalOrThrow(assumptions: IntCollection): Instance {
-        val objective = NeuralLinearObjective(maximize, network, linearModel.weights)
+        val objective = NeuralLinearObjective(maximize, static, linearModel.weights)
         return optimizer.optimizeOrThrow(objective, assumptions)
     }
 
     override fun predict(instance: Instance) = linear.predict(transfer(instance))
 
     // Apply the neural network layer until the output layer
-    private fun transfer(instance: Instance) = network.activate(instance, 0, network.layers.size - 1)
+    private fun transfer(instance: Instance) = static.activate(instance, 0, static.layers.size - 2)
 
     override fun train(instance: Instance, result: Float, weight: Float) {
+        trainingSteps++
         instances[bufferPtr] = instance
         results[bufferPtr] = result
         weights[bufferPtr] = weight
@@ -64,10 +69,12 @@ class NeuralLinearBandit(val problem: Problem,
         if (bufferPtr == instances.size) {
             @Suppress("UNCHECKED_CAST")
             network.trainAll(instances as Array<Instance>, results, weights)
-            val newLinear = linear.resetVariance(baseVariance)
+            static = if (useStatic) network.toStaticNetwork() else network
+            val newLinear = linear.blank(baseVariance)
             for (i in instances.indices)
                 newLinear.train(transfer(instance), result, weight)
-            linear.importData(newLinear.exportData(), varianceUpdateDecay, weightUpdateDecay)
+            val relativeWeight = batchSize / trainingSteps
+            linear.importData(newLinear.exportData(), relativeWeight * varianceUpdateDecay, relativeWeight * weightUpdateDecay)
             for (i in instances.indices) instances[i] = null
             bufferPtr = 0
         } else {
@@ -85,7 +92,7 @@ class NeuralLinearBandit(val problem: Problem,
 
     class Builder(val networkBuilder: NeuralNetworkBuilder) : PredictionBanditBuilder<NeuralLinearData> {
 
-        private var randomSeed: Int = nanos().toInt()
+        private var randomSeed: Int = networkBuilder.randomSeed
         private var linear: LinearModel? = null
         private var rewards: DataSample = VoidSample
         private var trainAbsError: DataSample = VoidSample
@@ -97,6 +104,7 @@ class NeuralLinearBandit(val problem: Problem,
         private var baseVariance: Float = 0.1f
         private var weightUpdateDecay: Float = 0f
         private var varianceUpdateDecay: Float = 0f
+        private var useStatic: Boolean = true
 
         override fun importData(data: NeuralLinearData) = apply { this.data = data }
 
@@ -113,6 +121,7 @@ class NeuralLinearBandit(val problem: Problem,
         fun baseVariance(baseVariance: Float) = apply { this.baseVariance = baseVariance }
         fun weightUpdateDecay(weightUpdateDecay: Float) = apply { this.weightUpdateDecay = weightUpdateDecay }
         fun varianceUpdateDecay(varianceUpdateDecay: Float) = apply { this.varianceUpdateDecay = varianceUpdateDecay }
+        fun useStatic(useStatic: Boolean) = apply { this.useStatic = useStatic }
 
         private fun defaultLinear(network: NeuralNetwork): LinearModel {
             val n = network.layers[network.layers.size - 2].size
@@ -139,7 +148,7 @@ class NeuralLinearBandit(val problem: Problem,
             val optimizer = optimizer
                     ?: LocalSearch.Builder(networkBuilder.problem).randomSeed(randomSeed).fallbackCached().build()
             return NeuralLinearBandit(networkBuilder.problem, network, linear, optimizer, batchSize, baseVariance,
-                    weightUpdateDecay, varianceUpdateDecay, randomSeed, maximize, rewards, trainAbsError, testAbsError)
+                    weightUpdateDecay, varianceUpdateDecay, useStatic, randomSeed, maximize, rewards, trainAbsError, testAbsError)
         }
     }
 }

@@ -9,7 +9,12 @@ import org.deeplearning4j.nn.conf.layers.DenseLayer
 import org.deeplearning4j.nn.conf.layers.OutputLayer
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
 import org.deeplearning4j.nn.weights.WeightInit
+import org.deeplearning4j.nn.workspace.LayerWorkspaceMgr
 import org.nd4j.linalg.activations.Activation
+import org.nd4j.linalg.activations.IActivation
+import org.nd4j.linalg.activations.impl.ActivationIdentity
+import org.nd4j.linalg.activations.impl.ActivationReLU
+import org.nd4j.linalg.activations.impl.ActivationSigmoid
 import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.learning.config.RmsProp
 import org.nd4j.linalg.lossfunctions.LossFunctions
@@ -45,22 +50,70 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
 
     inner class DL4jLayer(val layerIx: Int) : Layer {
         override val size: Int get() = network.layerSize(layerIx)
-        override fun activate(vector: VectorView) = activate(vector, layerIx, layerIx + 1)
+        override fun activate(vector: VectorView): Vector {
+            val mat = Nd4j.create(1, vector.size)
+            mat.putRow(0L, vector.toNd4j().array)
+            val r = network.layers[layerIx].activate(mat, false, LayerWorkspaceMgr.noWorkspaces()).transposei()
+            return Nd4jVector(r)
+        }
     }
 
     inner class DL4jOutput : VectorTransform<Float> {
         override fun apply(vector: VectorView) = activate(vector, layers.size - 1, layers.size)[0]
     }
 
+    override fun toStaticNetwork(): StaticNetwork {
+        var output: Transform? = null
+
+        fun IActivation.toTransform() = when (this) {
+            is ActivationReLU -> RectifierTransform
+            is ActivationIdentity -> IdentityTransform
+            is ActivationSigmoid -> LogitTransform
+            else -> object : Transform {
+                override fun apply(value: Float) = this@toTransform.getActivation(Nd4j.scalar(value), false).getFloat(0L)
+            }
+        }
+
+        val layers = Array<Layer>(network.layers.size) {
+            when {
+                network.layers[it] is org.deeplearning4j.nn.layers.feedforward.dense.DenseLayer -> {
+                    val layer = network.layers[it] as org.deeplearning4j.nn.layers.feedforward.dense.DenseLayer
+                    layer.conf()
+                    val activation = (layer.config as DenseLayer).activationFn
+                    val biases = network.layers[it].getParam("b")
+                    val weights = network.layers[it].getParam("W").transpose()
+                    val staticWeights = FallbackMatrix(Nd4jMatrix(weights).toArray())
+                    val staticBiases = FallbackVector(Nd4jVector(biases).toFloatArray())
+                    DenseLayer(staticWeights, staticBiases, activation.toTransform())
+                }
+                network.layers[it] is org.deeplearning4j.nn.layers.OutputLayer -> {
+                    val layer = network.layers[it]
+                    layer.conf()
+                    output = (layer.config as OutputLayer).activationFn.toTransform()
+                    val biases = network.layers[it].getParam("b")
+                    val weights = network.layers[it].getParam("W").transpose()
+                    val staticWeights = FallbackMatrix(Nd4jMatrix(weights).toArray())
+                    val staticBiases = FallbackVector(Nd4jVector(biases).toFloatArray())
+                    DenseLayer(staticWeights, staticBiases, IdentityTransform)
+                }
+                else -> throw UnsupportedOperationException("Unsupported network layer type, at ix: $it")
+            }
+        }
+        return StaticNetwork(layers, ScalarTransform(output!!))
+    }
+
     class Builder(override val problem: Problem) : NeuralNetworkBuilder {
 
         override var output: Transform = IdentityTransform
             private set
-        private var randomSeed: Int = nanos().toInt()
+        override var randomSeed: Int = nanos().toInt()
+            private set
         override var regularizationFactor: Float = 0.1f
             private set
-        private var hiddenLayers: Int = 2
-        private var hiddenLayerWidth: Int = 100
+        override var hiddenLayers: Int = 2
+            private set
+        override var hiddenLayerWidth: Int = 100
+            private set
 
         override fun output(output: Transform) = apply { this.output = output }
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
@@ -79,7 +132,8 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
 
         override fun build(): DL4jNetwork {
             val conf = NeuralNetConfiguration.Builder()
-                    .l2(1.0)
+                    //.l2()
+                    .weightDecay(regularizationFactor.toDouble())
                     .miniBatch(true)
                     .weightInit(WeightInit.NORMAL)
                     .seed(randomSeed.toLong())
