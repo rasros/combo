@@ -128,7 +128,7 @@ class ListBandit(instances: Array<Instance>,
                 val optimizer = if (problem.nbrValues <= 20) ExhaustiveSolver(problem, randomSeed)
                 else LocalSearch.Builder(problem).restarts(Int.MAX_VALUE).randomSeed(randomSeed).build()
                 val data = if (optimizer.complete) optimizer.asSequence().take(limit)
-                else optimizer.asSequence().take(limit).distinct()
+                else optimizer.asSequence().take(limit * 2).distinct().take(limit)
                 if (import != null) {
                     (data + import!!.instances.asSequence().map { it.instance }).toSet().toTypedArray()
                 } else data.toList().toTypedArray()
