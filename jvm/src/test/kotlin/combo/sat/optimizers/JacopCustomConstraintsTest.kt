@@ -1,6 +1,5 @@
 package combo.sat.optimizers
 
-import combo.sat.Literals
 import combo.sat.toBoolean
 import combo.sat.toIx
 import org.jacop.constraints.*
@@ -186,7 +185,7 @@ class BinaryXeqYTest {
 
     @Test
     fun searchSatisfiabilityWithAssumptions() {
-        fun test(min: Int, max: Int, literals: Literals, sat: Boolean) {
+        fun test(min: Int, max: Int, literals: IntArray, sat: Boolean) {
             val store = Store()
             val xs = Array(32) { BooleanVar(store) }
             val p = IntVar(store, min, max)
@@ -406,7 +405,7 @@ class BinaryXeqPTest {
 
     @Test
     fun searchSatisfiabilityWithAssumptions() {
-        fun test(min: Float, max: Float, literals: Literals, sat: Boolean) {
+        fun test(min: Float, max: Float, literals: IntArray, sat: Boolean) {
             val store = Store()
             val xs = Array(32) { BooleanVar(store) }
             val p = FloatVar(store, min.toDouble(), max.toDouble())
