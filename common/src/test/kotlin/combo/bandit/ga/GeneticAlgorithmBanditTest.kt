@@ -12,6 +12,7 @@ class GeneticAlgorithmBanditTest : BanditTest<GeneticAlgorithmBandit>() {
             .rewards(parameters.rewards)
             .randomSeed(parameters.randomSeed)
             .maximize(parameters.maximize)
+            .candidateSize(50)
             .build()
 
     @Suppress("UNCHECKED_CAST")
