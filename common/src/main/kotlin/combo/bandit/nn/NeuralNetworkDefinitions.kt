@@ -16,6 +16,10 @@ interface VectorTransform<T> {
     fun apply(vector: VectorView): T
 }
 
+class ScalarTransform(val transform: Transform) : VectorTransform<Float>{
+    override fun apply(vector: VectorView) = transform.apply(vector[0])
+}
+
 class DenseLayer(val weights: Matrix, val biases: Vector, val activation: Transform) : Layer {
     override val size: Int get() = biases.size
 
@@ -54,7 +58,7 @@ interface NeuralNetwork {
     fun train(input: VectorView, result: Float, weight: Float = 1f)
     fun trainAll(input: Array<out VectorView>, results: FloatArray, weights: FloatArray? = null)
 
-    fun activate(input: VectorView, fromLayer: Int, toLayer: Int = fromLayer + 1): VectorView {
+    fun activate(input: VectorView, fromLayer: Int, toLayer: Int = fromLayer): VectorView {
         var vec: VectorView = input
         for (i in fromLayer..toLayer)
             vec = layers[i].activate(vec)
@@ -65,11 +69,14 @@ interface NeuralNetwork {
         val vec = activate(input, 0, layers.size - 1)
         return output.apply(vec)
     }
+
+    fun toStaticNetwork(): StaticNetwork
 }
 
 class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform<Float>) : NeuralNetwork {
     override fun trainAll(input: Array<out VectorView>, results: FloatArray, weights: FloatArray?) {}
     override fun train(input: VectorView, result: Float, weight: Float) {}
+    override fun toStaticNetwork() = this
 }
 
 class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) : ObjectiveFunction {
@@ -81,7 +88,7 @@ class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) 
 
 class NeuralLinearObjective(val maximize: Boolean, val network: NeuralNetwork, val weights: VectorView) : ObjectiveFunction {
     override fun value(instance: Instance): Float {
-        val z = network.activate(instance, 0, network.layers.size - 1)
+        val z = network.activate(instance, 0, network.layers.size - 2) // TODO cached transform???
         val y = weights dot z
         return if (maximize) y else -y
     }
@@ -91,7 +98,10 @@ interface NeuralNetworkBuilder {
     val problem: Problem
 
     val output: Transform
+    val randomSeed: Int
     val regularizationFactor: Float
+    val hiddenLayers: Int
+    val hiddenLayerWidth: Int
 
     fun output(output: Transform): NeuralNetworkBuilder
     fun randomSeed(randomSeed: Int): NeuralNetworkBuilder
