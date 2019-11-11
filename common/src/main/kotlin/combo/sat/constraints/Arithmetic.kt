@@ -159,7 +159,7 @@ class Cardinality(override val literals: IntCollection, val degree: Int, val rel
 
     override fun isUnit() = relation.isUnit(0, literals.size, degree)
 
-    override fun unitLiterals(): Literals {
+    override fun unitLiterals(): IntArray {
         assert(isUnit())
         return when (relation) {
             GT -> literals.toArray()
