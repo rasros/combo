@@ -49,13 +49,7 @@ fun hyperSearch(hyperParameters: BanditHyperParameters<*>, surrogateModel: Surro
                     .elimination(SignificanceTestElimination(0.1f))
                     .selection(TournamentSelection(5))
                     .rewards(metaRewards)
-                    .importData(InstancesData(
-                            listOf(
-                                    InstanceData(m.denseAssignment(m["delta", -296], m["deltaDecay", 6], m["tau", -1], m["samplingMean", -2], m["nbrVariables", -2]).instance, RunningVariance(.723f, 0.1f, 10f)),
-                                    InstanceData(m.denseAssignment(m["delta", -119], m["deltaDecay", -60], m["tau", -2], m["samplingMean", -4], m["nbrVariables", -2]).instance, RunningVariance(.723f, 0.1f, 10f)),
-                                    InstanceData(m.denseAssignment(m["delta", -127], m["deltaDecay", -27], m["tau", -4], m["samplingMean", -4], m["nbrVariables", -6]).instance, RunningVariance(.710f, 0.5f, 50f))
-                            )
-                    ))
+                    .allowDuplicates(false)
                     .candidateSize(60).elimination(SignificanceTestElimination()).build())
 
     for (t in 1..repetitions) {
