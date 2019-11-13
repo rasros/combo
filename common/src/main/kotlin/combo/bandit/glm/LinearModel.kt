@@ -1,6 +1,7 @@
 package combo.bandit.glm
 
 import combo.math.*
+import combo.sat.NumericalInstabilityException
 import kotlin.math.sqrt
 import kotlin.random.Random
 
@@ -59,6 +60,8 @@ class GreedyLinearModel(link: Transform,
     override fun train(input: VectorView, result: Float, weight: Float) {
         step++
         val yhat = predict(input)
+        if (yhat.isNaN() || yhat.isInfinite())
+            throw NumericalInstabilityException("Predicted value is NaN or infinite.")
         val diff = yhat - result
         val loss = loss.apply(diff)
         for (i in input) {
@@ -70,7 +73,7 @@ class GreedyLinearModel(link: Transform,
     }
 
     override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
-        step += data.step
+        step = (step * (1 - varianceMixin) + data.step * varianceMixin).toLong()
         bias = combineMean(bias, data.bias, 1 - weightMixin, weightMixin)
         for (i in weights.indices)
             weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
@@ -106,6 +109,8 @@ class PrecisionLinearModel(val family: VarianceFunction,
     override fun train(input: VectorView, result: Float, weight: Float) {
         step++
         val yhat = predict(input)
+        if (yhat.isNaN() || yhat.isInfinite())
+            throw NumericalInstabilityException("Predicted value is NaN or infinite.")
         val diff = yhat - result
         val loss = loss.apply(diff)
         val varF = family.variance(yhat)
@@ -122,7 +127,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
 
     override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
         require(data.updaterData.size == 1) { "Expected updaterData to have one row." }
-        step += data.step
+        step = (step * (1 - varianceMixin) + data.step * varianceMixin).toLong()
         bias = combineMean(bias, data.bias, 1 - weightMixin, weightMixin)
         biasPrecision = combinePrecision(biasPrecision, data.biasPrecision, bias, data.bias, 1 - varianceMixin, varianceMixin)
         for (i in weights.indices) {
@@ -165,6 +170,8 @@ class CovarianceLinearModel(val family: VarianceFunction,
     override fun train(input: VectorView, result: Float, weight: Float) {
         step++
         val yhat = predict(input)
+        if (yhat.isNaN() || yhat.isInfinite())
+            throw NumericalInstabilityException("Predicted value is NaN or infinite.")
         val diff = yhat - result
         val loss = loss.apply(diff)
         val varF = family.variance(yhat)
@@ -201,6 +208,9 @@ class CovarianceLinearModel(val family: VarianceFunction,
         var norm = covarianceL.choleskyDowndate(z)
         if (norm > 1f) {
             // Numerical errors have been accrued, to fix we recalculate cholesky decomposition
+            for (i in 0 until covariance.rows)
+                covariance[i, i] += 1e-5f
+
             val L = covariance.cholesky()
             for (i in 0 until L.rows)
                 for (j in 0 until L.rows)
@@ -210,7 +220,7 @@ class CovarianceLinearModel(val family: VarianceFunction,
             while (norm > 1f) {
                 // Still failed cholesky downdate due to numerical instability
                 // Take smaller step instead
-                z.divide(norm + 1e-4f)
+                z.divide(norm + 1e-5f)
                 norm = covarianceL.choleskyDowndate(z)
             }
         }
@@ -232,13 +242,15 @@ class CovarianceLinearModel(val family: VarianceFunction,
 
     override fun importData(data: LinearData, varianceMixin: Float, weightMixin: Float) {
         require(data.updaterData.size == weights.size * 2) { "Expected updaterData to contain covariance and covarianceL." }
-        step += data.step
+        step = (step * (1 - varianceMixin) + data.step * varianceMixin).toLong()
         bias = combineMean(bias, data.bias, 1 - weightMixin, weightMixin)
         biasPrecision = combinePrecision(biasPrecision, data.biasPrecision, bias, data.bias, 1 - varianceMixin, varianceMixin)
         for (i in weights.indices) {
             weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
-            for (j in weights.indices) {
-                covariance[i, j] = combineVariance(covariance[i, j], data.updaterData[i][j], weights[i], data.weights[j], 1 - varianceMixin, varianceMixin)
+            for (j in i until weights.size) {
+                val v = combineMean(covariance[i, j], data.updaterData[i][j], 1 - varianceMixin, varianceMixin)
+                covariance[i, j] = v
+                covariance[j, i] = v
             }
         }
         val L = covariance.cholesky()
