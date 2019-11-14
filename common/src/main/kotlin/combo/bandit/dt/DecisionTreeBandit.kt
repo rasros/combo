@@ -81,7 +81,7 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
             if (instance != null)
                 return instance
             if (node != null && assumptions.isNotEmpty() && node.blocked != null) {
-                node.blocked.add(randomSequence.next(), assumptions)
+                node.blocked.put(assumptions)
             }
         }
         throw IterationsReachedException(parameters.maxRestarts)
@@ -111,7 +111,7 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
     }
 
     private inner class AuditNode(setLiterals: IntCollection, total: VarianceEstimator)
-        : LeafNode(setLiterals, total, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
+        : LeafNode(setLiterals, total, if (blockQueueSize > 0) RandomListCache(blockQueueSize, randomSeed) else null) {
 
         var nViewed: Int = 0
 
@@ -231,7 +231,7 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
                 auditNode = AuditNode(setLiterals, total)
             } catch (e: UnsatisfiableException) {
                 // Can be caused by unit propagation in rare cases, which is fine
-                return TerminalNode(setLiterals, total, blockQueueSize)
+                return TerminalNode(setLiterals, total, blockQueueSize, randomSeed)
             }
             val node = when {
                 auditNode.auditedValues.size > 1 -> {
@@ -245,11 +245,11 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
                     val neg = createNode(negLiterals, banditPolicy.baseData())
                     SplitNode(auditNode.auditedValues[0], pos, neg, total)
                 }
-                else -> TerminalNode(setLiterals, total, blockQueueSize)
+                else -> TerminalNode(setLiterals, total, blockQueueSize, randomSeed)
             }
             node
         } else {
-            TerminalNode(setLiterals, total, blockQueueSize)
+            TerminalNode(setLiterals, total, blockQueueSize, randomSeed)
         }
     }
 

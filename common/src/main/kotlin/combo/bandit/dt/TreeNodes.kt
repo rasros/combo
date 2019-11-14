@@ -4,7 +4,7 @@ import combo.bandit.univariate.BanditPolicy
 import combo.math.VarianceEstimator
 import combo.sat.*
 import combo.util.IntCollection
-import combo.util.RandomCache
+import combo.util.RandomListCache
 import combo.util.isEmpty
 
 sealed class Node(var data: VarianceEstimator) {
@@ -47,7 +47,7 @@ class SplitNode(val ix: Int, var pos: Node, var neg: Node, data: VarianceEstimat
     }
 }
 
-abstract class LeafNode(val literals: IntCollection, data: VarianceEstimator, val blocked: RandomCache<IntCollection>?) : Node(data) {
+abstract class LeafNode(val literals: IntCollection, data: VarianceEstimator, val blocked: RandomListCache<IntCollection>?) : Node(data) {
     override fun findLeaf(instance: Instance) = this
     override fun findLeaves(setLiterals: IntArray) = sequenceOf(this)
 
@@ -70,8 +70,6 @@ abstract class LeafNode(val literals: IntCollection, data: VarianceEstimator, va
      */
     fun blocks(assumptions: IntCollection): Boolean {
         if (assumptions.isEmpty() || blocked == null) return false
-        // blocked = null
-        // findNull == null -> true
         return blocked.find {
             if (it === assumptions) true
             else {
@@ -88,8 +86,8 @@ abstract class LeafNode(val literals: IntCollection, data: VarianceEstimator, va
     }
 }
 
-class TerminalNode(literals: IntCollection, data: VarianceEstimator, blockQueueSize: Int)
-    : LeafNode(literals, data, if (blockQueueSize > 0) RandomCache(blockQueueSize) else null) {
+class TerminalNode(literals: IntCollection, data: VarianceEstimator, blockQueueSize: Int, randomSeed: Int)
+    : LeafNode(literals, data, if (blockQueueSize > 0) RandomListCache(blockQueueSize, randomSeed) else null) {
     override fun update(instance: Instance, result: Float, weight: Float, banditPolicy: BanditPolicy) =
             this.apply { banditPolicy.update(data, result, weight) }
 }

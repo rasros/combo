@@ -5,7 +5,7 @@ package combo.sat.optimizers
 import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.util.IntCollection
-import combo.util.RandomCache
+import combo.util.RandomListCache
 import combo.util.RandomSequence
 import combo.util.isEmpty
 import kotlin.jvm.JvmName
@@ -32,7 +32,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
     override val timeout get() = baseOptimizer.timeout
     private val randomSequence = RandomSequence(randomSeed)
 
-    private val buffer = RandomCache<Instance>(maxSize)
+    private val buffer = RandomListCache<Instance>(maxSize, randomSeed)
 
     override fun optimizeOrThrow(function: O, assumptions: IntCollection, guess: Instance?): Instance {
         val c: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
@@ -46,7 +46,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
             new = true
             try {
                 best = baseOptimizer.optimizeOrThrow(function, assumptions, guess)
-                buffer.add(rng, best)
+                buffer.put(best)
                 minV = function.value(best)
             } catch (e: ValidationException) {
                 failure = e
@@ -68,7 +68,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
                 val guessed = baseOptimizer.optimizeOrThrow(function, assumptions, best!!.copy())
                 val v = function.value(guessed)
                 if (v != minV)
-                    buffer.add(rng, guessed)
+                    buffer.put(guessed)
                 if (v < minV)
                     best = guessed
             } catch (e: ValidationException) {
@@ -76,7 +76,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
             }
         }
         return if (best == null && failure == null)
-            baseOptimizer.optimizeOrThrow(function, assumptions, guess).also { buffer.add(rng, it) }
+            baseOptimizer.optimizeOrThrow(function, assumptions, guess).also { buffer.put(it) }
         else best ?: throw UnsatisfiableException("Failed to find matching fallback instance.", failure)
     }
 
@@ -85,14 +85,14 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         var failure: ValidationException? = null
         try {
             if (rng.nextFloat() < pNew)
-                return baseOptimizer.witnessOrThrow(assumptions, guess).also { buffer.add(rng, it) }
+                return baseOptimizer.witnessOrThrow(assumptions, guess).also { buffer.put(it) }
         } catch (e: ValidationException) {
             failure = e
         }
         val c: Constraint = if (assumptions.isEmpty()) Tautology else Conjunction(assumptions)
         val l: Instance? = buffer.find { c.satisfies(it) }
         return if (l == null && failure == null)
-            baseOptimizer.witnessOrThrow(assumptions, guess).also { buffer.add(rng, it) }
+            baseOptimizer.witnessOrThrow(assumptions, guess).also { buffer.put(it) }
         else l ?: throw UnsatisfiableException("Failed to find matching fallback instance.", failure)
     }
 
