@@ -75,7 +75,7 @@ class LinearBandit(val problem: Problem,
 
     override fun exportData() = model.exportData()
 
-    class Builder(val problem: Problem, val model: LinearModel) : PredictionBanditBuilder<LinearData> {
+    class Builder(val problem: Problem) : PredictionBanditBuilder<LinearData> {
 
         private var randomSeed: Int = nanos().toInt()
         private var rewards: DataSample = VoidSample
@@ -83,6 +83,11 @@ class LinearBandit(val problem: Problem,
         private var optimizer: Optimizer<LinearObjective>? = null
         private var trainAbsError: DataSample = VoidSample
         private var testAbsError: DataSample = VoidSample
+        private var _model: LinearModel? = null
+
+        val linearModel: LinearModel get() = _model ?: initLinearModel()
+
+        private fun initLinearModel() = PrecisionLinearModel.Builder(problem).build()
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
@@ -90,7 +95,8 @@ class LinearBandit(val problem: Problem,
         override fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
         override fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
         override fun parallel() = ParallelPredictionBandit.Builder(this)
-        override fun importData(data: LinearData) = apply { model.importData(data) }
+        override fun importData(data: LinearData) = apply { linearModel.importData(data) }
+        fun linearModel(linearModel: LinearModel) = apply { _model = linearModel }
 
         /** Which optimizer to use for maximization of the linear function. */
         fun optimizer(optimizer: Optimizer<LinearObjective>) = apply { this.optimizer = optimizer }
@@ -98,7 +104,7 @@ class LinearBandit(val problem: Problem,
         private fun defaultOptimizer() = optimizer ?: LocalSearch.Builder(problem)
                 .randomSeed(randomSeed).fallbackCached().build()
 
-        override fun build(): LinearBandit = LinearBandit(problem, model, randomSeed, maximize,
+        override fun build(): LinearBandit = LinearBandit(problem, linearModel, randomSeed, maximize,
                 defaultOptimizer(), rewards, trainAbsError, testAbsError)
     }
 }
