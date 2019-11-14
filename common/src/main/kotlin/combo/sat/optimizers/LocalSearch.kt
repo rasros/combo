@@ -103,6 +103,8 @@ class LocalSearch(val problem: Problem,
             }
 
             var prevValue = function.value(instance)
+            if (prevValue.isNaN())
+                throw NumericalInstabilityException("NaN function evaluation.")
             setReturnValue(prevValue)
 
             if (validator.totalUnsatisfied == 0 && (abs(bestValue - lowerBound) < eps || p.nbrValues == 0))
@@ -171,7 +173,7 @@ class LocalSearch(val problem: Problem,
                     imp
                 }
                 if (prevValue.isNaN())
-                    throw NumericalInstability("NaN function evaluation.")
+                    throw NumericalInstabilityException("NaN function evaluation.")
                 pRandomWalk *= pRandomWalkDecay
                 if (tabuListSize > 0) {
                     tabuBuffer[tabuI] = ix
