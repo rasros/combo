@@ -135,7 +135,11 @@ object Nd4jVectorFactory : VectorFactory {
 
     override fun zeroMatrix(rows: Int, columns: Int) = Nd4jMatrix(Nd4j.zeros(rows, columns))
     override fun zeroVector(size: Int) = Nd4jVector(Nd4j.zeros(size, 1, 'c'))
-    override fun matrix(values: Array<FloatArray>) = Nd4jMatrix(Nd4j.create(values))
+
+    override fun matrix(values: Array<FloatArray>) = Nd4jMatrix(
+            if (values.isEmpty()) Nd4j.empty()
+            else Nd4j.create(values))
+
     override fun vector(values: FloatArray) =
             if (values.isEmpty()) zeroVector(0)
             else Nd4jVector(Nd4j.create(values).reshape(intArrayOf(values.size, 1)))

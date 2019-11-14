@@ -15,11 +15,11 @@ import org.nd4j.linalg.activations.IActivation
 import org.nd4j.linalg.activations.impl.ActivationIdentity
 import org.nd4j.linalg.activations.impl.ActivationReLU
 import org.nd4j.linalg.activations.impl.ActivationSigmoid
-import org.nd4j.linalg.api.rng.DefaultRandom
-import org.nd4j.linalg.api.rng.distribution.impl.NormalDistribution
 import org.nd4j.linalg.factory.Nd4j
 import org.nd4j.linalg.learning.config.RmsProp
 import org.nd4j.linalg.lossfunctions.LossFunctions
+import kotlin.math.sqrt
+import kotlin.random.Random
 
 class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
 
@@ -36,12 +36,13 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
             mat.putRow(i.toLong(), input[i].toNd4j().array)
         val y = Nd4j.create(results, intArrayOf(input.size, 1), 'c')
         network.fit(mat, y)
+        network.clear()
     }
 
     override fun activate(input: VectorView, fromLayer: Int, toLayer: Int): Vector {
         val mat = Nd4j.create(1, input.size)
         mat.putRow(0L, input.toNd4j().array)
-        return Nd4jVector(network.activateSelectedLayers(fromLayer, toLayer, mat).transposei())
+        return Nd4jVector(network.activateSelectedLayers(fromLayer, toLayer + 1, mat).transposei())
     }
 
     override fun predict(input: VectorView): Float {
@@ -64,7 +65,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
         override fun apply(vector: VectorView) = activate(vector, layers.size - 1, layers.size)[0]
     }
 
-    override fun toStaticNetwork(): StaticNetwork {
+    override fun toStaticNetwork(cacheSize: Int): StaticNetwork {
         var output: Transform? = null
 
         fun IActivation.toTransform() = when (this) {
@@ -101,7 +102,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                 else -> throw UnsupportedOperationException("Unsupported network layer type, at ix: $it")
             }
         }
-        return StaticNetwork(layers, ScalarTransform(output!!))
+        return StaticNetwork(layers, ScalarTransform(output!!), cacheSize)
     }
 
     class Builder(override val problem: Problem) : NeuralNetworkBuilder {
@@ -116,7 +117,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
             private set
         override var hiddenLayerWidth: Int = 100
             private set
-        override var randomNoiseStd: Float = 0.1f
+        override var initWeightVariance: Float = 0.001f
             private set
 
         override fun output(output: Transform) = apply { this.output = output }
@@ -124,7 +125,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
         override fun regularizationFactor(regularizationFactor: Float) = apply { this.regularizationFactor = regularizationFactor }
         override fun hiddenLayers(hiddenLayers: Int) = apply { this.hiddenLayers = hiddenLayers }
         override fun hiddenLayerWidth(hiddenLayerWidth: Int) = apply { this.hiddenLayerWidth = hiddenLayerWidth }
-        override fun randomNoiseStd(randomNoiseStd: Float) = apply { this.randomNoiseStd = randomNoiseStd }
+        override fun initWeightVariance(initWeightVariance: Float) = apply { this.initWeightVariance = initWeightVariance }
 
         fun defaultOutputLayer(nIn: Int, output: Transform): OutputLayer {
             val conf = when (output) {
@@ -154,10 +155,25 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                     .layer(defaultOutputLayer(hiddenLayerWidth, output))
                     .build()
             val network = MultiLayerNetwork(conf)
+
+            // Randomize weights
             val hn = hiddenLayerWidth
-            val params = Nd4j.zeros(1, (problem.nbrValues + 1) * hn + hiddenLayers * hn * (hn + 1) + hn + 1)
-            val random = DefaultRandom(randomSeed.toLong())
-            Nd4j.rand(params, NormalDistribution(random, 0.0, randomNoiseStd.toDouble()))
+            val weights = FloatArray((problem.nbrValues + 1) * hn + hiddenLayers * hn * (hn + 1) + hn + 1)
+            val rng = Random(randomSeed)
+            val sd = sqrt(initWeightVariance)
+            for (i in 0 until hn * problem.nbrValues)
+                weights[i] = rng.nextNormal(0f, sd)
+            for (r in 0 until hiddenLayers)
+                for (i in 0 until hn * hn)
+                    weights[(problem.nbrValues + 1) * hn + r * hn * (hn + 1) + i] = rng.nextNormal(0f, sd)
+            for (i in 0 until hn)
+                weights[(problem.nbrValues + 1) * hn + hiddenLayers * hn * (hn + 1) + i] = rng.nextNormal(0f, sd)
+
+            // Default bias for output layer with poisson data will be 1
+            if (output is LogTransform)
+                weights[weights.lastIndex] = 1f
+
+            val params = Nd4j.create(weights).reshape(intArrayOf(1, weights.size))
             network.init(params, true)
             return DL4jNetwork(network)
         }

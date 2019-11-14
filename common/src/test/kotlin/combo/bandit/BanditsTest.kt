@@ -3,6 +3,8 @@ package combo.bandit
 import combo.bandit.dt.ForestData
 import combo.bandit.dt.TreeData
 import combo.bandit.glm.*
+import combo.bandit.nn.DenseLayer
+import combo.bandit.nn.NeuralLinearData
 import combo.bandit.univariate.*
 import combo.math.*
 import combo.model.Model
@@ -28,14 +30,6 @@ abstract class BanditTest<B : Bandit<*>> {
     abstract fun bandit(model: Model, parameters: TestParameters): B
     open fun infeasibleBandit(model: Model, parameters: TestParameters): B? =
             bandit(model, parameters)
-
-    @Test
-    fun emptyProblem() {
-        val m = model {}
-        val bandit = bandit(m, TestParameters(type = TestType.random()))
-        val l = bandit.chooseOrThrow()
-        assertEquals(0, l.size)
-    }
 
     @Test
     fun smallInfeasibleProblem() {
@@ -92,6 +86,7 @@ abstract class BanditTest<B : Bandit<*>> {
         }
         val sum1 = bandit1.rewards.values().sum()
         val sum2 = bandit2.rewards.values().sum()
+
         assertTrue(sum1 > sum2)
     }
 
@@ -189,6 +184,20 @@ abstract class BanditTest<B : Bandit<*>> {
                         assertContentEquals(data1.trees[i], (data2 as ForestData).trees[i])
                 }
                 is LinearData -> assertContentEquals(data1.weights, (data2 as LinearData).weights)
+                is NeuralLinearData -> {
+                    data2 as NeuralLinearData
+                    val network1 = data1.network
+                    val network2 = data2.network
+                    assertContentEquals(data1.linearModel.weights, data2.linearModel.weights)
+                    for (i in network1.layers.indices) {
+                        val layer1 = network1.layers[i]
+                        val layer2 = network2.layers[i]
+                        if (layer1 is DenseLayer) {
+                            layer2 as DenseLayer
+                            assertContentEquals(layer1.biases.toFloatArray(), layer2.biases.toFloatArray())
+                        }
+                    }
+                }
                 else -> throw IllegalArgumentException("Update test with other types")
             }
         }
@@ -220,7 +229,7 @@ abstract class BanditTest<B : Bandit<*>> {
         val rng = Random(0)
         for (type in TestType.values()) {
             val bandit = bandit(m, TestParameters(type))
-            for (i in 0 until 100) {
+            for (i in 0 until 500) {
                 bandit.update(inst0, type.linearRewards(inst0, rng))
                 bandit.update(inst1, type.linearRewards(inst0, rng), 0.1f)
                 bandit.update(inst1, type.linearRewards(inst1, rng), 0.9f)

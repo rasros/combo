@@ -25,6 +25,7 @@ class NeuralLinearBandit(val problem: Problem,
                          val weightUpdateDecay: Float = 0f,
                          val varianceUpdateDecay: Float = 0f,
                          val useStatic: Boolean = true,
+                         val staticCacheSize: Int = 50,
                          override val randomSeed: Int = nanos().toInt(),
                          override val maximize: Boolean = true,
                          override val rewards: DataSample = VoidSample,
@@ -35,7 +36,7 @@ class NeuralLinearBandit(val problem: Problem,
     private var linear: LinearModel = linearModel
     private var trainingSteps = 0L
 
-    private var static = if (useStatic) network.toStaticNetwork() else network
+    private var static = if (useStatic) network.toStaticNetwork(staticCacheSize) else network
 
     // These array buffers hold update batch data
     private val instances = arrayOfNulls<Instance>(batchSize)
@@ -69,11 +70,11 @@ class NeuralLinearBandit(val problem: Problem,
         if (bufferPtr == instances.size) {
             @Suppress("UNCHECKED_CAST")
             network.trainAll(instances as Array<Instance>, results, weights)
-            static = if (useStatic) network.toStaticNetwork() else network
+            static = if (useStatic) network.toStaticNetwork(staticCacheSize) else network
             val newLinear = linear.blank(baseVariance)
             for (i in instances.indices)
-                newLinear.train(transfer(instance), result, weight)
-            val relativeWeight = batchSize / trainingSteps
+                newLinear.train(transfer(instances[i]), results[i], weights[i])
+            val relativeWeight = batchSize / trainingSteps.toFloat()
             linear.importData(newLinear.exportData(), relativeWeight * varianceUpdateDecay, relativeWeight * weightUpdateDecay)
             for (i in instances.indices) instances[i] = null
             bufferPtr = 0
@@ -83,11 +84,11 @@ class NeuralLinearBandit(val problem: Problem,
     }
 
     override fun importData(data: NeuralLinearData) {
-        TODO("not implemented")
+        // TODO does nothing so far, data has to be imported through builder
     }
 
     override fun exportData(): NeuralLinearData {
-        TODO("not implemented")
+        return NeuralLinearData(network.toStaticNetwork(0), linear.exportData())
     }
 
     class Builder(val networkBuilder: NeuralNetworkBuilder) : PredictionBanditBuilder<NeuralLinearData> {
@@ -101,10 +102,12 @@ class NeuralLinearBandit(val problem: Problem,
         private var maximize: Boolean = true
         private var optimizer: Optimizer<NeuralLinearObjective>? = null
         private var batchSize: Int = 512
-        private var baseVariance: Float = 0.1f
-        private var weightUpdateDecay: Float = 0f
-        private var varianceUpdateDecay: Float = 0f
+        private var baseVariance: Float = 1f
+        private var weightUpdateDecay: Float = 1.0f
+        private var varianceUpdateDecay: Float = 1.0f
         private var useStatic: Boolean = true
+        private var staticCacheSize = 50
+        private var exploration: Float = 0.1f
 
         override fun importData(data: NeuralLinearData) = apply { this.data = data }
 
@@ -122,9 +125,11 @@ class NeuralLinearBandit(val problem: Problem,
         fun weightUpdateDecay(weightUpdateDecay: Float) = apply { this.weightUpdateDecay = weightUpdateDecay }
         fun varianceUpdateDecay(varianceUpdateDecay: Float) = apply { this.varianceUpdateDecay = varianceUpdateDecay }
         fun useStatic(useStatic: Boolean) = apply { this.useStatic = useStatic }
+        fun staticCacheSize(staticCacheSize: Int) = apply { this.staticCacheSize = staticCacheSize }
+        fun linearModel(linearModel: LinearModel) = apply { this.linear = linearModel }
 
         private fun defaultLinear(network: NeuralNetwork): LinearModel {
-            val n = network.layers[network.layers.size - 2].size
+            val n = network.layers[network.layers.size - 1].size
             val covariance = vectors.zeroMatrix(n)
             val covarianceL = vectors.zeroMatrix(n)
             for (i in 0 until n) {
@@ -139,7 +144,7 @@ class NeuralLinearBandit(val problem: Problem,
             val bias = if (networkBuilder.output is LogTransform) 1f else 0f
             return CovarianceLinearModel(
                     family, networkBuilder.output, MSELoss, MSELoss, networkBuilder.regularizationFactor,
-                    ConstantRate(0.1f), 0.001f, 0L, vectors.zeroVector(n), covariance, covarianceL, bias, 1 / baseVariance)
+                    ConstantRate(1f), exploration, 0L, vectors.zeroVector(n), covariance, covarianceL, bias, 1 / baseVariance)
         }
 
         override fun build(): NeuralLinearBandit {
@@ -148,12 +153,12 @@ class NeuralLinearBandit(val problem: Problem,
             val optimizer = optimizer
                     ?: LocalSearch.Builder(networkBuilder.problem).randomSeed(randomSeed).fallbackCached().build()
             return NeuralLinearBandit(networkBuilder.problem, network, linear, optimizer, batchSize, baseVariance,
-                    weightUpdateDecay, varianceUpdateDecay, useStatic, randomSeed, maximize, rewards, trainAbsError, testAbsError)
+                    weightUpdateDecay, varianceUpdateDecay, useStatic, staticCacheSize, randomSeed, maximize, rewards, trainAbsError, testAbsError)
         }
     }
 }
 
-class NeuralLinearData(val network: NeuralNetwork, val linearModel: LinearBandit) : BanditData {
+class NeuralLinearData(val network: NeuralNetwork, val linearModel: LinearData) : BanditData {
     override fun migrate(from: IntArray, to: IntArray): BanditData {
         TODO("not implemented")
     }
