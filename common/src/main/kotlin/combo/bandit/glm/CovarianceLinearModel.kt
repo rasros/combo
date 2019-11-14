@@ -96,11 +96,11 @@ class CovarianceLinearModel(val family: VarianceFunction,
 
         // w_t = w_t-1 - H^-1_t * g_t-1
         val reg = weights.copy().apply { transform { regularization.apply(it) * regularizationFactor } }
-        val grad = (input + reg) * (loss * lr)
+        val grad = (input + reg) * (loss * lr * weight)
         val step = covariance * grad
         weights.subtract(step)
 
-        biasPrecision += weight * varF
+        biasPrecision += varF
         bias -= lr * weight * loss / biasPrecision
     }
 
@@ -143,7 +143,7 @@ class CovarianceLinearModel(val family: VarianceFunction,
 
         private var family: VarianceFunction = NormalVariance
         private var link: Transform? = null
-        private var loss: Transform = MSELoss
+        private var loss: Transform = HuberLoss(0.1f)
         private var exploration: Float = 1f
         private var regularization: Transform = MSELoss
         private var regularizationFactor: Float = 1e-5f

@@ -68,7 +68,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
 
         private var family: VarianceFunction = NormalVariance
         private var link: Transform? = null
-        private var loss: Transform = MSELoss
+        private var loss: Transform = HuberLoss(0.1f)
         private var exploration: Float = 1f
         private var regularization: Transform = MSELoss
         private var regularizationFactor: Float = 1e-5f
@@ -98,7 +98,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
         /** Regularization constant. */
         fun regularizationFactor(regularizationFactor: Float) = apply { this.regularizationFactor = regularizationFactor }
 
-        /** Noise added (or multiplied) to weights during [choose]. */
+        /** Noise added (or multiplied) to weights during choose. */
         fun exploration(exploration: Float) = apply { this.exploration = exploration }
 
         /** Starting step counter. */
