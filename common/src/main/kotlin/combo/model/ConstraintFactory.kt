@@ -87,8 +87,6 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
 
     fun cardinality(degree: IntVar, relation: Relation, vararg variables: Value): PropositionalConstraint {
         val literals = toLiterals(variables)
-        if (relation.isTautology(0, literals.size, degree.min) && relation.isTautology(0, literals.size, degree.max)) return Tautology
-        if (relation.isEmpty(0, literals.size, degree.min) && relation.isEmpty(0, literals.size, degree.max)) return Empty
         return CardinalityVar(literals, degree, index.valueIndexOf(degree), degree.parentLiteral(index), relation)
     }
 
@@ -117,6 +115,16 @@ class ConstraintFactory<S : Scope>(val scope: S, val index: VariableIndex) {
         if (relation.isTautology(linear.lowerBound, linear.upperBound, simplifiedDegree)) return Tautology
         if (relation.isEmpty(linear.lowerBound, linear.upperBound, simplifiedDegree)) return Empty
         return linear
+    }
+
+    fun linear(degree: IntVar, relation: Relation, weights: IntArray, variables: Array<out Value>): PropositionalConstraint {
+        if (weights.isEmpty() || variables.isEmpty()) return Tautology
+
+        val literals = IntHashMap()
+        var k = 0
+        variables.forEach { literals[it.toLiteral(index)] = k++ }
+
+        return LinearVar(literals, weights, degree, index.valueIndexOf(degree), degree.parentLiteral(index), relation)
     }
 
     /**

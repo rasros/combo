@@ -211,7 +211,7 @@ class CardinalityVar(valueLiterals: IntCollection, val degreeVar: IntVar, val va
     init {
         assert(valueLiterals.isNotEmpty())
         val l = varIndex.toLiteral(true)
-        val degreeLiterals = IntRangeCollection(l, l + degreeVar.nbrValues)
+        val degreeLiterals = IntRangeCollection(l, l + degreeVar.nbrValues - 1)
         literals = if (parentLiteral == 0) IntUnionCollection(valueLiterals, degreeLiterals)
         else IntUnionCollection(valueLiterals, IntUnionCollection(degreeLiterals, collectionOf(parentLiteral)))
     }
@@ -241,6 +241,48 @@ class CardinalityVar(valueLiterals: IntCollection, val degreeVar: IntVar, val va
     }
 
     override fun toString() = literals.a.joinToString(", ", "CardinalityVar(", " ${relation.operator} $varIndex)") { it.toString() }
+}
+
+class LinearVar(valueLiterals: IntHashMap, val weights: IntArray, val degreeVar: IntVar, val varIndex: Int, val parentLiteral: Int, val relation: Relation) : PropositionalConstraint {
+
+    override val priority: Int get() = 500 - literals.size
+    override val literals: IntUnionCollection
+
+    init {
+        assert(valueLiterals.isNotEmpty())
+        val l = varIndex.toLiteral(true)
+        val degreeLiterals = IntRangeCollection(l, l + degreeVar.nbrValues - 1)
+        literals = if (parentLiteral == 0) IntUnionCollection(valueLiterals, degreeLiterals)
+        else IntUnionCollection(valueLiterals, IntUnionCollection(degreeLiterals, collectionOf(parentLiteral)))
+    }
+
+    private val baseLinear = Linear(literals.a as IntHashMap, weights, 0, relation)
+
+    override fun cacheUpdate(cacheResult: Int, newLit: Int) = cacheResult + when {
+        newLit in literals.a -> 1
+        !newLit in literals.a -> -1
+        else -> 0
+    }
+
+    override fun cache(instance: Instance) = baseLinear.cache(instance)
+
+    override operator fun not() = LinearVar(literals.a as IntHashMap, weights, degreeVar, varIndex, parentLiteral, !relation)
+
+    // TODO unitPropagation by having a units as field
+
+    override fun violations(instance: Instance, cacheResult: Int): Int {
+        val degree = degreeVar.valueOf(instance, varIndex, parentLiteral) ?: return 0
+        return relation.violations(cacheResult, degree).coerceAtMost(literals.a.size)
+    }
+
+    override fun coerce(instance: Instance, rng: Random) {
+        val degree = degreeVar.valueOf(instance, varIndex, parentLiteral) ?: return
+        Linear(literals.a as IntHashMap, weights, degree, relation).coerce(instance, rng)
+    }
+
+    override fun toString() = literals.a.joinToString(", ", "LinearVar(", " ${relation.operator} $varIndex)") {
+        "${weights[(literals.a as IntHashMap)[it]]}x$it"
+    }
 }
 
 enum class Relation(val operator: String) {
