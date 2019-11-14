@@ -40,10 +40,8 @@ class IntVar constructor(name: String, override val optional: Boolean, override 
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Int? {
         if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         val offset = if (optional) 1 else 0
-        val value = if (isSigned()) instance.getSignedInt(index + offset, nbrValues - offset) else
+        return if (isSigned()) instance.getSignedInt(index + offset, nbrValues - offset) else
             instance.getBits(index + offset, nbrValues - offset)
-        assert(value in min..max)
-        return value
     }
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
@@ -110,10 +108,7 @@ class FloatVar constructor(name: String, override val optional: Boolean, overrid
     override fun valueOf(instance: Instance, index: Int, parentLiteral: Int): Float? {
         if ((parentLiteral != 0 && instance.literal(parentLiteral.toIx()) != parentLiteral) || (optional && !instance.isSet(index))) return null
         val offset = if (optional) 1 else 0
-        val value = Float.fromBits(instance.getBits(index + offset, 32))
-        //assert(value in min..max)
-        // TODO can round over min/max for javascript when casting double to float
-        return value
+        return Float.fromBits(instance.getBits(index + offset, 32))
     }
 
     override fun implicitConstraints(scope: Scope, index: VariableIndex): Sequence<Constraint> {
