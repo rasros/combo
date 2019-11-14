@@ -24,6 +24,7 @@ import kotlin.random.Random
  * the bandits arms are added or removed.
  *
  * @param problem The problem contains the [Constraint]s and the number of variables.
+ * @param candidates Initialized instances in the gene pool.
  * @param banditPolicy The policy that the next bandit arm is chosen.
  * @param optimizer The optimizer will be used to generate [Instance]s that satisfy the constraints from the [Problem].
  * @param randomSeed Set the random seed to a specific value to have a reproducible algorithm.
@@ -38,10 +39,10 @@ import kotlin.random.Random
  * @param allowDuplicates Whether duplicates are allowed in the candidates.
  * @param maxSolverRestarts Maximum number of restarts before solver gives up.
  * @param addAssumptions Whether candidates that are generated due to a no-match between candidates and assumptions should to the candidate solutions.
- * @param candidates Initialized instances in the gene pool.
  */
 class GeneticAlgorithmBandit(
         val problem: Problem,
+        val candidates: BanditCandidates,
         val banditPolicy: BanditPolicy,
         val optimizer: Optimizer<SatObjective> = LocalSearch(problem),
         override val randomSeed: Int = nanos().toInt(),
@@ -55,27 +56,7 @@ class GeneticAlgorithmBandit(
         val mutationProbability: Float = 0.1f,
         val allowDuplicates: Boolean = true,
         val maxSolverRestarts: Int = 10,
-        val addAssumptions: Boolean = true,
-        val candidates: BanditCandidates = run {
-            val candidateSize: Int = max(10, min(problem.nbrValues * 2, 100))
-            val instances: Array<Instance> = if (!allowDuplicates && optimizer.complete) {
-                optimizer.asSequence().take(candidateSize).toList().toTypedArray()
-            } else {
-                val set: MutableSet<Instance>? = if (allowDuplicates) null else HashSet()
-                Array(candidateSize) {
-                    var instance: Instance? = null
-                    for (i in 0..maxSolverRestarts) {
-                        instance = optimizer.witness() ?: continue
-                        if (set != null && instance in set) continue
-                        else set?.add(instance)
-                        break
-                    }
-                    instance ?: throw IterationsReachedException(
-                            "Max iterations $maxSolverRestarts reached during initialization.")
-                }
-            }
-            BanditCandidates(instances, 4.0f, maximize, banditPolicy)
-        })
+        val addAssumptions: Boolean = true)
     : Bandit<InstancesData> {
 
     init {
@@ -95,7 +76,7 @@ class GeneticAlgorithmBandit(
         val (instance, _) = candidates.estimators.maxBy { (i, e) ->
             if (assumption.satisfies(i)) policy.evaluate(e, t, maximize, rng)
             else Float.NEGATIVE_INFINITY
-        }!!
+        } ?: return null
 
         return if (!assumption.satisfies(instance)) {
             if (opt) null
@@ -109,21 +90,11 @@ class GeneticAlgorithmBandit(
         } else instance
     }
 
-    override fun chooseOrThrow(assumptions: IntCollection): Instance = opt(false, assumptions, banditPolicy)!!
-    override fun optimalOrThrow(assumptions: IntCollection): Instance = opt(true, assumptions, Greedy)
-            ?: throw UnsatisfiableException("No candidates matching assumptions found.")
+    companion object {
 
-    override fun update(instance: Instance, result: Float, weight: Float) {
-        rewards.accept(result, weight)
-        candidates.update(instance, result, weight)
-
-        if (++replacementCount >= eliminationPeriod && candidates.step >= candidates.nbrCandidates) {
-
-            val rng = randomSequence.next()
-            // Select eliminated candidate
-            val eliminated = selectForElimination(false, rng)
-            if (eliminated < 0) return
-            replacementCount = 0
+        fun newInstance(problem: Problem, optimizer: Optimizer<SatObjective>, rng: Random, recombinationProbability: Float, candidates: BanditCandidates,
+                        selection: SelectionOperator<BanditCandidates>, mutationProbability: Float,
+                        mutation: MutationRate): Instance {
             var newInstance: Instance? = null
 
             // Perform recombination
@@ -167,12 +138,39 @@ class GeneticAlgorithmBandit(
                         ?: EmptyCollection, mutatedInstance)
                         ?: newInstance
             }
+            return newInstance
+        }
+    }
+
+    override fun chooseOrThrow(assumptions: IntCollection): Instance = opt(false, assumptions, banditPolicy)
+            ?: throw UnsatisfiableException("No candidates matching assumptions found.")
+
+    override fun optimalOrThrow(assumptions: IntCollection): Instance = opt(true, assumptions, Greedy)
+            ?: throw UnsatisfiableException("No candidates matching assumptions found.")
+
+    override fun update(instance: Instance, result: Float, weight: Float) {
+        rewards.accept(result, weight)
+        candidates.update(instance, result, weight)
+
+        if (++replacementCount >= eliminationPeriod && candidates.step >= candidates.nbrCandidates) {
+
+            val rng = randomSequence.next()
+            // Select eliminated candidate
+            val eliminated = selectForElimination(false, rng)
+            if (eliminated < 0) return
+            replacementCount = 0
+            var newInstance: Instance = newInstance(problem, optimizer, rng, recombinationProbability, candidates, selection, mutationProbability, mutation)
 
             // Replace with random if it is a duplicate
-            while (!allowDuplicates && newInstance!! in candidates.estimators)
-                newInstance = optimizer.witness() as Instance
+            if (!allowDuplicates) {
+                var k = 0
+                while (!allowDuplicates && newInstance in candidates.estimators && k++ <= maxSolverRestarts)
+                    newInstance = optimizer.witnessOrThrow()
+                if (newInstance in candidates.estimators)
+                    return
+            }
 
-            candidates.replaceCandidate(eliminated, newInstance!!)?.run {
+            candidates.replaceCandidate(eliminated, newInstance)?.run {
                 banditPolicy.removeArm(this)
             }
             if (!candidates.isDuplicated(newInstance))
@@ -214,7 +212,7 @@ class GeneticAlgorithmBandit(
                 SignificanceTestElimination(),
                 TournamentElimination(10))
         private var eliminationPeriod: Int = 10
-        private var recombinationProbability: Float = 0.5f
+        private var recombinationProbability: Float = 0.7f
         private var mutation: MutationRate = FixedRateMutation()
         private var mutationProbability: Float = 0.1f
         private var allowDuplicates: Boolean = true
@@ -222,7 +220,7 @@ class GeneticAlgorithmBandit(
         private var addAssumptions: Boolean = true
 
         private var minEliminationSamples: Float = 4.0f
-        private var candidateSize: Int = max(10, min(problem.nbrValues * 2, 100))
+        private var candidateSize: Int? = null
 
         private var importedData: InstancesData? = null
 
@@ -279,16 +277,15 @@ class GeneticAlgorithmBandit(
             val optimizer = optimizer ?: LocalSearch.Builder(problem).randomSeed(randomSeed)
                     .cached().pNew(1.0f).maxSize(10).build()
             val candidates = if (importedData == null) {
-                val instances: Array<Instance> = if (!allowDuplicates && optimizer.complete) {
-                    optimizer.asSequence().take(candidateSize).toList().toTypedArray()
+                val candidateSize = candidateSize ?: max(10, min(problem.nbrValues * 2, 100))
+                val instances: Array<Instance> = if (!allowDuplicates) {
+                    if (optimizer.complete) optimizer.asSequence().take(candidateSize).toList().toTypedArray()
+                    else optimizer.asSequence().take(candidateSize * 2).distinct().take(candidateSize).toList().toTypedArray()
                 } else {
-                    val set: MutableSet<Instance>? = if (allowDuplicates) null else HashSet()
                     Array(candidateSize) {
                         var instance: Instance? = null
                         for (i in 0..maxSolverRestarts) {
                             instance = optimizer.witness() ?: continue
-                            if (set != null && instance in set) continue
-                            else set?.add(instance)
                             break
                         }
                         instance ?: throw IterationsReachedException(
@@ -297,17 +294,33 @@ class GeneticAlgorithmBandit(
                 }
                 BanditCandidates(instances, minEliminationSamples, maximize, banditPolicy)
             } else {
+                importedData!!
                 val instances = importedData!!.instances.map { it.instance }.toTypedArray()
                 val candidates = BanditCandidates(instances, minEliminationSamples, maximize, banditPolicy)
                 for ((instance, data) in importedData!!) {
                     candidates.estimators[instance] = data.copy()
                 }
                 candidates.calculateMinMax()
-                candidates
+                if (candidateSize != null && importedData!!.size < candidateSize!!) {
+                    // Generate extra candidates
+                    val rng = Random(randomSeed)
+                    // TODO filter based on allowDuplicates
+                    val extraInstances = Array(candidateSize!! - importedData!!.size) {
+                        newInstance(problem, optimizer, rng, recombinationProbability, candidates, selection, mutationProbability, mutation)
+                    }
+                    val extraCandidates = BanditCandidates(instances + extraInstances, minEliminationSamples, maximize, banditPolicy)
+                    for ((instance, data) in importedData!!)
+                        extraCandidates.estimators[instance] = data.copy()
+                    for (instance in extraInstances)
+                        extraCandidates.estimators.getOrPut(instance) { banditPolicy.baseData() }
+                    extraCandidates.calculateMinMax()
+                    extraCandidates
+                } else
+                    candidates
             }
-            return GeneticAlgorithmBandit(problem, banditPolicy, optimizer, randomSeed, maximize, rewards,
-                    selection, elimination, eliminationPeriod, recombinationProbability, mutation,
-                    mutationProbability, allowDuplicates, maxSolverRestarts, addAssumptions, candidates)
+            return GeneticAlgorithmBandit(problem, candidates, banditPolicy, optimizer, randomSeed, maximize,
+                    rewards, selection, elimination, eliminationPeriod, recombinationProbability,
+                    mutation, mutationProbability, allowDuplicates, maxSolverRestarts, addAssumptions)
         }
     }
 }
