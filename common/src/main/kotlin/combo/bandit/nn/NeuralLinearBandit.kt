@@ -102,12 +102,11 @@ class NeuralLinearBandit(val problem: Problem,
         private var maximize: Boolean = true
         private var optimizer: Optimizer<NeuralLinearObjective>? = null
         private var batchSize: Int = 512
-        private var baseVariance: Float = 1f
-        private var weightUpdateDecay: Float = 1.0f
-        private var varianceUpdateDecay: Float = 1.0f
+        private var baseVariance: Float = 0.1f
+        private var weightUpdateDecay: Float = 1f
+        private var varianceUpdateDecay: Float = 1f
         private var useStatic: Boolean = true
-        private var staticCacheSize = 50
-        private var exploration: Float = 0.1f
+        private var staticCacheSize: Int = 50
 
         override fun importData(data: NeuralLinearData) = apply { this.data = data }
 
@@ -144,7 +143,7 @@ class NeuralLinearBandit(val problem: Problem,
             val bias = if (networkBuilder.output is LogTransform) 1f else 0f
             return CovarianceLinearModel(
                     family, networkBuilder.output, MSELoss, MSELoss, networkBuilder.regularizationFactor,
-                    ConstantRate(1f), exploration, 0L, vectors.zeroVector(n), covariance, covarianceL, bias, 1 / baseVariance)
+                    ConstantRate(1f), 0.1f, 0L, vectors.zeroVector(n), covariance, covarianceL, bias, 1 / baseVariance)
         }
 
         override fun build(): NeuralLinearBandit {
