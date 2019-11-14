@@ -7,10 +7,10 @@ import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.dt.RandomForestBandit
 import combo.bandit.ga.GeneticAlgorithmBandit
 import combo.bandit.glm.LinearBandit
+import combo.bandit.glm.PrecisionLinearModel
 import combo.bandit.glm.VarianceFunction
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
-import combo.math.VarianceEstimator
 import combo.util.EmptyCollection
 import combo.util.IntCollection
 import combo.util.IntHashSet
@@ -21,25 +21,27 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
 
     companion object {
         @JvmStatic
-        fun <E : VarianceEstimator> listBandit(model: Model, banditPolicy: BanditPolicy) =
+        fun listBandit(model: Model, banditPolicy: BanditPolicy) =
                 ModelBandit(model, ListBandit.Builder(model.problem, banditPolicy).build())
 
         @JvmStatic
-        fun <E : VarianceEstimator> decisionTreeBandit(model: Model, banditPolicy: BanditPolicy) =
+        fun decisionTreeBandit(model: Model, banditPolicy: BanditPolicy) =
                 PredictionModelBandit(model, DecisionTreeBandit.Builder(model, banditPolicy).build())
 
         @JvmStatic
         @JvmOverloads
-        fun <E : VarianceEstimator> randomForestBandit(model: Model, banditPolicy: BanditPolicy, nbrTrees: Int = 10) =
+        fun randomForestBandit(model: Model, banditPolicy: BanditPolicy, nbrTrees: Int = 10) =
                 PredictionModelBandit(model, RandomForestBandit.Builder(model, banditPolicy).trees(nbrTrees).build())
 
         @JvmStatic
-        fun <E : VarianceEstimator> geneticAlgorithmBandit(model: Model, banditPolicy: BanditPolicy) =
+        fun geneticAlgorithmBandit(model: Model, banditPolicy: BanditPolicy) =
                 ModelBandit(model, GeneticAlgorithmBandit.Builder(model.problem, banditPolicy).build())
 
         @JvmStatic
         fun linearBandit(model: Model, family: VarianceFunction) =
-                PredictionModelBandit(model, LinearBandit.greedyBuilder(model.problem).family(family).build())
+                PredictionModelBandit(model, LinearBandit.Builder(model.problem).linearModel(
+                        PrecisionLinearModel.Builder(model.problem).family(family).build()
+                ).build())
     }
 
     fun choose(vararg assumptions: Literal): Assignment? {
