@@ -34,11 +34,11 @@ class ConstantRate(val eta: Float = 0.001f) : LearningRateSchedule {
     override fun rate(t: Long) = eta
 }
 
-class StepDecay(val eta: Float = 0.1f, val k: Float = 1e-3f) : LearningRateSchedule {
+class StepDecay(val eta: Float = 0.01f, val k: Float = 1e-3f) : LearningRateSchedule {
     override fun rate(t: Long) = eta / (1 + k * t)
 }
 
-class ExponentialDecay(val eta: Float = 0.1f, val k: Float = 1e-5f) : LearningRateSchedule {
+class ExponentialDecay(val eta: Float = 0.01f, val k: Float = 1e-5f) : LearningRateSchedule {
     override fun rate(t: Long) = eta * exp(-k * t)
 }
 
