@@ -64,17 +64,21 @@ val optimizer = ModelBandit.randomForestBandit(myModel, ThompsonSampling(Binomia
 Using the optimizer then is as simple as this:
 
 ```kotlin
-val assignment = optimizer.chooseOrThrow()
+val assignment1 = optimizer.chooseOrThrow()
 // The values can be queried like so:
-assignment.getBoolean("Horror")
+assignment1.getBoolean("Horror")
 // It can be used as an ordinary map from String to value as such (but then the structure is lost).
-val map = assignment.toMap()
+val map = assignment1.toMap()
+
+// Update with the result of an assignment
+optimizer.update(assignment1, 1f)
 ```
 
-To get a "personalized" do this:
+To get a "personalized" assignment do this:
 
 ```kotlin
-val assignment = optimizer.chooseOrThrow(myModel["DisplayWidth", 1920], myModel["CustomerType", "Child"])
+val assignment2 = optimizer.chooseOrThrow(myModel["DisplayWidth", 1920], myModel["CustomerType", "Child"])
+optimizer.update(assignment2, 0f)
 ```
 
 ## Support
