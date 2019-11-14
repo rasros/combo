@@ -1,8 +1,5 @@
 package combo.bandit.nn
 
-import combo.bandit.nn.BatchNormalizationLayer
-import combo.bandit.nn.BinarySoftmaxLayer
-import combo.bandit.nn.DenseLayer
 import combo.math.FallbackMatrix
 import combo.math.FallbackVector
 import combo.math.IdentityTransform
@@ -71,7 +68,7 @@ class StaticNetworkTest {
                 )), FallbackVector(floatArrayOf(0.5f, -1f))
                 , RectifierTransform)
         val output = BinarySoftmaxLayer()
-        val net = StaticNetwork(arrayOf(input), output)
+        val net = StaticNetwork(arrayOf(input), output, 10)
 
         val vec = FallbackVector(floatArrayOf(-1f, 2f, 1.5f))
         val result = net.predict(vec)

@@ -4,6 +4,7 @@ import combo.math.*
 import combo.sat.Instance
 import combo.sat.Problem
 import combo.sat.optimizers.ObjectiveFunction
+import combo.util.RandomMapCache
 import kotlin.math.exp
 import kotlin.math.sqrt
 
@@ -70,13 +71,27 @@ interface NeuralNetwork {
         return output.apply(vec)
     }
 
-    fun toStaticNetwork(): StaticNetwork
+    fun toStaticNetwork(cacheSize: Int): StaticNetwork
 }
 
-class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform<Float>) : NeuralNetwork {
+class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform<Float>, cacheSize: Int) : NeuralNetwork {
+
+    private data class ActivationKey(val fromLayer: Int, val toLayer: Int, val input: Instance)
+
+    private val cache: RandomMapCache<ActivationKey, VectorView>? =
+            if (cacheSize > 0) RandomMapCache(cacheSize)
+            else null
+
     override fun trainAll(input: Array<out VectorView>, results: FloatArray, weights: FloatArray?) {}
     override fun train(input: VectorView, result: Float, weight: Float) {}
-    override fun toStaticNetwork() = this
+    override fun toStaticNetwork(cacheSize: Int) = this
+
+    override fun activate(input: VectorView, fromLayer: Int, toLayer: Int): VectorView {
+        return if (input is Instance && cache != null) {
+            val activationKey = ActivationKey(fromLayer, toLayer, input.copy())
+            cache.getOrPut(activationKey) { super.activate(input, fromLayer, toLayer) }
+        } else super.activate(input, fromLayer, toLayer)
+    }
 }
 
 class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) : ObjectiveFunction {
@@ -88,7 +103,7 @@ class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) 
 
 class NeuralLinearObjective(val maximize: Boolean, val network: NeuralNetwork, val weights: VectorView) : ObjectiveFunction {
     override fun value(instance: Instance): Float {
-        val z = network.activate(instance, 0, network.layers.size - 2) // TODO cached transform???
+        val z = network.activate(instance, 0, network.layers.size - 2)
         val y = weights dot z
         return if (maximize) y else -y
     }
@@ -102,13 +117,13 @@ interface NeuralNetworkBuilder {
     val regularizationFactor: Float
     val hiddenLayers: Int
     val hiddenLayerWidth: Int
-    val randomNoiseStd: Float
+    val initWeightVariance: Float
 
     fun output(output: Transform): NeuralNetworkBuilder
     fun randomSeed(randomSeed: Int): NeuralNetworkBuilder
     fun regularizationFactor(regularizationFactor: Float): NeuralNetworkBuilder
     fun hiddenLayers(hiddenLayers: Int): NeuralNetworkBuilder
     fun hiddenLayerWidth(hiddenLayerWidth: Int): NeuralNetworkBuilder
-    fun randomNoiseStd(randomNoiseStd: Float): NeuralNetworkBuilder
+    fun initWeightVariance(initWeightVariance: Float): NeuralNetworkBuilder
     fun build(): NeuralNetwork
 }
