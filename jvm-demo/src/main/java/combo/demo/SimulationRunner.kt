@@ -1,6 +1,8 @@
 package combo.demo
 
-import combo.bandit.*
+import combo.bandit.Bandit
+import combo.bandit.BanditBuilder
+import combo.bandit.ParallelMode
 import combo.bandit.ga.GeneticAlgorithmBandit
 import combo.bandit.ga.SignificanceTestElimination
 import combo.bandit.univariate.NormalPosterior
@@ -12,19 +14,28 @@ import combo.math.VarianceEstimator
 import combo.math.WindowedEstimator
 import combo.model.BanditHyperParameters
 import combo.model.ModelBandit
+import combo.util.EmptyCollection
 import combo.util.nanos
 import java.io.FileOutputStream
 import java.io.PrintStream
 import kotlin.random.Random
 
-fun runSimulation(banditBuilder: BanditBuilder<*>, surrogateModel: SurrogateModel<*>, horizon: Int = 100_000, repetitions: Int = 100, fileName: String): VarianceEstimator {
+fun runSimulation(banditBuilders: () -> BanditBuilder<*>,
+                  surrogateModel: SurrogateModel<*>,
+                  horizon: Int = 100_000,
+                  repetitions: Int = 100,
+                  fileName: String,
+                  contextProvider: ContextProvider = object : ContextProvider {
+                      override fun context(rng: Random) = EmptyCollection
+                  }): VarianceEstimator {
     val writer = PrintStream(FileOutputStream(fileName, true))
     val rewards = RunningVariance()
     for (t in 1..repetitions) {
+        val banditBuilder = banditBuilders.invoke()
         val bandit = banditBuilder
                 .randomSeed(nanos().toInt())
                 .parallel().mode(ParallelMode.BLOCKING).batchSize(10..50).build()
-        val s = Simulation(surrogateModel, bandit, horizon = horizon, log = false, expectedRewards = FullSample())
+        val s = Simulation(surrogateModel, bandit, horizon = horizon, log = false, expectedRewards = FullSample(), contextProvider = contextProvider)
         s.start()
         s.awaitCompletion()
         val values = s.expectedRewards.values()

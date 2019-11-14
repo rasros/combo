@@ -1,86 +1,137 @@
 package combo.demo.models
 
-import combo.bandit.ParallelMode
+import combo.bandit.BanditBuilder
+import combo.bandit.RandomBandit
+import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.dt.RandomForestBandit
+import combo.bandit.glm.BinomialVariance
+import combo.bandit.glm.CovarianceLinearModel
+import combo.bandit.glm.LinearBandit
+import combo.bandit.glm.PrecisionLinearModel
+import combo.bandit.nn.*
 import combo.bandit.univariate.BinomialPosterior
+import combo.bandit.univariate.NormalPosterior
 import combo.bandit.univariate.ThompsonSampling
-import combo.demo.Simulation
-import combo.demo.SurrogateModel
+import combo.demo.*
 import combo.math.*
-import combo.model.Model
+import combo.model.*
 import combo.model.Model.Companion.model
-import combo.model.Root
-import combo.nn.*
+import combo.sat.InitializerType
 import combo.sat.Instance
 import combo.sat.SparseBitArray
 import combo.sat.constraints.Relation
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
 import combo.sat.set
-import combo.util.*
+import combo.util.IntCollection
+import combo.util.IntHashSet
 import java.io.InputStreamReader
 import kotlin.collections.set
-import kotlin.math.pow
+import kotlin.random.Random
 
 fun main() {
-    vectors = Nd4jVectorFactory
     val tcs = TopCategorySurrogate()
-    val optimizer = LocalSearch.Builder(tcs.model.problem)
-            .restarts(1)
-            .initializerBias(0.01f)
+
+    val satSolver = LocalSearch.Builder(tcs.model.problem)
+            .restarts(5)
+            .pRandomWalk(0.01f)
+            .initializer(InitializerType.NONE)
             .sparse(true)
+            .maxConsideration(100)
+            .fallbackCached()
+            .maxSize(50)
             .build()
-    val t = measureTimeMillis {
-        val literals = IntHashSet()
-        tcs.model["Top-k", 10].collectLiterals(tcs.model.index, literals)
-        tcs.model["domain", "D1"].collectLiterals(tcs.model.index, literals)
-        val instance = tcs.optimal(optimizer, literals) ?: error("failed")
-        println(tcs.model.toAssignment(instance))
-        println(tcs.o.value(instance))
+
+    val optimizer = LocalSearch.Builder(tcs.model.problem)
+            .restarts(5)
+            .pRandomWalk(0.01f)
+            .initializer(InitializerType.NONE)
+            .sparse(true)
+            .maxConsideration(100)
+            .cached()
+            .pNew(0.1f)
+            .pNewWithGuess(1.0f)
+            .maxSize(50)
+            .build()
+
+    val doHyperSearch = false
+    val chosen = "DT"
+
+    if (doHyperSearch) {
+        val parameters = mapOf(
+                "DT" to DecisionTreeHyperParameters(DecisionTreeBandit.Builder(tcs.model, ThompsonSampling(BinomialPosterior)).optimizer(satSolver)),
+                "RF" to RandomForestHyperParameters(RandomForestBandit.Builder(tcs.model, ThompsonSampling(BinomialPosterior)).optimizer(satSolver).trees(200)),
+                "GLM_precision" to PrecisionLinearBanditHyperParameters(LinearBandit.Builder(tcs.model.problem).linearModel(PrecisionLinearModel.Builder(tcs.model.problem).family(BinomialVariance).build())),
+                "GLM_covariance" to CovarianceLinearBanditHyperParameters(LinearBandit.Builder(tcs.model.problem).linearModel(CovarianceLinearModel.Builder(tcs.model.problem).family(BinomialVariance).build())),
+                "NL" to NeuralLinearBanditHyperParameters(NeuralLinearBandit.Builder(DL4jNetwork.Builder(tcs.model.problem).output(LogitTransform))))
+        println(chosen)
+        hyperSearch(parameters[chosen]
+                ?: error("bandit $chosen not found"), tcs, horizon = 100_000, repetitions = 10_000)
+    } else {
+
+        val bandits: Map<String, () -> BanditBuilder<*>> = mapOf(
+                "Random" to { RandomBandit.Builder(tcs.model.problem).optimizer(satSolver) },
+                "Oracle" to { OracleBandit.Builder(tcs).optimizer(optimizer) },
+                "DT" to {
+                    DecisionTreeBandit.Builder(tcs.model, ThompsonSampling(NormalPosterior))
+                            .optimizer(optimizer)
+                            .delta(6.3e-21f).deltaDecay(1.5e-9f).tau(.40f)
+                },
+                "RF" to {
+                    RandomForestBandit.Builder(tcs.model, ThompsonSampling(NormalPosterior))
+                            .viewedVariables(tcs.model.nbrVariables / 2)
+                            .optimizer(optimizer)
+                            .trees(200)
+                            .delta(6.3e-21f).deltaDecay(1.5e-9f).tau(.40f)
+                },
+                "GLM_precision" to {
+                    LinearBandit.Builder(tcs.model.problem)
+                            .linearModel(PrecisionLinearModel.Builder(tcs.model.problem)
+                                    .exploration(0.15f).regularizationFactor(3.2e-14f)
+                                    .priorPrecision(4.0e2f)
+                                    .build())
+                            .optimizer(optimizer)
+                },
+                "GLM_covariance" to {
+                    LinearBandit.Builder(tcs.model.problem)
+
+                            .linearModel(CovarianceLinearModel.Builder(tcs.model.problem)
+                                    .exploration(0.15f).regularizationFactor(2.0e-24f)
+                                    .priorVariance(6.3e-4f)
+                                    .build())
+                            .optimizer(optimizer)
+                },
+                "NL" to {
+                    NeuralLinearBandit.Builder(DL4jNetwork.Builder(tcs.model.problem)
+                            .regularizationFactor(0.01f))
+                            .baseVariance(0.1f)
+                            .varianceUpdateDecay(0.9999f)
+                            .weightUpdateDecay(0.999f)
+                            .optimizer(LocalSearch.Builder(tcs.model.problem).fallbackCached().build())
+                }
+        )
+
+        val banditLambda = bandits[chosen] ?: error("bandit not found $chosen")
+        val rewards = runSimulation(banditLambda,
+                tcs, horizon = 100_000,
+                repetitions = 1000,
+                fileName = "tc_data_$chosen.txt",
+                contextProvider = object : ContextProvider {
+                    override fun context(rng: Random): IntCollection {
+                        val lits = IntHashSet()
+                        tcs.model["Top-k", 5].collectLiterals(tcs.model.index, lits)
+                        tcs.model["domain", "D${rng.nextInt(1, 4)}"].collectLiterals(tcs.model.index, lits)
+                        return lits
+                    }
+                })
+        println("$chosen $rewards")
     }
-    println(t.toFloat() / 1000)
-    println(tcs.o.value(optimizer.witnessOrThrow()))
-    return
-
-    val p = tcs.datasetInstances().maxBy { tcs.o.value(it.second) }
-    p!!
-    println(p.first)
-    println(tcs.o.value(p.second))
-
-    val p2 = tcs.datasetInstances().minBy { tcs.o.value(it.second) }
-    p2!!
-    println(p2.first)
-    println(tcs.o.value(p2.second))
-
-    return
-
-    val bandit = RandomForestBandit.Builder(tcs.model, ThompsonSampling(BinomialPosterior))
-            .trees(200)
-            .maxLiveNodes(20)
-            .maxDepth(6)
-            .trainAbsError(RunningVariance())
-            .testAbsError(RunningVariance())
-            .parallel()
-            .mode(ParallelMode.BLOCKING)
-            .build()
-
-    val s = Simulation(tcs, bandit, horizon = 10_000)
-    s.start()
-    s.awaitCompletion()
-
-    println(bandit.testAbsError)
-    println(bandit.trainAbsError)
-    println(s.expectedRewards.nbrSamples)
-    println(s.expectedRewards.values().asSequence().sample(RunningVariance()).toString())
-    println(s.duration.mean / 1_000_000)
-    println((s.duration.standardDeviation / 1_000_000).pow(2))
-
 }
 
 fun categoryTreeModel(): Model {
     class Node(val value: String, val children: MutableList<Node> = ArrayList())
 
-    val lines = InputStreamReader(Node::class.java.getResourceAsStream("tc_attributes_original.txt")).readLines()
+    val lines = InputStreamReader(Node::class.java.getResourceAsStream("tc_attributes.txt")).readLines()
     val categories = lines.subList(0, lines.size - 3)
     val lookup = HashMap<String, Node>()
     val rootNodes = ArrayList<Node>()
@@ -118,30 +169,28 @@ fun categoryTreeModel(): Model {
                     nominal("domain", "D1", "D2", "D3")
                 }
             }
-
     return toModel(tree)
 }
 
-class TopCategorySurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<RegressionNetwork> {
+class TopCategorySurrogate() : SurrogateModel<NeuralNetworkObjective> {
 
-    private val randomSequence = RandomSequence(randomSeed)
-    val model = categoryTreeModel()
-    val o = RegressionNetwork(true,
-            arrayOf(readDenseLayerWeights(1, ReLU),
+    override val model = categoryTreeModel()
+    val network = StaticNetwork(
+            arrayOf(readDenseLayerWeights(1, RectifierTransform),
                     readBatchNormLayer(2),
-                    readDenseLayerWeights(3, ReLU),
+                    readDenseLayerWeights(3, RectifierTransform),
                     readBatchNormLayer(4),
                     readDenseLayerWeights(5, IdentityTransform)),
-            BinarySoftmaxLayer())
+            BinarySoftmaxLayer(), 100)
+    val o = NeuralNetworkObjective(true, network)
 
-    override fun reward(instance: Instance): Float {
-        val p = o.value(instance)
-        return if (randomSequence.next().nextFloat() < p) 1f else 0f
+    override fun reward(instance: Instance, prediction: Float, rng: Random): Float {
+        return if (rng.nextFloat() < prediction) 1f else 0f
     }
 
     override fun predict(instance: Instance) = o.value(instance)
 
-    override fun optimal(optimizer: Optimizer<RegressionNetwork>, assumptions: IntCollection) = optimizer.optimize(o, assumptions)
+    override fun optimal(optimizer: Optimizer<NeuralNetworkObjective>, assumptions: IntCollection) = optimizer.optimize(o, assumptions)
 
     fun datasetInstances(): Sequence<Pair<Int, Instance>> {
         return InputStreamReader(javaClass.getResourceAsStream("tc_dataset.txt")).buffered().lineSequence().map {

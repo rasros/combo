@@ -1,60 +1,107 @@
 package combo.demo.models
 
 import combo.bandit.BanditBuilder
-import combo.bandit.ParallelMode
+import combo.bandit.RandomBandit
+import combo.bandit.dt.DecisionTreeBandit
+import combo.bandit.dt.RandomForestBandit
+import combo.bandit.glm.CovarianceLinearModel
 import combo.bandit.glm.LinearBandit
-import combo.demo.Simulation
+import combo.bandit.glm.PrecisionLinearModel
+import combo.bandit.nn.DL4jNetwork
+import combo.bandit.nn.NeuralLinearBandit
+import combo.bandit.univariate.NormalPosterior
+import combo.bandit.univariate.ThompsonSampling
+import combo.demo.OracleBandit
 import combo.demo.SurrogateModel
-import combo.math.FallbackVector
+import combo.demo.hyperSearch
+import combo.demo.runSimulation
 import combo.math.RunningVariance
 import combo.math.nextNormal
 import combo.math.sample
+import combo.math.vectors
 import combo.model.*
 import combo.sat.BitArray
 import combo.sat.Instance
 import combo.sat.constraints.Relation.*
 import combo.sat.optimizers.JacopSolver
 import combo.sat.optimizers.LinearObjective
+import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
 import combo.util.IntCollection
 import combo.util.IntHashSet
-import combo.util.RandomSequence
 import combo.util.nanos
 import java.io.InputStreamReader
-import kotlin.math.sqrt
+import kotlin.random.Random
 
 fun main() {
-    val acm = AutoCompleteSurrogate()
+    val acm = AutoCompleteSurrogate(removeInteractions = false)
 
-    fun BanditBuilder<*>.parallelBuild() = parallel().mode(ParallelMode.BLOCKING).build()
-    val bandits = arrayOf(
-            //{ "GA" to GeneticAlgorithmBandit.Builder(acm.model.problem, ThompsonSampling(NormalPosterior)).parallelBuild() },
-            //{ "DT" to DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).parallelBuild() },
-            //{ "RF" to RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).trees(200).parallelBuild() },
-            //{ "GLMd" to LinearBandit.diagonalCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() },
-            { "GLMf" to LinearBandit.fullCovarianceBuilder(acm.model.problem).batchThreshold(Int.MAX_VALUE).parallelBuild() })
+    val doHyperSearch = false
+    val chosen = "DT"
 
-    for (bandit in bandits) {
-        val rewards = RunningVariance()
-        val n = 100
-        var name: String? = null
-        val horizon = 100_000
-        val buckets = Array(horizon) { RunningVariance() }
-        for (k in 0 until n) {
-            val (bname, b) = bandit.invoke()
-            name = bname
-            val s = Simulation(acm, b, horizon = horizon, log = false)
-            s.start()
-            s.awaitCompletion()
-            val sum = RunningVariance()
-            for ((i, f) in b.rewards.values().withIndex()) {
-                sum.accept(f)
-                buckets[i].accept(f)
-            }
-            rewards.accept(sum.mean)
-        }
-        println(buckets.map { it.mean }.joinToString())
-        println(name + " " + rewards.mean + "+/-" + (1.984f * rewards.standardDeviation / sqrt(n.toFloat())))
+    if (doHyperSearch) {
+        //val optInst = acm.optimal(JacopSolver(acm.dataSet.model.problem))
+        //println("Optimal: " + acm.predict(acm.remap(optInst!!)))
+        val parameters = mapOf(
+                "DT" to DecisionTreeHyperParameters(DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior))),
+                "RF" to RandomForestHyperParameters(RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior)).trees(200)),
+                "GLM_precision" to PrecisionLinearBanditHyperParameters(LinearBandit.Builder(acm.model.problem).linearModel(PrecisionLinearModel.Builder(acm.model.problem).build())),
+                "GLM_covariance" to CovarianceLinearBanditHyperParameters(LinearBandit.Builder(acm.model.problem).linearModel(CovarianceLinearModel.Builder(acm.model.problem).build())),
+                "NL" to NeuralLinearBanditHyperParameters(NeuralLinearBandit.Builder(DL4jNetwork.Builder(acm.model.problem))))
+        println(chosen)
+        hyperSearch(parameters[chosen]
+                ?: error("bandit $chosen not found"), acm, horizon = 100_000, repetitions = 10_000)
+    } else {
+
+        val optimizer = LocalSearch.Builder(acm.model.problem).randomSeed(nanos().toInt()).restarts(Int.MAX_VALUE).build()
+        val bandits: Map<String, () -> BanditBuilder<*>> = mapOf(
+                "Random" to { RandomBandit.Builder(acm.model.problem) },
+                "Oracle" to { OracleBandit.Builder(acm) },
+                "DT" to {
+                    DecisionTreeBandit.Builder(acm.model, ThompsonSampling(NormalPosterior))
+                            .optimizer(optimizer)
+                            .delta(6.3e-21f).deltaDecay(1.5e-9f).tau(.40f)
+                },
+                "RF" to {
+                    RandomForestBandit.Builder(acm.model, ThompsonSampling(NormalPosterior))
+                            .viewedVariables(acm.model.nbrVariables / 2)
+                            .optimizer(optimizer)
+                            .trees(200)
+                            .delta(6.3e-21f).deltaDecay(1.5e-9f).tau(.40f)
+                },
+                "GLM_precision" to {
+                    LinearBandit.Builder(acm.model.problem)
+                            .linearModel(PrecisionLinearModel.Builder(acm.model.problem)
+                                    .exploration(0.15f).regularizationFactor(3.2e-14f)
+                                    .priorPrecision(4.0e2f)
+                                    .build())
+                            .optimizer(optimizer)
+                },
+                "GLM_covariance" to {
+                    LinearBandit.Builder(acm.model.problem)
+
+                            .linearModel(CovarianceLinearModel.Builder(acm.model.problem)
+                                    .exploration(0.15f).regularizationFactor(2.0e-24f)
+                                    .priorVariance(6.3e-4f)
+                                    .build())
+                            .optimizer(optimizer)
+                },
+                "NL" to {
+                    NeuralLinearBandit.Builder(DL4jNetwork.Builder(acm.model.problem)
+                            .regularizationFactor(0.01f))
+                            .baseVariance(0.1f)
+                            .varianceUpdateDecay(0.9999f)
+                            .weightUpdateDecay(0.999f)
+                            .optimizer(LocalSearch.Builder(acm.model.problem).fallbackCached().build())
+                }
+        )
+
+        val banditLambda = bandits[chosen] ?: error("bandit not found $chosen")
+        val rewards = runSimulation(banditLambda,
+                acm, horizon = 100_000,
+                repetitions = 1000,
+                fileName = "ac_data_$chosen.txt")
+        println("$chosen $rewards")
     }
 }
 
@@ -227,23 +274,23 @@ fun autoCompleteModel(trainingSurrogate: Boolean) = Model.model("Auto complete")
     }
 }
 
-class AutoCompleteSurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<LinearObjective> {
+class AutoCompleteSurrogate(val removeInteractions: Boolean = false) : SurrogateModel<LinearObjective> {
 
-    private val randomSequence = RandomSequence(randomSeed)
     val dataSet = AutoCompleteDataSet()
-    val model = autoCompleteModel(false)
-    val solver = JacopSolver(dataSet.model.problem, randomSeed)
-    val weights = FallbackVector(readWeights())
+    override val model = autoCompleteModel(false)
+    val solver = JacopSolver(dataSet.model.problem)
+    val weights = vectors.vector(readWeights())
     val stdErr = dataSet.sites.mapIndexed { i, assignment ->
-        val d = assignment.instance dot weights
-        (d - dataSet.scores[i])
+        val p = predict(remap(assignment.instance))
+        (p - dataSet.scores[i])
     }.asSequence().sample(RunningVariance()).standardDeviation
 
     override fun optimal(optimizer: Optimizer<LinearObjective>, assumptions: IntCollection): Instance? {
+        // TODO should create custom objective that evaluates based on remapped instance directly
         return optimizer.optimize(LinearObjective(true, weights), assumptions)
     }
 
-    override fun reward(instance: Instance) = randomSequence.next().nextNormal(predict(instance), stdErr)
+    override fun reward(instance: Instance, prediction: Float, rng: Random) = rng.nextNormal(prediction, stdErr)
 
     /** Translate in the other direction compared to [predict] */
     fun remap(interactionInstance: Instance): Instance {
@@ -292,7 +339,9 @@ class AutoCompleteSurrogate(randomSeed: Int = nanos().toInt()) : SurrogateModel<
         val x = solver.witnessOrThrow(set)
 
         // Clear blocking factors for optimization rewards
-        for (name in arrayOf("Gender", "Person", "Relevant suggestions", "Diversified suggestions")) {
+        val cleared = mutableListOf("Gender", "Person", "Relevant suggestions", "Diversified suggestions")
+        if (removeInteractions) cleared.add("Interactions")
+        for (name in cleared) {
             val variable = dataSet.model[name]
             val ix = dataSet.model.index.valueIndexOf(variable)
             for (i in 0 until variable.nbrValues) {
@@ -385,6 +434,7 @@ class AutoCompleteDataSet {
 }
 
 /*
+// These are specific instances from the paper
 val rand1Lits = lits + arrayOf(model["All caps"], model["Highlight match"], !model["Inverse highlight"], !model["Inline filter"], model["Reset"], !model["Split bar"], !model["Stripes"], !model["Row separator"], model["Magnifier glass", "Right"],
         model["Match type", "Loose"], model["Category suggestions", 3], model["Brand suggestions", 3], model["Search suggestions", 3], !model["Product cards"], model["Stylize highlight"], !model["Term counts"])
 val rand2Lits = lits + arrayOf(!model["All caps"], !model["Highlight match"], model["Inline filter"], !model["Reset"], model["Relevant cards"], !model["Split bar"], model["Stripes"], !model["Row separator"], model["Magnifier glass", "Right"],
