@@ -222,22 +222,24 @@ abstract class BanditTest<B : Bandit<*>> {
 
     @Test
     fun relativeWeightImportance() {
-        val m = model { bool() }
-        val inst0 = BitArray(1, intArrayOf(0))
-        val inst1 = BitArray(1, intArrayOf(1))
-        // This has a small chance of failure so we fix seed
-        val rng = Random(0)
+        val m = model { nominal("a", 1, 2) }
+        val inst0 = BitArray(2, intArrayOf(1))
+        val inst1 = BitArray(2, intArrayOf(2))
         for (type in TestType.values()) {
+            val rng = Random(0)
             val bandit = bandit(m, TestParameters(type))
             for (i in 0 until 500) {
-                bandit.update(inst0, type.linearRewards(inst0, rng))
-                bandit.update(inst1, type.linearRewards(inst0, rng), 0.1f)
-                bandit.update(inst1, type.linearRewards(inst1, rng), 0.9f)
+                val r0 = type.linearRewards(BitArray(2, intArrayOf(0)), rng)
+                val r1 = type.linearRewards(BitArray(2, intArrayOf(3)), rng)
+                bandit.update(inst0, r0, 0.99f)
+                bandit.update(inst0, r1, 0.01f)
+                bandit.update(inst1, r0, 0.01f)
+                bandit.update(inst1, r1, 0.99f)
             }
             var count = 0
             for (i in 0 until 100)
-                if (bandit.chooseOrThrow().isSet(0)) count++
-            assertTrue(count > 50, "$type")
+                if (bandit.chooseOrThrow().isSet(1)) count++
+            assertTrue(count > 60, "$type $count")
         }
     }
 }
