@@ -30,12 +30,13 @@ class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes 
         TODO("not implemented")
     }
 
-    fun buildTree(prior: VarianceEstimator): Node {
-        if (nodes.isEmpty()) return TerminalNode(EmptyCollection, prior, 0)
+    fun buildTree(prior: VarianceEstimator, blockQueueSize:Int, randomSeed: Int): Node {
+        var seed = randomSeed
+        if (nodes.isEmpty()) return TerminalNode(EmptyCollection, prior, blockQueueSize, seed)
 
         val rootSplit = nodes[0].literals[0].toIx()
-        val root = SplitNode(rootSplit, TerminalNode(collectionOf(rootSplit.toLiteral(true)), prior, 0),
-                TerminalNode(collectionOf(rootSplit.toLiteral(false)), prior, 0), prior)
+        val root = SplitNode(rootSplit, TerminalNode(collectionOf(rootSplit.toLiteral(true)), prior, blockQueueSize, seed++),
+                TerminalNode(collectionOf(rootSplit.toLiteral(false)), prior, blockQueueSize, seed++), prior)
 
         // Rebuild tree structure
         for ((literals, data) in this) {
@@ -59,13 +60,13 @@ class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes 
                 val ix = literals[stopIx + 1].toIx()
                 if (r.ix.toLiteral(true) == literals[stopIx]) {
                     val setLiterals = literals.sliceArray(0 until stopIx) + r.ix.toLiteral(true)
-                    r.pos = SplitNode(ix, TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(true))), prior, 0),
-                            TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(false))), prior, 0), prior)
+                    r.pos = SplitNode(ix, TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(true))), prior, blockQueueSize, seed++),
+                            TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(false))), prior, blockQueueSize, seed++), prior)
                     r = r.pos as SplitNode
                 } else if (r.ix.toLiteral(false) == literals[stopIx]) {
                     val setLiterals = literals.sliceArray(0 until stopIx) + r.ix.toLiteral(false)
-                    r.neg = SplitNode(ix, TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(true))), prior, 0),
-                            TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(false))), prior, 0), prior)
+                    r.neg = SplitNode(ix, TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(true))), prior, blockQueueSize, seed++),
+                            TerminalNode(collectionOf(*(setLiterals + ix.toLiteral(false))), prior, blockQueueSize, seed++), prior)
                     r = r.neg as SplitNode
                 } else
                     break
@@ -75,11 +76,11 @@ class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes 
             // 3) add leaf node
             if (literals[stopIx] == r.ix.toLiteral(true)) {
                 if ((r.pos as? LeafNode)?.data === prior)
-                    r.pos = TerminalNode(collectionOf(*literals), data.copy(), 0)
+                    r.pos = TerminalNode(collectionOf(*literals), data.copy(), blockQueueSize, seed++)
                 // else there is junk in the historicData and the current node is ignored
             } else if (literals[stopIx] == r.ix.toLiteral(false)) {
                 if ((r.neg as? LeafNode)?.data === prior)
-                    r.neg = TerminalNode(collectionOf(*literals), data.copy(), 0)
+                    r.neg = TerminalNode(collectionOf(*literals), data.copy(), blockQueueSize, seed++)
                 // else there is junk in the historicData and the current node is ignored
             }
         }
@@ -91,10 +92,10 @@ class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes 
             val r = queue.remove()
             if (r.pos is SplitNode) queue.add(r.pos as SplitNode)
             else if ((r.pos is TerminalNode) && (r.pos as TerminalNode).data === prior)
-                r.pos = TerminalNode((r.pos as TerminalNode).literals, prior.copy(), 0)
+                r.pos = TerminalNode((r.pos as TerminalNode).literals, prior.copy(), blockQueueSize, seed++)
             if (r.neg is SplitNode) queue.add(r.neg as SplitNode)
             else if ((r.neg is TerminalNode) && (r.neg as TerminalNode).data === prior)
-                r.neg = TerminalNode((r.neg as TerminalNode).literals, prior.copy(), 0)
+                r.neg = TerminalNode((r.neg as TerminalNode).literals, prior.copy(), blockQueueSize, seed++)
         }
 
         // Calculate data for split nodes

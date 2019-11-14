@@ -286,7 +286,7 @@ class RandomForestBandit(val parameters: TreeParameters,
             val trees = if (importedData != null) {
                 Array(importedData!!.size) {
                     val tree = importedData!![it]
-                    DecisionTreeBandit(treeParameters, tree.buildTree(banditPolicy.prior), sampleVariables(rng, tree), it)
+                    DecisionTreeBandit(treeParameters, tree.buildTree(banditPolicy.prior, 0, 0), sampleVariables(rng, tree), it)
                 }
             } else {
                 Array(trees) {

@@ -363,7 +363,7 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
         /** Whether data should be automatically filtered for update for variables that are undefined (otherwise counted as false). */
         fun filterMissingData(filterMissingData: Boolean) = apply { this.filterMissingData = filterMissingData }
 
-        override fun importData(data: TreeData) = apply { this.root = data.buildTree(banditPolicy.prior) }
+        override fun importData(data: TreeData) = apply { this.root = data.buildTree(banditPolicy.prior, blockQueueSize, randomSeed) }
 
         override fun parallel() = ParallelPredictionBandit.Builder(this)
 
