@@ -13,7 +13,6 @@ class GreedyLinearBanditTest : BanditTest<LinearBandit>() {
                     .maximize(parameters.maximize)
                     .rewards(parameters.rewards)
                     .build()
-
 }
 
 class PrecisionLinearBanditTest : BanditTest<LinearBandit>() {
