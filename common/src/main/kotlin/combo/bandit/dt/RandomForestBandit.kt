@@ -159,7 +159,7 @@ class RandomForestBandit(val parameters: TreeParameters,
                 else VarianceReduction
         private var delta: Float = 0.05f
         private var deltaDecay: Float = 0.5f
-        private var tau: Float = 0.01f
+        private var tau: Float = 0.1f
         private var maxNodes: Int = Int.MAX_VALUE
         private var viewedValues: Int = Int.MAX_VALUE
         private var viewedVariables: Int =
