@@ -80,9 +80,9 @@ interface Constraint : Expression {
 /**
  * A logic constraint can be negated "for free" without increasing the cost solving.
  */
-interface PropositionalConstraint : Constraint {
+interface PropositionalConstraint : Proposition, Constraint {
     override fun unitPropagation(unit: Int): PropositionalConstraint = this
-    fun not(): PropositionalConstraint
+    override fun not(): PropositionalConstraint
 }
 
 /**
