@@ -1,15 +1,17 @@
 # COMBO
-Combo is a library for Constrained Online Multi-variate Bandit Optimization (COMBO). It is used to optimize software with user data in a production environment. It supports multiple [online optimization](https://en.wikipedia.org/wiki/Online_optimization) methods, such as generalized linear bandits, decision tree bandits, and genetic algorithms. Using Combo, each user can recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
+Combo is a library for Constrained Online Multi-variate Bandit Optimization (COMBO), otherwise known as combinatorial multi-armed bandits. It is used to optimize software with user data in a production environment. It supports multiple methods, such as generalized linear model bandits, random forest bandits, neural network bandits, and genetic algorithms. Using Combo, each user can recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
 
 Using it requires three steps: 
 
-1. Create a [feature model](https://en.wikipedia.org/wiki/Feature_model).
+1. Create a [model](https://en.wikipedia.org/wiki/Feature_model).
 2. Map the model to your actual software features.
 3. Create a Combo optimizer.
 
 ## Feature model
 
-A feature model is a tree that describes the variables in the optimization problem. Lets start of with a simple example, which is intended to be used to display a top-list of the most important categories on a web site.
+A feature model is a tree that describes the variables in the optimization problem. Lets start of with a simple example, which is intended to be used to display a top-list of the most important media categories on a web site.
+
+The optimal configuration will be automatically calculated based on how well each category performs in terms of eg. sales or click data.
 
 ```kotlin
 fun main() {
@@ -17,88 +19,63 @@ fun main() {
     val myModel = Model.root {
 
         // Context variables
-        mandatoryInt("DisplayWidth", 640, 1920)
-        val customerType = mandatoryAlternative("CustomerType", "Child", "Company", "Person")
+        int("DisplayWidth", 640, 1920)
+        val customerType = nominal("CustomerType", "Child", "Company", "Person")
 
-        val categories = mandatoryModel("Categories") {
+        // The category tree is encoded directly
 
-            model("Movies") {
-                val horror = multiple("Horror", "Slasher", "Splatter", "Zombie")
-                multiple("Action", "Thriller", "Martial arts", "Crime")
-                multiple("Sci-fi", "Supernatural", "Super heroes", "Fantasy")
+        //Games can be absent
+        val games = optionalMultiple("Games", "Shooter", "Platform", "Sports", "Action", "Adventure", "Strategy")
 
-                val child = customerType.option("Child")
-                constraint { child equivalent !horror }
-            }
+        // Movies is a sub-category with multiple sub-options
+        val movies = model("Movies") {
+            val horror = optionalMultiple("Horror", "Slasher", "Splatter", "Zombie")
+            optionalMultiple("Action", "Thriller", "Martial arts", "Crime")
+            optionalMultiple("Sci-fi", "Supernatural", "Super heroes", "Fantasy")
 
-            multiple("Games", "Shooter", "Platform", "Sports", "Action", "Adventure", "Strategy")
-            // ...
+            // This adds a constraint that ensures that whenever CustomerType is Child then any of the 
+            // horror categories are hidden.
+            val child = customerType.option("Child")
+            impose { child equivalent !horror }
         }
-        val categoryLeaves = categories.index.allFeatures
-                .mapNotNull { it as? Multiple<*> }
-                .flatMap { it.options().asSequence() }
-                .toList().toTypedArray()
 
-        constraint { atLeast(2, *categoryLeaves) }
-        constraint { atMost(5, *categoryLeaves) }
+        // ... add more categories as needed
+
+        // Add a hard constraint that the number of categories must be between 2 and 5.
+        // This could have been a dynamic parameter with the number of movie genres instead.
+        val categoryVariables = games.values + movies.scope.variables.asSequence()
+                .flatMap { (it as Multiple<*>).values }.toList().toTypedArray()
+        impose { atLeast(2, *categoryVariables) }
+        impose { atMost(5, *categoryVariables) }
     }
 }
 ```
 
-The flag function creates a feature with boolean on/off values. In this model the sub-features e.g. `Drama` and `Sci-fi` can only be true if their parent `Movies` is true. In logic terms, this is the relation: Drama => Movies AND Sci-fi => Movies. There will be no assignments where this constraint is not uphold. Combo supports some additional constraints (formally pseudo-boolean constraints). For example:
-
-```kotlin
-    val model = Model.builder()
-            //...
-            // This ensures that only one of moviesDrama and moviesSciFi will be true simultaneously
-            // A top-k category list in this way is a simple matter of adding an atMost constraint with each leaf-node
-            // in the feature model, with degree = k
-            .constrained(atMost("Drama", "Sci-fi", "Comedy", "Horror", degree = k))
-            .build()
-```
-
-Combo supports additional types of features. The previous features that were added with just a name were all instances of the Flag feature. The additional feature types are Alternative and Multiple. Alternative encodes an excludes constraint such that at most one of the given alternatives can be selected at once. Multiple is similar but without the exclusive constraint so that muliple options can be chosen at once. Alternative would be a better option to build the above model: 
-
-```kotlin
-    val model = Model.builder()
-            .optional(alternative("Drama", "Sci-fi", "Comedy", "Horror", name = "Movies"))
-            .optional("Games")
-            .build()
-```
-
-### Layout optimization
-
 ## Optimizer
 
-Creating an optimizer is simple, creating the _right_ optimizer can be a challenge.
-
-### Combinatorial bandit
-```kotlin
-// Using the feature model "model" from before
-val optimizer = Optimizer.combinatorialBandit(model)
-```
-
-This will enumerate each possible solution and keep track of the performance of each possible solution individually. For a small model like the basic model above (with only 8 possible solutions) this might be good enough or even the best solution. However, this scales exponentially in the number of variables so for large models this approach is not feasible.
-
-Note that the combinatorial bandit is implemented using Thompson sampling, thus you have to specify which posterior distribution the rewards are modeled with. By default this is the normal distribution. For binary rewards (success/failure) you can use:
+Creating an optimizer is simple, creating the _right_ optimizer can be a challenge. There are several hyper-parameters that can be tuned for better performance. The random forest bandit is recommended to start with because it is quite robust to bad tuning.
 
 ```kotlin
-val optimizer = Optimizer.combinatorialBandit(model, posterior = binomial())
+// Using the feature model "myModel" from above
+// This optimizer will maximize binomial data (success/failures).
+val optimizer = ModelBandit.randomForestBandit(myModel, ThompsonSampling(BinomialVariance))
 ```
 
-### Genetic algorithm
-### Decision tree bandit
-### Generalized linear model bandit
+Using the optimizer then is as simple as this:
 
-## Why not A/B Testing?
+```kotlin
+val assignment = optimizer.chooseOrThrow()
+// The values can be queried like so:
+assignment.getBoolean("Horror")
+// It can be used as an ordinary map from String to value as such (but then the structure is lost).
+val map = assignment.toMap()
+```
 
-The limitations of A/B testing as an optimization method is as follows.
+To get a "personalized" do this:
 
-1. Local optimization. Performing multiple iterations of A/B testing is equivalent to [hill climbing](https://en.wikipedia.org/wiki/Hill_climbing). Doing so might lead to a local optima. While multi-variate testing can alleviate this by also considering interactions between variables, doing so lead to the next problem.
-2. Scale. Classical experiments takes a long time to complete. Also, multi-variate testing requires a lot of storage space, in the case of full factorial experiments.
-3. Personalization. A/B testing does not directly deal with personalization, meaning that all users will get the same version of software. If the site is split into multiple segments then the experiment data cannot be shared between the different segments.
+```kotlin
+val assignment = optimizer.chooseOrThrow(myModel["DisplayWidth", 1920], myModel["CustomerType", "Child"])
+```
 
-Obviously this does not mean that A/B testing is useless or should not be done. An implementaiton of an optimization system with Combo should definitely be A/B tested to verify that it works as intended.
-
-# Support
+## Support
 Feel free to contact me, the author, at rasmus at cs.lth.se in case of trouble or need of help. I might require you to give an experience report though :)
