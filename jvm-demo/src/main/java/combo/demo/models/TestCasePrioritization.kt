@@ -2,7 +2,6 @@ package combo.demo.models
 
 import combo.bandit.univariate.NormalPosterior
 import combo.bandit.univariate.ThompsonSampling
-import combo.model.Flag
 import combo.model.Model.Companion.model
 import combo.model.ModelBandit
 import combo.sat.ValidationException
@@ -10,30 +9,41 @@ import combo.sat.constraints.Relation
 
 val testModel = model {
 
-    val system1 = model("system 1") {
-        flag("test A", 10)
-        flag("test B", 20)
-        flag("test C", 15)
+    val tests = arrayOf(
+            flag("test A", 10),
+            flag("test B", 20),
+            flag("test C", 15),
+            flag("test D", 5),
+            flag("test E", 4))
 
-        // This constraint makes it so that if we select "system 1" one of the sub-variables (A,B,C) are enabled.
-        // Otherwise, only the opposite will be true (A=>system 1 and so on).
-        impose { "system 1" implies disjunction(*scope.variables.toTypedArray()) }
+    val s1 = model("system 1") {
+        bool("component 1")
+        bool("component 2")
+        bool("component 3")
     }
 
-    val system2 = model("system 2") {
-        flag("test D", 5)
-        flag("test E", 4)
-        impose { "system 2" implies disjunction(*scope.variables.toTypedArray()) }
+    val s2 = model("system 2") {
+        bool("component 1")
+        bool("component 2")
+        bool("component 3")
+    }
+
+    val systemTestCoverage = mapOf(
+            s1 to arrayOf(tests[0], tests[1]),
+            s2 to arrayOf(tests[1], tests[2], tests[3], tests[4])
+    )
+
+    for ((s, ts) in systemTestCoverage) {
+        impose { s equivalent disjunction(*ts) }
     }
 
     // At least one of the tests must be run each step
-    impose { disjunction(system1, system2) }
+    impose { disjunction(*tests) }
 
     // Add a time budget variable that can be dynamically specified
-    val testVariables: Array<Flag<Int>> = (system1.scope.variables + system2.scope.variables).map { it as Flag<Int> }.toTypedArray()
-    val testDurations = testVariables.map { it.value }.toIntArray()
+    val testDurations = tests.map { it.value }.toIntArray()
     val timeBudget = int("timeBudget", 0, testDurations.sum())
-    impose { linear(timeBudget, Relation.LE, testDurations, testVariables) }
+    impose { linear(timeBudget, Relation.LE, testDurations, tests) }
 }
 
 fun main() {
