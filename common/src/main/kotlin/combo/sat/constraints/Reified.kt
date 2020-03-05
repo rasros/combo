@@ -43,8 +43,7 @@ class ReifiedEquivalent(literal: Int, override val constraint: PropositionalCons
             literal -> constraint
             !literal -> constraint.not()
             else -> {
-                val propagated = constraint.unitPropagation(unit)
-                when (propagated) {
+                when (val propagated = constraint.unitPropagation(unit)) {
                     constraint -> this
                     is Tautology -> Conjunction(collectionOf(literal))
                     is Empty -> Conjunction(collectionOf(!literal))
@@ -101,8 +100,7 @@ class ReifiedImplies(literal: Int, constraint: Constraint) : ReifiedConstraint(l
             unit == literal -> constraint
             unit.toIx() == literal.toIx() -> Tautology
             else -> {
-                val propagated = constraint.unitPropagation(unit)
-                when (propagated) {
+                when (val propagated = constraint.unitPropagation(unit)) {
                     constraint -> this
                     is Tautology -> Tautology
                     is Empty -> Conjunction(collectionOf(!literal))
