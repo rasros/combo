@@ -36,7 +36,7 @@ class IntBounds(literals: IntRangeCollection, val min: Int, val max: Int) : Nume
         else instance.setBits(literals.min.toIx(), literals.size, coerced)
     }
 
-    override fun toString() = "IntBounds(${literals.min} in $min:$max)"
+    override fun toString() = "IntBounds(${literals.min.toIx()}..${literals.max.toIx()} in $min:$max)"
 }
 
 class FloatBounds(literals: IntRangeCollection, val min: Float, val max: Float) : NumericConstraint(literals) {
@@ -69,5 +69,5 @@ class FloatBounds(literals: IntRangeCollection, val min: Float, val max: Float) 
         instance.setFloat(literals.min.toIx(), coerced)
     }
 
-    override fun toString() = "FloatBounds(${literals.min.toIx().toLiteral(true)} in $min:$max)"
+    override fun toString() = "FloatBounds(${literals.min.toIx()}..${literals.max.toIx()} in $min:$max)"
 }
