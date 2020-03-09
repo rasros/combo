@@ -74,6 +74,17 @@ class TransitiveImplications(val nbrValues: Int, implications: Map<Int, IntArray
         return set.toArray()
     }
 
+    fun flipPropagate(instance: Instance, ix: Int) {
+        instance.flip(ix)
+        val literal = instance.literal(ix)
+        val trueImplications = trueImplications(literal)
+        if (trueImplications != null)
+            for (j in trueImplications) instance[j] = true
+        val falseImplications = falseImplications(literal)
+        if (falseImplications != null)
+            for (j in falseImplications) instance[j] = false
+    }
+
     init {
         for ((from, edges) in implications) {
             val ix = toArrayIndex(from)

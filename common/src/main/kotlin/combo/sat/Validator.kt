@@ -10,21 +10,27 @@ import kotlin.random.Random
  * This contains cached information about satisfied constraints used during search by search-based methods,
  * [combo.sat.optimizers.GeneticAlgorithm] and [combo.sat.optimizers.LocalSearch].
  */
-class Validator private constructor(val problem: Problem, val instance: Instance, val assumption: Constraint, rebuildIndex: Boolean) : Instance by instance {
+class Validator private constructor(val problem: Problem,
+                                    val instance: Instance,
+                                    val assumption: Constraint,
+                                    private val assumptionIxs: IntCollection,
+                                    private val unsatisfied: IntHashSet,
+                                    private val constraintCache: IntArray,
+                                    rebuildIndex: Boolean) : Instance by instance {
 
-    constructor(problem: Problem, instance: Instance, assumption: Constraint) : this(problem, instance, assumption, true)
+    constructor(problem: Problem, instance: Instance, assumption: Constraint) : this(
+            problem, instance, assumption,
+            if (assumption.literals.isEmpty()) EmptyCollection
+            else IntHashSet(nullValue = -1).apply {
+                assumption.literals.forEach { add(it.toIx()) }
+            },
+            IntHashSet(nullValue = -1),
+            IntArray(problem.nbrConstraints + 1),
+            true)
 
     var totalUnsatisfied: Int = 0
         private set
 
-    private val assumptionIxs: IntCollection =
-            if (assumption.literals.isEmpty()) EmptyCollection
-            else IntHashSet(nullValue = -1).apply {
-                assumption.literals.forEach { add(it.toIx()) }
-            }
-    private val unsatisfied = IntHashSet(nullValue = -1)
-
-    private val constraintCache = IntArray(problem.nbrConstraints + 1)
 
     init {
         if (rebuildIndex)
@@ -57,17 +63,6 @@ class Validator private constructor(val problem: Problem, val instance: Instance
     }
 
     override fun flip(ix: Int) = set(ix, !isSet(ix))
-
-    fun flipPropagate(ix: Int, implications: TransitiveImplications) {
-        flip(ix)
-        val literal = instance.literal(ix)
-        val trueImplications = implications.trueImplications(literal)
-        if (trueImplications != null)
-            for (j in trueImplications) this[j] = true
-        val falseImplications = implications.falseImplications(literal)
-        if (falseImplications != null)
-            for (j in falseImplications) this[j] = false
-    }
 
     override fun set(ix: Int, value: Boolean) {
         val literal = ix.toLiteral(value)
@@ -106,10 +101,8 @@ class Validator private constructor(val problem: Problem, val instance: Instance
     }
 
     override fun copy(): Validator {
-        val copy = Validator(problem, instance.copy(), assumption, false)
-        constraintCache.copyInto(copy.constraintCache)
+        val copy = Validator(problem, instance.copy(), assumption, assumptionIxs, unsatisfied.copy(), constraintCache.copyOf(), false)
         copy.totalUnsatisfied = totalUnsatisfied
-        copy.unsatisfied.addAll(unsatisfied)
         return copy
     }
 
