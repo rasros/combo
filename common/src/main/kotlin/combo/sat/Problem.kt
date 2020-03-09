@@ -13,23 +13,59 @@ class Problem @JvmOverloads constructor(val nbrValues: Int, val constraints: Arr
 
     val nbrConstraints get() = constraints.size
 
-    private val constraintIndex: Map<Int, IntArray> = let {
-        val map = HashMap<Int, IntArrayList>()
-        for ((i, cons) in constraints.withIndex()) {
-            for (lit in cons.literals) {
-                val ix = lit.toIx()
-                assert(ix < nbrValues)
-                if (!map.containsKey(ix)) map[ix] = IntArrayList()
-                map[ix]!!.add(i)
-            }
-        }
-        map.mapValuesTo(HashMap()) { it.value.toArray() }
+    private interface ConstraintIndex {
+        fun constraining(valueIx: Int): IntArray
     }
+
+    private class MapConstraintIndex(val index: Map<Int, IntArray>) : ConstraintIndex {
+        constructor(nbrValues: Int, constraints: Array<out Constraint>) : this(
+                constraints.let {
+                    val map = HashMap<Int, IntArrayList>()
+                    for ((i, cons) in it.withIndex()) {
+                        for (lit in cons.literals) {
+                            val ix = lit.toIx()
+                            assert(ix < nbrValues)
+                            if (!map.containsKey(ix)) map[ix] = IntArrayList()
+                            map[ix]!!.add(i)
+                        }
+                    }
+                    map.mapValuesTo(HashMap()) { it.value.toArray() }
+                }
+        )
+
+        override fun constraining(valueIx: Int) = index[valueIx] ?: EMPTY_INT_ARRAY
+    }
+
+    private class ArrayConstraintIndex(val index: Array<IntArray>) : ConstraintIndex {
+        constructor(nbrValues: Int, constraints: Array<out Constraint>) : this(
+                constraints.let { cs ->
+                    val index: Array<IntArrayList?> = arrayOfNulls(nbrValues)
+                    for ((i, cons) in cs.withIndex()) {
+                        for (lit in cons.literals) {
+                            val ix = lit.toIx()
+                            assert(ix < nbrValues)
+                            if (index[ix] == null) index[ix] = IntArrayList()
+                            index[ix]!!.add(i)
+                        }
+                    }
+                    Array<IntArray>(nbrValues) {
+                        if (index[it] == null) EMPTY_INT_ARRAY
+                        else index[it]!!.toArray()
+                    }
+                }
+        )
+
+        override fun constraining(valueIx: Int) = index[valueIx]
+    }
+
+    private val constraintIndex: ConstraintIndex = if (nbrValues < 10000 && constraints.size * 10 > nbrValues)
+        ArrayConstraintIndex(nbrValues, constraints)
+    else MapConstraintIndex(nbrValues, constraints)
 
     /**
      * Returns the index into the [constraints] array of all constraints with the given variable.
      */
-    fun constraining(valueIx: Int) = constraintIndex[valueIx] ?: EMPTY_INT_ARRAY
+    fun constraining(valueIx: Int) = constraintIndex.constraining(valueIx)
 
     /**
      * This method is intended for testing, solvers use [Validator] instead.
@@ -94,6 +130,7 @@ class Problem @JvmOverloads constructor(val nbrValues: Int, val constraints: Arr
             }
         }
         return if (returnConstraints) {
+            // TODO takes actual time
             copy.asSequence()
                     .filter { !it.isUnit() && it != Tautology }
                     .toList()
