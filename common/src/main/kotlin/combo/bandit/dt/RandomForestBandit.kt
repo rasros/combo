@@ -19,6 +19,7 @@ import kotlin.random.Random
 
 class RandomForestBandit(val parameters: TreeParameters,
                          val trees: Array<DecisionTreeBandit>,
+                         val propagateDecisions: Boolean = true,
                          val instanceSamplingMean: Float = 1f)
     : PredictionBandit<ForestData>, ITreeParameters by parameters {
 
@@ -55,30 +56,30 @@ class RandomForestBandit(val parameters: TreeParameters,
     }
 
     private fun opt(optimal: Boolean, assumptions: IntCollection): Instance {
-        val decisions = IntHashSet(nullValue = 0)
-        decisions.addAll(assumptions)
-        var problem = Problem(model.problem.nbrValues, model.problem.unitPropagation(decisions, true))
+        val allDecisions = IntHashSet(nullValue = 0)
+        val decisions = IntArrayList()
+        val scores = FloatArrayList()
+        allDecisions.addAll(assumptions)
+        var problem = if (!propagateDecisions) model.problem
+        else Problem(model.problem.nbrValues, model.problem.unitPropagation(allDecisions, true))
 
         val remainingSplits = HashMap<Int, ArrayList<SplitNode>>(trees.size)
         fun updateSplit(node: Node) {
-            val r = node.descendTo(decisions)
+            val r = node.descendTo(allDecisions)
             if (r is SplitNode)
                 remainingSplits.getOrPut(r.ix) { ArrayList() }.add(r)
         }
 
         trees.forEach { updateSplit(it.root) }
 
-        var instance: Instance? = null
-
-        var failures = 0
-        var backtracks = 0
         val t = if (optimal) step.get() else step.getAndIncrement()
         while (remainingSplits.isNotEmpty()) {
             val policy = if (optimal) Greedy else banditPolicy.blank()
             var best = Float.NEGATIVE_INFINITY
             var bestLit = 0
-            for ((ix, nodes) in remainingSplits) {
 
+            // 1) select split
+            for ((ix, nodes) in remainingSplits) {
                 val pos = nodes.asSequence().map { it.pos.data }.reduce { n1, n2 -> n1.combine(n2) }
                 pos.updateSampleSize(pos.nbrWeightedSamples / nodes.size)
                 val neg = nodes.asSequence().map { it.neg.data }.reduce { n1, n2 -> n1.combine(n2) }
@@ -99,41 +100,50 @@ class RandomForestBandit(val parameters: TreeParameters,
                     best = negValue
                 }
             }
-            var workingInstance = instance?.copy()
+            allDecisions.add(bestLit)
+
+            // 2) propagate split
+            val propagated: Boolean =
+                    if (propagateDecisions) {
+                        val s1 = allDecisions.size
+                        try {
+                            problem = Problem(problem.nbrValues, problem.unitPropagation(allDecisions, true))
+                            val s2 = allDecisions.size
+                            s1 != s2
+                        } catch (e: UnsatisfiableException) {
+                            break
+                        }
+                    } else false
+
             decisions.add(bestLit)
-            if (workingInstance == null || workingInstance.literal(bestLit.toIx()) != bestLit) {
-                workingInstance = optimizer.witness(decisions, workingInstance)
-            }
-            if (workingInstance == null) {
-                decisions.remove(bestLit)
-                decisions.add(!bestLit)
-                workingInstance = optimizer.witness(decisions)
-                backtracks++
-            }
-            if (workingInstance == null) {
-                decisions.remove(!bestLit)
-                if (failures++ >= maxRestarts) break
-                else continue
-            }
-            instance = workingInstance
-            val propagated = run {
-                val s1 = decisions.size
-                problem = Problem(problem.nbrValues, problem.unitPropagation(decisions, true))
-                val s2 = decisions.size
-                s1 != s2
-            }
+            scores.add(best)
+
+            // 3) update remainingSplits
             if (propagated) {
                 for (ix in remainingSplits.keys.toList()) {
-                    if (ix.toLiteral(true) in decisions || ix.toLiteral(false) in decisions) {
+                    if (ix.toLiteral(true) in allDecisions || ix.toLiteral(false) in allDecisions) {
                         remainingSplits.remove(ix)!!.forEach { updateSplit(it) }
                     }
                 }
-
             } else {
                 remainingSplits.remove(bestLit.toIx())!!.forEach { updateSplit(it) }
             }
         }
-        return instance ?: optimizer.witnessOrThrow(decisions)
+
+        var instance = optimizer.witness(decisions)
+        if (instance == null && decisions.isNotEmpty()) {
+            // all decisions cannot be satisfied so maximize the number of applicable decisions
+            val s = scores.toArray()
+            val d = decisions.toArray()
+            for (i in d.indices) {
+                if (!d[i].toBoolean()) s[i] = -s[i]
+                d[i] = d[i].toIx()
+            }
+            val linearObjective = LinearObjective(maximize, vectors.sparseVector(problem.nbrValues, s, d))
+            @Suppress("UNCHECKED_CAST")
+            instance = (optimizer as Optimizer<LinearObjective>).optimizeOrThrow(linearObjective)
+        }
+        return instance ?: optimizer.witnessOrThrow(allDecisions)
     }
 
 
@@ -178,6 +188,7 @@ class RandomForestBandit(val parameters: TreeParameters,
         private var importedData: ForestData? = null
         private var instanceSamplingMean: Float = 1f
         private var maxRestarts: Int = 10
+        private var propagateDecisions: Boolean = true
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }
@@ -243,6 +254,9 @@ class RandomForestBandit(val parameters: TreeParameters,
         /** Max restart attempts to [choose] (only relevant with assumptions). */
         fun maxRestarts(maxRestarts: Int) = apply { this.maxRestarts = maxRestarts }
 
+        /** Whether decisions should be propagated. */
+        fun propagateDecisions(propagateDecisions: Boolean) = apply { this.propagateDecisions = propagateDecisions }
+
         override fun importData(data: ForestData) = apply { this.importedData = data }
 
         override fun parallel() = ParallelPredictionBandit.Builder(this)
@@ -293,7 +307,7 @@ class RandomForestBandit(val parameters: TreeParameters,
                     DecisionTreeBandit(treeParameters, null, sampleVariables(rng), it)
                 }
             }
-            return RandomForestBandit(treeParameters, trees, instanceSamplingMean)
+            return RandomForestBandit(treeParameters, trees, propagateDecisions, instanceSamplingMean)
         }
     }
 }
