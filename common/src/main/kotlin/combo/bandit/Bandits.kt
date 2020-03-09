@@ -173,7 +173,7 @@ interface BanditBuilder<D : BanditData> {
     fun build(): Bandit<D>
 
     /**
-     * Initialize with historic [data] to the bandit, can only be used once.
+     * Initialize with historic [data] to the bandit.
      */
     fun importData(data: D): BanditBuilder<D>
 
