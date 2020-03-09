@@ -15,7 +15,7 @@ abstract class LinearModel(val link: Transform,
                            var bias: Float) {
 
     fun predict(input: VectorView) = link.apply(bias + (input dot weights))
-    abstract fun sample(rng: Random): VectorView
+    abstract fun sample(rng: Random, weights: VectorView = this.weights): VectorView
 
     abstract fun train(input: VectorView, result: Float, weight: Float)
     open fun trainAll(inputs: Array<out VectorView>, results: FloatArray, weights: FloatArray?) {

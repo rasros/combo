@@ -18,7 +18,7 @@ class GreedyLinearModel(link: Transform,
                         bias: Float)
     : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
-    override fun sample(rng: Random): VectorView {
+    override fun sample(rng: Random, weights: VectorView): VectorView {
         return if (exploration > 0f)
             vectors.zeroVector(weights.size).apply {
                 transformIndexed { i, _ ->

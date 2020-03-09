@@ -24,7 +24,7 @@ class CovarianceLinearModel(val family: VarianceFunction,
                             var biasPrecision: Float)
     : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
-    override fun sample(rng: Random): Vector {
+    override fun sample(rng: Random, weights: VectorView): Vector {
         val u = vectors.vector(FloatArray(weights.size) { rng.nextNormal(0f, sqrt(exploration)) })
         val wHat = covarianceL * u
         wHat.add(weights)
@@ -112,7 +112,11 @@ class CovarianceLinearModel(val family: VarianceFunction,
         for (i in weights.indices) {
             weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
             for (j in i until weights.size) {
+                val v1 = covariance[i,j]
                 val v = combineMean(covariance[i, j], data.updaterData[i][j], 1 - varianceMixin, varianceMixin)
+                if (v > 1f) {
+                    println()
+                }
                 covariance[i, j] = v
                 covariance[j, i] = v
             }
@@ -146,7 +150,7 @@ class CovarianceLinearModel(val family: VarianceFunction,
         private var loss: Transform = HuberLoss(0.1f)
         private var exploration: Float = 1f
         private var regularization: Transform = MSELoss
-        private var regularizationFactor: Float = 1e-5f
+        private var regularizationFactor: Float = 0f
         private var bias: Float? = null
         private var startingStep: Long = 0L
         private var learningRate: LearningRateSchedule = ConstantRate(1f)

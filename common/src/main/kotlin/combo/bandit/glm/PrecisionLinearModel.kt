@@ -20,7 +20,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
                            var biasPrecision: Float)
     : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
-    override fun sample(rng: Random) =
+    override fun sample(rng: Random, weights: VectorView) =
             vectors.zeroVector(weights.size).apply {
                 transformIndexed { i, _ ->
                     rng.nextNormal(weights[i], sqrt(exploration / precision[i]))
@@ -71,7 +71,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
         private var loss: Transform = HuberLoss(0.1f)
         private var exploration: Float = 1f
         private var regularization: Transform = MSELoss
-        private var regularizationFactor: Float = 1e-5f
+        private var regularizationFactor: Float = 0f
         private var bias: Float? = null
         private var startingStep: Long = 0L
         private var learningRate: LearningRateSchedule = ConstantRate(1f)
