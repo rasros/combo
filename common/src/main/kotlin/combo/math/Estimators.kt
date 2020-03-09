@@ -256,7 +256,7 @@ class BinarySum(sum: Float = 0.0f, nbrWeightedSamples: Float = 0.0f) : BinaryEst
         nbrWeightedSamples = newN
     }
 
-    override fun toString() = "BinarySum(sum=$sum, nbrSamples=$nbrSamples)"
+    override fun toString() = "BinarySum(sum=$sum, nbrSamples=$nbrSamples, mean=$mean)"
     override fun copy() = BinarySum(sum, nbrWeightedSamples)
 
     override fun combine(vs: VarianceEstimator) = BinarySum(sum + vs.sum, nbrWeightedSamples + vs.nbrWeightedSamples)

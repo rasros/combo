@@ -8,7 +8,7 @@ import kotlin.test.Test
 class CholeskyTest {
     @Test
     fun choleskyTest() {
-        val H = FallbackMatrix(arrayOf(
+        val H = FloatMatrix(arrayOf(
                 floatArrayOf(1.0565f, 0.3456f, -0.4646f, 1.8587f),
                 floatArrayOf(0.3456f, 0.5910f, -0.1395f, 0.6277f),
                 floatArrayOf(-0.4646f, -0.1395f, 0.2371f, -0.8419f),
@@ -26,13 +26,13 @@ class CholeskyTest {
 
     @Test
     fun choleskyDowndate() {
-        val Hinv = FallbackMatrix(arrayOf(
+        val Hinv = FloatMatrix(arrayOf(
                 floatArrayOf(1.0565f, 0.3456f, -0.4646f, 1.8587f),
                 floatArrayOf(0.3456f, 0.5910f, -0.1395f, 0.6277f),
                 floatArrayOf(-0.4646f, -0.1395f, 0.2371f, -0.8419f),
                 floatArrayOf(1.8587f, 0.6277f, -0.8419f, 4.2134f)))
 
-        val x = FallbackVector(floatArrayOf(1f, 0f, 1f, 1f))
+        val x = FloatVector(floatArrayOf(1f, 0f, 1f, 1f))
         val s = sqrt(2f)
         val u = x / s
         val L = Hinv.cholesky().T
@@ -50,7 +50,7 @@ class CholeskyTest {
 
     @Test
     fun choleskyDowndate2() {
-        val Hinv = FallbackMatrix(arrayOf(
+        val Hinv = FloatMatrix(arrayOf(
                 floatArrayOf(28.6684f, 104.7670f, -129.7711f, -15.8332f),
                 floatArrayOf(104.7670f, 392.5219f, -484.8603f, -60.7211f),
                 floatArrayOf(-129.7711f, -484.8603f, 599.5189f, 74.8766f),

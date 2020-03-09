@@ -11,7 +11,7 @@ interface VectorView : Iterable<Int> {
     val sparse: Boolean
 
     operator fun get(i: Int): Float
-    infix fun dot(v: VectorView): Float
+    infix fun dot(v: VectorView) = foldIndexed(0f) { i, dot, d -> dot + d * v[i] }
     fun norm2(): Float
     fun sum(): Float
 
@@ -97,10 +97,10 @@ interface VectorFactory {
     }
 }
 
-var vectors: VectorFactory = FallbackVectorFactory
+var vectors: VectorFactory = FloatVectorFactory
 
-val EMPTY_VECTOR = FallbackVector(0)
-val EMPTY_MATRIX = FallbackMatrix(0)
+val EMPTY_VECTOR = FloatVector(0)
+val EMPTY_MATRIX = FloatMatrix(0)
 
 fun VectorView.toIntArray(delta: Float, gcd: Boolean): IntArray {
     val array = IntArray(size) {

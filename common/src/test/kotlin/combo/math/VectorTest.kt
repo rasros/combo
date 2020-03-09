@@ -48,7 +48,7 @@ abstract class VectorTest(val vectorFactory: VectorFactory) {
     @Test
     fun dotProductFallback() {
         val v = vector(-1.0f, 2.0f, 0.0f)
-        val u = FallbackVector(floatArrayOf(0.0f, 3.0f, 4.0f))
+        val u = FloatVector(floatArrayOf(0.0f, 3.0f, 4.0f))
         assertEquals(6.0f, u dot v)
         assertEquals(6.0f, v dot u)
         assertContentEquals(floatArrayOf(-1.0f, 2.0f, 0.0f), v.toFloatArray())
