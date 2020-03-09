@@ -1,6 +1,6 @@
 package combo.util
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import kotlin.random.Random
 
 class IntArrayList private constructor(private var array: IntArray, size: Int) : MutableIntCollection, IntList {
@@ -45,7 +45,7 @@ class IntArrayList private constructor(private var array: IntArray, size: Int) :
 
     override fun permutation(rng: Random) = object : IntIterator() {
         private var ptr = 0
-        private var perm = IntPermutation(size, rng)
+        private var perm = permutation(size, rng)
         override fun hasNext() = ptr < size
         override fun nextInt(): Int {
             if (ptr >= size) throw NoSuchElementException()

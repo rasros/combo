@@ -3,10 +3,26 @@ package combo.math
 import combo.util.assert
 import kotlin.random.Random
 
+fun permutation(size: Int = Int.MAX_VALUE, rng: Random = Random(0)): IntPermutation {
+    if (size <= 1) return object : IntPermutation {
+        override fun iterator(): IntIterator {
+            return (0..size).iterator()
+        }
+
+        override fun encode(value: Int) = size
+    }
+    return CyclingHashIntPermutation(size, rng)
+}
+
+interface IntPermutation : Iterable<Int> {
+    override fun iterator(): IntIterator
+    fun encode(value: Int): Int
+}
+
 /**
  * Using format-preserving encryption with cycling.
  */
-class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random) : Iterable<Int> {
+class CyclingHashIntPermutation(val size: Int = Int.MAX_VALUE, rng: Random) : IntPermutation {
 
     private val mask: Int // bit mask for block
     // 0 < size <= mask+1  and mask+1 is a power of 2
@@ -26,7 +42,7 @@ class IntPermutation(val size: Int = Int.MAX_VALUE, rng: Random) : Iterable<Int>
         this.rish = j * 3 / 7
     }
 
-    fun encode(value: Int): Int {
+    override fun encode(value: Int): Int {
         assert(value in 0 until size)
         var x = value
         do {

@@ -1,6 +1,6 @@
 package combo.util
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import kotlin.random.Random
 
 /**
@@ -46,7 +46,7 @@ class IntRangeCollection(val min: Int, val max: Int) : IntList {
 
     override fun permutation(rng: Random): IntIterator {
         var i = 0
-        val perm = IntPermutation(size, rng)
+        val perm = permutation(size, rng)
         return object : IntIterator() {
             override fun hasNext() = i < size
             override fun nextInt(): Int {

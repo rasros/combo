@@ -1,6 +1,6 @@
 package combo.util
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import kotlin.random.Random
 
 class IntUnionCollection(val a: IntCollection, val b: IntCollection) : IntCollection {
@@ -24,7 +24,7 @@ class IntUnionCollection(val a: IntCollection, val b: IntCollection) : IntCollec
 
     override fun permutation(rng: Random): IntIterator {
         return object : IntIterator() {
-            val perm = IntPermutation(size, rng)
+            val perm = permutation(size, rng)
             val aPerm = a.permutation(rng)
             val bPerm = b.permutation(rng)
             var i = 0

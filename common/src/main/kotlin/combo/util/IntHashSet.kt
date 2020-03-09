@@ -1,6 +1,6 @@
 package combo.util
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import kotlin.random.Random
 
 /**
@@ -64,7 +64,7 @@ class IntHashSet private constructor(private var table: IntArray, size: Int, val
 
     override fun permutation(rng: Random): IntIterator {
         return object : IntIterator() {
-            private var perm = IntPermutation(table.size, rng)
+            private var perm = permutation(table.size, rng)
             private var seen = 0
             private var ptr = 0
             override fun hasNext() = seen < size

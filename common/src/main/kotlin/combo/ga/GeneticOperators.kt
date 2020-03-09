@@ -1,9 +1,6 @@
 package combo.ga
 
-import combo.math.AliasMethodSampler
-import combo.math.DiscreteSampler
-import combo.math.IntPermutation
-import combo.math.nextGeometric
+import combo.math.*
 import combo.sat.TransitiveImplications
 import combo.sat.literal
 import combo.util.assert
@@ -45,7 +42,7 @@ class KPointRecombination(val k: Int = 1) : RecombinationOperator<ValidatorCandi
         var s1 = candidates.instances[parent1]
         var s2 = candidates.instances[parent2]
         val s3 = candidates.instances[child]
-        val perm = IntPermutation(candidates.nbrVariables, rng)
+        val perm = permutation(candidates.nbrVariables, rng)
         val points = IntArray(min(k, candidates.nbrVariables)) { perm.encode(it) }.apply { sort() }
         var prev = 0
         for (point in points) {
@@ -104,7 +101,7 @@ class TournamentSelection(val tournamentSize: Int) : SelectionOperator<Candidate
     override fun select(candidates: Candidates, rng: Random): Int {
         var bestScore = Float.POSITIVE_INFINITY
         var best = 0
-        val perm = IntPermutation(candidates.nbrCandidates, rng)
+        val perm = permutation(candidates.nbrCandidates, rng)
         for (i in 0 until min(candidates.nbrCandidates, tournamentSize)) {
             val ix = perm.encode(i)
             val s = candidates.score(ix, false)
@@ -137,7 +134,7 @@ class TournamentElimination(val tournamentSize: Int) : SelectionOperator<Candida
     override fun select(candidates: Candidates, rng: Random): Int {
         var worstScore = Float.NEGATIVE_INFINITY
         var worst = -1
-        val perm = IntPermutation(candidates.nbrCandidates, rng)
+        val perm = permutation(candidates.nbrCandidates, rng)
         for (i in 0 until min(candidates.nbrCandidates, tournamentSize)) {
             val ix = perm.encode(i)
             val s = candidates.score(ix, true)
@@ -200,7 +197,7 @@ class FixedMutation(val nbrFlips: Int = 1) : MutationOperator<ValidatorCandidate
 
     override fun mutate(target: Int, candidates: ValidatorCandidates, rng: Random) {
         val instance = candidates.instances[target]
-        val permutation = IntPermutation(instance.size, rng)
+        val permutation = permutation(instance.size, rng)
         for (i in 0 until nbrFlips) {
             instance.flip(permutation.encode(i))
         }

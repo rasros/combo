@@ -4,6 +4,7 @@ import combo.bandit.ParallelMode
 import combo.math.DataSample
 import combo.math.IntPermutation
 import combo.math.VarianceEstimator
+import combo.math.permutation
 import combo.util.*
 import kotlin.math.min
 
@@ -42,7 +43,7 @@ class ParallelUnivariateBandit<D> private constructor(val bandits: Array<Univari
     override val rewards: DataSample
         get() {
             while (true) {
-                for (i in IntPermutation(bandits.size, randomSequence.next())) {
+                for (i in permutation(bandits.size, randomSequence.next())) {
                     val b = bandits[i] as ConcurrentUnivariateBandit<D>
                     val locked = b.lock.readLock().tryLock()
                     if (!locked) continue
@@ -140,7 +141,7 @@ class ParallelUnivariateBandit<D> private constructor(val bandits: Array<Univari
     }
 
     override fun choose(): Int {
-        val perm = IntPermutation(bandits.size, randomSequence.next())
+        val perm = permutation(bandits.size, randomSequence.next())
         while (true) {
             for (i in 0 until bandits.size) {
                 val a = (bandits[perm.encode(i)] as ConcurrentUnivariateBandit).tryChoose()

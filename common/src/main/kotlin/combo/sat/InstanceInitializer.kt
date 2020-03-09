@@ -1,8 +1,8 @@
 package combo.sat
 
-import combo.math.IntPermutation
 import combo.math.nextGeometric
 import combo.math.nextNormal
+import combo.math.permutation
 import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Disjunction
 import combo.sat.constraints.Relation
@@ -83,7 +83,7 @@ class ImplicationConstraintCoercer<in O : ObjectiveFunction?>(val problem: Probl
     override fun initialize(mi: Instance, assumption: Constraint, rng: Random, function: O) {
         randomizer.initialize(mi, assumption, rng, function)
         assumption.coerce(mi, rng)
-        for (i in IntPermutation(problem.nbrValues, rng)) {
+        for (i in permutation(problem.nbrValues, rng)) {
             val lit = mi.literal(i)
             transitiveImplications.propagate(lit, mi)
         }

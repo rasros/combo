@@ -1,6 +1,6 @@
 package combo.sat.optimizers
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.util.*
@@ -123,7 +123,7 @@ class LocalSearch(val problem: Problem,
                     } else {
                         n = min(adjustedMaxConsideration, p.nbrValues)
                         if (p.nbrValues > adjustedMaxConsideration)
-                            OffsetIterator(1, IntPermutation(p.nbrValues, rng).iterator())
+                            OffsetIterator(1, permutation(p.nbrValues, rng).iterator())
                         else (1..p.nbrValues).iterator()
                     }
                     var maxSatImp = -validator.totalUnsatisfied
@@ -134,7 +134,9 @@ class LocalSearch(val problem: Problem,
                         if (ix in tabuBuffer) continue
                         if (transitiveImplications != null && transitiveImplications.hasPropagations(!instance.literal(ix))) {
                             val copy = validator.copy()
-                            copy.flipPropagate(ix, transitiveImplications)
+                            //val copy = validator.instance.copy()
+                            transitiveImplications.flipPropagate(copy, ix)
+                            //val satScore = validator.totalUnsatisfied - p.violations(copy) //copy.totalUnsatisfied
                             val satScore = validator.totalUnsatisfied - copy.totalUnsatisfied
                             val optScore = prevValue - function.value(copy.instance)
                             if (satScore > maxSatImp || (satScore == maxSatImp && optScore > maxOptImp)) {
@@ -158,7 +160,7 @@ class LocalSearch(val problem: Problem,
                 if (ix < 0)
                     break
                 val improvement = if (transitiveImplications != null && transitiveImplications.hasPropagations(!instance.literal(ix))) {
-                    validator.flipPropagate(ix, transitiveImplications)
+                    transitiveImplications.flipPropagate(validator, ix)
                     val score = function.value(instance)
                     val imp = prevValue - score
                     prevValue = score

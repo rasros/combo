@@ -1,7 +1,7 @@
 package combo.bandit
 
 import combo.math.DataSample
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.sat.Instance
 import combo.util.*
 
@@ -40,7 +40,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
     override val rewards: DataSample
         get() {
             while (true) {
-                for (i in IntPermutation(bandits.size, randomSequence.next())) {
+                for (i in permutation(bandits.size, randomSequence.next())) {
                     val b = bandits[i] as ConcurrentBandit<D>
                     val locked = b.lock.readLock().tryLock()
                     if (!locked) continue
@@ -140,7 +140,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
 
     override fun choose(assumptions: IntCollection): Instance? {
         while (true) {
-            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+            for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
@@ -155,7 +155,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
         while (true) {
-            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+            for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
@@ -170,7 +170,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
 
     override fun optimal(assumptions: IntCollection): Instance? {
         while (true) {
-            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+            for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
@@ -185,7 +185,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
 
     override fun optimalOrThrow(assumptions: IntCollection): Instance {
         while (true) {
-            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+            for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
@@ -289,7 +289,7 @@ class ParallelPredictionBandit<D : BanditData>(bandits: Array<Bandit<D>>, batchS
 
     override fun predict(instance: Instance): Float {
         while (true) {
-            for (i in IntPermutation(bandits.size, randomSequence.next())) {
+            for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentPredictionBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
