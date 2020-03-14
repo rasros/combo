@@ -30,7 +30,7 @@ class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes 
         TODO("not implemented")
     }
 
-    fun buildTree(prior: VarianceEstimator, blockQueueSize:Int, randomSeed: Int): Node {
+    fun buildTree(prior: VarianceEstimator, blockQueueSize: Int, randomSeed: Int): Node {
         var seed = randomSeed
         if (nodes.isEmpty()) return TerminalNode(EmptyCollection, prior, blockQueueSize, seed)
 

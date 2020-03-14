@@ -29,7 +29,7 @@ class Nd4jPrecisionLinearBanditTest : BanditTest<LinearBandit>() {
 
     override fun bandit(model: Model, parameters: TestParameters) =
             LinearBandit.Builder(model.problem)
-                    .linearModel(PrecisionLinearModel.Builder(model.problem)
+                    .linearModel(DiagonalizedLinearModel.Builder(model.problem)
                             .family(parameters.variance()).build())
                     .randomSeed(parameters.randomSeed)
                     .maximize(parameters.maximize)

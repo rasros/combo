@@ -1,6 +1,6 @@
 package combo.ga
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.model.TestModels
 import combo.model.TestModels.MODEL1
 import combo.model.TestModels.MODEL3
@@ -126,7 +126,7 @@ abstract class RecombinationOperatorTest {
             val rng = Random
             val popSize = 10
             val (candidates, _) = createCandidates(p, popSize, rng)
-            val perm = IntPermutation(popSize, rng)
+            val perm = permutation(popSize, rng)
             val p1 = perm.encode(0)
             val p2 = perm.encode(1)
             val c = perm.encode(2)

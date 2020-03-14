@@ -6,10 +6,10 @@ import kotlin.random.Random
 fun permutation(size: Int = Int.MAX_VALUE, rng: Random = Random(0)): IntPermutation {
     if (size <= 1) return object : IntPermutation {
         override fun iterator(): IntIterator {
-            return (0..size).iterator()
+            return (0 until size).iterator()
         }
 
-        override fun encode(value: Int) = size
+        override fun encode(value: Int) = 0
     }
     return CyclingHashIntPermutation(size, rng)
 }

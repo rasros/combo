@@ -1,7 +1,7 @@
 package combo.sat
 
-import combo.math.IntPermutation
 import combo.math.nextBinomial
+import combo.math.permutation
 import combo.model.TestModels
 import combo.sat.constraints.Cardinality
 import combo.sat.constraints.Conjunction
@@ -66,7 +66,7 @@ class ProblemTest {
     fun randomPropagation() {
         val rng = Random.Default
         val p = TestModels.LARGE2.problem
-        val perm = IntPermutation(p.nbrValues, rng)
+        val perm = permutation(p.nbrValues, rng)
         val lits = (0 until rng.nextBinomial(0.7f, p.nbrValues)).asSequence()
                 .map { perm.encode(it) }
                 .map { it.toLiteral(rng.nextBoolean()) }

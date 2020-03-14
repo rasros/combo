@@ -92,7 +92,7 @@ class ScopeTest {
         val rootExpected = listOf(*((0 until 10).toList().toTypedArray()))
         assertEquals(rootExpected, scope.asSequence().toList().map { it.name.toInt() })
         for (i in 0 until 10) {
-            val expected = listOf(*(((i+1) until 10).toList().toTypedArray()))
+            val expected = listOf(*(((i + 1) until 10).toList().toTypedArray()))
             assertEquals(expected, indices[i].asSequence().toList().map { it.name.toInt() })
         }
     }

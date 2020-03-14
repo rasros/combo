@@ -1,6 +1,6 @@
 package combo.sat.optimizers
 
-import combo.math.FallbackVector
+import combo.math.FloatVector
 import combo.math.RunningVariance
 import combo.math.nextNormal
 import combo.math.sample
@@ -314,7 +314,7 @@ abstract class OptimizerTest {
     fun emptyProblemLinearOptimize() {
         val p = Problem(0)
         val optimizer = linearOptimizer(p) ?: return
-        val l = optimizer.optimizeOrThrow(LinearObjective(true, FallbackVector(floatArrayOf())))
+        val l = optimizer.optimizeOrThrow(LinearObjective(true, FloatVector(floatArrayOf())))
         assertEquals(0, l.size)
     }
 
@@ -324,7 +324,7 @@ abstract class OptimizerTest {
             try {
                 val unsatOptimizer = infeasibleLinearOptimizer(p) ?: return
                 assertFailsWith(ValidationException::class, "Model $i") {
-                    unsatOptimizer.optimizeOrThrow(LinearObjective(false, FallbackVector(p.nbrValues)))
+                    unsatOptimizer.optimizeOrThrow(LinearObjective(false, FloatVector(p.nbrValues)))
                 }
             } catch (e: UnsatisfiableException) {
             }
@@ -334,7 +334,7 @@ abstract class OptimizerTest {
     @Test
     fun smallLinearOptimizeFeasibility() {
         for (p in TestModels.SAT_PROBLEMS) {
-            linearOptimizer(p)?.optimizeOrThrow(LinearObjective(false, FallbackVector(p.nbrValues)))
+            linearOptimizer(p)?.optimizeOrThrow(LinearObjective(false, FloatVector(p.nbrValues)))
         }
     }
 
@@ -342,7 +342,7 @@ abstract class OptimizerTest {
     fun guessReuseForLinearOptimizer() {
         for ((i, p) in TestModels.SAT_PROBLEMS.withIndex()) {
             val optimizer = linearOptimizer(p) ?: return
-            val weights = FallbackVector(FloatArray(p.nbrValues) { Random.nextNormal() })
+            val weights = FloatVector(FloatArray(p.nbrValues) { Random.nextNormal() })
             val obj = LinearObjective(false, weights)
             val initial = optimizer.optimizeOrThrow(obj)
             val actual = optimizer.optimizeOrThrow(obj, guess = initial.copy())
@@ -355,7 +355,7 @@ abstract class OptimizerTest {
         for (p in TestModels.TINY_PROBLEMS) {
             val optimizer = linearOptimizer(p) ?: return
             val varianceEstimate = generateSequence {
-                optimizer.optimizeOrThrow(LinearObjective(false, FallbackVector(FloatArray(p.nbrValues) { 1.0f })))
+                optimizer.optimizeOrThrow(LinearObjective(false, FloatVector(FloatArray(p.nbrValues) { 1.0f })))
             }.map { it.sum() }.take(20).sample(RunningVariance())
             if (optimizer.complete) assertEquals(0.0f, varianceEstimate.variance)
         }
@@ -366,7 +366,7 @@ abstract class OptimizerTest {
         for (p in TestModels.TINY_PROBLEMS) {
             val optimizer1 = linearOptimizer(p, 1) ?: return
             val optimizer2 = linearOptimizer(p, 1) ?: return
-            val obj = LinearObjective(true, FallbackVector(FloatArray(p.nbrValues) { Random(0).nextNormal() }))
+            val obj = LinearObjective(true, FloatVector(FloatArray(p.nbrValues) { Random(0).nextNormal() }))
             val solutions1 = generateSequence { optimizer1.optimizeOrThrow(obj) }.take(10).toList()
             val solutions2 = generateSequence { optimizer2.optimizeOrThrow(obj) }.take(10).toList()
             assertContentEquals(solutions1, solutions2)
@@ -378,7 +378,7 @@ abstract class OptimizerTest {
         for (p in TestModels.TINY_PROBLEMS) {
             val optimizer1 = linearOptimizer(p, 1) ?: return
             val optimizer2 = linearOptimizer(p, 1) ?: return
-            val obj = LinearObjective(false, FallbackVector(FloatArray(p.nbrValues) { Random(0).nextNormal() }))
+            val obj = LinearObjective(false, FloatVector(FloatArray(p.nbrValues) { Random(0).nextNormal() }))
             val solutions1 = generateSequence { optimizer1.optimizeOrThrow(obj) }.take(10).toList()
             val solutions2 = generateSequence { optimizer2.optimizeOrThrow(obj) }.take(10).toList()
             assertContentEquals(solutions1, solutions2)
@@ -388,7 +388,7 @@ abstract class OptimizerTest {
     @Test
     fun smallLinearOptimize() {
         fun testOptimize(weightsArray: FloatArray, p: Problem, maximize: Boolean, target: Float, delta: Float = max(target * .3f, 0.01f)) {
-            val weights = FallbackVector(weightsArray)
+            val weights = FloatVector(weightsArray)
             val optimizer = linearOptimizer(p) ?: return
             val optimizeOrThrow = optimizer.optimizeOrThrow(LinearObjective(maximize, weights))
             assertTrue(p.satisfies(optimizeOrThrow))
@@ -432,7 +432,7 @@ abstract class OptimizerTest {
     @Test
     fun largeLinearOptimize() {
         fun testOptimize(weightsArray: FloatArray, p: Problem, maximize: Boolean, target: Float, delta: Float) {
-            val weights = FallbackVector(weightsArray)
+            val weights = FloatVector(weightsArray)
             val optimizer = largeLinearOptimizer(p) ?: return
             val optimizeOrThrow = optimizer.optimizeOrThrow(LinearObjective(maximize, weights))
             assertTrue(p.satisfies(optimizeOrThrow))
@@ -452,14 +452,14 @@ abstract class OptimizerTest {
     fun smallLinearOptimizeAssumptionsFeasible() {
         for ((i, p) in TestModels.SAT_PROBLEMS.withIndex()) {
             val optimizer = linearOptimizer(p) ?: return
-            val l = optimizer.optimizeOrThrow(LinearObjective(true, FallbackVector(p.nbrValues)))
+            val l = optimizer.optimizeOrThrow(LinearObjective(true, FloatVector(p.nbrValues)))
             val rng = Random(i.toLong())
             val assumptions = IntArrayList()
             for (j in 0 until l.size) {
                 if (rng.nextBoolean())
                     assumptions.add(l.literal(j))
             }
-            val restricted = optimizer.optimizeOrThrow(LinearObjective(true, FallbackVector(p.nbrValues)), assumptions)
+            val restricted = optimizer.optimizeOrThrow(LinearObjective(true, FloatVector(p.nbrValues)), assumptions)
             assertTrue(p.satisfies(restricted),
                     "Model $i, assumptions ${assumptions.joinToString(",")}")
             assertTrue(Conjunction(assumptions).satisfies(restricted),
@@ -472,7 +472,7 @@ abstract class OptimizerTest {
         fun testUnsat(assumptions: IntCollection, p: Problem) {
             val solver = infeasibleLinearOptimizer(p) ?: return
             assertFailsWith(ValidationException::class) {
-                solver.optimizeOrThrow(LinearObjective(true, FallbackVector(p.nbrValues)), assumptions)
+                solver.optimizeOrThrow(LinearObjective(true, FloatVector(p.nbrValues)), assumptions)
             }
         }
         with(TestModels.SAT_PROBLEMS[0]) {
@@ -494,7 +494,7 @@ abstract class OptimizerTest {
     fun smallLinearOptimizeAssumptions() {
         fun testOptimize(assumptions: IntCollection, weightsArray: FloatArray, p: Problem, maximize: Boolean, target: Float, delta: Float = max(target * .3f, 0.01f)) {
             val optimizer = linearOptimizer(p) ?: return
-            val weights = FallbackVector(weightsArray)
+            val weights = FloatVector(weightsArray)
             val optimizeOrThrow = optimizer.optimizeOrThrow(LinearObjective(maximize, weights), assumptions)
             assertTrue(Conjunction(assumptions).satisfies(optimizeOrThrow))
             assertTrue(p.satisfies(optimizeOrThrow))
@@ -529,7 +529,7 @@ abstract class OptimizerTest {
         val solver = timeoutLinearOptimizer(TestModels.LARGE_PROBLEMS[1]) ?: return
         try {
             val rng = Random(0)
-            val weights = FallbackVector(FloatArray(TestModels.LARGE_PROBLEMS[1].nbrValues) { rng.nextNormal() })
+            val weights = FloatVector(FloatArray(TestModels.LARGE_PROBLEMS[1].nbrValues) { rng.nextNormal() })
             val t = measureTimeMillis {
                 solver.optimizeOrThrow(LinearObjective(true, weights))
             }

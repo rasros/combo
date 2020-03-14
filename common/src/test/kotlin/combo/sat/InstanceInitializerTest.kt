@@ -1,6 +1,6 @@
 package combo.sat
 
-import combo.math.FallbackVector
+import combo.math.FloatVector
 import combo.model.TestModels
 import combo.sat.constraints.Conjunction
 import combo.sat.optimizers.LinearObjective
@@ -52,13 +52,13 @@ class RandomSetTest : InstanceInitializerTest() {
 
 class WeightSetTest : InstanceInitializerTest() {
     override fun initialize(problem: Problem, instance: Instance, assumption: Constraint, rng: Random) {
-        WeightSet().initialize(instance, assumption, rng, LinearObjective(true, FallbackVector(FloatArray(problem.nbrValues))))
+        WeightSet().initialize(instance, assumption, rng, LinearObjective(true, FloatVector(FloatArray(problem.nbrValues))))
     }
 }
 
 class GeometricRandomSetTest : InstanceInitializerTest() {
     override fun initialize(problem: Problem, instance: Instance, assumption: Constraint, rng: Random) {
-        GeometricRandomSet().initialize(instance, assumption, rng, LinearObjective(true, FallbackVector(FloatArray(problem.nbrValues))))
+        GeometricRandomSet().initialize(instance, assumption, rng, LinearObjective(true, FloatVector(FloatArray(problem.nbrValues))))
     }
 }
 

@@ -1,6 +1,6 @@
 package combo.model
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.sat.Problem
 import combo.sat.constraints.Conjunction
 import combo.sat.constraints.Relation
@@ -216,7 +216,7 @@ object TestModels {
             val rng = Random(0)
             for (i in 1..1000) {
                 impose {
-                    disjunction(*IntPermutation(flags.size, rng).asSequence()
+                    disjunction(*permutation(flags.size, rng).asSequence()
                             .take(rng.nextInt(8) + 2)
                             .map { flags[it] }
                             .map { if (rng.nextBoolean()) it.not() else it }

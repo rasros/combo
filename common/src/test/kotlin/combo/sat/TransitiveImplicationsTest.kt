@@ -1,6 +1,6 @@
 package combo.sat
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.model.Model
 import combo.sat.constraints.Cardinality
 import combo.test.assertContentEquals
@@ -55,7 +55,7 @@ class TransitiveImplicationsTest {
     @Test
     fun doubleLinearChainGraph() {
         val problem = Model.model("Flag chain") {
-            var next:Model.ModelBuilder<*> = this
+            var next: Model.ModelBuilder<*> = this
             for (k in 1..100)
                 next = next.model("$k") {}
         }.problem
@@ -83,7 +83,7 @@ class TransitiveImplicationsTest {
         val id = TransitiveImplications(problem)
         for (i in 0 until 10) {
             val instance = BitArray(problem.nbrValues).also { RandomSet().initialize(it, Tautology, Random, null) }
-            for (j in IntPermutation(problem.nbrValues, Random)) {
+            for (j in permutation(problem.nbrValues, Random)) {
                 val lit = instance.literal(j)
                 id.trueImplications(lit)?.run { instance.or(this) }
                 id.falseImplications(lit)?.run { instance.andNot(this) }
@@ -102,7 +102,7 @@ class TransitiveImplicationsTest {
 
         for (i in 0 until 10) {
             val instance = BitArray(problem.nbrValues).also { RandomSet().initialize(it, Tautology, Random, null) }
-            for (j in IntPermutation(problem.nbrValues, Random)) {
+            for (j in permutation(problem.nbrValues, Random)) {
                 val lit = instance.literal(j)
                 id.trueImplications(lit)?.run { instance.or(this) }
                 id.falseImplications(lit)?.run { instance.andNot(this) }

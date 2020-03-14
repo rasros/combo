@@ -76,18 +76,22 @@ abstract class BanditTest<B : Bandit<*>> {
         val bandit2 = bandit(m, TestParameters(TestType.BINOMIAL, 2, false))
         val rng = Random(1)
 
-        for (i in 1..500) {
+        for (i in 1..50) {
             val instance1 = bandit1.chooseOrThrow()
             val instance2 = bandit2.chooseOrThrow()
             assertTrue(m.problem.satisfies(instance1))
             assertTrue(m.problem.satisfies(instance2))
-            bandit1.update(instance1, TestType.BINOMIAL.linearRewards(instance1, rng), (rng.nextInt(5) + 1).toFloat())
-            bandit2.update(instance2, TestType.BINOMIAL.linearRewards(instance2, rng), (rng.nextInt(5) + 1).toFloat())
+            bandit1 as PredictionBandit<*>
+            bandit2 as PredictionBandit<*>
+            val r1 = TestType.BINOMIAL.linearRewards(instance1, rng)
+            bandit1.update(instance1, r1)
+            val r2 = TestType.BINOMIAL.linearRewards(instance2, rng)
+            bandit2.update(instance2, r2)
         }
         val sum1 = bandit1.rewards.values().sum()
         val sum2 = bandit2.rewards.values().sum()
 
-        assertTrue(sum1 > sum2)
+        assertTrue(sum1 - 2 > sum2 + 2)
     }
 
     @Test
@@ -109,7 +113,7 @@ abstract class BanditTest<B : Bandit<*>> {
         }
         val sum1 = bandit1.rewards.values().sum()
         val sum2 = bandit2.rewards.values().sum()
-        assertTrue(sum1 > sum2)
+        assertTrue(sum1 - 2 > sum2 + 2)
     }
 
     @Test
@@ -153,13 +157,13 @@ abstract class BanditTest<B : Bandit<*>> {
             bandit1.chooseOrThrow().also {
                 bandit1.update(it, TestType.NORMAL.linearRewards(it, rng1))
             }
-        }.take(10).toList()
+        }.take(3).toList()
         val instances2 = generateSequence {
             bandit2.chooseOrThrow().also {
                 bandit2.update(it, TestType.NORMAL.linearRewards(it, rng2))
             }
-        }.take(10).toList()
-        for (i in 0 until 10) {
+        }.take(3).toList()
+        for (i in 0 until 3) {
             assertEquals(instances1[i], instances2[i])
         }
         assertContentEquals(instances1, instances2)
@@ -312,7 +316,7 @@ enum class TestType {
     };
 
     fun linearRewards(instance: Instance, rng: Random): Float {
-        val weights = FallbackVector(FloatArray(instance.size) { 1 + it * 0.1f })
+        val weights = FloatVector(FloatArray(instance.size) { 1 + it * 0.1f })
         return linearRewards((1 + (instance dot weights)) / (weights.sum() + 2), 1, rng)
     }
 

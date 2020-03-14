@@ -13,9 +13,9 @@ import kotlin.math.min
  * All state of the search is kept here. The score is defined as mean for genetic operators that use score directly.
  */
 class BanditCandidates(instances: Array<Instance>,
-                                              val minSamples: Float,
-                                              val maximize: Boolean,
-                                              val banditPolicy: BanditPolicy) : Candidates {
+                       val minSamples: Float,
+                       val maximize: Boolean,
+                       val banditPolicy: BanditPolicy) : Candidates {
 
     override var instances = instances
         private set

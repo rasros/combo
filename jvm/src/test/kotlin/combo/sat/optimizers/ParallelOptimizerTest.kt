@@ -1,6 +1,6 @@
 package combo.sat.optimizers
 
-import combo.math.FallbackVector
+import combo.math.FloatVector
 import combo.math.nextNormal
 import combo.model.TestModels
 import combo.sat.Instance
@@ -93,7 +93,7 @@ class ParallelOptimizerTest {
                         @Suppress("UNCHECKED_CAST")
                         optimizer as Optimizer<LinearObjective>
                         optimizer.optimizeOrThrow(
-                                LinearObjective(true, FallbackVector(FloatArray(p.nbrValues) { Random.nextNormal() })),
+                                LinearObjective(true, FloatVector(FloatArray(p.nbrValues) { Random.nextNormal() })),
                                 assumptions)
                     })
                 val instances = pool.invokeAll(list).map { it.get() }

@@ -4,7 +4,6 @@ import combo.bandit.univariate.BanditPolicy
 import combo.bandit.univariate.NormalPosterior
 import combo.bandit.univariate.ThompsonSampling
 import combo.math.RunningVariance
-import combo.math.VarianceEstimator
 import combo.model.TestModels.MODEL1
 import combo.model.TestModels.MODEL3
 import combo.sat.BitArray
@@ -16,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 fun createCandidates(problem: Problem, n: Int, bp: BanditPolicy,
-                                             minSamples: Float = 5.0f, maximize: Boolean = true): BanditCandidates {
+                     minSamples: Float = 5.0f, maximize: Boolean = true): BanditCandidates {
     val instances: Array<Instance> = LocalSearch(problem).asSequence().take(n).toList().toTypedArray()
     return BanditCandidates(instances, minSamples, maximize, bp)
 }

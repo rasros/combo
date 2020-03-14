@@ -1,7 +1,7 @@
 package combo.sat
 
-import combo.math.FallbackVector
-import combo.math.IntPermutation
+import combo.math.FloatVector
+import combo.math.permutation
 import combo.test.assertContentEquals
 import combo.util.key
 import combo.util.value
@@ -464,7 +464,7 @@ abstract class InstanceTest {
     @Test
     fun dot() {
         val inst = factory.create(100)
-        val vec = FallbackVector(FloatArray(100) { it.toFloat() })
+        val vec = FloatVector(FloatArray(100) { it.toFloat() })
         assertEquals(0.0f, inst.dot(vec))
         assertEquals(vec dot inst, inst dot vec)
         inst[2] = true
@@ -488,7 +488,7 @@ abstract class InstanceTest {
     fun plus() {
         val inst = factory.create(3)
         inst[1] = true
-        val vec = FallbackVector(floatArrayOf(1f, 2f, 3.1f))
+        val vec = FloatVector(floatArrayOf(1f, 2f, 3.1f))
         val u1 = inst + vec
         val u2 = vec + inst
         assertContentEquals(floatArrayOf(1f, 3f, 3.1f), u1.toFloatArray())
@@ -501,7 +501,7 @@ abstract class InstanceTest {
     fun minus() {
         val inst = factory.create(3)
         inst[1] = true
-        val vec = FallbackVector(floatArrayOf(1f, 2f, 3.1f))
+        val vec = FloatVector(floatArrayOf(1f, 2f, 3.1f))
         val u1 = inst - vec
         val u2 = vec - inst
         assertContentEquals(floatArrayOf(-1f, -1f, -3.1f), u1.toFloatArray())
@@ -514,7 +514,7 @@ abstract class InstanceTest {
     fun times() {
         val inst = factory.create(3)
         inst[1] = true
-        val vec = FallbackVector(floatArrayOf(1f, 2f, 3.1f))
+        val vec = FloatVector(floatArrayOf(1f, 2f, 3.1f))
         val u1 = inst * vec
         val u2 = vec * inst
         assertContentEquals(floatArrayOf(0f, 2f, 0f), u1.toFloatArray())
@@ -527,7 +527,7 @@ abstract class InstanceTest {
     fun divide() {
         val inst = factory.create(3)
         inst[1] = true
-        val vec = FallbackVector(floatArrayOf(1f, 2f, 3.1f))
+        val vec = FloatVector(floatArrayOf(1f, 2f, 3.1f))
         val u1 = inst / vec
         assertContentEquals(floatArrayOf(0f, 0.5f, 0f), u1.toFloatArray())
         val u3 = inst / 2f
@@ -655,17 +655,17 @@ abstract class InstanceTest {
         val baseHashCode = baseInstance.hashCode()
         for (j in 0 until 10) {
             val permutedInstance = factory.create(baseInstance.size)
-            for (wi in IntPermutation(wordSize, rng)) {
+            for (wi in permutation(wordSize, rng)) {
                 if (permutedInstance.getWord(wi) != words[wi])
                     permutedInstance.setWord(wi, words[wi])
             }
-            for (k in IntPermutation(baseInstance.size * 5, rng)) {
+            for (k in permutation(baseInstance.size * 5, rng)) {
                 val wi = k % wordSize
                 if (rng.nextBoolean()) permutedInstance.setWord(wi, 0)
                 else if (rng.nextBoolean()) permutedInstance.setWord(wi, rng.nextInt())
                 else permutedInstance.setWord(wi, words[wi])
             }
-            for (wi in IntPermutation(wordSize, rng)) {
+            for (wi in permutation(wordSize, rng)) {
                 if (permutedInstance.getWord(wi) != words[wi])
                     permutedInstance.setWord(wi, words[wi])
             }

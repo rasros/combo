@@ -143,14 +143,14 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
                     }
                 }
             } else {
-                val itr = IntPermutation(model.index.nbrVariables, rng).iterator()
+                val itr = permutation(model.index.nbrVariables, rng).iterator()
                 while (itr.hasNext() && set.size < viewedValues) {
                     val variable = model.index.variable(itr.nextInt())
                     val splitter = splitters[variable] ?: defaultValueSplitter(model, variable)
                     val valueToSplit = splitter.nextSplit(propagatedLiterals, set, rng)
                     if (valueToSplit >= 0) set.add(valueToSplit)
                 }
-                val valueIterator = IntPermutation(model.problem.nbrValues, rng).iterator()
+                val valueIterator = permutation(model.problem.nbrValues, rng).iterator()
                 while (set.size < viewedValues && valueIterator.hasNext()) {
                     val value = valueIterator.nextInt()
                     if (value.toLiteral(true) !in propagatedLiterals && value.toLiteral(false) !in propagatedLiterals)

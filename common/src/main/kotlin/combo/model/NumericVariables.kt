@@ -5,7 +5,10 @@ import combo.sat.constraints.Conjunction
 import combo.sat.constraints.FloatBounds
 import combo.sat.constraints.IntBounds
 import combo.sat.constraints.ReifiedImplies
-import combo.util.*
+import combo.util.IntHashSet
+import combo.util.IntRangeCollection
+import combo.util.MAX_VALUE32
+import combo.util.bitSize
 import kotlin.math.max
 
 /**

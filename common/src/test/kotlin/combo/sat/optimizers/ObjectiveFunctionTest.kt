@@ -1,7 +1,7 @@
 package combo.sat.optimizers
 
-import combo.math.FallbackMatrix
-import combo.math.FallbackVector
+import combo.math.FloatMatrix
+import combo.math.FloatVector
 import combo.math.nextNormal
 import combo.model.TestModels
 import combo.sat.*
@@ -77,7 +77,7 @@ class JumpObjective(val n: Int, val m: Int = (0.8 * n).toInt()) : ObjectiveFunct
 }
 
 class InteractionObjective(weights: FloatArray) : ObjectiveFunction {
-    val weights = FallbackMatrix(Array(weights.size) { i ->
+    val weights = FloatMatrix(Array(weights.size) { i ->
         FloatArray(weights.size) { j ->
             if (abs(i - j) <= 2) weights[i] * weights[j] else 0.0f
         }
@@ -127,11 +127,11 @@ class JumpObjectiveTest : ObjectiveFunctionTest() {
 
 class LinearObjectiveTest : ObjectiveFunctionTest() {
     override fun function(nbrVariables: Int) =
-            LinearObjective(Random.nextBoolean(), FallbackVector(FloatArray(nbrVariables) { Random.nextNormal() }))
+            LinearObjective(Random.nextBoolean(), FloatVector(FloatArray(nbrVariables) { Random.nextNormal() }))
 
     @Test
     fun valueOfOnes() {
-        val weights = FallbackVector(FloatArray(8) { 1.0f })
+        val weights = FloatVector(FloatArray(8) { 1.0f })
         val max = LinearObjective(true, weights)
         val min = LinearObjective(false, weights)
 
@@ -146,7 +146,7 @@ class LinearObjectiveTest : ObjectiveFunctionTest() {
 
     @Test
     fun valueOfRange() {
-        val weights = FallbackVector(FloatArray(4) { it.toFloat() })
+        val weights = FloatVector(FloatArray(4) { it.toFloat() })
         val min = LinearObjective(false, weights)
         val max = LinearObjective(true, weights)
 
@@ -164,7 +164,7 @@ class DisjunctPenaltyTest {
     @Test
     fun outOfReach() {
         val penalty = DisjunctPenalty(LinearPenalty())
-        val function = LinearObjective(false, FallbackVector(floatArrayOf(-1.0f, 0.5f, 2.0f, 1.0f)))
+        val function = LinearObjective(false, FloatVector(floatArrayOf(-1.0f, 0.5f, 2.0f, 1.0f)))
         var min = Float.POSITIVE_INFINITY
         var max = Float.NEGATIVE_INFINITY
         for (l in 0 until 2.0.pow(4).toInt()) {

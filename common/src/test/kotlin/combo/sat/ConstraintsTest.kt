@@ -1,6 +1,6 @@
 package combo.sat
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.sat.constraints.Conjunction
 import combo.util.collectionOf
 import kotlin.random.Random
@@ -15,7 +15,7 @@ abstract class ConstraintTest {
         val rng = Random.Default
         for (i in constraint.literals) require(i.toIx() <= 4)
         for (instance in InstancePermutation(5, BitArrayFactory, rng)) {
-            val c2 = IntPermutation(instance.size, rng).iterator().asSequence().fold(constraint) { s: Constraint, i ->
+            val c2 = permutation(instance.size, rng).iterator().asSequence().fold(constraint) { s: Constraint, i ->
                 val v = instance.isSet(i)
                 val cp = s.unitPropagation(i.toLiteral(v))
                 if (cp.isUnit()) {

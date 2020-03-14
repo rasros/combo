@@ -189,7 +189,7 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
          */
         @JsName("reifiedModel")
         fun model(reifiedValue: Value, scopeName: String = reifiedValue.name, init: ModelBuilder<ChildScope<S>>.() -> Unit): ModelBuilder<ChildScope<S>> {
-            require(index.contains(reifiedValue.canonicalVariable)) { "${reifiedValue.canonicalVariable} not found in model." }
+            require(reifiedValue.canonicalVariable == canonicalVariable || index.contains(reifiedValue.canonicalVariable)) { "${reifiedValue.canonicalVariable} not found in model." }
             @Suppress("UNCHECKED_CAST")
             val builder = ChildBuilder(this, scope.addScope(scopeName, reifiedValue) as ChildScope<S>)
             val parentValue = this@ModelBuilder.scope.reifiedValue
@@ -200,6 +200,14 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
             init.invoke(builder)
             return builder
         }
+
+        /**
+         * Short-hand for adding a child model with the same reified value as the current model. As such,
+         * it is only used for lexical scoping.
+         * @param scopeName name of the scope, used to create [Assignment] on the sub model only.
+         */
+        fun scope(scopeName: String = Variable.defaultName(), init: ModelBuilder<ChildScope<S>>.() -> Unit) =
+                model(scope.reifiedValue, scopeName, init)
 
         /**
          * Add a constraint through [ConstraintFactory].
@@ -230,7 +238,6 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
         /**
          * Adds a separate [Model] as a child model to this. Variables are copied to new model. Constraints in [model]
          * are ignored.
-         * TODO copy constraints by remapping. Need to change so that implicit constraints are added during build.
          */
         fun addModel(model: Model) = apply {
 

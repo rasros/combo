@@ -36,22 +36,7 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
 
     override val randomSeed: Int get() = bandits[0].randomSeed
     override val maximize: Boolean get() = bandits[0].maximize
-
-    override val rewards: DataSample
-        get() {
-            while (true) {
-                for (i in permutation(bandits.size, randomSequence.next())) {
-                    val b = bandits[i] as ConcurrentBandit<D>
-                    val locked = b.lock.readLock().tryLock()
-                    if (!locked) continue
-                    try {
-                        return b.rewards.copy()
-                    } finally {
-                        b.lock.readLock().unlock()
-                    }
-                }
-            }
-        }
+    override val rewards: DataSample get() = randomReadLock { it.rewards.copy() }
 
     /**
      * Handle updates added through [update] or [updateAll]
@@ -138,14 +123,20 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
             b.importData(data)
     }
 
-    override fun choose(assumptions: IntCollection): Instance? {
+    private inline fun <T> randomReadLock(action: (Bandit<D>) -> T): T {
+        if (bandits.size == 1) {
+            val b = bandits[0] as ConcurrentBandit<D>
+            b.lock.read {
+                return action(b.base)
+            }
+        }
         while (true) {
             for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
                 try {
-                    return b.choose(assumptions)
+                    return action(b.base)
                 } finally {
                     b.lock.readLock().unlock()
                 }
@@ -153,52 +144,11 @@ open class ParallelBandit<D : BanditData> protected constructor(val bandits: Arr
         }
     }
 
-    override fun chooseOrThrow(assumptions: IntCollection): Instance {
-        while (true) {
-            for (i in permutation(bandits.size, randomSequence.next())) {
-                val b = bandits[i] as ConcurrentBandit<D>
-                val locked = b.lock.readLock().tryLock()
-                if (!locked) continue
-                try {
-                    return b.chooseOrThrow(assumptions)
-                } finally {
-                    b.lock.readLock().unlock()
-                }
-            }
-        }
-    }
-
-    override fun optimal(assumptions: IntCollection): Instance? {
-        while (true) {
-            for (i in permutation(bandits.size, randomSequence.next())) {
-                val b = bandits[i] as ConcurrentBandit<D>
-                val locked = b.lock.readLock().tryLock()
-                if (!locked) continue
-                try {
-                    return b.optimal(assumptions)
-                } finally {
-                    b.lock.readLock().unlock()
-                }
-            }
-        }
-    }
-
-    override fun optimalOrThrow(assumptions: IntCollection): Instance {
-        while (true) {
-            for (i in permutation(bandits.size, randomSequence.next())) {
-                val b = bandits[i] as ConcurrentBandit<D>
-                val locked = b.lock.readLock().tryLock()
-                if (!locked) continue
-                try {
-                    return b.optimalOrThrow(assumptions)
-                } finally {
-                    b.lock.readLock().unlock()
-                }
-            }
-        }
-    }
-
-    override fun exportData(): D = bandits[0].exportData()
+    override fun choose(assumptions: IntCollection) = randomReadLock { it.choose(assumptions) }
+    override fun chooseOrThrow(assumptions: IntCollection) = randomReadLock { it.chooseOrThrow(assumptions) }
+    override fun optimal(assumptions: IntCollection) = randomReadLock { it.optimal(assumptions) }
+    override fun optimalOrThrow(assumptions: IntCollection) = randomReadLock { it.optimalOrThrow(assumptions) }
+    override fun exportData(): D = randomReadLock { it.exportData() }
 
     override fun updateAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
         require(instances.size == results.size) { "Arrays must be same length." }
@@ -287,20 +237,28 @@ class ParallelPredictionBandit<D : BanditData>(bandits: Array<Bandit<D>>, batchS
         super<ParallelBandit>.updateAll(instances, results, weights)
     }
 
-    override fun predict(instance: Instance): Float {
+    private inline fun <T> randomReadLock(action: (PredictionBandit<D>) -> T): T {
+        if (bandits.size == 1) {
+            val b = bandits[0] as ConcurrentPredictionBandit<D>
+            b.lock.read {
+                return action(b.base)
+            }
+        }
         while (true) {
             for (i in permutation(bandits.size, randomSequence.next())) {
                 val b = bandits[i] as ConcurrentPredictionBandit<D>
                 val locked = b.lock.readLock().tryLock()
                 if (!locked) continue
                 try {
-                    return b.predict(instance)
+                    return action(b.base)
                 } finally {
                     b.lock.readLock().unlock()
                 }
             }
         }
     }
+
+    override fun predict(instance: Instance) = randomReadLock { it.predict(instance) }
 
     override fun train(instance: Instance, result: Float, weight: Float) {
         for (b in bandits)

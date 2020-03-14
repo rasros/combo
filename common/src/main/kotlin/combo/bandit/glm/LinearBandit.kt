@@ -87,7 +87,7 @@ class LinearBandit(val problem: Problem,
 
         val linearModel: LinearModel get() = _model ?: initLinearModel()
 
-        private fun initLinearModel() = PrecisionLinearModel.Builder(problem).build()
+        private fun initLinearModel() = DiagonalizedLinearModel.Builder(problem).build()
 
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }

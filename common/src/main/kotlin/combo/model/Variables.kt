@@ -117,7 +117,8 @@ sealed class Select<V, out T> constructor(name: String, override val optional: B
         override val name: String get() = canonicalVariable.name
 
         @Suppress("UNCHECKED_CAST")
-        override fun rebase(parent: Value) = (parent.canonicalVariable as Select<V,T>).value(value)
+        override fun rebase(parent: Value) = (parent.canonicalVariable as Select<V, T>).value(value)
+
         override fun toLiteral(variableIndex: VariableIndex) = (variableIndex.valueIndexOf(canonicalVariable) + valueIndex
                 + if (optional) 1 else 0).toLiteral(true)
 

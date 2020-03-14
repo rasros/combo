@@ -47,7 +47,7 @@ class LocalSearch(val problem: Problem,
                   tabuListSize: Int = Int.power2(min(problem.nbrValues, 2)),
                   val instanceFactory: InstanceFactory = BitArrayFactory,
                   val initializer: InstanceInitializer<*> = ConstraintCoercer(problem, WordRandomSet()),
-                  val eps: Float = 1E-4f,
+                  val eps: Float = 1E-8f,
                   val maxConsideration: Int = max(20, min(100, problem.nbrValues / 5)),
                   val propagateAssumptions: Boolean = true,
                   val transitiveImplications: TransitiveImplications? = null) : Optimizer<ObjectiveFunction> {

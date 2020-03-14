@@ -112,11 +112,7 @@ class CovarianceLinearModel(val family: VarianceFunction,
         for (i in weights.indices) {
             weights[i] = combineMean(weights[i], data.weights[i], 1 - weightMixin, weightMixin)
             for (j in i until weights.size) {
-                val v1 = covariance[i,j]
                 val v = combineMean(covariance[i, j], data.updaterData[i][j], 1 - varianceMixin, varianceMixin)
-                if (v > 1f) {
-                    println()
-                }
                 covariance[i, j] = v
                 covariance[j, i] = v
             }

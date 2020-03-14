@@ -2,7 +2,10 @@ package combo.bandit.dt
 
 import combo.bandit.univariate.BanditPolicy
 import combo.math.VarianceEstimator
-import combo.sat.*
+import combo.sat.Instance
+import combo.sat.not
+import combo.sat.toBoolean
+import combo.sat.toIx
 import combo.util.IntCollection
 import combo.util.RandomListCache
 import combo.util.isEmpty

@@ -2,7 +2,8 @@ package combo.bandit.ga
 
 import combo.bandit.univariate.*
 import combo.ga.TournamentElimination
-import combo.math.*
+import combo.math.RunningVariance
+import combo.math.nextNormal
 import combo.model.TestModels.MODEL1
 import combo.sat.Problem
 import kotlin.math.sqrt

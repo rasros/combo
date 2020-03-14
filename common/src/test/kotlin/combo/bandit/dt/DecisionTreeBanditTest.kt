@@ -2,11 +2,7 @@ package combo.bandit.dt
 
 import combo.bandit.PredictionBanditTest
 import combo.bandit.TestParameters
-import combo.bandit.univariate.UCB1Tuned
 import combo.model.Model
-import combo.model.Model.Companion.model
-import kotlin.test.Test
-import kotlin.test.assertTrue
 
 class DecisionTreeBanditTest : PredictionBanditTest<DecisionTreeBandit>() {
 

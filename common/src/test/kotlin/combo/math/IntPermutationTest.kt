@@ -1,5 +1,6 @@
 package combo.math
 
+import combo.test.assertContentEquals
 import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.Test
@@ -10,12 +11,36 @@ import kotlin.test.assertTrue
 class IntPermutationTest {
     @Test
     fun emptyPermutation() {
-        assertFalse(IntPermutation(0, Random).iterator().hasNext())
+        assertFalse(permutation(0, Random).iterator().hasNext())
+        assertEquals(0, permutation(0, Random).encode(0))
+    }
+
+    @Test
+    fun singlePermutation() {
+        val p = permutation(1, Random)
+        assertTrue(p.iterator().hasNext())
+        assertContentEquals(listOf(0), p.toList())
+        assertEquals(0, p.encode(0))
+    }
+}
+
+class CyclingHashIntPermutationTest {
+    @Test
+    fun emptyPermutation() {
+        assertFalse(CyclingHashIntPermutation(0, Random).iterator().hasNext())
+    }
+
+    @Test
+    fun onePermutation() {
+        val p = CyclingHashIntPermutation(1, Random)
+        assertTrue(p.iterator().hasNext())
+        assertContentEquals(listOf(0), p.toList())
+        assertEquals(0, p.encode(0))
     }
 
     @Test
     fun sameTwice() {
-        val p = IntPermutation(100, Random)
+        val p = CyclingHashIntPermutation(100, Random)
         for (i in 0 until 100) {
             assertEquals(p.encode(i), p.encode(i))
         }
@@ -23,7 +48,7 @@ class IntPermutationTest {
 
     @Test
     fun exhaustiveEvenPermutation() {
-        val p = IntPermutation(2.0.pow(4).toInt(), Random)
+        val p = CyclingHashIntPermutation(2.0.pow(4).toInt(), Random)
         val set = HashSet<Int>()
         for (i in 0 until 2.0.pow(4).toInt()) {
             set.add(p.encode(i))
@@ -36,7 +61,7 @@ class IntPermutationTest {
 
     @Test
     fun exhaustiveOddPermutation() {
-        val p = IntPermutation(1001, Random)
+        val p = CyclingHashIntPermutation(1001, Random)
         val set = HashSet<Int>()
         for (i in 0 until 1001) {
             set.add(p.encode(i))
@@ -46,7 +71,7 @@ class IntPermutationTest {
 
     @Test
     fun iterator() {
-        val l = IntPermutation(4, Random).iterator().asSequence().toList()
+        val l = CyclingHashIntPermutation(4, Random).iterator().asSequence().toList()
         assertEquals(4, l.size)
         assertEquals(4, l.toSet().size)
     }
@@ -54,13 +79,13 @@ class IntPermutationTest {
     @Test
     fun permutationSize() {
         for (i in 0..500)
-            assertEquals(i, IntPermutation(i, Random).asSequence().count())
+            assertEquals(i, CyclingHashIntPermutation(i, Random).asSequence().count())
     }
 
     @Test
     fun allValuesFirst() {
         for (i in 1..100) {
-            while (IntPermutation(i, Random).first() != i - 1) {
+            while (CyclingHashIntPermutation(i, Random).first() != i - 1) {
             }
         }
     }

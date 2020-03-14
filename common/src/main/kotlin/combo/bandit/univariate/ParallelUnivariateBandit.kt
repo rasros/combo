@@ -2,7 +2,6 @@ package combo.bandit.univariate
 
 import combo.bandit.ParallelMode
 import combo.math.DataSample
-import combo.math.IntPermutation
 import combo.math.VarianceEstimator
 import combo.math.permutation
 import combo.util.*
@@ -16,8 +15,8 @@ import kotlin.math.min
  * @param mode Type of parallelization attempted.
  */
 class ParallelUnivariateBandit<D> private constructor(val bandits: Array<UnivariateBandit<D>>,
-                                  val batchSize: IntRange,
-                                  val mode: ParallelMode) : UnivariateBandit<D> {
+                                                      val batchSize: IntRange,
+                                                      val mode: ParallelMode) : UnivariateBandit<D> {
 
     private var randomSequence = RandomSequence(randomSeed)
 

@@ -1,6 +1,6 @@
 package combo.bandit.dt
 
-import combo.math.IntPermutation
+import combo.math.permutation
 import combo.model.*
 import combo.sat.not
 import combo.sat.toBoolean
@@ -59,7 +59,7 @@ open class StandardValueSplitter(val variable: Variable<*, *>, val index: Int, v
         } else 0
         if (returnReified) return parentLiteral.toIx()
 
-        for (i in IntPermutation(variable.nbrValues - offset, rng)) {
+        for (i in permutation(variable.nbrValues - offset, rng)) {
             val ix = i + index + offset
             if (ix !in auditedValues && ix.toLiteral(true) !in setLiterals && ix.toLiteral(false) !in setLiterals)
                 return ix

@@ -1,9 +1,8 @@
 package combo.bandit.ga
 
 import combo.ga.SelectionOperator
-import combo.math.IntPermutation
-import combo.math.VarianceEstimator
 import combo.math.normInvCdf
+import combo.math.permutation
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -39,7 +38,7 @@ class SignificanceTestElimination(alpha: Float = 0.05f) : SelectionOperator<Band
     override fun select(candidates: BanditCandidates, rng: Random): Int {
         var maxCI = Float.NEGATIVE_INFINITY
         var minCI = Float.POSITIVE_INFINITY
-        val perm = IntPermutation(candidates.nbrCandidates, rng)
+        val perm = permutation(candidates.nbrCandidates, rng)
         for (i in perm) {
             val e = candidates.estimators[candidates.instances[i]]!!
             if (e.nbrWeightedSamples < candidates.minSamples) continue

@@ -6,18 +6,18 @@ import combo.sat.Problem
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-class PrecisionLinearModel(val family: VarianceFunction,
-                           link: Transform,
-                           loss: Transform,
-                           regularization: Transform,
-                           regularizationFactor: Float,
-                           val learningRate: LearningRateSchedule,
-                           exploration: Float,
-                           step: Long,
-                           weights: Vector,
-                           val precision: Vector,
-                           bias: Float,
-                           var biasPrecision: Float)
+class DiagonalizedLinearModel(val family: VarianceFunction,
+                              link: Transform,
+                              loss: Transform,
+                              regularization: Transform,
+                              regularizationFactor: Float,
+                              val learningRate: LearningRateSchedule,
+                              exploration: Float,
+                              step: Long,
+                              weights: Vector,
+                              val precision: Vector,
+                              bias: Float,
+                              var biasPrecision: Float)
     : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
     override fun sample(rng: Random, weights: VectorView) =
@@ -58,7 +58,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
     }
 
     override fun exportData() = LinearData(weights.toFloatArray(), bias, biasPrecision, step, arrayOf(precision.toFloatArray()))
-    override fun blank(variance: Float) = PrecisionLinearModel(
+    override fun blank(variance: Float) = DiagonalizedLinearModel(
             family, link, loss, regularization, regularizationFactor, learningRate, exploration, 0L, vectors.zeroVector(weights.size),
             vectors.zeroVector(precision.size).apply { add(1f / variance) }, bias, 1f / variance)
 
@@ -78,7 +78,7 @@ class PrecisionLinearModel(val family: VarianceFunction,
         private var priorPrecision: Float = 1f
 
         /** Starting precision in the diagonals of the variance-covariance matrix. */
-        fun priorPrecision(priorPrecision: Float) = apply { this.priorPrecision = priorPrecision}
+        fun priorPrecision(priorPrecision: Float) = apply { this.priorPrecision = priorPrecision }
 
         /** Additional penalty to how big updates should be. By default 1. */
         fun learningRate(learningRate: LearningRateSchedule) = apply { this.learningRate = learningRate }
@@ -108,7 +108,8 @@ class PrecisionLinearModel(val family: VarianceFunction,
         fun link(link: Transform) = apply { this.link = link }
 
         fun build() =
-                PrecisionLinearModel(family, link ?: family.canonicalLink(), loss, regularization, regularizationFactor, learningRate,
+                DiagonalizedLinearModel(family, link
+                        ?: family.canonicalLink(), loss, regularization, regularizationFactor, learningRate,
                         exploration, startingStep, vectors.zeroVector(size),
                         vectors.vector(FloatArray(size) { priorPrecision }),
                         bias ?: if (family is PoissonVariance) 1.01f else 0f,
