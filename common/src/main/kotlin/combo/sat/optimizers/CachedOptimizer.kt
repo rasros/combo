@@ -85,7 +85,9 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         var failure: ValidationException? = null
         try {
             if (rng.nextFloat() < pNew)
-                return baseOptimizer.witnessOrThrow(assumptions, guess).also { buffer.put(it) }
+                return baseOptimizer.witnessOrThrow(assumptions, guess).also {
+                    buffer.put(it)
+                }
         } catch (e: ValidationException) {
             failure = e
         }

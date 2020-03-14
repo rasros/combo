@@ -13,9 +13,9 @@ import kotlin.math.min
 
 interface ObjectiveFunction {
     /**
-     * Value to minimize evaluated on a [Instance], which take on values between zeros and ones.
+     * Value to minimize evaluated on a [VectorView], which take on values between zeros and ones.
      */
-    fun value(instance: Instance): Float
+    fun value(vector: VectorView): Float
 
     /**
      * Optionally implemented. Optimal bound on function, if reached during search the algorithm will terminate immediately.
@@ -46,7 +46,7 @@ open class LinearObjective(val maximize: Boolean, val weights: VectorView) : Obj
     private val upperBound: Float = if (maximize) -weights.sumBy { min(0.0f, it) } else
         weights.sumBy { max(0.0f, it) }
 
-    override fun value(instance: Instance) = (instance dot weights).let {
+    override fun value(vector: VectorView) = (vector dot weights).let {
         if (maximize) -it else it
     }
 
@@ -64,7 +64,7 @@ open class LinearObjective(val maximize: Boolean, val weights: VectorView) : Obj
 }
 
 object SatObjective : LinearObjective(false, EMPTY_VECTOR) {
-    override fun value(instance: Instance) = 0.0f
+    override fun value(vector: VectorView) = 0.0f
     override fun lowerBound() = 0.0f
     override fun upperBound() = 0.0f
     override fun improvement(instance: Instance, ix: Int) = 0.0f
@@ -107,9 +107,9 @@ class StatisticObjectiveFunction(val base: ObjectiveFunction) : ObjectiveFunctio
     var improvementEvaluations = 0
         private set
 
-    override fun value(instance: Instance): Float {
+    override fun value(vector: VectorView): Float {
         functionEvaluations++
-        return base.value(instance)
+        return base.value(vector)
     }
 
     override fun improvement(instance: Instance, ix: Int): Float {

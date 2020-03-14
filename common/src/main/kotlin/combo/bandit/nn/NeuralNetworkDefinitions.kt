@@ -95,15 +95,15 @@ class StaticNetwork(override val layers: Array<Layer>, override val output: Vect
 }
 
 open class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) : ObjectiveFunction {
-    override fun value(instance: Instance): Float {
-        val pred = network.predict(instance)
+    override fun value(vector: VectorView): Float {
+        val pred = network.predict(vector)
         return if (maximize) -pred else pred
     }
 }
 
 class NeuralLinearObjective(maximize: Boolean, network: NeuralNetwork, val weights: VectorView, val bias: Float) : NeuralNetworkObjective(maximize, network) {
-    override fun value(instance: Instance): Float {
-        val z = network.activate(instance, 0, network.layers.size - 2)
+    override fun value(vector: VectorView): Float {
+        val z = network.activate(vector, 0, network.layers.size - 2)
         val y = weights * z
         y.add(bias)
         val f = network.output.apply(y)
