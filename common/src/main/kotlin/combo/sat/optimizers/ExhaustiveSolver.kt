@@ -16,7 +16,8 @@ import combo.util.*
 class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nanos().toInt(),
                        override val timeout: Long = -1L,
                        val propagateAssumptions: Boolean = true,
-                       val instanceFactory: InstanceFactory = BitArrayFactory) : Optimizer<ObjectiveFunction> {
+                       val instanceFactory: InstanceFactory = BitArrayFactory,
+                       val maxOptimizationInstances: Int = 100) : Optimizer<ObjectiveFunction> {
 
     private val randomSequence = RandomSequence(randomSeed)
 
@@ -54,9 +55,10 @@ class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nano
                 .filter { problem.satisfies(it) }
     }
 
-    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?) = asSequence(assumptions).minBy {
-        function.value(it)
-    } ?: throw UnsatisfiableException()
+    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?) =
+            asSequence(assumptions).take(maxOptimizationInstances).minBy {
+                function.value(it)
+            } ?: throw UnsatisfiableException()
 
     private fun propAssumptions(assumptions: IntCollection): IntCollection {
         return if (propagateAssumptions && assumptions.isNotEmpty()) {
