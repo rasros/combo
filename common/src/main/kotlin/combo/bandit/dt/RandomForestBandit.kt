@@ -60,7 +60,6 @@ class RandomForestBandit(val parameters: TreeParameters,
         val decisions = IntArrayList()
         val scores = FloatArrayList()
         allDecisions.addAll(assumptions)
-        decisions.addAll(assumptions)
         var problem = if (!propagateDecisions) model.problem
         else Problem(model.problem.nbrValues, model.problem.unitPropagation(allDecisions, true))
 
@@ -131,7 +130,10 @@ class RandomForestBandit(val parameters: TreeParameters,
             }
         }
 
-        var instance = optimizer.witness(decisions)
+        val finalList = decisions.copy()
+        finalList.addAll(assumptions)
+        var instance = optimizer.witness(finalList)
+
         if (instance == null && decisions.isNotEmpty()) {
             // all decisions cannot be satisfied so maximize the number of applicable decisions
             val s = scores.toArray()
@@ -142,7 +144,7 @@ class RandomForestBandit(val parameters: TreeParameters,
             }
             val linearObjective = LinearObjective(maximize, vectors.sparseVector(problem.nbrValues, s, d))
             @Suppress("UNCHECKED_CAST")
-            instance = (optimizer as Optimizer<LinearObjective>).optimizeOrThrow(linearObjective)
+            instance = (optimizer as Optimizer<LinearObjective>).optimizeOrThrow(linearObjective, assumptions)
         }
         return instance ?: optimizer.witnessOrThrow(allDecisions)
     }
