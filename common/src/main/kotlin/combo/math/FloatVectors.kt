@@ -2,6 +2,7 @@ package combo.math
 
 import combo.util.IntHashMap
 import combo.util.key
+import combo.util.sumByFloat
 import combo.util.value
 import kotlin.math.sqrt
 
@@ -18,7 +19,6 @@ class FloatVector(val array: FloatArray) : Vector {
     }
 
     override infix fun dot(v: VectorView) = array.foldIndexed(0f) { i, dot, d -> dot + d * v[i] }
-    override fun norm2() = sqrt(sumBy { it * it })
     override fun sum() = array.sum()
 
     override fun toFloatArray() = array.copyOf()
@@ -31,22 +31,35 @@ class FloatSparseVector(override val size: Int, val values: FloatArray, val inde
 
     constructor(size: Int, values: FloatArray, indices: IntArray) : this(size, values,
             IntHashMap(values.size * 2, nullKey = -1).also {
-                for (i in indices)
-                    it[i] = i
+                for (i in values.indices)
+                    it[indices[i]] = i
             })
 
     override val sparse: Boolean get() = false
 
-    override fun get(i: Int) = Float.fromBits(index.get(i))
+    override infix fun dot(v: VectorView): Float {
+        var sum = 0f
+        for (l in index.entryIterator()) {
+            val i = l.key()
+            val j = l.value()
+            sum += v[i] * values[j]
+        }
+        return sum
+    }
+
+    override fun norm2() = sqrt(values.sumByFloat { it * it })
+    override fun sum() = values.sum()
+
+    override fun get(i: Int): Float {
+        val v = index[i, -1]
+        return if (v == -1) 0f
+        else values[v]
+    }
+
     override fun set(i: Int, x: Float) {
         if (!index.contains(i)) throw UnsupportedOperationException("Can't set new value in sparse vector.")
         else values[index[i]] = x
     }
-
-    override infix fun dot(v: VectorView) = foldIndexed(0f) { i, dot, d -> dot + d * v[i] }
-
-    override fun norm2() = sqrt(sumBy { it * it })
-    override fun sum() = values.sum()
 
     override fun iterator() = index.iterator()
 
@@ -55,6 +68,7 @@ class FloatSparseVector(override val size: Int, val values: FloatArray, val inde
             it[l.key()] = values[l.value()]
         }
     }
+
 
     override fun copy() = FloatSparseVector(size, values.copyOf(), index.copy())
     override fun vectorCopy() = copy()

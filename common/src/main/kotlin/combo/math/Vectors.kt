@@ -5,16 +5,20 @@ package combo.math
 import combo.util.transformArray
 import kotlin.jvm.JvmName
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 interface VectorView : Iterable<Int> {
     val size: Int
     val sparse: Boolean
 
     operator fun get(i: Int): Float
-    infix fun dot(v: VectorView) = foldIndexed(0f) { i, dot, d -> dot + d * v[i] }
-    fun norm2(): Float
-    fun sum(): Float
+    infix fun dot(v: VectorView) = fold(0f) { sum, i -> sum + this[i] * v[i] }
+    fun norm2(): Float = sqrt(sumBy { it * it })
+    fun sum(): Float = sumBy { it }
 
+    /**
+     * Iterates over the non-zero elements index.
+     */
     override fun iterator(): IntIterator = (0 until size).iterator()
 
     operator fun plus(v: VectorView) = v.vectorCopy().also { it.transformIndexed { i, f -> this[i] + f } }
