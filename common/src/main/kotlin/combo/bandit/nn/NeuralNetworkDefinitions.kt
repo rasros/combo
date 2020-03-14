@@ -74,7 +74,7 @@ interface NeuralNetwork {
     fun toStaticNetwork(cacheSize: Int): StaticNetwork
 }
 
-class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform<Float>, cacheSize: Int) : NeuralNetwork {
+class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform<Float>, cacheSize: Int = 0) : NeuralNetwork {
 
     private data class ActivationKey(val fromLayer: Int, val toLayer: Int, val input: Instance)
 
@@ -94,18 +94,20 @@ class StaticNetwork(override val layers: Array<Layer>, override val output: Vect
     }
 }
 
-class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) : ObjectiveFunction {
+open class NeuralNetworkObjective(val maximize: Boolean, val network: NeuralNetwork) : ObjectiveFunction {
     override fun value(instance: Instance): Float {
         val pred = network.predict(instance)
-        return if (maximize) pred else -pred
+        return if (maximize) -pred else pred
     }
 }
 
-class NeuralLinearObjective(val maximize: Boolean, val network: NeuralNetwork, val weights: VectorView) : ObjectiveFunction {
+class NeuralLinearObjective(maximize: Boolean, network: NeuralNetwork, val weights: VectorView, val bias: Float) : NeuralNetworkObjective(maximize, network) {
     override fun value(instance: Instance): Float {
         val z = network.activate(instance, 0, network.layers.size - 2)
-        val y = weights dot z
-        return if (maximize) y else -y
+        val y = weights * z
+        y.add(bias)
+        val f = network.output.apply(y)
+        return if (maximize) -f else f
     }
 }
 
@@ -118,6 +120,7 @@ interface NeuralNetworkBuilder {
     val hiddenLayers: Int
     val hiddenLayerWidth: Int
     val initWeightVariance: Float
+    val learningRate: Float
 
     fun output(output: Transform): NeuralNetworkBuilder
     fun randomSeed(randomSeed: Int): NeuralNetworkBuilder
@@ -125,5 +128,6 @@ interface NeuralNetworkBuilder {
     fun hiddenLayers(hiddenLayers: Int): NeuralNetworkBuilder
     fun hiddenLayerWidth(hiddenLayerWidth: Int): NeuralNetworkBuilder
     fun initWeightVariance(initWeightVariance: Float): NeuralNetworkBuilder
+    fun learningRate(learningRate: Float): NeuralNetworkBuilder
     fun build(): NeuralNetwork
 }

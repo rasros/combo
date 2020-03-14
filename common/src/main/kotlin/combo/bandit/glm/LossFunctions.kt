@@ -5,13 +5,15 @@ package combo.bandit.glm
 import combo.math.IdentityTransform
 import combo.math.Transform
 import kotlin.jvm.JvmName
-import kotlin.math.abs
+import kotlin.math.absoluteValue
 import kotlin.math.sign
 
 class HuberLoss(val delta: Float) : Transform {
-    override fun apply(value: Float) =
-            if (value <= delta) value
-            else (value * delta) / abs(value)
+    override fun apply(value: Float): Float {
+        val absoluteValue = value.absoluteValue
+        return if (absoluteValue <= delta) value
+        else (value * delta) / absoluteValue
+    }
 }
 
 /**
