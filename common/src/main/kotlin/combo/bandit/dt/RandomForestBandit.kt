@@ -15,7 +15,6 @@ import combo.sat.*
 import combo.sat.optimizers.LinearObjective
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
-import combo.sat.optimizers.SatObjective
 import combo.util.*
 import kotlin.math.*
 import kotlin.random.Random
@@ -182,8 +181,8 @@ class RandomForestBandit(val parameters: TreeParameters,
                 if (banditPolicy.baseData() is BinaryEstimator) ceil(sqrt(model.nbrVariables.toFloat())).roundToInt()
                 else max(1, ceil(model.nbrVariables / 3f).toInt())
         private var splitPeriod: Int = 10
-        private var minSamplesSplit: Float = banditPolicy.baseData().nbrWeightedSamples + 5.0f
-        private var minSamplesLeaf: Float = banditPolicy.baseData().nbrWeightedSamples + 1.0f
+        private var minSamplesSplit: Float = banditPolicy.baseData().nbrWeightedSamples * 2 + 10.0f
+        private var minSamplesLeaf: Float = banditPolicy.baseData().nbrWeightedSamples + 4.0f
         private var maxDepth: Int = 50
         private var rewards: DataSample = VoidSample
         private var trainAbsError: DataSample = VoidSample
@@ -205,6 +204,7 @@ class RandomForestBandit(val parameters: TreeParameters,
 
         /** Used to calculate max set coverage for votes. */
         fun optimizer(optimizer: Optimizer<LinearObjective>) = apply { this.optimizer = optimizer }
+
         @Suppress("UNCHECKED_CAST")
         override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<LinearObjective>)
 

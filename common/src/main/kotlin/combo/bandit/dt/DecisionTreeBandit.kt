@@ -295,8 +295,8 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
         private var maxNodes: Int = Int.MAX_VALUE
         private var viewedValues: Int = Int.MAX_VALUE
         private var splitPeriod: Int = 10
-        private var minSamplesSplit: Float = banditPolicy.baseData().nbrWeightedSamples + 5.0f
-        private var minSamplesLeaf: Float = banditPolicy.baseData().nbrWeightedSamples + 1.0f
+        private var minSamplesSplit: Float = banditPolicy.prior.nbrWeightedSamples * 2 + 10.0f
+        private var minSamplesLeaf: Float = banditPolicy.prior.nbrWeightedSamples + 4.0f
         private var maxDepth: Int = 50
         private var rewards: DataSample = VoidSample
         private var trainAbsError: DataSample = VoidSample
@@ -317,6 +317,7 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
 
         /** Used to generate complete [Instance] from partial literals at leaf nodes. */
         fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
+
         @Suppress("UNCHECKED_CAST")
         override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<SatObjective>)
 
