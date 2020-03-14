@@ -1,6 +1,9 @@
 package combo.ga
 
-import combo.math.*
+import combo.math.AliasMethodSampler
+import combo.math.DiscreteSampler
+import combo.math.nextGeometric
+import combo.math.permutation
 import combo.sat.TransitiveImplications
 import combo.sat.literal
 import combo.util.assert

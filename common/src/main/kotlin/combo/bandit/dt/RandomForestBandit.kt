@@ -281,7 +281,7 @@ class RandomForestBandit(val parameters: TreeParameters,
                         observedVariables.add(vi)
                 }
             }
-            val perm = IntPermutation(model.nbrVariables, rng)
+            val perm = permutation(model.nbrVariables, rng)
             for (vi in perm) {
                 if (observedVariables.size >= viewedVariables) break
                 for (vj in variableIndices(model.index.variable(vi)))

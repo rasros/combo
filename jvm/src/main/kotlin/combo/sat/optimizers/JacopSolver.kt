@@ -31,9 +31,9 @@ import kotlin.random.Random
 class JacopSolver @JvmOverloads constructor(
         val problem: Problem,
         override val randomSeed: Int = nanos().toInt(),
-        override val timeout: Long= -1L,
+        override val timeout: Long = -1L,
         val instanceFactory: InstanceFactory = BitArrayFactory,
-        val delta: Float= 0.01f,
+        val delta: Float = 0.01f,
         val gcdSimplify: Boolean = true,
         val constraintHandler: (Constraint, Store, Array<BooleanVar>) -> Unit = { _, _, _ ->
             throw UnsupportedOperationException("Register custom constraint handler in order to handle extra constraints.")
@@ -49,7 +49,7 @@ class JacopSolver @JvmOverloads constructor(
         }
 
         val varIndex = HashMap<BooleanVar, Int>().apply {
-            for (i in 0 until vars.size)
+            for (i in vars.indices)
                 this[vars[i]] = i
         }
 

@@ -85,8 +85,8 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                     val activation = (layer.config as DenseLayer).activationFn
                     val biases = network.layers[it].getParam("b")
                     val weights = network.layers[it].getParam("W").transpose()
-                    val staticWeights = FallbackMatrix(Nd4jMatrix(weights).toArray())
-                    val staticBiases = FallbackVector(Nd4jVector(biases).toFloatArray())
+                    val staticWeights = FloatMatrix(Nd4jMatrix(weights).toArray())
+                    val staticBiases = FloatVector(Nd4jVector(biases).toFloatArray())
                     DenseLayer(staticWeights, staticBiases, activation.toTransform())
                 }
                 network.layers[it] is org.deeplearning4j.nn.layers.OutputLayer -> {
@@ -95,8 +95,8 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                     output = (layer.config as OutputLayer).activationFn.toTransform()
                     val biases = network.layers[it].getParam("b")
                     val weights = network.layers[it].getParam("W").transpose()
-                    val staticWeights = FallbackMatrix(Nd4jMatrix(weights).toArray())
-                    val staticBiases = FallbackVector(Nd4jVector(biases).toFloatArray())
+                    val staticWeights = FloatMatrix(Nd4jMatrix(weights).toArray())
+                    val staticBiases = FloatVector(Nd4jVector(biases).toFloatArray())
                     DenseLayer(staticWeights, staticBiases, IdentityTransform)
                 }
                 else -> throw UnsupportedOperationException("Unsupported network layer type, at ix: $it")
@@ -115,9 +115,11 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
             private set
         override var hiddenLayers: Int = 2
             private set
-        override var hiddenLayerWidth: Int = 100
+        override var hiddenLayerWidth: Int = 10
             private set
         override var initWeightVariance: Float = 0.001f
+            private set
+        override var learningRate: Float = 0.01f
             private set
 
         override fun output(output: Transform) = apply { this.output = output }
@@ -126,6 +128,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
         override fun hiddenLayers(hiddenLayers: Int) = apply { this.hiddenLayers = hiddenLayers }
         override fun hiddenLayerWidth(hiddenLayerWidth: Int) = apply { this.hiddenLayerWidth = hiddenLayerWidth }
         override fun initWeightVariance(initWeightVariance: Float) = apply { this.initWeightVariance = initWeightVariance }
+        override fun learningRate(learningRate: Float) = apply { this.learningRate = learningRate }
 
         fun defaultOutputLayer(nIn: Int, output: Transform): OutputLayer {
             val conf = when (output) {
@@ -144,7 +147,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                     .seed(randomSeed.toLong())
                     .activation(Activation.RELU)
                     .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                    .updater(RmsProp())
+                    .updater(RmsProp(learningRate.toDouble()))
                     .list()
                     .layer(DenseLayer.Builder().nIn(problem.nbrValues).nOut(hiddenLayerWidth).build())
                     .apply {
