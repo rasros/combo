@@ -5,6 +5,8 @@ import combo.bandit.PredictionBandit
 import combo.bandit.PredictionBanditBuilder
 import combo.bandit.univariate.BanditPolicy
 import combo.bandit.univariate.Greedy
+import combo.bandit.univariate.NormalPosterior
+import combo.bandit.univariate.ThompsonSampling
 import combo.math.*
 import combo.model.Model
 import combo.model.Root
@@ -13,6 +15,7 @@ import combo.sat.*
 import combo.sat.optimizers.LinearObjective
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
+import combo.sat.optimizers.SatObjective
 import combo.util.*
 import kotlin.math.*
 import kotlin.random.Random
@@ -161,7 +164,7 @@ class RandomForestBandit(val parameters: TreeParameters,
             trees[i].importData(data.trees[i])
     }
 
-    class Builder(val model: Model, val banditPolicy: BanditPolicy) : PredictionBanditBuilder<ForestData> {
+    class Builder(val model: Model, val banditPolicy: BanditPolicy = ThompsonSampling(NormalPosterior)) : PredictionBanditBuilder<ForestData> {
 
         private var trees: Int = 10
         private var optimizer: Optimizer<LinearObjective>? = null
@@ -202,6 +205,8 @@ class RandomForestBandit(val parameters: TreeParameters,
 
         /** Used to calculate max set coverage for votes. */
         fun optimizer(optimizer: Optimizer<LinearObjective>) = apply { this.optimizer = optimizer }
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<LinearObjective>)
 
         /** Which split metric to use for deciding what variable to split on. */
         fun splitMetric(splitMetric: SplitMetric) = apply { this.splitMetric = splitMetric }

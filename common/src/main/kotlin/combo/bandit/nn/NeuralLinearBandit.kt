@@ -138,6 +138,8 @@ class NeuralLinearBandit(val problem: Problem,
 
         fun batchSize(batchSize: Int) = apply { this.batchSize = batchSize }
         fun optimizer(optimizer: Optimizer<NeuralNetworkObjective>) = apply { this.optimizer = optimizer }
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<NeuralNetworkObjective>)
         fun useStatic(useStatic: Boolean) = apply { this.useStatic = useStatic }
         fun staticCacheSize(staticCacheSize: Int) = apply { this.staticCacheSize = staticCacheSize }
         fun epochs(epochs: Int) = apply { this.epochs = epochs }

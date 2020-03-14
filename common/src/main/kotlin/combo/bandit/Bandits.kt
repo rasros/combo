@@ -186,6 +186,8 @@ interface BanditBuilder<D : BanditData> {
     /** Set the random seed to a specific value to have a reproducible algorithm. By default current system time. */
     fun randomSeed(randomSeed: Int): BanditBuilder<D>
 
+    fun suggestOptimizer(optimizer: Optimizer<*>): BanditBuilder<D>
+
     /** Build bandit that can be used in parallel. */
     fun parallel(): ParallelBandit.Builder<D>
 }
@@ -196,6 +198,7 @@ interface PredictionBanditBuilder<D : BanditData> : BanditBuilder<D> {
     override fun rewards(rewards: DataSample): PredictionBanditBuilder<D>
     override fun maximize(maximize: Boolean): PredictionBanditBuilder<D>
     override fun randomSeed(randomSeed: Int): PredictionBanditBuilder<D>
+    override fun suggestOptimizer(optimizer: Optimizer<*>): PredictionBanditBuilder<D>
     override fun parallel(): ParallelPredictionBandit.Builder<D>
 
     /** The total absolute error obtained on a prediction before update. */
@@ -223,6 +226,8 @@ class RandomBandit(val optimizer: Optimizer<SatObjective>, override val rewards:
         override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<SatObjective>)
 
         override fun importData(data: Nothing) = this
         override fun maximize(maximize: Boolean) = this

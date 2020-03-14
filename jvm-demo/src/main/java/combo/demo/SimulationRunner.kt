@@ -21,7 +21,7 @@ import combo.model.PredictionModelBandit
 import combo.sat.InitializerType
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.ObjectiveFunction
-import combo.sat.optimizers.Optimizer
+import combo.sat.optimizers.OptimizerBuilder
 import combo.util.EmptyCollection
 import combo.util.nanos
 import org.apache.log4j.Level
@@ -48,7 +48,7 @@ class SimulationRunner : Runnable {
             if (exitCode != 0) exitProcess(exitCode)
         }
 
-        val top5: TopCategorySurrogate by lazy { TopCategorySurrogate() }
+        val tc: TopCategorySurrogate by lazy { TopCategorySurrogate() }
         val ac: AutoCompleteSurrogate by lazy { AutoCompleteSurrogate(false) }
     }
 
@@ -63,7 +63,6 @@ class SimulationRunner : Runnable {
                             .delta(1e-5f).deltaDecay(1e-6f).tau(.3f)
                 else ->
                     DecisionTreeBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(BinomialPosterior, BinarySum(0.08f, 1f)))
-                            .optimizer(simulationProblem.defaultSolver)
                             .delta(0.15f).deltaDecay(1e-6f).tau(.1f)
             }
 
@@ -89,7 +88,6 @@ class SimulationRunner : Runnable {
                 else ->
                     RandomForestBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(NormalPosterior))
                             .trees(200)
-                            .optimizer(simulationProblem.defaultSolver)
                             .viewedVariables(simulationProblem.surrogateModel.model.nbrVariables / 20)
                             .delta(6.3e-21f).deltaDecay(1.5e-9f).tau(.60f)
             }
@@ -109,15 +107,16 @@ class SimulationRunner : Runnable {
                     .instanceSamplingMean(metaAssignment.getIntFloat("samplingMean"))
                     .viewedVariables(max(1, metaAssignment.getInt("nbrVariables") * builder.model.nbrVariables))
 
+            override val useOptimizer = true
         },
         RF20 {
             override fun banditBuilder(simulationProblem: SimulationProblem) =
                     (RF.banditBuilder(simulationProblem) as RandomForestBandit.Builder).trees(20)
 
+            override val useOptimizer = true
         },
         GLMDIAG {
             override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model.problem)
-                    .optimizer(simulationProblem.defaultOptimizer)
                     .linearModel(DiagonalizedLinearModel.Builder(simulationProblem.surrogateModel.model.problem).let {
                         when (simulationProblem) {
                             SimulationProblem.AC -> it.family(NormalVariance).exploration(0.02f).regularizationFactor(1e-20f).priorPrecision(20f)
@@ -138,11 +137,11 @@ class SimulationRunner : Runnable {
                             .exploration(metaAssignment.getIntFloat("exploration"))
                             .regularizationFactor(metaAssignment.getIntFloat("regularizationFactor")).build())
 
+            override val useOptimizer = true
 
         },
         GLMFULL {
             override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model.problem)
-                    .optimizer(simulationProblem.defaultOptimizer)
                     .linearModel(CovarianceLinearModel.Builder(simulationProblem.surrogateModel.model.problem).let {
                         when (simulationProblem) {
                             SimulationProblem.AC -> it.family(NormalVariance).exploration(0.05f).regularizationFactor(1e-20f).priorVariance(0.005f)
@@ -164,6 +163,7 @@ class SimulationRunner : Runnable {
                             .regularizationFactor(metaAssignment.getIntFloat("regularizationFactor")).build())
 
 
+            override val useOptimizer = true
         },
         NL {
             override val hyperParameters = model {
@@ -210,7 +210,6 @@ class SimulationRunner : Runnable {
                                     .hiddenLayers(1)
                                     .hiddenLayerWidth(10)
                                     .regularizationFactor(0.001f))
-                            .optimizer(simulationProblem.defaultOptimizer)
                             .linearModel(CovarianceLinearModel.Builder(10)
                                     .family(NormalVariance)
                                     .exploration(0.001f)
@@ -227,7 +226,6 @@ class SimulationRunner : Runnable {
                                     .hiddenLayers(2)
                                     .hiddenLayerWidth(10)
                                     .regularizationFactor(0.001f))
-                            .optimizer(simulationProblem.defaultOptimizer)
                             .linearModel(CovarianceLinearModel.Builder(10)
                                     .family(BinomialVariance)
                                     .loss(HuberLoss(0.01f))
@@ -238,62 +236,76 @@ class SimulationRunner : Runnable {
                             .epochs(3)
                 }
             }
+
+            override val useOptimizer = true
         },
         ORACLE {
             override fun banditBuilder(simulationProblem: SimulationProblem) = OracleBandit.Builder(simulationProblem.surrogateModel)
-                    .optimizer(simulationProblem.defaultOptimizer)
+            override val useOptimizer = true
         },
         RANDOM {
             override fun banditBuilder(simulationProblem: SimulationProblem) = RandomBandit.Builder(simulationProblem.surrogateModel.model.problem)
-                    .optimizer(simulationProblem.defaultSolver)
         };
 
         abstract fun banditBuilder(simulationProblem: SimulationProblem): BanditBuilder<*>
         open fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>): BanditBuilder<*> = builder
         open val hyperParameters: Model = model {}
+        open val useOptimizer: Boolean = false
 
         fun Assignment.getIntFloat(name: String, scale: Float = 10f) = 10f.pow(getInt(name) / scale)
     }
 
     enum class SimulationProblem(val surrogateModel: SurrogateModel<*>,
-                                 val defaultSolver: Optimizer<ObjectiveFunction>,
-                                 val defaultOptimizer: Optimizer<ObjectiveFunction>,
                                  val contextProvider: ContextProvider) {
 
         AC(AutoCompleteSurrogate(),
-                LocalSearch.Builder(ac.model.problem).fallbackCached().build(),
-                LocalSearch.Builder(ac.model.problem).fallbackCached().build(),
                 object : ContextProvider {
                     override fun context(rng: Random) = EmptyCollection
-                }
-        ),
+                }) {
+            override fun defaultSolver() = LocalSearch.Builder(ac.model.problem).randomSeed(nanos().toInt()).fallbackCached()
+            override fun defaultOptimizer() = LocalSearch.Builder(ac.model.problem).randomSeed(nanos().toInt()).fallbackCached()
+        },
 
-        TOP5(top5,
-                LocalSearch.Builder(top5.model.problem)
-                        .restarts(5)
-                        .pRandomWalk(0.01f)
-                        .initializer(InitializerType.NONE)
-                        .sparse(true)
-                        .maxConsideration(100)
-                        .cached()
-                        .pNew(1f)
-                        .maxSize(50)
-                        .build(),
-                LocalSearch.Builder(top5.model.problem)
-                        .restarts(5)
-                        .pRandomWalk(0.01f)
-                        .initializer(InitializerType.NONE)
-                        .propagateFlips(true)
-                        .sparse(true)
-                        .maxConsideration(100)
-                        .fallbackCached()
-                        .maxSize(50)
-                        .build(),
-                top5.contextProvider(5)
-        ),
-        TOP20(top5, TOP5.defaultSolver, TOP5.defaultOptimizer, top5.contextProvider(20)),
-        TOP100(top5, TOP5.defaultSolver, TOP5.defaultOptimizer, top5.contextProvider(100))
-        ;
+        TOP5(tc, tc.contextProvider(5)) {
+            override fun defaultSolver() = LocalSearch.Builder(tc.model.problem)
+                    .restarts(5)
+                    .pRandomWalk(0.05f)
+                    .initializer(InitializerType.RANDOM)
+                    .initializerBias(0.05f)
+                    .propagateFlips(false)
+                    .sparse(true)
+                    .maxConsideration(200)
+                    .randomSeed(nanos().toInt())
+                    .cached()
+                    .pNew(1f)
+                    .maxSize(50)
+
+            override fun defaultOptimizer() =
+
+                    LocalSearch.Builder(tc.model.problem)
+                            .restarts(5)
+                            .pRandomWalk(0.05f)
+                            .initializer(InitializerType.RANDOM)
+                            .initializerBias(0.05f)
+                            .propagateFlips(true)
+                            .sparse(true)
+                            .maxConsideration(200)
+                            .randomSeed(nanos().toInt())
+                            .cached()
+                            .pNew(1f)
+                            .maxSize(50)
+        },
+        TOP20(tc, tc.contextProvider(20)) {
+            override fun defaultSolver() = TOP5.defaultSolver()
+            override fun defaultOptimizer() = TOP5.defaultOptimizer()
+        },
+        TOP100(tc, tc.contextProvider(100)) {
+            override fun defaultSolver() = TOP5.defaultSolver()
+            override fun defaultOptimizer() = TOP5.defaultOptimizer()
+        };
+
+        abstract fun defaultSolver(): OptimizerBuilder<ObjectiveFunction>
+        abstract fun defaultOptimizer(): OptimizerBuilder<ObjectiveFunction>
     }
 
     enum class Mode { TIME, HYPER, REWARDS }
@@ -368,7 +380,10 @@ class SimulationRunner : Runnable {
             writer.println("Iteration,Mean rewards,Standard deviation in iteration")
         }
         for (t in 0 until repetitions) {
+            val optimizer = if (algorithm.useOptimizer) problem.defaultOptimizer()
+            else problem.defaultSolver()
             val banditBuilder = algorithm.banditBuilder(problem)
+                    .suggestOptimizer(optimizer.randomSeed(nanos().toInt()).build())
             val bandit = banditBuilder
                     .randomSeed(nanos().toInt())
                     .parallel().copies(1).mode(ParallelMode.BLOCKING).build()
@@ -417,8 +432,11 @@ class SimulationRunner : Runnable {
 
         for (t in 1..repetitions) {
             val metaAssignment = metaBandit.chooseOrThrow()
-            val builder = algorithm.banditBuilder(problem)
-            val bandit = algorithm.configureWith(metaAssignment, builder).randomSeed(nanos().toInt())
+            val optimizer = if (algorithm.useOptimizer) problem.defaultOptimizer()
+            else problem.defaultSolver()
+            val banditBuilder = algorithm.banditBuilder(problem)
+                    .suggestOptimizer(optimizer.randomSeed(nanos().toInt()).build())
+            val bandit = algorithm.configureWith(metaAssignment, banditBuilder).randomSeed(nanos().toInt())
                     .parallel().copies(1).mode(ParallelMode.BLOCKING).build()
 
             val s = Simulation(problem.surrogateModel, bandit,
@@ -448,7 +466,11 @@ class SimulationRunner : Runnable {
         for (i in 1..repetitions) {
             val chooseTime = RunningVariance()
             val updateTime = RunningVariance()
-            val bandit = algorithm.banditBuilder(problem).build()
+            val optimizer = if (algorithm.useOptimizer) problem.defaultOptimizer()
+            else problem.defaultSolver()
+            val banditBuilder = algorithm.banditBuilder(problem)
+                    .suggestOptimizer(optimizer.randomSeed(nanos().toInt()).build())
+            val bandit = banditBuilder.build()
             val sm = problem.surrogateModel
             for (t in 1..burnIn) {
                 val instance = bandit.chooseOrThrow(problem.contextProvider.context(Random))

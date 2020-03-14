@@ -51,6 +51,8 @@ class OracleBandit<O : ObjectiveFunction>(val optimizer: Optimizer<O>, val surro
         override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         fun optimizer(optimizer: Optimizer<O>) = apply { this.optimizer = optimizer }
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<O>)
 
         override fun importData(data: Nothing) = this
         override fun maximize(maximize: Boolean) = apply { this.maximize = maximize }

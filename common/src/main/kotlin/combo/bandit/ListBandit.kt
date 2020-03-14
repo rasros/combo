@@ -9,6 +9,7 @@ import combo.sat.*
 import combo.sat.constraints.Conjunction
 import combo.sat.optimizers.ExhaustiveSolver
 import combo.sat.optimizers.LocalSearch
+import combo.sat.optimizers.Optimizer
 import combo.util.*
 
 /**
@@ -110,6 +111,7 @@ class ListBandit(instances: Array<Instance>,
         override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
         override fun parallel() = ParallelBandit.Builder(this)
 
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = this
         override fun build(): ListBandit {
             val priors = if (import != null) {
                 val priors = HashMap<Instance, VarianceEstimator>()

@@ -198,7 +198,7 @@ class LocalSearch(val problem: Problem,
     /**
      * Problem is the only mandatory parameter.
      */
-    class Builder(val problem: Problem) {
+    class Builder(val problem: Problem) :OptimizerBuilder<ObjectiveFunction> {
         private var randomSeed: Int = nanos().toInt()
         private var timeout: Long = -1L
         private var restarts: Int = 5
@@ -217,10 +217,10 @@ class LocalSearch(val problem: Problem,
         private var initializerNoise: Float = 0.5f
 
         /** Set the random seed to a specific value to have a reproducible algorithm. */
-        fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
+        override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
 
         /** The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee. */
-        fun timeout(timeout: Long) = apply { this.timeout = timeout }
+        override fun timeout(timeout: Long) = apply { this.timeout = timeout }
 
         /** The search will be restarted up to [restarts] number of time and the best value will be selected from each restart. */
         fun restarts(restarts: Int) = apply { this.restarts = restarts }
@@ -266,7 +266,7 @@ class LocalSearch(val problem: Problem,
 
         fun fallbackCached() = cached().pNew(1f).maxSize(10)
 
-        fun build(): LocalSearch {
+        override fun build(): LocalSearch {
 
             val digraph = if (propagateFlips || initializerType == InitializerType.PROPAGATE_COERCE
                     || initializerType == InitializerType.WEIGHT_MAX_PROPAGATE_COERCE) TransitiveImplications(problem)

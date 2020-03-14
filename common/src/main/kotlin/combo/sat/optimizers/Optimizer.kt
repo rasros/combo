@@ -84,3 +84,13 @@ interface Optimizer<in O : ObjectiveFunction> : Iterable<Instance> {
     val complete get() = false
 }
 
+interface OptimizerBuilder<in O : ObjectiveFunction> {
+
+    /** Set the random seed to a specific value to have a reproducible algorithm. By default current system time. */
+    fun randomSeed(randomSeed: Int): OptimizerBuilder<O>
+
+    /** Set the timeout. */
+    fun timeout(timeout: Long): OptimizerBuilder<O>
+
+    fun build(): Optimizer<O>
+}

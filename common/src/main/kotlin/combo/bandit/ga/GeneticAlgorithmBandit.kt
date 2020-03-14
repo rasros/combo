@@ -227,6 +227,9 @@ class GeneticAlgorithmBandit(
         /** The optimizer will be used to generate [Instance]s that satisfy the constraints from the [Problem]. */
         fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
 
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<SatObjective>)
+
         /** Set the random seed to a specific value to have a reproducible algorithm. */
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
 

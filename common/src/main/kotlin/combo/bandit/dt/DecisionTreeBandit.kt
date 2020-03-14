@@ -317,6 +317,8 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
 
         /** Used to generate complete [Instance] from partial literals at leaf nodes. */
         fun optimizer(optimizer: Optimizer<SatObjective>) = apply { this.optimizer = optimizer }
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<SatObjective>)
 
         /** Which split metric to use for deciding what variable to split on. */
         fun splitMetric(splitMetric: SplitMetric) = apply { this.splitMetric = splitMetric }

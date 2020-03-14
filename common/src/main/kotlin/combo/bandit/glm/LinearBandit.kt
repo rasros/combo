@@ -100,6 +100,8 @@ class LinearBandit(val problem: Problem,
 
         /** Which optimizer to use for maximization of the linear function. */
         fun optimizer(optimizer: Optimizer<LinearObjective>) = apply { this.optimizer = optimizer }
+        @Suppress("UNCHECKED_CAST")
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<LinearObjective>)
 
         private fun defaultOptimizer() = optimizer ?: LocalSearch.Builder(problem)
                 .randomSeed(randomSeed).fallbackCached().build()

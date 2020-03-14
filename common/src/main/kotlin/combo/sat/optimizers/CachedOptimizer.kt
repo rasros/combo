@@ -98,7 +98,7 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
 
     override fun asSequence(assumptions: IntCollection) = baseOptimizer.asSequence(assumptions)
 
-    class Builder<O : ObjectiveFunction>(val optimizer: Optimizer<O>) {
+    class Builder<O : ObjectiveFunction>(val optimizer: Optimizer<O>) : OptimizerBuilder<O> {
         private var maxSize: Int = 20
         private var pNew: Float = 0.05f
         private var pNewWithGuess: Float = 1.0f
@@ -112,6 +112,8 @@ class CachedOptimizer<in O : ObjectiveFunction> @JvmOverloads constructor(
         /** Chance of generating new instance using a guess initial solution randomly selected from a matching instance. */
         fun pNewWithGuess(pNewWithGuess: Float) = apply { this.pNewWithGuess = pNewWithGuess }
 
-        fun build() = CachedOptimizer(optimizer, maxSize, pNew, pNewWithGuess)
+        override fun build() = CachedOptimizer(optimizer, maxSize, pNew, pNewWithGuess)
+        override fun randomSeed(randomSeed: Int) = error("Set on wrapping optimizer before building. TODO this contain builder instead.")
+        override fun timeout(timeout: Long) = error("Set on wrapping optimizer before building.")
     }
 }
