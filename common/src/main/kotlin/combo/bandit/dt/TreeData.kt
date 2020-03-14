@@ -100,7 +100,7 @@ class TreeData(val nodes: List<NodeData>) : BanditData, List<NodeData> by nodes 
 
         // Calculate data for split nodes
         TODO()
-        return root
+        //return root
     }
 }
 
