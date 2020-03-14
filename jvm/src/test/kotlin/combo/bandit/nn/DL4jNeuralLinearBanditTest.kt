@@ -4,7 +4,9 @@ import combo.bandit.BanditTest
 import combo.bandit.TestParameters
 import combo.bandit.glm.CovarianceLinearModel
 import combo.model.Model
+import org.junit.Ignore
 
+@Ignore
 class DL4jNeuralLinearBanditTest : BanditTest<NeuralLinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters): NeuralLinearBandit {
         return NeuralLinearBandit.Builder(
