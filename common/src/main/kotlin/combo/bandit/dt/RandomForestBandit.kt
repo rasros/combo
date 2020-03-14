@@ -60,6 +60,7 @@ class RandomForestBandit(val parameters: TreeParameters,
         val decisions = IntArrayList()
         val scores = FloatArrayList()
         allDecisions.addAll(assumptions)
+        decisions.addAll(assumptions)
         var problem = if (!propagateDecisions) model.problem
         else Problem(model.problem.nbrValues, model.problem.unitPropagation(allDecisions, true))
 
