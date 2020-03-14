@@ -1,25 +1,23 @@
 # COMBO
-Combo is a library for Constrained Online Multi-variate Bandit Optimization (COMBO), otherwise known as combinatorial multi-armed bandits. It is used to optimize software with user data in a production environment. It supports multiple methods, such as generalized linear model bandits, random forest bandits, neural network bandits, and genetic algorithms. Using Combo, each user can recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
+Combo is a library for Constraint Oriented Multi-variate Bandit Optimization (COMBO) applied to software parameters. It is used to optimize software with user data in a production environment. It supports multiple methods with a combination of machine learning, combinatorial optimization, and Thompson sampling. Some of the included machine learning algorithms are: generalized linear model, random forest, neural network, and genetic algorithms. Using COMBO, each user recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
 
 Using it requires three steps: 
 
-1. Create a [model](https://en.wikipedia.org/wiki/Feature_model).
+1. Create a model of the variables and constraints in the search space.
 2. Map the model to your actual software features.
-3. Create a Combo optimizer.
+3. Create an multi-variate multi-armed bandit algorithm optimizer.
 
-## Feature model
+## Model of the search space
 
-A feature model is a tree that describes the variables in the optimization problem. Lets start of with a simple example, which is intended to be used to display a top-list of the most important media categories on a web site.
-
-The optimal configuration will be automatically calculated based on how well each category performs in terms of eg. sales or click data.
+A model describes the variables in the optimization problem in a tree structure. Lets start of with a simple example, which is intended to be used to display a top-list of the most important media categories on a web site. Here, the optimal configuration will be automatically calculated over time as users are using it, based on how well each category performs in terms of eg sales or click data.
 
 ```kotlin
 fun main() {
 
-    val myModel = Model.root {
+    val myModel = model {
 
         // Context variables
-        int("DisplayWidth", 640, 1920)
+        int("DisplayWidth", min = 640, max = 1920)
         val customerType = nominal("CustomerType", "Child", "Company", "Person")
 
         // The category tree is encoded directly
@@ -53,12 +51,12 @@ fun main() {
 
 ## Optimizer
 
-Creating an optimizer is simple, creating the _right_ optimizer can be a challenge. There are several hyper-parameters that can be tuned for better performance. The random forest bandit is recommended to start with because it is quite robust to bad tuning.
+Creating an optimizer is straightforward. There are several hyper-parameters that can be tuned for better performance. The random forest algorithm is recommended to start with because it is quite robust to bad tuning.
 
 ```kotlin
 // Using the feature model "myModel" from above
 // This optimizer will maximize binomial data (success/failures).
-val optimizer = ModelBandit.randomForestBandit(myModel, ThompsonSampling(BinomialVariance))
+val optimizer = RandomForestBandit.Builder(myModel)
 ```
 
 Using the optimizer then is as simple as this:
