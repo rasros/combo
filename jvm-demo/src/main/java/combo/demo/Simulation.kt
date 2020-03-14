@@ -29,10 +29,10 @@ interface SurrogateModel<O : ObjectiveFunction> {
 
 class OracleBandit<O : ObjectiveFunction>(val optimizer: Optimizer<O>, val surrogateModel: SurrogateModel<O>, override val maximize: Boolean = true, override val rewards: DataSample = VoidSample) : Bandit<Nothing> {
 
-    override fun chooseOrThrow(assumptions: IntCollection) = surrogateModel.optimal(optimizer)
+    override fun chooseOrThrow(assumptions: IntCollection) = surrogateModel.optimal(optimizer, assumptions)
             ?: throw UnsatisfiableException("Failed to generate optimal instance.")
 
-    override fun optimalOrThrow(assumptions: IntCollection) = surrogateModel.optimal(optimizer)
+    override fun optimalOrThrow(assumptions: IntCollection) = surrogateModel.optimal(optimizer, assumptions)
             ?: throw UnsatisfiableException("Failed to generate optimal instance.")
 
     override fun update(instance: Instance, result: Float, weight: Float) {}
@@ -74,7 +74,7 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                  val workers: Int = max(1, Runtime.getRuntime().availableProcessors()),
                  val expectedRewards: DataSample = FullSample(),
                  val duration: RunningVariance = RunningVariance(),
-                 val log: Boolean = true,
+                 val verbose: Boolean = true,
                  val contextProvider: ContextProvider = object : ContextProvider {
                      override fun context(rng: Random) = EmptyCollection
                  },
@@ -90,12 +90,12 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                     interrupt()
                 }
             }
-            if (log)
+            if (verbose)
                 println("Updater thread interrupted.")
             while (bandit.processUpdates(false) > 0) {
             }
             updaterCdl.countDown()
-            if (log)
+            if (verbose)
                 println("Updater thread done.")
         }
     }
@@ -118,10 +118,10 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                     try {
                         step(rng)
                     } catch (e: ValidationException) {
-                        if (log) e.printStackTrace()
+                        if (verbose) e.printStackTrace()
                         val fails = failedSteps.incrementAndGet()
                         if (fails >= 5 && fails >= t.toFloat() * abortThreshold) {
-                            if (log) println("Simulation failed due to many errors.")
+                            if (verbose) println("Simulation failed due to many errors.")
                             cancelSimulation()
                         }
                     } catch (e: Exception) {
@@ -132,7 +132,7 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
                 }
             }
             cdl.countDown()
-            if (log)
+            if (verbose)
                 println("Worker thread $it done.")
             if (cdl.count == 0L)
                 updateThread.interrupt()
@@ -168,7 +168,7 @@ class Simulation(val surrogateModel: SurrogateModel<*>,
     }
 
     fun cancelSimulation() {
-        if (log)
+        if (verbose)
             println("Cancel simulation.")
         updateThread.interrupt()
         workerThreads.forEach { it.interrupt() }
