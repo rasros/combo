@@ -11,13 +11,14 @@ import combo.util.*
  * @param timeout The solver will abort after timeout in milliseconds have been reached, without a real-time guarantee.
  * @param propagateAssumptions If true then perform unit propagation before solving when assumptions are used.
  * @param instanceFactory Determines the [Instance] that will be created for solving.
+ * @param maxOptimizationInstances Maximum number of instances that will be observed when optimizing.
  *
  */
 class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nanos().toInt(),
                        override val timeout: Long = -1L,
                        val propagateAssumptions: Boolean = true,
                        val instanceFactory: InstanceFactory = BitArrayFactory,
-                       val maxOptimizationInstances: Int = 100) : Optimizer<ObjectiveFunction> {
+                       val maxOptimizationInstances: Int = 1000) : Optimizer<ObjectiveFunction> {
 
     private val randomSequence = RandomSequence(randomSeed)
 
