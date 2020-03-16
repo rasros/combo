@@ -6,7 +6,7 @@ import combo.model.Model
 
 class GreedyLinearBanditTest : BanditTest<LinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.Builder(model.problem)
+            LinearBandit.Builder(model)
                     .linearModel(GreedyLinearModel.Builder(model.problem)
                             .link(parameters.variance().canonicalLink()).build())
                     .randomSeed(parameters.randomSeed)
@@ -17,7 +17,7 @@ class GreedyLinearBanditTest : BanditTest<LinearBandit>() {
 
 class PrecisionLinearBanditTest : BanditTest<LinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.Builder(model.problem)
+            LinearBandit.Builder(model)
                     .linearModel(DiagonalizedLinearModel.Builder(model.problem)
                             .family(parameters.variance()).build())
                     .randomSeed(parameters.randomSeed)
@@ -28,7 +28,7 @@ class PrecisionLinearBanditTest : BanditTest<LinearBandit>() {
 
 class CovarianceLinearBanditTest : BanditTest<LinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.Builder(model.problem)
+            LinearBandit.Builder(model)
                     .linearModel(CovarianceLinearModel.Builder(model.problem)
                             .family(parameters.variance()).build())
                     .randomSeed(parameters.randomSeed)

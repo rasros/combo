@@ -2,6 +2,7 @@ package combo.sat.optimizers
 
 import combo.math.FloatMatrix
 import combo.math.FloatVector
+import combo.math.VectorView
 import combo.math.nextNormal
 import combo.model.TestModels
 import combo.sat.*
@@ -56,7 +57,7 @@ abstract class ObjectiveFunctionTest {
  * Simplest test function, most likely unimodal
  */
 class OneMaxObjective(val nbrVariables: Int) : ObjectiveFunction {
-    override fun value(instance: Instance) = -instance.iterator().asSequence().count().toFloat()
+    override fun value(vector: VectorView) = -vector.iterator().asSequence().count().toFloat()
     override fun lowerBound() = -nbrVariables.toFloat()
     override fun upperBound() = 0.0f
 }
@@ -65,8 +66,8 @@ class OneMaxObjective(val nbrVariables: Int) : ObjectiveFunction {
  * JUMP is a slightly harder bimodal test function than OneMax
  */
 class JumpObjective(val n: Int, val m: Int = (0.8 * n).toInt()) : ObjectiveFunction {
-    override fun value(instance: Instance): Float {
-        val count = instance.iterator().asSequence().count()
+    override fun value(vector: VectorView): Float {
+        val count = vector.iterator().asSequence().count()
         val jump = (if (count <= n - m || count == n) m + count
         else n - count).toFloat()
         return -jump
@@ -83,7 +84,7 @@ class InteractionObjective(weights: FloatArray) : ObjectiveFunction {
         }
     })
 
-    override fun value(instance: Instance) = (weights * instance).sum()
+    override fun value(vector: VectorView) = (weights * vector).sum()
 
     private val lowerBound: Float
     private val upperBound: Float

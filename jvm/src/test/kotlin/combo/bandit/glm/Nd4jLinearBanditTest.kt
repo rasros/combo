@@ -12,7 +12,7 @@ class Nd4jGreedyLinearBanditTest : BanditTest<LinearBandit>() {
     }
 
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.Builder(model.problem)
+            LinearBandit.Builder(model)
                     .linearModel(GreedyLinearModel.Builder(model.problem)
                             .link(parameters.variance().canonicalLink()).build())
                     .randomSeed(parameters.randomSeed)
@@ -28,7 +28,7 @@ class Nd4jPrecisionLinearBanditTest : BanditTest<LinearBandit>() {
     }
 
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.Builder(model.problem)
+            LinearBandit.Builder(model)
                     .linearModel(DiagonalizedLinearModel.Builder(model.problem)
                             .family(parameters.variance()).build())
                     .randomSeed(parameters.randomSeed)
@@ -43,7 +43,7 @@ class Nd4jCovarianceLinearBanditTest : BanditTest<LinearBandit>() {
     }
 
     override fun bandit(model: Model, parameters: TestParameters) =
-            LinearBandit.Builder(model.problem)
+            LinearBandit.Builder(model)
                     .linearModel(CovarianceLinearModel.Builder(model.problem)
                             .family(parameters.variance()).build())
                     .randomSeed(parameters.randomSeed)

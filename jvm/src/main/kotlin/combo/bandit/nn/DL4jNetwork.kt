@@ -24,7 +24,7 @@ import kotlin.random.Random
 class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
 
     override val layers: Array<Layer> = Array(network.layers.size - 1) { DL4jLayer(it) }
-    override val output: VectorTransform<Float> = DL4jOutput()
+    override val output: VectorTransform = DL4jOutput()
 
     override fun train(input: VectorView, result: Float, weight: Float) {
         trainAll(arrayOf(input), floatArrayOf(result), floatArrayOf(weight))
@@ -61,7 +61,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
         }
     }
 
-    inner class DL4jOutput : VectorTransform<Float> {
+    inner class DL4jOutput : VectorTransform {
         override fun apply(vector: VectorView) = activate(vector, layers.size - 1, layers.size)[0]
     }
 
@@ -107,33 +107,38 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
 
     class Builder(override val problem: Problem) : NeuralNetworkBuilder {
 
-        override var output: Transform = IdentityTransform
+        override var output: VectorTransform = ScalarTransform(IdentityTransform)
             private set
         override var randomSeed: Int = nanos().toInt()
             private set
-        override var regularizationFactor: Float = 0.1f
+        var regularizationFactor: Float = 0.1f
             private set
         override var hiddenLayers: Int = 2
             private set
         override var hiddenLayerWidth: Int = 10
             private set
-        override var initWeightVariance: Float = 0.001f
+        var initWeightVariance: Float = 0.001f
             private set
-        override var learningRate: Float = 0.01f
+        var learningRate: Float = 0.01f
             private set
 
-        override fun output(output: Transform) = apply { this.output = output }
+        override fun output(output: VectorTransform) = apply { this.output = output }
         override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
-        override fun regularizationFactor(regularizationFactor: Float) = apply { this.regularizationFactor = regularizationFactor }
+        fun regularizationFactor(regularizationFactor: Float) = apply { this.regularizationFactor = regularizationFactor }
         override fun hiddenLayers(hiddenLayers: Int) = apply { this.hiddenLayers = hiddenLayers }
         override fun hiddenLayerWidth(hiddenLayerWidth: Int) = apply { this.hiddenLayerWidth = hiddenLayerWidth }
-        override fun initWeightVariance(initWeightVariance: Float) = apply { this.initWeightVariance = initWeightVariance }
-        override fun learningRate(learningRate: Float) = apply { this.learningRate = learningRate }
+        fun initWeightVariance(initWeightVariance: Float) = apply { this.initWeightVariance = initWeightVariance }
+        fun learningRate(learningRate: Float) = apply { this.learningRate = learningRate }
 
-        fun defaultOutputLayer(nIn: Int, output: Transform): OutputLayer {
+        fun buildOutputLayer(nIn: Int, output: VectorTransform): OutputLayer {
             val conf = when (output) {
-                is LogTransform -> OutputLayer.Builder(LossFunctions.LossFunction.POISSON).activation(Activation.IDENTITY)
-                is LogitTransform -> OutputLayer.Builder(LossFunctions.LossFunction.XENT).activation(Activation.SIGMOID)
+                is ScalarTransform -> when (output.transform) {
+                    is LogTransform -> OutputLayer.Builder(LossFunctions.LossFunction.POISSON).activation(Activation.IDENTITY)
+                    is LogitTransform -> OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.SIGMOID)
+                    is RectifierTransform -> OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.RELU)
+                    else -> OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY)
+                }
+                is BinarySoftmaxLayer -> OutputLayer.Builder(LossFunctions.LossFunction.XENT).activation(Activation.SOFTMAX)
                 else -> OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY)
             }
             return conf.nIn(nIn).nOut(1).build()
@@ -155,7 +160,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                             layer(DenseLayer.Builder().nIn(hiddenLayerWidth).nOut(hiddenLayerWidth).build())
                         }
                     }
-                    .layer(defaultOutputLayer(hiddenLayerWidth, output))
+                    .layer(buildOutputLayer(hiddenLayerWidth, output))
                     .build()
             val network = MultiLayerNetwork(conf)
 
@@ -173,7 +178,7 @@ class DL4jNetwork(val network: MultiLayerNetwork) : NeuralNetwork {
                 weights[(problem.nbrValues + 1) * hn + hiddenLayers * hn * (hn + 1) + i] = rng.nextNormal(0f, sd)
 
             // Default bias for output layer with poisson data will be 1
-            if (output is LogTransform)
+            if (output is ScalarTransform && (output as ScalarTransform).transform is LogTransform)
                 weights[weights.lastIndex] = 1f
 
             val params = Nd4j.create(weights).reshape(intArrayOf(1, weights.size))

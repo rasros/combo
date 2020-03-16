@@ -6,6 +6,7 @@ import combo.bandit.PredictionBandit
 import combo.bandit.dt.DecisionTreeBandit
 import combo.bandit.dt.RandomForestBandit
 import combo.bandit.ga.GeneticAlgorithmBandit
+import combo.bandit.glm.CovarianceLinearModel
 import combo.bandit.glm.DiagonalizedLinearModel
 import combo.bandit.glm.LinearBandit
 import combo.bandit.glm.VarianceFunction
@@ -39,8 +40,8 @@ open class ModelBandit<B : Bandit<*>>(val model: Model, open val bandit: B) {
 
         @JvmStatic
         fun linearBandit(model: Model, family: VarianceFunction) =
-                PredictionModelBandit(model, LinearBandit.Builder(model.problem).linearModel(
-                        DiagonalizedLinearModel.Builder(model.problem).family(family).build()
+                PredictionModelBandit(model, LinearBandit.Builder(model).linearModel(
+                        CovarianceLinearModel.Builder(model.problem).family(family).build()
                 ).build())
     }
 

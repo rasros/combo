@@ -8,7 +8,8 @@ object BitArrayFactory : InstanceFactory {
 
 /**
  * This uses a dense int array as backing for [Instance]. 32 bit ints are used instead of 64 bits due to JavaScript
- * interoperability.
+ * interoperability. The advantage of bitarray is low size but also fast iteration for semi-sprase data because ints
+ * with 0-value can be skipped entirely.
  */
 class BitArray constructor(override val size: Int, val field: IntArray) : Instance {
 

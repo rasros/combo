@@ -3,7 +3,6 @@ package combo.bandit.dt
 import combo.bandit.univariate.BanditPolicy
 import combo.math.DataSample
 import combo.model.Model
-import combo.model.Root
 import combo.model.Variable
 import combo.sat.optimizers.Optimizer
 
@@ -62,29 +61,5 @@ class TreeParameters(
         override val filterMissingData: Boolean,
         override val blockQueueSize: Int,
         override val maxRestarts: Int) : ITreeParameters {
-
-    val reifiedLiterals: IntArray? = if (filterMissingData) IntArray(model.problem.nbrValues) else null
-    // TODO could be a range with binary search
-    // like so : private data class ReifiedLiteral(val index: Int, val range: IntRange)
-
-    init {
-        if (reifiedLiterals != null) {
-            for (variable in model.index) {
-                val ix = model.index.valueIndexOf(variable)
-                val offset = if (variable.optional) {
-                    reifiedLiterals[ix] = variable.parentLiteral(model.index)
-                    1
-                } else {
-                    0
-                }
-                val valueReification = if (variable.reifiedValue is Root) 0
-                else variable.reifiedValue.toLiteral(model.index)
-                if (valueReification != 0)
-                    for (i in offset until variable.nbrValues) {
-                        reifiedLiterals[ix + i] = valueReification
-                    }
-            }
-        }
-    }
 }
 

@@ -15,6 +15,28 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
 
     val nbrVariables: Int get() = index.nbrVariables
 
+    val reifiedLiterals: IntArray = IntArray(problem.nbrValues)
+    // TODO could be a range with binary search
+    // like so : private data class ReifiedLiteral(val index: Int, val range: IntRange)
+
+    init {
+        for (variable in index) {
+            val ix = index.valueIndexOf(variable)
+            val offset = if (variable.optional) {
+                reifiedLiterals[ix] = variable.parentLiteral(index)
+                1
+            } else {
+                0
+            }
+            val valueReification = if (variable.reifiedValue is Root) 0
+            else variable.reifiedValue.toLiteral(index)
+            if (valueReification != 0)
+                for (i in offset until variable.nbrValues) {
+                    reifiedLiterals[ix + i] = valueReification
+                }
+        }
+    }
+
     /**
      * Create an assignment based on setting the literals provided.
      */

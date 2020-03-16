@@ -3,9 +3,12 @@ package combo.bandit.nn
 import combo.bandit.*
 import combo.bandit.glm.*
 import combo.math.*
+import combo.model.Model
 import combo.sat.Instance
 import combo.sat.Problem
+import combo.sat.optimizers.EffectCodedObjective
 import combo.sat.optimizers.LocalSearch
+import combo.sat.optimizers.ObjectiveFunction
 import combo.sat.optimizers.Optimizer
 import combo.util.IntCollection
 import combo.util.RandomSequence
@@ -13,14 +16,15 @@ import combo.util.nanos
 import kotlin.math.sqrt
 
 // TODO doc
-class NeuralLinearBandit(val problem: Problem,
+class NeuralLinearBandit(val model: Model,
                          val network: NeuralNetwork,
                          val linearModel: LinearModel,
-                         val optimizer: Optimizer<NeuralNetworkObjective> = LocalSearch.Builder(problem).build(),
+                         val optimizer: Optimizer<ObjectiveFunction> = LocalSearch.Builder(model.problem).build(),
                          val batchSize: Int,
                          val useStatic: Boolean,
                          val staticCacheSize: Int,
                          val epochs: Int,
+                         val effectCoding: Boolean,
                          override val randomSeed: Int = nanos().toInt(),
                          override val maximize: Boolean,
                          override val rewards: DataSample,
@@ -55,13 +59,18 @@ class NeuralLinearBandit(val problem: Problem,
             weights = linearModel.weights
         }
         val sampled = linearModel.sample(rng, weights)
-        val objective = NeuralLinearObjective(maximize, static, sampled, bias)
-        //val objective = NeuralNetworkObjective(maximize, static)
+        val objective = NeuralLinearObjective(maximize, static, sampled, bias).let {
+            if (effectCoding) EffectCodedObjective(it, model)
+            else it
+        }
         return optimizer.optimizeOrThrow(objective, assumptions)
     }
 
     override fun optimalOrThrow(assumptions: IntCollection): Instance {
-        val objective = NeuralNetworkObjective(maximize, static)
+        val objective = NeuralNetworkObjective(maximize, static).let {
+            if (effectCoding) EffectCodedObjective(it, model)
+            else it
+        }
         return optimizer.optimizeOrThrow(objective, assumptions)
     }
 
@@ -111,24 +120,29 @@ class NeuralLinearBandit(val problem: Problem,
         return NeuralLinearData(network.toStaticNetwork(0), linear.exportData())
     }
 
-    class Builder(val networkBuilder: NeuralNetworkBuilder) : PredictionBanditBuilder<NeuralLinearData> {
+    class Builder(val model: Model, val network: NeuralNetwork) : PredictionBanditBuilder<NeuralLinearData> {
 
-        private var randomSeed: Int = networkBuilder.randomSeed
+        constructor(model: Model, networkBuilder: NeuralNetworkBuilder) : this(model, networkBuilder.build()) {
+            randomSeed = networkBuilder.randomSeed
+        }
+
+        private var randomSeed: Int = nanos().toInt()
         private var linear: LinearModel? = null
         private var rewards: DataSample = VoidSample
         private var trainAbsError: DataSample = VoidSample
         private var testAbsError: DataSample = VoidSample
         private var data: NeuralLinearData? = null
         private var maximize: Boolean = true
-        private var optimizer: Optimizer<NeuralNetworkObjective>? = null
+        private var optimizer: Optimizer<ObjectiveFunction>? = null
         private var batchSize: Int = 64
         private var useStatic: Boolean = true
         private var staticCacheSize: Int = 50
         private var epochs: Int = 5
+        private var effectCoding: Boolean = true
 
         override fun importData(data: NeuralLinearData) = apply { this.data = data }
 
-        override fun randomSeed(randomSeed: Int) = apply { networkBuilder.randomSeed(randomSeed) }
+        override fun randomSeed(randomSeed: Int) = apply { this.randomSeed = randomSeed }
         override fun rewards(rewards: DataSample) = apply { this.rewards = rewards }
         override fun trainAbsError(trainAbsError: DataSample) = apply { this.trainAbsError = trainAbsError }
         override fun testAbsError(testAbsError: DataSample) = apply { this.testAbsError = testAbsError }
@@ -137,46 +151,54 @@ class NeuralLinearBandit(val problem: Problem,
         override fun parallel() = ParallelPredictionBandit.Builder(this)
 
         fun batchSize(batchSize: Int) = apply { this.batchSize = batchSize }
-        fun optimizer(optimizer: Optimizer<NeuralNetworkObjective>) = apply { this.optimizer = optimizer }
+        fun optimizer(optimizer: Optimizer<ObjectiveFunction>) = apply { this.optimizer = optimizer }
         @Suppress("UNCHECKED_CAST")
-        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<NeuralNetworkObjective>)
+        override fun suggestOptimizer(optimizer: Optimizer<*>) = optimizer(optimizer as Optimizer<ObjectiveFunction>)
+
         fun useStatic(useStatic: Boolean) = apply { this.useStatic = useStatic }
         fun staticCacheSize(staticCacheSize: Int) = apply { this.staticCacheSize = staticCacheSize }
         fun epochs(epochs: Int) = apply { this.epochs = epochs }
 
+        /** Whether variables should be -1,1 coded (true) or 0,1 coded. */
+        fun effectCoding(effectCoding: Boolean) = apply { this.effectCoding = effectCoding }
+
+        private fun hiddenLayerWidth() = network.layers[network.layers.size - 2].size
+
         fun linearModel(linearModel: LinearModel) = apply {
-            require(linearModel.weights.size == networkBuilder.hiddenLayerWidth) { "Size missmatch between hidden layers and linear model." }
+            require(linearModel.weights.size == hiddenLayerWidth()) { "Size missmatch between hidden layers and linear model." }
             this.linear = linearModel
         }
 
         fun defaultLinear(): CovarianceLinearModel.Builder {
             //val n = network.layers[network.layers.size - 1].size
-            val n = networkBuilder.hiddenLayerWidth
+            val n = hiddenLayerWidth()
             val covariance = vectors.zeroMatrix(n)
             val covarianceL = vectors.zeroMatrix(n)
             for (i in 0 until n) {
                 covariance[i, i] = 1f
                 covarianceL[i, i] = sqrt(1f)
             }
-            val family = when (networkBuilder.output) {
-                is LogitTransform -> BinomialVariance
-                is LogTransform -> PoissonVariance
+            val out = network.output
+            val family = when (out) {
+                is ScalarTransform -> {
+                    when (out.transform) {
+                        is LogitTransform -> BinomialVariance
+                        is LogTransform -> PoissonVariance
+                        else -> NormalVariance
+                    }
+                }
+                is BinarySoftmaxLayer -> BinomialVariance
                 else -> NormalVariance
             }
-            val bias = if (networkBuilder.output is LogTransform) 1f else 0f
-            return CovarianceLinearModel.Builder(Problem(n))
-                    .family(family)
-                    .bias(bias)
-                    .regularizationFactor(networkBuilder.regularizationFactor)
+            return CovarianceLinearModel.Builder(Problem(n)).family(family)
         }
 
         override fun build(): NeuralLinearBandit {
-            val network = networkBuilder.build()
             val linear = linear ?: defaultLinear().build()
             val optimizer = optimizer
-                    ?: LocalSearch.Builder(networkBuilder.problem).randomSeed(randomSeed).fallbackCached().build()
-            return NeuralLinearBandit(networkBuilder.problem, network, linear, optimizer, batchSize, useStatic,
-                    staticCacheSize, epochs, randomSeed, maximize, rewards, trainAbsError, testAbsError)
+                    ?: LocalSearch.Builder(model.problem).randomSeed(randomSeed).fallbackCached().build()
+            return NeuralLinearBandit(model, network, linear, optimizer, batchSize, useStatic,
+                    staticCacheSize, epochs, effectCoding, randomSeed, maximize, rewards, trainAbsError, testAbsError)
         }
     }
 }

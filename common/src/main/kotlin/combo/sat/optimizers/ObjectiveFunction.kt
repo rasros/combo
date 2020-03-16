@@ -2,13 +2,12 @@ package combo.sat.optimizers
 
 import combo.math.EMPTY_VECTOR
 import combo.math.VectorView
-import combo.math.sumBy
+import combo.model.EffectCodedVector
+import combo.model.Model
 import combo.sat.Instance
 import combo.sat.literal
 import combo.sat.not
 import combo.sat.toIx
-import kotlin.math.max
-import kotlin.math.min
 
 
 interface ObjectiveFunction {
@@ -40,19 +39,12 @@ interface ObjectiveFunction {
  * Linear sum objective, as in linear programming.
  */
 open class LinearObjective(val maximize: Boolean, val weights: VectorView) : ObjectiveFunction {
-
-    private val lowerBound: Float = if (maximize) -weights.sumBy { max(0.0f, it) } else
-        weights.sumBy { min(0.0f, it) }
-    private val upperBound: Float = if (maximize) -weights.sumBy { min(0.0f, it) } else
-        weights.sumBy { max(0.0f, it) }
-
     override fun value(vector: VectorView) = (vector dot weights).let {
         if (maximize) -it else it
     }
+}
 
-    override fun lowerBound() = lowerBound
-    override fun upperBound() = upperBound
-
+open class DeltaLinearObjective(maximize: Boolean, weights: VectorView) : LinearObjective(maximize, weights) {
     override fun improvement(instance: Instance, ix: Int): Float {
         val literal = !instance.literal(ix)
         return if (instance.literal(literal.toIx()) == literal) 0.0f
@@ -68,6 +60,10 @@ object SatObjective : LinearObjective(false, EMPTY_VECTOR) {
     override fun lowerBound() = 0.0f
     override fun upperBound() = 0.0f
     override fun improvement(instance: Instance, ix: Int) = 0.0f
+}
+
+class EffectCodedObjective(val base: ObjectiveFunction, val model: Model) : ObjectiveFunction {
+    override fun value(vector: VectorView) = base.value(EffectCodedVector(model, vector as Instance))
 }
 
 /**

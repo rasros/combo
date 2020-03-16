@@ -8,6 +8,7 @@ import combo.bandit.dt.RandomForestBandit
 import combo.bandit.glm.*
 import combo.bandit.nn.DL4jNetwork
 import combo.bandit.nn.NeuralLinearBandit
+import combo.bandit.nn.ScalarTransform
 import combo.bandit.univariate.BinomialPosterior
 import combo.bandit.univariate.NormalPosterior
 import combo.bandit.univariate.ThompsonSampling
@@ -31,6 +32,7 @@ import java.io.FileOutputStream
 import java.io.PrintStream
 import kotlin.math.max
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlin.system.exitProcess
 
@@ -55,68 +57,89 @@ class SimulationRunner : Runnable {
     enum class Algorithm {
         ALL {
             override fun banditBuilder(simulationProblem: SimulationProblem): BanditBuilder<*> = throw UnsupportedOperationException()
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = throw UnsupportedOperationException()
         },
         DT {
             override fun banditBuilder(simulationProblem: SimulationProblem) = when (simulationProblem) {
                 SimulationProblem.AC ->
                     DecisionTreeBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(NormalPosterior))
-                            .delta(1e-5f).deltaDecay(1e-6f).tau(.3f)
+                            .delta(1e-20f)
+                            .deltaDecay(1e-4f)
+                            .tau(.6f)
+                            .minSamplesLeaf(2f)
                 else ->
                     DecisionTreeBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(BinomialPosterior, BinarySum(0.08f, 1f)))
-                            .delta(0.15f).deltaDecay(1e-6f).tau(.1f)
+                            .delta(0.03f)
+                            .deltaDecay(1e7f)
+                            .tau(.4f)
+                            .minSamplesLeaf(4f)
             }
 
             override val hyperParameters = model {
                 int("delta", -256, 0)
                 int("deltaDecay", -128, 127)
                 int("tau", -16, 0)
+                int("minSamplesLeaf", 1, 10)
             }
 
-            override fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>) = (builder as DecisionTreeBandit.Builder)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = banditBuilder(problem)
                     .delta(metaAssignment.getIntFloat("delta"))
                     .deltaDecay(metaAssignment.getIntFloat("deltaDecay"))
                     .tau(metaAssignment.getIntFloat("tau"))
+                    .minSamplesLeaf(metaAssignment.getInt("minSamplesLeaf").toFloat())
+                    .minSamplesSplit(metaAssignment.getInt("minSamplesSplit").toFloat())
+                    .filterMissingData(metaAssignment.getBoolean("filterMissingData"))
         },
         RF {
             override fun banditBuilder(simulationProblem: SimulationProblem) = when (simulationProblem) {
                 SimulationProblem.AC ->
                     RandomForestBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(NormalPosterior))
                             .trees(200)
-                            .instanceSamplingMean(1.0f)
-                            .viewedVariables(simulationProblem.surrogateModel.model.nbrVariables / 5)
-                            .delta(1e-20f).deltaDecay(1e-5f).tau(.80f)
+                            .instanceSamplingMean(0.4f)
+                            .delta(1e-20f)
+                            .deltaDecay(1e-6f)
+                            .tau(.25f)
+                            .viewedVariables((simulationProblem.surrogateModel.model.nbrVariables.toFloat() * 0.125f).roundToInt())
+                            .minSamplesLeaf(8f)
                 else ->
-                    RandomForestBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(NormalPosterior))
+                    RandomForestBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(BinomialPosterior, BinarySum(0.08f, 1f)))
                             .trees(200)
-                            .viewedVariables(simulationProblem.surrogateModel.model.nbrVariables / 20)
-                            .delta(6.3e-21f).deltaDecay(1.5e-9f).tau(.60f)
+                            .instanceSamplingMean(4f)
+                            .delta(1e-10f)
+                            .deltaDecay(1e8f)
+                            .tau(0.003f)
+                            .viewedVariables((simulationProblem.surrogateModel.model.nbrVariables.toFloat() * 0.4f).roundToInt())
+                            .minSamplesLeaf(8f)
             }
 
             override val hyperParameters = model {
+                int("samplingMean", -8, 7)
                 int("delta", -256, 0)
                 int("deltaDecay", -128, 127)
                 int("tau", -32, 0)
-                int("samplingMean", -8, 7)
                 int("nbrVariables", -16, 0)
+                int("minSamplesLeaf", 1, 10)
             }
 
-            override fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>) = (builder as RandomForestBandit.Builder)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem): RandomForestBandit.Builder = banditBuilder(problem)
+                    .instanceSamplingMean(metaAssignment.getIntFloat("samplingMean"))
                     .delta(metaAssignment.getIntFloat("delta"))
                     .deltaDecay(metaAssignment.getIntFloat("deltaDecay"))
                     .tau(metaAssignment.getIntFloat("tau"))
-                    .instanceSamplingMean(metaAssignment.getIntFloat("samplingMean"))
-                    .viewedVariables(max(1, metaAssignment.getInt("nbrVariables") * builder.model.nbrVariables))
+                    .viewedVariables(max(1, metaAssignment.getInt("nbrVariables") * problem.surrogateModel.model.nbrVariables))
+                    .minSamplesLeaf(metaAssignment.getInt("minSamplesLeaf").toFloat())
 
             override val useOptimizer = true
         },
         RF20 {
-            override fun banditBuilder(simulationProblem: SimulationProblem) =
-                    (RF.banditBuilder(simulationProblem) as RandomForestBandit.Builder).trees(20)
+            override fun banditBuilder(simulationProblem: SimulationProblem) = RF.banditBuilder(simulationProblem)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) =
+                    (RF.configureWith(metaAssignment, problem) as RandomForestBandit.Builder).trees(20)
 
             override val useOptimizer = true
         },
         GLMDIAG {
-            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model.problem)
+            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model)
                     .linearModel(DiagonalizedLinearModel.Builder(simulationProblem.surrogateModel.model.problem).let {
                         when (simulationProblem) {
                             SimulationProblem.AC -> it.family(NormalVariance).exploration(0.02f).regularizationFactor(1e-20f).priorPrecision(20f)
@@ -128,11 +151,16 @@ class SimulationRunner : Runnable {
                 int("precision", 0, 63)
                 int("exploration", -64, 0)
                 int("regularizationFactor", -256, -10)
+                bool("effectCoding")
             }
 
-            override fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>) = (builder as LinearBandit.Builder)
-                    .linearModel(DiagonalizedLinearModel.Builder(builder.problem)
-                            .family((builder.linearModel as DiagonalizedLinearModel).family)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = LinearBandit.Builder(problem.surrogateModel.model)
+                    .effectCoding(metaAssignment.getBoolean("effectCoding"))
+                    .linearModel(DiagonalizedLinearModel.Builder(problem.surrogateModel.model.problem)
+                            .family(when (problem) {
+                                SimulationProblem.AC -> NormalVariance
+                                else -> BinomialVariance
+                            })
                             .priorPrecision(metaAssignment.getIntFloat("precision"))
                             .exploration(metaAssignment.getIntFloat("exploration"))
                             .regularizationFactor(metaAssignment.getIntFloat("regularizationFactor")).build())
@@ -141,7 +169,7 @@ class SimulationRunner : Runnable {
 
         },
         GLMFULL {
-            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model.problem)
+            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model)
                     .linearModel(CovarianceLinearModel.Builder(simulationProblem.surrogateModel.model.problem).let {
                         when (simulationProblem) {
                             SimulationProblem.AC -> it.family(NormalVariance).exploration(0.05f).regularizationFactor(1e-20f).priorVariance(0.005f)
@@ -153,15 +181,19 @@ class SimulationRunner : Runnable {
                 int("variance", -64, 0)
                 int("exploration", -64, 0)
                 int("regularizationFactor", -256, -10)
+                bool("effectCoding")
             }
 
-            override fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>) = (builder as LinearBandit.Builder)
-                    .linearModel(CovarianceLinearModel.Builder(builder.problem)
-                            .family((builder.linearModel as CovarianceLinearModel).family)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = LinearBandit.Builder(problem.surrogateModel.model)
+                    .effectCoding(metaAssignment.getBoolean("effectCoding"))
+                    .linearModel(CovarianceLinearModel.Builder(problem.surrogateModel.model.problem)
+                            .family(when (problem) {
+                                SimulationProblem.AC -> NormalVariance
+                                else -> BinomialVariance
+                            })
                             .priorVariance(metaAssignment.getIntFloat("variance"))
                             .exploration(metaAssignment.getIntFloat("exploration"))
                             .regularizationFactor(metaAssignment.getIntFloat("regularizationFactor")).build())
-
 
             override val useOptimizer = true
         },
@@ -180,31 +212,35 @@ class SimulationRunner : Runnable {
                 }
             }
 
-            override fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>): NeuralLinearBandit.Builder {
-                builder as NeuralLinearBandit.Builder
-                with(metaAssignment) {
-                    builder.networkBuilder.regularizationFactor(getFloat("regularizationFactor"))
-                            .hiddenLayers(getInt("hiddenLayers"))
-                            .learningRate(getFloat("learningRate"))
-                            .initWeightVariance(getFloat("initWeightVariance"))
-                }
-                return with(metaAssignment) {
-                    builder.batchSize(getInt("batchSize"))
-                            .epochs(getInt("epochs"))
-                            .linearModel(with(metaAssignment.subAssignment("linearModelParameters")) {
-                                builder.defaultLinear()
-                                        .priorVariance(getFloat("variance"))
-                                        .exploration(getFloat("exploration")).build()
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = NeuralLinearBandit.Builder(problem.surrogateModel.model,
+                    DL4jNetwork.Builder(problem.surrogateModel.model.problem)
+                            .output(when (problem) {
+                                SimulationProblem.AC -> ScalarTransform(IdentityTransform)
+                                else -> ScalarTransform(LogitTransform)
                             })
-                }
-            }
+                            .regularizationFactor(metaAssignment.getFloat("regularizationFactor"))
+                            .hiddenLayers(metaAssignment.getInt("hiddenLayers"))
+                            .hiddenLayerWidth(10)
+                            .learningRate(metaAssignment.getFloat("learningRate"))
+                            .initWeightVariance(metaAssignment.getFloat("initWeightVariance")).build())
+                    .batchSize(metaAssignment.getInt("batchSize"))
+                    .linearModel(CovarianceLinearModel.Builder(10)
+                            .family(when (problem) {
+                                SimulationProblem.AC -> NormalVariance
+                                else -> BinomialVariance
+                            })
+                            .loss(HuberLoss(0.01f))
+                            .exploration(metaAssignment.subAssignment("linearModelParameters").getFloat("exploration"))
+                            .priorVariance(metaAssignment.subAssignment("linearModelParameters").getFloat("variance"))
+                            .build()
+                    )
 
             override fun banditBuilder(simulationProblem: SimulationProblem): NeuralLinearBandit.Builder {
                 Logger.getRootLogger().level = Level.OFF
                 return when (simulationProblem) {
-                    SimulationProblem.AC -> NeuralLinearBandit.Builder(
+                    SimulationProblem.AC -> NeuralLinearBandit.Builder(simulationProblem.surrogateModel.model,
                             DL4jNetwork.Builder(simulationProblem.surrogateModel.model.problem)
-                                    .output(IdentityTransform)
+                                    .output(ScalarTransform(IdentityTransform))
                                     .learningRate(0.001f)
                                     .initWeightVariance(0.001f)
                                     .hiddenLayers(1)
@@ -212,15 +248,16 @@ class SimulationRunner : Runnable {
                                     .regularizationFactor(0.001f))
                             .linearModel(CovarianceLinearModel.Builder(10)
                                     .family(NormalVariance)
+                                    .loss(HuberLoss(0.01f))
                                     .exploration(0.001f)
                                     .priorVariance(0.1f)
                                     .build())
                             .batchSize(4)
                             .epochs(3)
 
-                    else -> NeuralLinearBandit.Builder(
+                    else -> NeuralLinearBandit.Builder(simulationProblem.surrogateModel.model,
                             DL4jNetwork.Builder(simulationProblem.surrogateModel.model.problem)
-                                    .output(LogitTransform)
+                                    .output(ScalarTransform(LogitTransform))
                                     .learningRate(0.001f)
                                     .initWeightVariance(0.0001f)
                                     .hiddenLayers(2)
@@ -241,14 +278,16 @@ class SimulationRunner : Runnable {
         },
         ORACLE {
             override fun banditBuilder(simulationProblem: SimulationProblem) = OracleBandit.Builder(simulationProblem.surrogateModel)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = OracleBandit.Builder(problem.surrogateModel)
             override val useOptimizer = true
         },
         RANDOM {
             override fun banditBuilder(simulationProblem: SimulationProblem) = RandomBandit.Builder(simulationProblem.surrogateModel.model.problem)
+            override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = RandomBandit.Builder(problem.surrogateModel.model.problem)
         };
 
         abstract fun banditBuilder(simulationProblem: SimulationProblem): BanditBuilder<*>
-        open fun configureWith(metaAssignment: Assignment, builder: BanditBuilder<*>): BanditBuilder<*> = builder
+        abstract fun configureWith(metaAssignment: Assignment, problem: SimulationProblem): BanditBuilder<*>
         open val hyperParameters: Model = model {}
         open val useOptimizer: Boolean = false
 
@@ -269,9 +308,9 @@ class SimulationRunner : Runnable {
         TOP5(tc, tc.contextProvider(5)) {
             override fun defaultSolver() = LocalSearch.Builder(tc.model.problem)
                     .restarts(5)
-                    .pRandomWalk(0.05f)
+                    .pRandomWalk(0.01f)
                     .initializer(InitializerType.RANDOM)
-                    .initializerBias(0.05f)
+                    .initializerBias(0.01f)
                     .propagateFlips(false)
                     .sparse(true)
                     .maxConsideration(200)
@@ -281,12 +320,10 @@ class SimulationRunner : Runnable {
                     .maxSize(50)
 
             override fun defaultOptimizer() =
-
                     LocalSearch.Builder(tc.model.problem)
                             .restarts(5)
-                            .pRandomWalk(0.05f)
-                            .initializer(InitializerType.RANDOM)
-                            .initializerBias(0.05f)
+                            .pRandomWalk(0.01f)
+                            .initializer(InitializerType.NONE)
                             .propagateFlips(true)
                             .sparse(true)
                             .maxConsideration(200)
@@ -383,7 +420,7 @@ class SimulationRunner : Runnable {
             val optimizer = if (algorithm.useOptimizer) problem.defaultOptimizer()
             else problem.defaultSolver()
             val banditBuilder = algorithm.banditBuilder(problem)
-                    .suggestOptimizer(optimizer.randomSeed(nanos().toInt()).build())
+                    .suggestOptimizer(optimizer.build())
             val bandit = banditBuilder
                     .randomSeed(nanos().toInt())
                     .parallel().copies(1).mode(ParallelMode.BLOCKING).build()
@@ -401,6 +438,9 @@ class SimulationRunner : Runnable {
                 timeline[i].accept(values[i])
             }
             val total = values.asSequence().sample(RunningVariance())
+            if (values.size < horizon * .99f)
+                println("Failed experiment.")
+
             timeline[t].accept(total.mean)
             overall.accept(total.mean)
             if (printRepetitions) {
@@ -426,6 +466,8 @@ class SimulationRunner : Runnable {
         val metaBandit = PredictionModelBandit(algorithm.hyperParameters,
                 RandomForestBandit.Builder(algorithm.hyperParameters, ThompsonSampling(NormalPosterior))
                         .trees(200)
+                        .minSamplesLeaf(2f)
+                        .minSamplesSplit(4f)
                         .splitPeriod(1)
                         .rewards(metaRewards)
                         .build())
@@ -434,9 +476,9 @@ class SimulationRunner : Runnable {
             val metaAssignment = metaBandit.chooseOrThrow()
             val optimizer = if (algorithm.useOptimizer) problem.defaultOptimizer()
             else problem.defaultSolver()
-            val banditBuilder = algorithm.banditBuilder(problem)
-                    .suggestOptimizer(optimizer.randomSeed(nanos().toInt()).build())
-            val bandit = algorithm.configureWith(metaAssignment, banditBuilder).randomSeed(nanos().toInt())
+            val bandit = algorithm.configureWith(metaAssignment, problem)
+                    .suggestOptimizer(optimizer.build())
+                    .randomSeed(nanos().toInt())
                     .parallel().copies(1).mode(ParallelMode.BLOCKING).build()
 
             val s = Simulation(problem.surrogateModel, bandit,
@@ -447,7 +489,8 @@ class SimulationRunner : Runnable {
                     contextProvider = problem.contextProvider)
             s.start()
             s.awaitCompletion()
-            val score = if ((s.expectedRewards as VarianceEstimator).nbrWeightedSamples < horizon * .99f) {
+            val nbrWeightedSamples = (s.expectedRewards as VarianceEstimator).nbrWeightedSamples
+            val score = if (nbrWeightedSamples < horizon * .99f) {
                 println("Failed experiment: $metaAssignment")
                 0f
             } else s.expectedRewards.values()[0]
@@ -469,7 +512,7 @@ class SimulationRunner : Runnable {
             val optimizer = if (algorithm.useOptimizer) problem.defaultOptimizer()
             else problem.defaultSolver()
             val banditBuilder = algorithm.banditBuilder(problem)
-                    .suggestOptimizer(optimizer.randomSeed(nanos().toInt()).build())
+                    .suggestOptimizer(optimizer.build())
             val bandit = banditBuilder.build()
             val sm = problem.surrogateModel
             for (t in 1..burnIn) {

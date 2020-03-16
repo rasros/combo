@@ -13,11 +13,11 @@ interface Layer {
     val size: Int
 }
 
-interface VectorTransform<T> {
-    fun apply(vector: VectorView): T
+interface VectorTransform {
+    fun apply(vector: VectorView): Float
 }
 
-class ScalarTransform(val transform: Transform) : VectorTransform<Float> {
+class ScalarTransform(val transform: Transform) : VectorTransform {
     override fun apply(vector: VectorView) = transform.apply(vector[0])
 }
 
@@ -44,7 +44,7 @@ class BatchNormalizationLayer(val mean: Vector, val variance: Vector, val offset
     }
 }
 
-class BinarySoftmaxLayer : VectorTransform<Float> {
+class BinarySoftmaxLayer : VectorTransform {
     override fun apply(vector: VectorView): Float {
         val eps1 = exp(vector[0])
         val eps2 = exp(vector[1])
@@ -54,7 +54,7 @@ class BinarySoftmaxLayer : VectorTransform<Float> {
 
 interface NeuralNetwork {
     val layers: Array<Layer>
-    val output: VectorTransform<Float>
+    val output: VectorTransform
 
     fun train(input: VectorView, result: Float, weight: Float = 1f)
     fun trainAll(input: Array<out VectorView>, results: FloatArray, weights: FloatArray? = null)
@@ -74,7 +74,7 @@ interface NeuralNetwork {
     fun toStaticNetwork(cacheSize: Int): StaticNetwork
 }
 
-class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform<Float>, cacheSize: Int = 0) : NeuralNetwork {
+class StaticNetwork(override val layers: Array<Layer>, override val output: VectorTransform, cacheSize: Int = 0) : NeuralNetwork {
 
     private data class ActivationKey(val fromLayer: Int, val toLayer: Int, val input: Instance)
 
@@ -114,20 +114,14 @@ class NeuralLinearObjective(maximize: Boolean, network: NeuralNetwork, val weigh
 interface NeuralNetworkBuilder {
     val problem: Problem
 
-    val output: Transform
+    val output: VectorTransform
     val randomSeed: Int
-    val regularizationFactor: Float
     val hiddenLayers: Int
     val hiddenLayerWidth: Int
-    val initWeightVariance: Float
-    val learningRate: Float
 
-    fun output(output: Transform): NeuralNetworkBuilder
+    fun output(output: VectorTransform): NeuralNetworkBuilder
     fun randomSeed(randomSeed: Int): NeuralNetworkBuilder
-    fun regularizationFactor(regularizationFactor: Float): NeuralNetworkBuilder
     fun hiddenLayers(hiddenLayers: Int): NeuralNetworkBuilder
     fun hiddenLayerWidth(hiddenLayerWidth: Int): NeuralNetworkBuilder
-    fun initWeightVariance(initWeightVariance: Float): NeuralNetworkBuilder
-    fun learningRate(learningRate: Float): NeuralNetworkBuilder
     fun build(): NeuralNetwork
 }

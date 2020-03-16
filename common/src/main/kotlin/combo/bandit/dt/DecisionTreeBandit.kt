@@ -169,8 +169,8 @@ class DecisionTreeBandit(val parameters: TreeParameters, root: Node? = null, val
             for ((i, ix) in auditedValues.withIndex()) {
                 if (instance.isSet(ix)) banditPolicy.accept(dataPos[i], result, weight)
                 else {
-                    val reifiedLiteral = if (parameters.reifiedLiterals == null) 0 else parameters.reifiedLiterals[ix]
-                    if (reifiedLiteral == 0 || instance.literal(reifiedLiteral.toIx()) == reifiedLiteral)
+                    val reifiedLiteral = model.reifiedLiterals[ix]
+                    if (!filterMissingData || reifiedLiteral == 0 || instance.literal(reifiedLiteral.toIx()) == reifiedLiteral)
                         banditPolicy.accept(dataNeg[i], result, weight)
                 }
             }

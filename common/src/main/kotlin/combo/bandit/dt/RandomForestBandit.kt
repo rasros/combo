@@ -12,6 +12,7 @@ import combo.model.Model
 import combo.model.Root
 import combo.model.Variable
 import combo.sat.*
+import combo.sat.optimizers.DeltaLinearObjective
 import combo.sat.optimizers.LinearObjective
 import combo.sat.optimizers.LocalSearch
 import combo.sat.optimizers.Optimizer
@@ -144,7 +145,7 @@ class RandomForestBandit(val parameters: TreeParameters,
                 if (!d[i].toBoolean()) s[i] = -s[i]
                 d[i] = d[i].toIx()
             }
-            val linearObjective = LinearObjective(maximize, vectors.sparseVector(problem.nbrValues, s, d))
+            val linearObjective = DeltaLinearObjective(maximize, vectors.sparseVector(problem.nbrValues, s, d))
             @Suppress("UNCHECKED_CAST")
             instance = (optimizer as Optimizer<LinearObjective>).optimizeOrThrow(linearObjective, assumptions)
         }

@@ -1,10 +1,7 @@
 package combo.demo.models.autocomplete
 
 import combo.demo.SurrogateModel
-import combo.math.RunningVariance
-import combo.math.nextNormal
-import combo.math.sample
-import combo.math.vectors
+import combo.math.*
 import combo.model.Literal
 import combo.model.Root
 import combo.model.Select
@@ -33,9 +30,12 @@ class AutoCompleteSurrogate(val removeInteractions: Boolean = false) : Surrogate
 
     override fun optimal(optimizer: Optimizer<ObjectiveFunction>, assumptions: IntCollection): Instance? {
         val autoCompleteObjective = object : ObjectiveFunction {
-            override fun value(instance: Instance) = model.problem.satisfies(instance).let {
-                if (!it) model.problem.violations(instance).toFloat()
-                else -predict(instance)
+            override fun value(vector: VectorView): Float {
+                vector as Instance
+                return model.problem.satisfies(vector).let {
+                    if (!it) model.problem.violations(vector).toFloat()
+                    else -predict(vector)
+                }
             }
         }
         return optimizer.optimize(autoCompleteObjective, assumptions)
