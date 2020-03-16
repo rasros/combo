@@ -9,9 +9,9 @@ import org.junit.Ignore
 @Ignore
 class DL4jNeuralLinearBanditTest : BanditTest<NeuralLinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters): NeuralLinearBandit {
-        return NeuralLinearBandit.Builder(
+        return NeuralLinearBandit.Builder(model,
                 DL4jNetwork.Builder(model.problem)
-                        .output(parameters.variance().canonicalLink())
+                        .output(ScalarTransform(parameters.variance().canonicalLink()))
                         .hiddenLayerWidth(10)
                         .hiddenLayers(1)
                         .learningRate(0.01f)

@@ -15,7 +15,7 @@ class DL4jNetworkTest {
     @Test
     fun experiment() {
         val problem = TestModels.MODEL1.problem
-        val network = DL4jNetwork.Builder(problem).randomSeed(0).output(LogitTransform).learningRate(0.1f).build()
+        val network = DL4jNetwork.Builder(problem).randomSeed(0).output(ScalarTransform(LogitTransform)).learningRate(0.1f).build()
         val instances1 = ExhaustiveSolver(problem, 0).asSequence(intListOf(1)).take(50)
         val instances2 = ExhaustiveSolver(problem, 1).asSequence(intListOf(-1)).take(50)
 
