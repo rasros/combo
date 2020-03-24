@@ -1,8 +1,12 @@
 package combo.bandit.nn
 
-import combo.bandit.*
+import combo.bandit.BanditData
+import combo.bandit.ParallelPredictionBandit
+import combo.bandit.PredictionBandit
+import combo.bandit.PredictionBanditBuilder
 import combo.bandit.glm.*
 import combo.math.*
+import combo.model.EffectCodedVector
 import combo.model.Model
 import combo.sat.Instance
 import combo.sat.Problem
@@ -36,6 +40,12 @@ class NeuralLinearBandit(val model: Model,
     private var trainingSteps = 0L
 
     private var static = if (useStatic) network.toStaticNetwork(staticCacheSize) else network
+
+    private inner class BatchUpdate(val instances: Array<Instance>, val results: FloatArray, val weights: FloatArray) {
+        @Suppress("UNCHECKED_CAST")
+        fun toVectors(): Array<out VectorView> = if (effectCoding) Array(instances.size) { EffectCodedVector(model, instances[it]) }
+        else instances as Array<VectorView>
+    }
 
     private val oldBatches: MutableList<BatchUpdate>? = if (epochs > 1) ArrayList() else null
 
@@ -74,10 +84,12 @@ class NeuralLinearBandit(val model: Model,
         return optimizer.optimizeOrThrow(objective, assumptions)
     }
 
-    override fun predict(instance: Instance) = static.predict(instance)
+    override fun predict(instance: Instance) = if (effectCoding) static.predict(EffectCodedVector(model, instance))
+    else static.predict(instance)
 
     // Apply the neural network layer until the output layer
-    private fun transfer(instance: Instance) = static.activate(instance, 0, static.layers.size - 2)
+    private fun transfer(instance: Instance) = if (effectCoding) static.activate(EffectCodedVector(model, instance), 0, static.layers.size - 2)
+    else static.activate(instance, 0, static.layers.size - 2)
 
     override fun train(instance: Instance, result: Float, weight: Float) {
         trainingSteps++
@@ -89,19 +101,20 @@ class NeuralLinearBandit(val model: Model,
         linear.train(z, result, weight)
         if (bufferPtr == instances.size) {
             @Suppress("UNCHECKED_CAST")
-            network.trainAll(instances as Array<Instance>, results, weights)
+            val bu = BatchUpdate(instances.copyOf() as Array<Instance>, results.copyOf(), weights.copyOf())
+            network.trainAll(bu.toVectors(), bu.results, bu.weights)
             static = if (useStatic) network.toStaticNetwork(staticCacheSize) else network
             bufferPtr = 0
 
             if (oldBatches != null) {
                 for (o in oldBatches)
-                    network.trainAll(o.instances, o.results, o.weights)
+                    network.trainAll(o.toVectors(), o.results, o.weights)
                 val rng = randomSequence.next()
-                val n = rng.nextBinomial(1 - 1f / (epochs + 1), oldBatches.size)
-                repeat(n) {
+                val dropped = rng.nextBinomial(1f / epochs, oldBatches.size)
+                repeat(dropped) {
                     oldBatches.removeAt(rng.nextInt(oldBatches.size))
                 }
-                oldBatches.add(BatchUpdate(instances, results, weights))
+                oldBatches.add(bu)
             }
             if (useStatic) {
                 val last = static.layers.last() as DenseLayer

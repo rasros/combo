@@ -5,6 +5,7 @@ import combo.bandit.PredictionBandit
 import combo.bandit.PredictionBanditBuilder
 import combo.math.DataSample
 import combo.math.VoidSample
+import combo.model.EffectCodedVector
 import combo.model.Model
 import combo.sat.BitArray
 import combo.sat.Instance
@@ -45,14 +46,17 @@ class LinearBandit(val model: Model,
         }
     }
 
-    override fun predict(instance: Instance) = linearModel.predict(instance)
+    override fun predict(instance: Instance) = if (effectCoding) linearModel.predict(EffectCodedVector(model, instance))
+    else linearModel.predict(instance)
 
     override fun train(instance: Instance, result: Float, weight: Float) {
-        linearModel.train(instance, result, weight)
+        if (effectCoding) linearModel.train(EffectCodedVector(model, instance), result, weight)
+        else linearModel.train(instance, result, weight)
     }
 
     override fun trainAll(instances: Array<Instance>, results: FloatArray, weights: FloatArray?) {
-        linearModel.trainAll(instances, results, weights)
+        if (effectCoding) linearModel.trainAll(Array(instances.size) { EffectCodedVector(model, instances[it]) }, results, weights)
+        else linearModel.trainAll(instances, results, weights)
     }
 
     override fun chooseOrThrow(assumptions: IntCollection): Instance {
