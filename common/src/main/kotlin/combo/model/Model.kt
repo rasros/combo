@@ -31,9 +31,8 @@ class Model(val problem: Problem, val index: VariableIndex, val scope: Scope) {
             val valueReification = if (variable.reifiedValue is Root) 0
             else variable.reifiedValue.toLiteral(index)
             if (valueReification != 0)
-                for (i in offset until variable.nbrValues) {
+                for (i in offset until variable.nbrValues)
                     reifiedLiterals[ix + i] = valueReification
-                }
         }
     }
 

@@ -304,18 +304,20 @@ data class TestParameters(val type: TestType = TestType.BINOMIAL,
 enum class TestType {
 
     BINOMIAL {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextBinomial(mean, trials).toFloat() / trials
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextBinomial(LogitTransform.apply(mean), trials).toFloat() / trials
     },
     NORMAL {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = rng.nextNormal(2.0f + 3 * mean, sqrt(2.0f) / trials)
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = trials.toFloat() * rng.nextNormal(mean, sqrt(1f / trials.toFloat()))
     },
     POISSON {
-        override fun linearRewards(mean: Float, trials: Int, rng: Random) = generateSequence { rng.nextPoisson(1 + 3 * mean).toFloat() }.take(trials).average().toFloat()
+        override fun linearRewards(mean: Float, trials: Int, rng: Random) = generateSequence { rng.nextPoisson(3f + mean).toFloat() }.take(trials).sum()
     };
 
     fun linearRewards(instance: Instance, rng: Random): Float {
-        val weights = FloatVector(FloatArray(instance.size) { 1 + it * 0.1f })
-        return linearRewards((1 + (instance dot weights)) / (weights.sum() + 2), 1, rng)
+        val weights = FloatVector(FloatArray(instance.size) { (1 + it) * 0.1f })
+        val z = instance dot weights
+        val mean = (z - 1f) / (weights.sum() + 1)
+        return linearRewards(mean, 1, rng)
     }
 
     abstract fun linearRewards(mean: Float, trials: Int, rng: Random): Float

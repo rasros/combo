@@ -2,11 +2,12 @@ package combo.model
 
 import combo.model.Model.Companion.model
 import combo.sat.BitArray
+import combo.sat.literal
 import combo.sat.optimizers.ExhaustiveSolver
+import combo.sat.toIx
 import combo.test.assertContentEquals
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class EffectCodedVectorTest {
     @Test
@@ -44,19 +45,27 @@ class EffectCodedVectorTest {
 
     @Test
     fun exhaustive() {
-        for (m in TestModels.MODELS) {
-            val exhaustiveSolver = ExhaustiveSolver(m.problem)
-            val instance = exhaustiveSolver.witnessOrThrow()
-            val ecv = EffectCodedVector(m, instance)
-            val arr = ecv.toFloatArray()
-            for (i in instance.indices) {
-                assertEquals(ecv[i], arr[i])
-                if (instance.isSet(i)) {
-                    assertEquals(1f, ecv[i])
-                    assertEquals(1f, arr[i])
-                } else {
-                    assertTrue(ecv[i] == 0f || ecv[i] == -1f)
-                    assertTrue(arr[i] == 0f || arr[i] == -1f)
+        val models = TestModels.MODELS + TestModels.NUMERIC_MODELS + TestModels.CSP_MODELS
+        for (m in models) {
+            val exhaustiveSolver = ExhaustiveSolver(m.problem, randomSeed = 0)
+            for (instance in exhaustiveSolver.asSequence().take(1)) {
+                val ecv = EffectCodedVector(m, instance)
+                val arr = ecv.toFloatArray()
+                for (i in instance.indices) {
+                    assertEquals(ecv[i], arr[i])
+                    if (instance.isSet(i)) {
+                        assertEquals(1f, ecv[i])
+                        assertEquals(1f, arr[i])
+                    } else {
+                        val rf = m.reifiedLiterals[i]
+                        if (rf == 0 || rf == instance.literal(rf.toIx())) {
+                            assertEquals(ecv[i], -1f)
+                            assertEquals(arr[i], -1f)
+                        } else {
+                            assertEquals(ecv[i], 0f)
+                            assertEquals(arr[i], 0f)
+                        }
+                    }
                 }
             }
         }

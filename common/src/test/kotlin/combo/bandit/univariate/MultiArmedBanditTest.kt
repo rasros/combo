@@ -2,6 +2,7 @@ package combo.bandit.univariate
 
 import combo.bandit.TestType
 import combo.math.FullSample
+import combo.math.nextBinomial
 import combo.test.assertContentEquals
 import kotlin.random.Random
 import kotlin.test.Test
@@ -29,8 +30,10 @@ class MultiArmedBanditTest {
             val i2 = bandit2.choose()
             val trials1 = (rng.nextInt(5) + 1)
             val trials2 = (rng.nextInt(5) + 1)
-            bandit1.update(i1, TestType.BINOMIAL.linearRewards((i1 + 1).toFloat() / 12, trials1, rng), trials1.toFloat())
-            bandit2.update(i2, TestType.BINOMIAL.linearRewards((i2 + 1).toFloat() / 12, trials2, rng), trials2.toFloat())
+            val r1 = rng.nextBinomial(1f / (i1 + 1), trials1).toFloat()
+            val r2 = rng.nextBinomial(1f / (i2 + 1), trials2).toFloat()
+            bandit1.update(i1, r1 / trials1.toFloat(), trials1.toFloat())
+            bandit2.update(i2, r2 / trials2.toFloat(), trials2.toFloat())
         }
         val sum1 = bandit1.rewards.values().sum()
         val sum2 = bandit2.rewards.values().sum()
