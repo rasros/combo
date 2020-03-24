@@ -6,16 +6,16 @@ import combo.sat.Problem
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-class GreedyLinearModel(link: Transform,
-                        loss: Transform,
-                        regularization: Transform,
-                        regularizationFactor: Float,
-                        val updater: SGDAlgorithm,
-                        exploration: Float,
-                        step: Long,
-                        weights: Vector,
-                        val biasRate: LearningRateSchedule = ExponentialDecay(),
-                        bias: Float)
+class SGDLinearModel(link: Transform,
+                     loss: Transform,
+                     regularization: Transform,
+                     regularizationFactor: Float,
+                     val updater: SGDAlgorithm,
+                     exploration: Float,
+                     step: Long,
+                     weights: Vector,
+                     val biasRate: LearningRateSchedule = ExponentialDecay(),
+                     bias: Float)
     : LinearModel(link, loss, regularization, regularizationFactor, exploration, step, weights, bias) {
 
     override fun sample(rng: Random, weights: VectorView): VectorView {
@@ -52,7 +52,7 @@ class GreedyLinearModel(link: Transform,
     }
 
     override fun exportData() = LinearData(weights.toFloatArray(), bias, 0f, step, updater.exportData().toArray())
-    override fun blank(variance: Float) = GreedyLinearModel(
+    override fun blank(variance: Float) = SGDLinearModel(
             link, loss, regularization, regularizationFactor, updater.copyReset(), exploration, 0L, vectors.zeroVector(weights.size), biasRate, bias)
 
     class Builder(val size: Int) {
@@ -95,7 +95,7 @@ class GreedyLinearModel(link: Transform,
         /** Stochastic gradient descent algorithm to use. */
         fun updater(updater: SGDAlgorithm) = apply { this.updater = updater }
 
-        fun build() = GreedyLinearModel(link, loss, regularization, regularizationFactor, updater, exploration,
+        fun build() = SGDLinearModel(link, loss, regularization, regularizationFactor, updater, exploration,
                 startingStep, vectors.zeroVector(size), biasRate,
                 bias ?: if (link is LogTransform) 1.01f else 0f)
     }
