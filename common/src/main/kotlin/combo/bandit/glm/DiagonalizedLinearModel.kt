@@ -38,7 +38,7 @@ class DiagonalizedLinearModel(val family: VarianceFunction,
         val lr = learningRate.rate(step)
         for (i in input) {
             val reg = regularizationFactor * regularization.apply(weights[i])
-            precision[i] += varF * input[i]
+            precision[i] += varF * input[i] * input[i]
             val grad = input[i] * (loss + reg) * weight
             weights[i] -= lr * grad / precision[i]
         }
