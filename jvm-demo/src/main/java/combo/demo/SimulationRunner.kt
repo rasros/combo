@@ -63,71 +63,69 @@ class SimulationRunner : Runnable {
             override fun banditBuilder(simulationProblem: SimulationProblem) = when (simulationProblem) {
                 SimulationProblem.AC ->
                     DecisionTreeBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(NormalPosterior))
-                            .delta(1e-20f)
-                            .deltaDecay(1e-4f)
-                            .tau(.6f)
-                            .minSamplesLeaf(2f)
+                            .delta(1f)
+                            .deltaDecay(1e-2f)
+                            .tau(1f)
+                            .minSamplesLeaf(8f)
                 else ->
                     DecisionTreeBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(BinomialPosterior, BinarySum(0.08f, 1f)))
-                            .delta(0.03f)
-                            .deltaDecay(1e7f)
-                            .tau(.4f)
+                            .delta(1f)
+                            .deltaDecay(1e-3f)
+                            .tau(1e-1f)
                             .minSamplesLeaf(4f)
             }
 
             override val hyperParameters = model {
-                int("delta", -256, 0)
-                int("deltaDecay", -128, 127)
-                int("tau", -16, 0)
-                int("minSamplesLeaf", 1, 10)
+                int("delta", -8, 0)
+                int("deltaDecay", -8, 7)
+                int("tau", -4, 0)
+                nominal("minSamplesLeaf", 1f, 2f, 4f, 6f, 8f)
             }
 
             override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = banditBuilder(problem)
-                    .delta(metaAssignment.getIntFloat("delta"))
-                    .deltaDecay(metaAssignment.getIntFloat("deltaDecay"))
-                    .tau(metaAssignment.getIntFloat("tau"))
-                    .minSamplesLeaf(metaAssignment.getInt("minSamplesLeaf").toFloat())
-                    .minSamplesSplit(metaAssignment.getInt("minSamplesSplit").toFloat())
-                    .filterMissingData(metaAssignment.getBoolean("filterMissingData"))
+                    .delta(metaAssignment.getExp("delta"))
+                    .deltaDecay(metaAssignment.getExp("deltaDecay"))
+                    .tau(metaAssignment.getExp("tau"))
+                    .minSamplesLeaf(metaAssignment.getFloat("minSamplesLeaf"))
         },
         RF {
             override fun banditBuilder(simulationProblem: SimulationProblem) = when (simulationProblem) {
                 SimulationProblem.AC ->
                     RandomForestBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(NormalPosterior))
                             .trees(200)
-                            .instanceSamplingMean(0.4f)
-                            .delta(1e-20f)
-                            .deltaDecay(1e-6f)
-                            .tau(.25f)
-                            .viewedVariables((simulationProblem.surrogateModel.model.nbrVariables.toFloat() * 0.125f).roundToInt())
-                            .minSamplesLeaf(8f)
+                            .instanceSamplingMean(1f)
+                            .delta(1e-3f)
+                            .deltaDecay(1e-1f)
+                            .tau(1f)
+                            .viewedVariables((simulationProblem.surrogateModel.model.nbrVariables.toFloat() * 0.3f).roundToInt())
+                            .minSamplesLeaf(4f)
                 else ->
                     RandomForestBandit.Builder(simulationProblem.surrogateModel.model, ThompsonSampling(BinomialPosterior, BinarySum(0.08f, 1f)))
                             .trees(200)
-                            .instanceSamplingMean(4f)
-                            .delta(1e-10f)
-                            .deltaDecay(1e8f)
-                            .tau(0.003f)
-                            .viewedVariables((simulationProblem.surrogateModel.model.nbrVariables.toFloat() * 0.4f).roundToInt())
-                            .minSamplesLeaf(8f)
+                            .instanceSamplingMean(1f)
+                            .delta(1e-2f)
+                            .deltaDecay(1e-5f)
+                            .tau(1e-4f)
+                            .viewedVariables((simulationProblem.surrogateModel.model.nbrVariables.toFloat() * 0.9f).roundToInt())
+                            .minSamplesLeaf(4f)
             }
 
             override val hyperParameters = model {
-                int("samplingMean", -8, 7)
-                int("delta", -256, 0)
-                int("deltaDecay", -128, 127)
-                int("tau", -32, 0)
-                int("nbrVariables", -16, 0)
-                int("minSamplesLeaf", 1, 10)
+                nominal("samplingMean", 0.5f, 1f, 2f)
+                int("delta", -8, 0)
+                int("deltaDecay", -8, 7)
+                int("tau", -4, 0)
+                nominal("nbrVariables", 0.01f, 0.1f, 0.3f, 0.5f, 0.7f, 0.9f)
+                nominal("minSamplesLeaf", 1f, 2f, 4f, 6f, 8f)
             }
 
             override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem): RandomForestBandit.Builder = banditBuilder(problem)
-                    .instanceSamplingMean(metaAssignment.getIntFloat("samplingMean"))
-                    .delta(metaAssignment.getIntFloat("delta"))
-                    .deltaDecay(metaAssignment.getIntFloat("deltaDecay"))
-                    .tau(metaAssignment.getIntFloat("tau"))
-                    .viewedVariables(max(1, metaAssignment.getInt("nbrVariables") * problem.surrogateModel.model.nbrVariables))
-                    .minSamplesLeaf(metaAssignment.getInt("minSamplesLeaf").toFloat())
+                    .instanceSamplingMean(metaAssignment.getFloat("samplingMean"))
+                    .delta(metaAssignment.getExp("delta"))
+                    .deltaDecay(metaAssignment.getExp("deltaDecay"))
+                    .tau(metaAssignment.getExp("tau"))
+                    .viewedVariables(max(1, (metaAssignment.getFloat("nbrVariables") * problem.surrogateModel.model.nbrVariables).toInt()))
+                    .minSamplesLeaf(metaAssignment.getFloat("minSamplesLeaf"))
 
             override val useOptimizer = true
         },
@@ -139,76 +137,100 @@ class SimulationRunner : Runnable {
             override val useOptimizer = true
         },
         GLMDIAG {
-            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model)
-                    .linearModel(DiagonalizedLinearModel.Builder(simulationProblem.surrogateModel.model.problem).let {
-                        when (simulationProblem) {
-                            SimulationProblem.AC -> it.family(NormalVariance).exploration(0.02f).regularizationFactor(1e-20f).priorPrecision(20f)
-                            else -> it.family(BinomialVariance).exploration(0.1f).regularizationFactor(1e-6f).priorPrecision(1e4f)
-                        }.build()
-                    })
+            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model).let {
+                when (simulationProblem) {
+                    SimulationProblem.AC -> it.effectCoding(true)
+                            .linearModel(DiagonalizedLinearModel.Builder(simulationProblem.surrogateModel.model.problem)
+                                    .loss(HuberLoss(0.01f))
+                                    .family(NormalVariance)
+                                    .exploration(1e-2f)
+                                    .regularizationFactor(1e-20f)
+                                    .priorPrecision(1e2f)
+                                    .build())
+                    else -> it.effectCoding(false)
+                            .linearModel(DiagonalizedLinearModel.Builder(simulationProblem.surrogateModel.model.problem)
+                                    .loss(HuberLoss(0.01f))
+                                    .family(BinomialVariance)
+                                    .exploration(1f)
+                                    .regularizationFactor(1e-20f)
+                                    .priorPrecision(1e1f)
+                                    .build())
+                }
+            }
 
             override val hyperParameters = model {
-                int("precision", 0, 63)
-                int("exploration", -64, 0)
-                int("regularizationFactor", -256, -10)
-                bool("effectCoding")
+                int("precision", 1, 7)
+                int("exploration", -8, 0)
+                int("regularizationFactor", -40, -1)
             }
 
             override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = LinearBandit.Builder(problem.surrogateModel.model)
-                    .effectCoding(metaAssignment.getBoolean("effectCoding"))
                     .linearModel(DiagonalizedLinearModel.Builder(problem.surrogateModel.model.problem)
                             .family(when (problem) {
                                 SimulationProblem.AC -> NormalVariance
                                 else -> BinomialVariance
                             })
-                            .priorPrecision(metaAssignment.getIntFloat("precision"))
-                            .exploration(metaAssignment.getIntFloat("exploration"))
-                            .regularizationFactor(metaAssignment.getIntFloat("regularizationFactor")).build())
+                            .priorPrecision(metaAssignment.getExp("precision"))
+                            .exploration(metaAssignment.getExp("exploration"))
+                            .regularizationFactor(metaAssignment.getExp("regularizationFactor")).build())
 
             override val useOptimizer = true
 
         },
         GLMFULL {
-            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model)
-                    .linearModel(CovarianceLinearModel.Builder(simulationProblem.surrogateModel.model.problem).let {
-                        when (simulationProblem) {
-                            SimulationProblem.AC -> it.family(NormalVariance).exploration(0.05f).regularizationFactor(1e-20f).priorVariance(0.005f)
-                            else -> it.family(BinomialVariance).exploration(0.1f).regularizationFactor(1e-6f).priorVariance(1e-4f)
-                        }.build()
-                    })
+            override fun banditBuilder(simulationProblem: SimulationProblem) = LinearBandit.Builder(simulationProblem.surrogateModel.model).let {
+                when (simulationProblem) {
+                    SimulationProblem.AC -> it.effectCoding(true)
+                            .linearModel(CovarianceLinearModel.Builder(simulationProblem.surrogateModel.model.problem)
+                                    .loss(HuberLoss(0.01f))
+                                    .family(NormalVariance)
+                                    .exploration(1e-4f)
+                                    .regularizationFactor(1e-20f)
+                                    .priorVariance(1e-3f)
+                                    .build())
+                    else -> it.effectCoding(false)
+                            .linearModel(CovarianceLinearModel.Builder(simulationProblem.surrogateModel.model.problem)
+                                    .loss(HuberLoss(0.01f))
+                                    .family(BinomialVariance)
+                                    .exploration(1e-1f)
+                                    .regularizationFactor(1e-20f)
+                                    .priorVariance(1e-1f)
+                                    .build())
+                }
+            }
 
             override val hyperParameters = model {
-                int("variance", -64, 0)
-                int("exploration", -64, 0)
-                int("regularizationFactor", -256, -10)
-                bool("effectCoding")
+                int("variance", -8, 0)
+                int("exploration", -8, 0)
+                int("regularizationFactor", -40, -1)
             }
 
             override fun configureWith(metaAssignment: Assignment, problem: SimulationProblem) = LinearBandit.Builder(problem.surrogateModel.model)
-                    .effectCoding(metaAssignment.getBoolean("effectCoding"))
+                    .effectCoding(true)
                     .linearModel(CovarianceLinearModel.Builder(problem.surrogateModel.model.problem)
                             .family(when (problem) {
                                 SimulationProblem.AC -> NormalVariance
                                 else -> BinomialVariance
                             })
-                            .priorVariance(metaAssignment.getIntFloat("variance"))
-                            .exploration(metaAssignment.getIntFloat("exploration"))
-                            .regularizationFactor(metaAssignment.getIntFloat("regularizationFactor")).build())
+                            .priorVariance(metaAssignment.getExp("variance"))
+                            .exploration(metaAssignment.getExp("exploration"))
+                            .regularizationFactor(metaAssignment.getExp("regularizationFactor")).build())
 
             override val useOptimizer = true
         },
         NL {
             override val hyperParameters = model {
-                nominal("regularizationFactor", 1e-10f, 1e-5f, 1e-3f, 1e-1f)
+                nominal("regularizationFactor", 1e-10f, 1e-5f, 1e-3f, 1e-2f, 1e-1f)
                 nominal("hiddenLayers", 1, 2)
-                nominal("epochs", 1, 3, 5)
+                nominal("epochs", 1, 2, 3)
                 nominal("batchSize", 2, 4, 16, 32)
-                nominal("learningRate", 1e-5f, 1e-4f, 1e-3, 1e-2f, 1e-1f)
+                nominal("learningRate", 1e-5f, 1e-4f, 1e-3, 1e-2f)
                 nominal("initWeightVariance", 1e-5f, 1e-3f, 1e-1f)
 
                 scope("linearModelParameters") {
-                    nominal("exploration", 1e-3f, 1e-2f, 1e-1f, 1f)
-                    nominal("variance", 1e-3f, 1e-2f, 1e-1f, 1f)
+                    nominal("exploration", 1e-5f, 1e-3f, 1e-1f, 1f)
+                    nominal("variance", 1e-5f, 1e-3f, 1e-1f, 1f)
+                    nominal("regularizationFactor", 1e-10f, 1e-5f, 1e-3f)
                 }
             }
 
@@ -230,6 +252,7 @@ class SimulationRunner : Runnable {
                                 else -> BinomialVariance
                             })
                             .loss(HuberLoss(0.01f))
+                            .regularizationFactor(metaAssignment.subAssignment("linearModelParameters").getFloat("regularizationFactor"))
                             .exploration(metaAssignment.subAssignment("linearModelParameters").getFloat("exploration"))
                             .priorVariance(metaAssignment.subAssignment("linearModelParameters").getFloat("variance"))
                             .build()
@@ -242,35 +265,46 @@ class SimulationRunner : Runnable {
                             DL4jNetwork.Builder(simulationProblem.surrogateModel.model.problem)
                                     .output(ScalarTransform(IdentityTransform))
                                     .learningRate(0.001f)
-                                    .initWeightVariance(0.001f)
+                                    .initWeightVariance(0.01f)
                                     .hiddenLayers(1)
                                     .hiddenLayerWidth(10)
                                     .regularizationFactor(0.001f))
                             .linearModel(CovarianceLinearModel.Builder(10)
                                     .family(NormalVariance)
                                     .loss(HuberLoss(0.01f))
-                                    .exploration(0.001f)
+                                    .exploration(0.01f)
                                     .priorVariance(0.1f)
+                                    .regularizationFactor(0.001f)
                                     .build())
+                            .optimizer(LocalSearch.Builder(simulationProblem.surrogateModel.model.problem).restarts(2)
+                                    .cached().pNew(.1f).maxSize(20)
+                                    .build())
+                            .staticCacheSize(40)
+                            .effectCoding(true)
                             .batchSize(4)
-                            .epochs(3)
+                            .epochs(2)
 
                     else -> NeuralLinearBandit.Builder(simulationProblem.surrogateModel.model,
                             DL4jNetwork.Builder(simulationProblem.surrogateModel.model.problem)
                                     .output(ScalarTransform(LogitTransform))
                                     .learningRate(0.001f)
-                                    .initWeightVariance(0.0001f)
+                                    .initWeightVariance(0.001f)
                                     .hiddenLayers(2)
                                     .hiddenLayerWidth(10)
-                                    .regularizationFactor(0.001f))
+                                    .regularizationFactor(0.01f))
                             .linearModel(CovarianceLinearModel.Builder(10)
                                     .family(BinomialVariance)
                                     .loss(HuberLoss(0.01f))
-                                    .exploration(0.001f)
-                                    .priorVariance(0.1f)
+                                    .exploration(0.01f)
+                                    .priorVariance(0.01f)
+                                    .regularizationFactor(0.01f)
                                     .build())
+                            .optimizer(LocalSearch.Builder(simulationProblem.surrogateModel.model.problem).restarts(2)
+                                    .cached().pNew(.1f).maxSize(20)
+                                    .build())
+                            .effectCoding(false)
                             .batchSize(8)
-                            .epochs(3)
+                            .epochs(2)
                 }
             }
 
@@ -291,7 +325,7 @@ class SimulationRunner : Runnable {
         open val hyperParameters: Model = model {}
         open val useOptimizer: Boolean = false
 
-        fun Assignment.getIntFloat(name: String, scale: Float = 10f) = 10f.pow(getInt(name) / scale)
+        fun Assignment.getExp(name: String) = 10f.pow(getInt(name))
     }
 
     enum class SimulationProblem(val surrogateModel: SurrogateModel<*>,
@@ -480,6 +514,7 @@ class SimulationRunner : Runnable {
                     .suggestOptimizer(optimizer.build())
                     .randomSeed(nanos().toInt())
                     .parallel().copies(1).mode(ParallelMode.BLOCKING).build()
+            println("  > Evaluating: $metaAssignment (${metaBandit.bandit.predict(metaAssignment.instance)})")
 
             val s = Simulation(problem.surrogateModel, bandit,
                     horizon = horizon,
@@ -491,14 +526,27 @@ class SimulationRunner : Runnable {
             s.awaitCompletion()
             val nbrWeightedSamples = (s.expectedRewards as VarianceEstimator).nbrWeightedSamples
             val score = if (nbrWeightedSamples < horizon * .99f) {
-                println("Failed experiment: $metaAssignment")
+                println("  > Failed experiment: $metaAssignment")
                 0f
             } else s.expectedRewards.values()[0]
+            println("  > Achieved ${String.format("%.4f", score)}")
             metaBandit.update(metaAssignment, score)
             val opt = metaBandit.optimalOrThrow()
             val optMean = metaBandit.predict(opt)
-            println("Predicted optimal: $opt")
+            println("  > Predicted optimal: $opt")
             println("$t, mean-windowed-10: ${String.format("%.4f", metaRewards.values().average())}, predicted optimal score: ${String.format("%.4f", optMean)}")
+
+            if (t % 10 == 0) {
+                val map = HashMap<Any, HashMap<Any, Int>>()
+                repeat(1000) {
+                    val a = metaBandit.chooseOrThrow()
+                    for ((k, v) in a) {
+                        val m = map.getOrPut(k) { HashMap() }
+                        m[v ?: ""] = (m[v] ?: 0) + 1
+                    }
+                }
+                println(map)
+            }
         }
     }
 
