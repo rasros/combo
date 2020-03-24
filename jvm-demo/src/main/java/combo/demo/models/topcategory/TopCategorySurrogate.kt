@@ -7,16 +7,38 @@ import combo.math.IdentityTransform
 import combo.math.RectifierTransform
 import combo.math.Transform
 import combo.math.vectors
+import combo.model.EffectCodedVector
 import combo.sat.Instance
 import combo.sat.SparseBitArray
+import combo.sat.optimizers.EffectCodedObjective
+import combo.sat.optimizers.ObjectiveFunction
 import combo.sat.optimizers.Optimizer
 import combo.sat.set
 import combo.util.IntCollection
 import combo.util.IntHashSet
+import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.io.PrintStream
 import kotlin.random.Random
 
-class TopCategorySurrogate : SurrogateModel<NeuralNetworkObjective> {
+fun main() {
+    val s = TopCategorySurrogate()
+    val itr = s.datasetInstances().iterator()
+    var k = 0
+    var d = 0
+    var out: PrintStream? = null
+    while (itr.hasNext()) {
+        if (k++ % 100_000 == 0) {
+            d++
+            out = PrintStream(FileOutputStream("/home/ra3646su/Workspace/combo/jvm-demo/src/main/resources/combo/demo/models/tc_dataset_effect_coded_$d.txt"))
+        }
+        val i = itr.next()
+        val coded = EffectCodedVector(s.model, i.second)
+        out!!.println("" + i.first + " " + coded.joinToString(separator = " ") { "${it + 1}:${coded[it]}" })
+    }
+}
+
+class TopCategorySurrogate : SurrogateModel<ObjectiveFunction> {
 
     override val model = topCategoryModel()
     val network = StaticNetwork(
@@ -26,7 +48,7 @@ class TopCategorySurrogate : SurrogateModel<NeuralNetworkObjective> {
                     readBatchNormLayer(4),
                     readDenseLayerWeights(5, IdentityTransform)),
             BinarySoftmaxLayer())
-    val o = NeuralNetworkObjective(true, network)
+    val o = EffectCodedObjective(NeuralNetworkObjective(true, network), model)
 
     fun contextProvider(k: Int) = object : ContextProvider {
         override fun context(rng: Random): IntCollection {
@@ -43,7 +65,7 @@ class TopCategorySurrogate : SurrogateModel<NeuralNetworkObjective> {
 
     override fun predict(instance: Instance) = -o.value(instance)
 
-    override fun optimal(optimizer: Optimizer<NeuralNetworkObjective>, assumptions: IntCollection) = optimizer.optimize(o, assumptions)
+    override fun optimal(optimizer: Optimizer<ObjectiveFunction>, assumptions: IntCollection) = optimizer.optimize(o, assumptions)
 
     fun datasetInstances(): Sequence<Pair<Int, Instance>> {
         return InputStreamReader(javaClass.getResourceAsStream("/combo/demo/models/tc_dataset.txt")).buffered().lineSequence().map {

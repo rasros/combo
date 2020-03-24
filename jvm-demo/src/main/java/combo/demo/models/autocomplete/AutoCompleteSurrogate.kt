@@ -2,10 +2,7 @@ package combo.demo.models.autocomplete
 
 import combo.demo.SurrogateModel
 import combo.math.*
-import combo.model.Literal
-import combo.model.Root
-import combo.model.Select
-import combo.model.Variable
+import combo.model.*
 import combo.sat.BitArray
 import combo.sat.Instance
 import combo.sat.optimizers.JacopSolver
@@ -99,7 +96,7 @@ class AutoCompleteSurrogate(val removeInteractions: Boolean = false) : Surrogate
                 x[ix + i] = false
             }
         }
-        return x dot weights
+        return EffectCodedVector(model, x) dot weights
     }
 
     private fun readWeights() = InputStreamReader(javaClass.getResourceAsStream("/combo/demo/models/ac_model_weights.csv"))

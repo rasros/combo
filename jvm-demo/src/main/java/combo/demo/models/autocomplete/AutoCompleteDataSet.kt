@@ -1,10 +1,26 @@
 package combo.demo.models.autocomplete
 
+import combo.bandit.glm.*
 import combo.math.RunningVariance
 import combo.math.sample
 import combo.model.*
 import combo.sat.optimizers.JacopSolver
 import java.io.InputStreamReader
+
+fun main() {
+    val a = AutoCompleteDataSet()
+
+    val lm = SGDLinearModel.Builder(a.model.problem)
+            .regularizationFactor(1e-2f)
+            .loss(HuberLoss(0.01f))
+            .updater(SGD(ExponentialDecay(0.001f, 1e-5f)))
+            .build()
+    repeat(1000) {
+        for (i in a.sites.indices)
+            lm.train(EffectCodedVector(a.model, a.sites[i].instance), a.scores[i], 1f)
+    }
+    lm.weights.toFloatArray().forEach { println(it) }
+}
 
 class AutoCompleteDataSet {
     val model = autoCompleteModel(true)
@@ -45,9 +61,12 @@ class AutoCompleteDataSet {
         println(result.slice(0 until result.length - 1))
     }
 
-    fun printTrainingSet() {
+    fun printTrainingSet(effectCoding: Boolean = false) {
         for (i in sites.indices)
-            println("${scores[i]}," + sites[i].instance.toIntArray().joinToString(","))
+            if (effectCoding)
+                println("${scores[i]}," + EffectCodedVector(model, sites[i].instance).toFloatArray().joinToString(","))
+            else
+                println("${scores[i]}," + sites[i].instance.toIntArray().joinToString(","))
     }
 
     private fun readSiteAttributes(m: Model): Map<String, Array<Literal>> {
