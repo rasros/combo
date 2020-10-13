@@ -40,7 +40,6 @@ class RandomForestBandit(val parameters: TreeParameters,
         val rng = randomSequence.next()
         for (t in trees) {
             val n = rng.nextPoisson(instanceSamplingMean)
-            //val n = 1f
             if (n > 0) t.train(instance, result, weight * n)
         }
     }
