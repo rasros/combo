@@ -56,10 +56,17 @@ class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nano
                 .filter { problem.satisfies(it) }
     }
 
-    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?) =
-            asSequence(assumptions).take(maxOptimizationInstances).minBy {
-                function.value(it)
-            } ?: throw UnsatisfiableException()
+    override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?): Instance {
+        val opt = asSequence(assumptions).take(maxOptimizationInstances).minBy {
+            function.value(it)
+        } ?: throw UnsatisfiableException()
+        if (guess != null && problem.satisfies(guess)) {
+            val f1 = function.value(guess)
+            val f2 = function.value(opt)
+            if (f1 < f2) return guess
+        }
+        return opt
+    }
 
     private fun propAssumptions(assumptions: IntCollection): IntCollection {
         return if (propagateAssumptions && assumptions.isNotEmpty()) {
