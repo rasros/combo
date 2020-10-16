@@ -73,7 +73,7 @@ class GeneticAlgorithmBandit(
 
         val t = if (opt) step.get() else step.getAndIncrement()
         val rng = randomSequence.next()
-        val (instance, _) = candidates.estimators.maxBy { (i, e) ->
+        val (instance, _) = candidates.estimators.maxByOrNull { (i, e) ->
             if (assumption.satisfies(i)) policy.evaluate(e, t, maximize, rng)
             else Float.NEGATIVE_INFINITY
         } ?: return null

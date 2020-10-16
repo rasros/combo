@@ -61,7 +61,7 @@ abstract class BanditTest<B : Bandit<*>> {
             val parameters = TestParameters(randomSeed = seed)
             val b = bandit(m, parameters)
             val rng = Random(seed)
-            for (j in 0 until 100) {
+            for (j in 0 until 10) {
                 val instance = b.chooseOrThrow()
                 assertTrue(m.problem.satisfies(instance), "Model $i")
                 b.update(instance, parameters.type.linearRewards(instance, rng))
@@ -76,7 +76,7 @@ abstract class BanditTest<B : Bandit<*>> {
         val bandit2 = bandit(m, TestParameters(TestType.BINOMIAL, 2, false))
         val rng = Random(1)
 
-        for (i in 1..100) {
+        for (i in 1..50) {
             val instance1 = bandit1.chooseOrThrow()
             val instance2 = bandit2.chooseOrThrow()
             assertTrue(m.problem.satisfies(instance1))
@@ -99,7 +99,7 @@ abstract class BanditTest<B : Bandit<*>> {
         val bandit2 = bandit(m, TestParameters(TestType.BINOMIAL, 2, false))
         val rng = Random(1)
 
-        for (i in 1..50) {
+        for (i in 1..10) {
             val instances1 = Array(10) { bandit1.chooseOrThrow() }
             val instances2 = Array(10) { bandit2.chooseOrThrow() }
             val results1 = instances1.mapArray { TestType.BINOMIAL.linearRewards(it, rng) }.toFloatArray()
@@ -118,7 +118,7 @@ abstract class BanditTest<B : Bandit<*>> {
     fun assumptionsSatisfied() {
         val m = TestModels.MODEL4
         val bandit = bandit(m, TestParameters(TestType.POISSON, rewards = BucketSample(4)))
-        for (i in 1..100) {
+        for (i in 1..10) {
             val instance = if (Random.nextBoolean()) bandit.chooseOrThrow(collectionOf(3, 12)).also {
                 assertTrue { Conjunction(collectionOf(3, 12)).satisfies(it) }
             }
@@ -172,7 +172,7 @@ abstract class BanditTest<B : Bandit<*>> {
     fun exportIdempotent() {
         for (m in MODELS) {
             val bandit = bandit(m, TestParameters())
-            for (i in 0 until 100) {
+            for (i in 0 until 20) {
                 val instance = bandit.chooseOrThrow()
                 bandit.update(instance, TestType.BINOMIAL.linearRewards(instance, Random))
             }
@@ -211,7 +211,7 @@ abstract class BanditTest<B : Bandit<*>> {
         for (m in MODELS) {
             val parameters = TestParameters()
             val bandit = bandit(m, parameters)
-            for (i in 0 until 100) {
+            for (i in 0 until 10) {
                 val instance = bandit.chooseOrThrow()
                 bandit.update(instance, parameters.type.linearRewards(instance, Random))
             }

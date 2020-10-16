@@ -72,9 +72,9 @@ object TestModels {
         Model.model("All Standard Features") {
             bool()
             optionalNominal("a1", 1, 2, 3)
-            optionalMultiple("m1", values = *arrayOf(1, 2, 3))
-            nominal("a2", values = *arrayOf(1, 2, 3))
-            multiple("m2", values = *arrayOf(1, 2, 3))
+            optionalMultiple("m1", values = arrayOf(1, 2, 3))
+            nominal("a2", values = arrayOf(1, 2, 3))
+            multiple("m2", values = arrayOf(1, 2, 3))
         }
     }
 
@@ -156,7 +156,7 @@ object TestModels {
 
     val UNSAT3 by lazy {
         Model.model("Unsat by Cardinality") {
-            val a = optionalNominal(values = *(1..10).toList().toTypedArray())
+            val a = optionalNominal(values = (1..10).toList().toTypedArray())
             impose { atLeast(2, a.value(1), a.value(2), a.value(3)) }
         }
     }
@@ -175,10 +175,10 @@ object TestModels {
     }
     val LARGE1 by lazy {
         Model.model("Just Alternatives") {
-            optionalNominal(values = *Array(80) { it })
-            multiple(values = *Array(80) { it })
-            nominal(values = *Array(80) { it })
-            optionalMultiple(values = *Array(80) { it })
+            optionalNominal(values = Array(80) { it })
+            multiple(values = Array(80) { it })
+            nominal(values = Array(80) { it })
+            optionalMultiple(values = Array(80) { it })
         }
     }
 

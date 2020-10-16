@@ -256,7 +256,7 @@ class JacopSolver @JvmOverloads constructor(
     private fun toInstance(encoder: ConstraintEncoder, rng: Random): Instance {
         val instance = instanceFactory.create(encoder.vars.size)
         encoder.vars.forEachIndexed { i, v ->
-            if ((v.dom().singleton() && v.value() == 1) || (!v.dom().singleton() && rng.nextBoolean()))
+            if ((v.singleton() && v.value() == 1) || (!v.singleton() && rng.nextBoolean()))
                 instance[i] = true
         }
         return instance

@@ -3,6 +3,7 @@ package combo.bandit.glm
 import combo.bandit.BanditTest
 import combo.bandit.TestParameters
 import combo.model.Model
+import combo.sat.optimizers.LocalSearch
 
 class GreedyLinearBanditTest : BanditTest<LinearBandit>() {
     override fun bandit(model: Model, parameters: TestParameters) =
@@ -12,7 +13,12 @@ class GreedyLinearBanditTest : BanditTest<LinearBandit>() {
                     .randomSeed(parameters.randomSeed)
                     .maximize(parameters.maximize)
                     .rewards(parameters.rewards)
-                    .build()
+                    .optimizer(LocalSearch.Builder(model.problem).randomSeed(parameters.randomSeed)
+                            .maxConsideration(100)
+                            .maxSteps(50)
+                            .restarts(1)
+                            .fallbackCached().build())
+            .build()
 }
 
 class PrecisionLinearBanditTest : BanditTest<LinearBandit>() {
@@ -23,6 +29,11 @@ class PrecisionLinearBanditTest : BanditTest<LinearBandit>() {
                     .randomSeed(parameters.randomSeed)
                     .maximize(parameters.maximize)
                     .rewards(parameters.rewards)
+                    .optimizer(LocalSearch.Builder(model.problem).randomSeed(parameters.randomSeed)
+                            .maxConsideration(100)
+                            .maxSteps(50)
+                            .restarts(1)
+                            .fallbackCached().build())
                     .build()
 }
 
@@ -34,5 +45,10 @@ class CovarianceLinearBanditTest : BanditTest<LinearBandit>() {
                     .randomSeed(parameters.randomSeed)
                     .maximize(parameters.maximize)
                     .rewards(parameters.rewards)
+                    .optimizer(LocalSearch.Builder(model.problem).randomSeed(parameters.randomSeed)
+                            .maxConsideration(100)
+                            .maxSteps(50)
+                            .restarts(1)
+                            .fallbackCached().build())
                     .build()
 }

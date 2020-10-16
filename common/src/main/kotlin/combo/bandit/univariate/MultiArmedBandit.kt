@@ -32,7 +32,7 @@ class MultiArmedBandit @JvmOverloads constructor(
     override fun choose(): Int {
         val t = step.getAndIncrement()
         val rng = randomSequence.next()
-        return (0 until nbrArms).maxBy { banditPolicy.evaluate(data[it], t, maximize, rng) }!!
+        return (0 until nbrArms).maxByOrNull { banditPolicy.evaluate(data[it], t, maximize, rng) }!!
     }
 
     override fun update(armIndex: Int, result: Float, weight: Float) {

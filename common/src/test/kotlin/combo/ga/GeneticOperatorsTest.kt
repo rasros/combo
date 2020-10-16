@@ -41,8 +41,8 @@ class ValidatorCandidatesTest {
     @Test
     fun minMaxScore() {
         val (candidates, instances, _) = createCandidates(MODEL3.problem, 20, Random)
-        val min = instances.map { it.totalUnsatisfied.toFloat() }.min()!!
-        val max = instances.map { it.totalUnsatisfied.toFloat() }.max()!!
+        val min = instances.map { it.totalUnsatisfied.toFloat() }.minOrNull()!!
+        val max = instances.map { it.totalUnsatisfied.toFloat() }.maxOrNull()!!
         assertEquals(min, candidates.bestScore)
         assertEquals(max, candidates.worstScore)
     }

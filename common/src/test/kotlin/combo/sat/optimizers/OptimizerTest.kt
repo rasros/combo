@@ -43,7 +43,7 @@ abstract class OptimizerTest {
         val instance = optimizer.optimizeOrThrow(function)
         assertTrue(p.satisfies(instance))
         val optValue = function.value(instance)
-        val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrValues).toInt()).minBy {
+        val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrValues).toInt()).minByOrNull {
             val instance1 = BitArray(p.nbrValues, intArrayOf(it))
             if (p.satisfies(instance1)) function.value(instance1)
             else Float.POSITIVE_INFINITY
@@ -72,7 +72,7 @@ abstract class OptimizerTest {
     @Test
     fun jumpObjectiveOptimizer() {
         for ((i, p) in TestModels.TINY_PROBLEMS.withIndex()) {
-            val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrValues).toInt()).minBy {
+            val bruteForceLabelingIx = (0 until 2.0.pow(p.nbrValues).toInt()).minByOrNull {
                 val instance = BitArray(p.nbrValues, intArrayOf(it))
                 if (p.satisfies(instance)) OneMaxObjective(p.nbrValues).value(instance)
                 else Float.POSITIVE_INFINITY

@@ -92,8 +92,8 @@ class IntBoundsTest : ConstraintTest() {
                 val variable = IntVar("", false, Root(""), min, max)
                 val values = coercedInstances.map { variable.valueOf(it, ix, 0)!! }
                 if (min in values && max in values) return
-                assertTrue(values.max()!! <= max)
-                assertTrue(values.min()!! >= min)
+                assertTrue(values.maxOrNull()!! <= max)
+                assertTrue(values.minOrNull()!! >= min)
             }
             fail("Int bounds not found in coerced instances.")
         }
@@ -164,7 +164,7 @@ class FloatBoundsTest : ConstraintTest() {
                 bounds.coerce(it, rng)
                 variable.valueOf(it, ix, 0)!!
             }.toList().toFloatArray()
-            assertEquals(min, values.min()!!, 0.01f * (max - min).absoluteValue)
+            assertEquals(min, values.minOrNull()!!, 0.01f * (max - min).absoluteValue)
         }
         testBounds(1, 1.0F, 2.0F)
         testBounds(0, -10.0F, 20.0F)

@@ -73,7 +73,7 @@ class SignificanceTestEliminationTest {
         val elimE = candidates.estimators[candidates.instances[eliminated]]!!
         assertTrue(elimE.nbrWeightedSamples >= candidates.minSamples)
 
-        val best = candidates.estimators.values.minBy {
+        val best = candidates.estimators.values.minByOrNull {
             if (it.nbrWeightedSamples < candidates.minSamples) Float.POSITIVE_INFINITY
             else it.mean + s.z * it.standardDeviation / sqrt(it.nbrWeightedSamples)
         }!!
@@ -98,7 +98,7 @@ class SignificanceTestEliminationTest {
         val elimE = candidates.estimators[candidates.instances[eliminated]]!!
         assertTrue(elimE.nbrWeightedSamples >= candidates.minSamples)
 
-        val best = candidates.estimators.values.maxBy {
+        val best = candidates.estimators.values.maxByOrNull {
             if (it.nbrWeightedSamples < candidates.minSamples) Float.NEGATIVE_INFINITY
             else it.mean - s.z * it.standardDeviation / sqrt(it.nbrWeightedSamples)
         }!!

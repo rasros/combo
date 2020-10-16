@@ -182,7 +182,7 @@ class GeneticAlgorithm(val problem: Problem,
             }
         }
 
-        val ix = (0 until candidateSize).minBy {
+        val ix = (0 until candidateSize).minByOrNull {
             if (candidates.instances[it].totalUnsatisfied == 0) candidates.scores[it]
             else Float.POSITIVE_INFINITY
         }!!

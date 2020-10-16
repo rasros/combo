@@ -68,7 +68,7 @@ class ListBandit(instances: Array<Instance>,
     private fun opt(assumptions: IntCollection, policy: BanditPolicy, t: Long): Instance {
         val con: Constraint = if (assumptions.isNotEmpty()) Conjunction(assumptions) else Tautology
         val rng = randomSequence.next()
-        val instance = instanceData.maxBy {
+        val instance = instanceData.maxByOrNull {
             if (con.satisfies(it.key)) {
                 policy.evaluate(it.value, t, maximize, rng)
             } else Float.NEGATIVE_INFINITY

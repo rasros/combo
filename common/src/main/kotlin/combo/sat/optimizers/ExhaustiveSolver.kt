@@ -57,7 +57,7 @@ class ExhaustiveSolver(val problem: Problem, override val randomSeed: Int = nano
     }
 
     override fun optimizeOrThrow(function: ObjectiveFunction, assumptions: IntCollection, guess: Instance?): Instance {
-        val opt = asSequence(assumptions).take(maxOptimizationInstances).minBy {
+        val opt = asSequence(assumptions).take(maxOptimizationInstances).minByOrNull {
             function.value(it)
         } ?: throw UnsatisfiableException()
         if (guess != null && problem.satisfies(guess)) {

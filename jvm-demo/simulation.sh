@@ -8,7 +8,7 @@ fi
 #cd "${0%/*}" || exit 1
 SCRIPT_DIR=$(cd "${0%/*}" || exit 1 && realpath .)
 WORKSPACE_DIR=$(realpath $SCRIPT_DIR/..)
-JAR=$WORKSPACE_DIR/jvm-demo/build/libs/combo-jvm-demo-0.1-SNAPSHOT.jar
+JAR=$WORKSPACE_DIR/jvm-demo/build/libs/combo-jvm-demo.jar
 [ -f $JAR ] || (cd $WORKSPACE_DIR && $WORKSPACE_DIR/gradlew assemble)
 
 

@@ -95,7 +95,7 @@ class TransitiveImplicationsTest {
     @Test
     fun cardinalityExclusiveDigraph() {
         val problem = Model.model {
-            nominal(values = *Array(100) { it })
+            nominal(values = Array(100) { it })
         }.problem
         val card = problem.constraints.first { it is Cardinality }
         val id = TransitiveImplications(problem)
