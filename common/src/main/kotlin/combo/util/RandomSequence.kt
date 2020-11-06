@@ -3,9 +3,18 @@ package combo.util
 import kotlin.random.Random
 
 /**
- * This is an alternative for thread local random which also works for javascript.
+ * This class is for having thread safe Random objects that is guaranteed to be deterministic in a non-threaded
+ * environment (like unit tests). This works very similar to seed sequence in C++.
  */
-class RandomSequence(val randomSeed: Int) {
-    private val counter = AtomicInt(randomSeed)
-    fun next() = Random(counter.getAndIncrement())
+class RandomSequence(val sequenceStart: Int) {
+    private val seedUniquifier = AtomicInt(sequenceStart)
+    fun next(): Random {
+        var current: Int
+        var next: Int
+        do {
+            current = seedUniquifier.get()
+            next = (1 + current) * 741103587 // This number comes from the linear congruent generator paper
+        } while (!seedUniquifier.compareAndSet(current, next))
+        return Random(next)
+    }
 }

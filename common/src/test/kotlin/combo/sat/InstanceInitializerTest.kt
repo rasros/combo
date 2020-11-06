@@ -36,6 +36,20 @@ abstract class InstanceInitializerTest {
     fun modelWithAssumptions() {
         initialize(TestModels.MODEL1.problem, BitArray(TestModels.MODEL1.problem.nbrValues), Conjunction(collectionOf(2)), Random)
     }
+
+    @Test
+    fun allCanBeTrueAndFalse() {
+        val T = BitArray(39)
+        val F = BitArray(39)
+        while (T.cardinality() < 39 || F.cardinality() < 39) {
+            val instance = BitArray(39)
+            initialize(Problem(39), instance, Tautology, Random)
+            for (i in 0 until 39) {
+                if (instance.isSet(i)) T[i] = true
+                else F[i] = true
+            }
+        }
+    }
 }
 
 class WordRandomSetTest : InstanceInitializerTest() {
