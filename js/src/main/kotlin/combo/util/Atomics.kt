@@ -1,5 +1,7 @@
 package combo.util
 
+import kotlin.math.exp
+
 actual class AtomicLong actual constructor(private var value: Long) {
 
     actual fun get() = value
@@ -13,6 +15,13 @@ actual class AtomicLong actual constructor(private var value: Long) {
 
     actual fun getAndDecrement(): Long {
         return value--
+    }
+
+    actual fun compareAndSet(expect: Long, update: Long): Boolean {
+        return if (expect == value) {
+            value = update
+            true
+        } else false
     }
 }
 
@@ -29,6 +38,13 @@ actual class AtomicInt actual constructor(private var value: Int) {
 
     actual fun getAndDecrement(): Int {
         return value--
+    }
+
+    actual fun compareAndSet(expect: Int, update: Int): Boolean {
+        return if (expect == value) {
+            value = update
+            true
+        } else false
     }
 }
 
