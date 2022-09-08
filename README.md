@@ -1,5 +1,5 @@
 # COMBO
-Combo is a library for Constraint Oriented Multi-variate Bandit Optimization (COMBO) applied to software parameters. It is used to optimize software with user data in a production environment. It supports multiple methods with a combination of machine learning, combinatorial optimization, and Thompson sampling. Some of the included machine learning algorithms are: generalized linear model, random forest, neural network, and genetic algorithms. Using COMBO, each user recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind, thus it can be used from both Java and JavaScript.
+Combo is a library for Constraint Oriented Multi-variate Bandit Optimization (COMBO) applied to software parameters. It is used to optimize software with user data in a production environment. It supports multiple methods with a combination of machine learning, combinatorial optimization, and Thompson sampling. Some of the supported ML algorithms are: generalized linear model (GLM), random forest, deep learning, and genetic algorithms. Using COMBO, each user recieve their own configuration with potentially thousands of variables in milliseconds. As the results of each users experience with their configuration is recorded the resulting configurations will be better and better. Depending on the method employed this can require some statistical modeling. Combo is written in Kotlin with Java/JavaScript interoperability in mind.
 
 Using it requires three steps: 
 
@@ -80,4 +80,4 @@ optimizer.update(assignment2, 0f)
 ```
 
 ## Support
-Feel free to contact me, the author, at rasmus at cs.lth.se in case of trouble or need of help. I might require you to give an experience report though :)
+Feel free to contact me, the author, at rasmus at cs.lth.se in case of trouble or need of help. I might ask for feedback though :)
